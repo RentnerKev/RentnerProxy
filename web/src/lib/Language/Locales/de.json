@@ -2902,6 +2902,7 @@
             "default_site": "Standardseite",
             "dns_connections": "DNS-Verbindungen",
             "ddns": "Dynamisches DNS",
+            "notifications": "Benachrichtigungen",
             "docker_discovery": "Docker Discovery"
         },
         "app": {
@@ -2983,6 +2984,10 @@
         "dns_connections": {
             "view": "DNS-Verbindungen anzeigen",
             "manage": "DNS-Verbindungen verwalten"
+        },
+        "notifications": {
+            "view": "Benachrichtigungskonfiguration und Zustellstatus anzeigen",
+            "manage": "Benachrichtigungskonfiguration verwalten"
         },
         "docker_discovery": {
             "view": "Docker-Discovery-Verbindung und Kandidaten ansehen",

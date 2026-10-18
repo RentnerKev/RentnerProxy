@@ -75,6 +75,66 @@ export function assertSupportedBackupVersion(metadata: unknown): void {
     }
 }
 
+export function validateNotificationBackupSecrets(key: Buffer, input: unknown): void {
+    try {
+        if (typeof input === 'string' && input.length > 2 * 1_024 * 1_024) throw new Error()
+        const value: unknown = typeof input === 'string' ? JSON.parse(input) : input
+        if (
+            !isRecord(value) ||
+            JSON.stringify(value).length > 2 * 1_024 * 1_024 ||
+            value.version !== 1 ||
+            typeof value.revision !== 'number' ||
+            !Number.isSafeInteger(value.revision) ||
+            value.revision < 0 ||
+            value.revision > 4_294_967_295 ||
+            typeof value.enabled !== 'boolean' ||
+            typeof value.pausedAfterRestore !== 'boolean' ||
+            !Array.isArray(value.channels) ||
+            value.channels.length > 16
+        )
+            throw new Error()
+        const ids = new Set<string>()
+        for (const channel of value.channels) {
+            if (
+                !isRecord(channel) ||
+                typeof channel.id !== 'string' ||
+                !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(
+                    channel.id,
+                ) ||
+                ids.has(channel.id) ||
+                !isRecord(channel.destination)
+            )
+                throw new Error()
+            ids.add(channel.id)
+            const { ciphertext, iv } = channel.destination
+            if (
+                typeof ciphertext !== 'string' ||
+                ciphertext.length > 65_536 ||
+                !/^[A-Za-z0-9_-]+$/u.test(ciphertext) ||
+                typeof iv !== 'string' ||
+                iv.length !== 16 ||
+                !/^[A-Za-z0-9_-]+$/u.test(iv)
+            )
+                throw new Error()
+            const encrypted = Buffer.from(ciphertext, 'base64url')
+            const nonce = Buffer.from(iv, 'base64url')
+            if (
+                encrypted.toString('base64url') !== ciphertext ||
+                nonce.toString('base64url') !== iv
+            )
+                throw new Error()
+            decryptBackupSecret(
+                key,
+                encrypted,
+                nonce,
+                'rentnerproxy:notifications:v1:' + channel.id,
+            )
+        }
+    } catch {
+        throw new Error('invalid encrypted notification backup configuration')
+    }
+}
+
 async function validateDatabase(): Promise<void> {
     const metadata: unknown = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
     assertSupportedBackupVersion(metadata)
@@ -126,6 +186,10 @@ async function validateDatabase(): Promise<void> {
             )
         }
         let requiresCrowdSecDatabase = false
+        const notificationSettings = await sql<
+            { value: unknown }[]
+        >`select value from rentnerproxy.system_settings where key = 'notification_configuration_v1'`
+        for (const row of notificationSettings) validateNotificationBackupSecrets(key, row.value)
         const settings = await sql<
             BackupCrowdSecSettingRow[]
         >`select value from rentnerproxy.system_settings where key = 'crowdsec_configuration_v1'`
@@ -214,6 +278,7 @@ if (import.meta.main) {
             'backup migration history is incompatible with the target image': 'migration_history',
             'unsupported backup metadata version (supported: v4)': 'database_version',
             'invalid encrypted backup secret': 'application_key',
+            'invalid encrypted notification backup configuration': 'application_key',
             'backup application key cannot decrypt persisted secrets': 'application_key',
             'invalid CrowdSec archive': 'crowdsec_archive',
             'managed CrowdSec database is missing': 'crowdsec_database',

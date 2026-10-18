@@ -30,6 +30,7 @@ interface CertificateCurrentOperation {
 export interface CertificateEventMetadata {
     readonly id: string
     readonly operationId: string
+    readonly operationKind?: CertificateOperationKind
     readonly certificateId: string
     readonly kind: CertificateEventKind
     readonly stage: CertificateOperationStage

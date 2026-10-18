@@ -12,6 +12,7 @@ import {
     MAX_CERTIFICATE_DOMAINS,
 } from '@/config/certificates.config.ts'
 import { normalizeCertificateDomain } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
+import type { CertificateEventMetadata } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 
 const timestamp = z
     .string()
@@ -122,15 +123,20 @@ export const certificateEventCursorSchema = z
         }
     })
 
-const certificateEventSchema = z.object({
-    id: certificateEventIdSchema,
-    operationId: certificateEventIdSchema,
-    certificateId: certificateEventIdSchema,
-    kind: z.enum(CERTIFICATE_EVENT_KINDS),
-    stage: z.enum(CERTIFICATE_OPERATION_STAGES),
-    occurredAt: timestamp,
-    errorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
-})
+const certificateEventSchema = z
+    .object({
+        id: certificateEventIdSchema,
+        operationId: certificateEventIdSchema,
+        operationKind: z.enum(CERTIFICATE_OPERATION_KINDS).optional(),
+        certificateId: certificateEventIdSchema,
+        kind: z.enum(CERTIFICATE_EVENT_KINDS),
+        stage: z.enum(CERTIFICATE_OPERATION_STAGES),
+        occurredAt: timestamp,
+        errorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
+    })
+    .transform(({ operationKind, ...event }): CertificateEventMetadata =>
+        operationKind === undefined ? event : { ...event, operationKind },
+    )
 
 export const certificateEventPageSchema = z
     .object({

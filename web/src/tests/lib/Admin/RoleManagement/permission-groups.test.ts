@@ -27,6 +27,7 @@ describe('role permission groups', () => {
             'certificates.',
             'dns_connections.',
             'ddns.',
+            'notifications.',
             'docker_discovery.',
             'trusted_cas.',
             'users.',

@@ -1,0 +1,37 @@
+import type { NotificationChannelPolicy } from '@/lib/Notifications/Types/notifications.types.ts'
+import type { NotificationState, NotificationClaimedDelivery } from './notification-state.types.ts'
+
+export interface EncryptedNotificationDestination {
+    readonly ciphertext: string
+    readonly iv: string
+}
+
+export interface StoredNotificationChannel extends NotificationChannelPolicy {
+    readonly destination: EncryptedNotificationDestination
+    readonly hasAuthorization: boolean
+}
+
+export interface StoredNotificationConfiguration {
+    readonly version: 1
+    readonly revision: number
+    readonly enabled: boolean
+    readonly pausedAfterRestore: boolean
+    readonly channels: readonly StoredNotificationChannel[]
+}
+
+export interface NotificationRuntime {
+    readonly version: 1
+    engine: NotificationState
+    certificateCursor: string | null
+    collectionLease: { readonly token: string; readonly expiresAt: number } | null
+}
+
+export interface NotificationCollectionClaim {
+    readonly token: string
+    readonly configurationRevision: number
+    readonly certificateCursor: string | null
+}
+
+export interface NotificationDeliveryClaim extends NotificationClaimedDelivery {
+    readonly channel: StoredNotificationChannel
+}

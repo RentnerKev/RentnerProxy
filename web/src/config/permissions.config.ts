@@ -25,6 +25,8 @@ export const PERMISSIONS = {
     DNS_CONNECTIONS_MANAGE: 'dns_connections.manage',
     DDNS_VIEW: 'ddns.view',
     DDNS_MANAGE: 'ddns.manage',
+    NOTIFICATIONS_VIEW: 'notifications.view',
+    NOTIFICATIONS_MANAGE: 'notifications.manage',
     DOCKER_DISCOVERY_VIEW: 'docker_discovery.view',
     DOCKER_DISCOVERY_MANAGE: 'docker_discovery.manage',
     TRUSTED_CAS_VIEW: 'trusted_cas.view',
@@ -92,6 +94,11 @@ export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.DNS_CONNECTIONS_MANAGE, name: 'Manage shared DNS connections' },
     { key: PERMISSIONS.DDNS_VIEW, name: 'View DDNS configuration and status' },
     { key: PERMISSIONS.DDNS_MANAGE, name: 'Manage DDNS records and activation' },
+    {
+        key: PERMISSIONS.NOTIFICATIONS_VIEW,
+        name: 'View notification configuration and delivery status',
+    },
+    { key: PERMISSIONS.NOTIFICATIONS_MANAGE, name: 'Manage notification configuration' },
     {
         key: PERMISSIONS.DOCKER_DISCOVERY_VIEW,
         name: 'View Docker discovery connection and candidates',

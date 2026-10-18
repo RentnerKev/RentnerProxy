@@ -2928,6 +2928,7 @@
             "default_site": "Witryna domyślna",
             "dns_connections": "Połączenia DNS",
             "ddns": "Dynamiczny DNS",
+            "notifications": "Powiadomienia",
             "docker_discovery": "Wykrywanie Dockera"
         },
         "app": {
@@ -3013,6 +3014,10 @@
         "ddns": {
             "view": "Wyświetl stan DDNS",
             "manage": "Zarządzaj konfiguracją DDNS"
+        },
+        "notifications": {
+            "view": "Wyświetlanie konfiguracji powiadomień i stanu dostarczenia",
+            "manage": "Zarządzanie konfiguracją powiadomień"
         },
         "docker_discovery": {
             "view": "Wyświetlanie połączenia i kandydatów Dockera",

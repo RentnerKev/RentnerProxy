@@ -60,6 +60,8 @@ pub(crate) enum CertificateEventKind {
 pub(crate) struct CertificateEvent {
     pub(crate) id: String,
     pub(crate) operation_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) operation_kind: Option<OperationKind>,
     pub(crate) certificate_id: String,
     pub(crate) kind: CertificateEventKind,
     pub(crate) stage: CertificateOperationStage,
@@ -175,6 +177,7 @@ pub(crate) fn append_event(
     if operation.id != operation_id {
         return Err(CertificateError::StoreUnavailable);
     }
+    let operation_kind = Some(operation.kind);
     let same_event = |event: &CertificateEvent| {
         event.operation_id == operation_id
             && event.certificate_id == certificate_id
@@ -210,6 +213,7 @@ pub(crate) fn append_event(
     let event = CertificateEvent {
         id: new_uuid_v7()?,
         operation_id: operation_id.to_owned(),
+        operation_kind,
         certificate_id: certificate_id.to_owned(),
         kind,
         stage,

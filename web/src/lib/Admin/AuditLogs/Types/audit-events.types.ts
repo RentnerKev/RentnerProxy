@@ -27,6 +27,11 @@ type AuditFailureCode = (typeof AUDIT_FAILURE_CODES)[number]
 type AuditChangedField = (typeof AUDIT_CHANGED_FIELDS)[number]
 
 export interface AuditMetadata {
+    readonly setting?: 'notifications'
+    readonly revision?: number
+    readonly channelCount?: number
+    readonly enabled?: boolean
+    readonly pausedAfterRestore?: boolean
     readonly authenticationMethod?: AuditAuthenticationMethod
     readonly reason?: 'authentication_failed'
     readonly failureCode?: AuditFailureCode

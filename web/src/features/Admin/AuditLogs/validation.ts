@@ -33,6 +33,11 @@ function isValidUtcDate(value: string): boolean {
 const utcDateSchema = z.string().max(40).refine(isValidUtcDate)
 
 export const auditMetadataSchema = z.strictObject({
+    setting: z.literal('notifications').optional(),
+    revision: z.number().int().min(0).max(4_294_967_295).optional(),
+    channelCount: z.number().int().min(0).max(16).optional(),
+    enabled: z.boolean().optional(),
+    pausedAfterRestore: z.boolean().optional(),
     authenticationMethod: z.enum(AUDIT_AUTHENTICATION_METHODS).optional(),
     reason: z.literal('authentication_failed').optional(),
     failureCode: z.enum(AUDIT_FAILURE_CODES).optional(),

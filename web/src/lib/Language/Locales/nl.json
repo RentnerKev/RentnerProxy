@@ -2883,6 +2883,7 @@
             "default_site": "Standaardsite",
             "dns_connections": "DNS-verbindingen",
             "ddns": "Dynamische DNS",
+            "notifications": "Meldingen",
             "docker_discovery": "Docker-detectie"
         },
         "app": {
@@ -2968,6 +2969,10 @@
         "ddns": {
             "view": "DDNS-status bekijken",
             "manage": "DDNS-configuratie beheren"
+        },
+        "notifications": {
+            "view": "Meldingsinstellingen en bezorgstatus bekijken",
+            "manage": "Meldingsinstellingen beheren"
         },
         "docker_discovery": {
             "view": "Docker-verbinding en kandidaten bekijken",

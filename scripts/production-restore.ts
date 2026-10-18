@@ -181,26 +181,36 @@ function parseApplicationEncryptionKey(bytes: Uint8Array): Buffer {
     return Buffer.from(value, 'base64')
 }
 
-const postgresRestoreCommand = [
-    'restore_phase=archive',
-    'restore_directory=$(mktemp -d /tmp/rentnerproxy-restore.XXXXXX)',
-    'chown postgres:postgres "$restore_directory"',
-    'dump_path="$restore_directory/postgres.dump"',
-    'rendered_sql_path="$restore_directory/rendered.sql"',
-    'restore_sql_path="$restore_directory/restore.sql"',
-    'touch "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-    'cat > "$dump_path"',
-    'chown postgres:postgres "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-    'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-    'restore_phase=render',
-    'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" "$dump_path"',
-    'restore_phase=assemble',
-    '{ printf "%s\\n" "DROP SCHEMA IF EXISTS rentnerproxy CASCADE;" "DROP SCHEMA IF EXISTS drizzle CASCADE;"; cat "$rendered_sql_path"; } > "$restore_sql_path"',
-    'restore_phase=execute',
-    'gosu postgres psql --host="$socket_directory" --single-transaction --set=ON_ERROR_STOP=1 --set=VERBOSITY=sqlstate --no-psqlrc --username=postgres --dbname=rentnerproxy --file="$restore_sql_path"',
-].join('\n')
+function postgresRestoreCommand(validateOnly: boolean): string {
+    return [
+        'restore_phase=archive',
+        'restore_directory=$(mktemp -d /tmp/rentnerproxy-restore.XXXXXX)',
+        'chown postgres:postgres "$restore_directory"',
+        'dump_path="$restore_directory/postgres.dump"',
+        'rendered_sql_path="$restore_directory/rendered.sql"',
+        'restore_sql_path="$restore_directory/restore.sql"',
+        'touch "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+        'cat > "$dump_path"',
+        'chown postgres:postgres "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+        'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+        'restore_phase=render',
+        'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" "$dump_path"',
+        'restore_phase=assemble',
+        '{ printf "%s\\n" "DROP SCHEMA IF EXISTS rentnerproxy CASCADE;" "DROP SCHEMA IF EXISTS drizzle CASCADE;"; cat "$rendered_sql_path"; } > "$restore_sql_path"',
+        ...(validateOnly
+            ? []
+            : [
+                  'cat >> "$restore_sql_path" <<\'RESTORE_NOTIFICATION_SQL\'',
+                  "UPDATE rentnerproxy.system_settings SET value = jsonb_set(jsonb_set(jsonb_set(value, '{enabled}', 'false'::jsonb), '{pausedAfterRestore}', 'true'::jsonb), '{revision}', to_jsonb(least((value->>'revision')::bigint + 1, 4294967295))) WHERE key = 'notification_configuration_v1';",
+                  "DELETE FROM rentnerproxy.system_settings WHERE key = 'notification_delivery_state_v1';",
+                  'RESTORE_NOTIFICATION_SQL',
+              ]),
+        'restore_phase=execute',
+        'gosu postgres psql --host="$socket_directory" --single-transaction --set=ON_ERROR_STOP=1 --set=VERBOSITY=sqlstate --no-psqlrc --username=postgres --dbname=rentnerproxy --file="$restore_sql_path"',
+    ].join('\n')
+}
 
-function postgresCommand(validateOnly: boolean): string {
+export function postgresCommand(validateOnly: boolean): string {
     return [
         'set -Eeuo pipefail',
         'umask 077',
@@ -229,8 +239,8 @@ function postgresCommand(validateOnly: boolean): string {
             ? ['gosu postgres createdb --host="$socket_directory" --username=postgres rentnerproxy']
             : []),
         validateOnly
-            ? postgresRestoreCommand
-            : postgresRestoreCommand.replace(
+            ? postgresRestoreCommand(true)
+            : postgresRestoreCommand(false).replace(
                   '--username=postgres --dbname=rentnerproxy',
                   '--username=rentnerproxy --dbname=rentnerproxy',
               ),

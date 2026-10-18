@@ -2928,6 +2928,7 @@
             "default_site": "Site predefinido",
             "dns_connections": "Ligações DNS",
             "ddns": "DNS dinâmico",
+            "notifications": "Notificações",
             "docker_discovery": "Descoberta do Docker"
         },
         "app": {
@@ -3013,6 +3014,10 @@
         "ddns": {
             "view": "Ver estado DDNS",
             "manage": "Gerir configuração DDNS"
+        },
+        "notifications": {
+            "view": "Ver a configuração das notificações e o estado de entrega",
+            "manage": "Gerir a configuração das notificações"
         },
         "docker_discovery": {
             "view": "Ver a ligação e os candidatos do Docker",

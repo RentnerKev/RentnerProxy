@@ -6,7 +6,9 @@ import {
     assertSupportedBackupVersion,
     decryptBackupSecret,
     isMigrationJournal,
+    validateNotificationBackupSecrets,
 } from '../../../../../../docker/web/validate-backup.ts'
+import { NOTIFICATION_LIMITS, NOTIFICATION_SECRET_CONTEXT } from '@/config/notifications.config.ts'
 import type {
     BackupMigrationJournal,
     BackupMigrationRow,
@@ -15,6 +17,140 @@ import type {
 const fixtureKey = Buffer.alloc(32, 3)
 const fixtureIv = Buffer.alloc(12, 4)
 const fixtureContext = 'typed-backup-fixture'
+
+const notificationId = '0198d98a-0000-7000-8000-000000000001'
+
+function notificationFixture(id = notificationId) {
+    const cipher = createCipheriv('aes-256-gcm', fixtureKey, fixtureIv)
+    cipher.setAAD(Buffer.from(NOTIFICATION_SECRET_CONTEXT + id, 'utf8'))
+    return {
+        id,
+        destination: {
+            ciphertext: Buffer.concat([
+                cipher.update(
+                    JSON.stringify({ kind: 'email', recipients: ['synthetic@example.test'] }),
+                ),
+                cipher.final(),
+                cipher.getAuthTag(),
+            ]).toString('base64url'),
+            iv: fixtureIv.toString('base64url'),
+        },
+    }
+}
+
+function notificationConfiguration() {
+    return {
+        version: 1,
+        revision: 1,
+        enabled: true,
+        pausedAfterRestore: false,
+        channels: [notificationFixture()],
+    }
+}
+
+describe('notification backup encryption contract', () => {
+    test('authenticates every destination with the configured channel-specific context', () => {
+        const configuration = notificationConfiguration()
+        configuration.channels.push(notificationFixture('0198d98a-0000-7000-8000-000000000002'))
+        expect(() => validateNotificationBackupSecrets(fixtureKey, configuration)).not.toThrow()
+        expect(() =>
+            validateNotificationBackupSecrets(fixtureKey, JSON.stringify(configuration)),
+        ).not.toThrow()
+        expect(() =>
+            validateNotificationBackupSecrets(fixtureKey, { ...configuration, channels: [] }),
+        ).not.toThrow()
+        expect(() =>
+            validateNotificationBackupSecrets(fixtureKey, {
+                ...configuration,
+                revision: 4_294_967_295,
+            }),
+        ).not.toThrow()
+    })
+
+    test('rejects a wrong backup key or channel attribution without exposing secrets', () => {
+        const configuration = notificationConfiguration()
+        expect(() => validateNotificationBackupSecrets(Buffer.alloc(32, 8), configuration)).toThrow(
+            'invalid encrypted notification backup configuration',
+        )
+        configuration.channels[0]!.id = '0198d98a-0000-7000-8000-000000000002'
+        expect(() => validateNotificationBackupSecrets(fixtureKey, configuration)).toThrow(
+            'invalid encrypted notification backup configuration',
+        )
+    })
+
+    test('checks later channels even when disabled and the first is valid', () => {
+        const configuration = notificationConfiguration()
+        configuration.enabled = false
+        const corrupt = notificationFixture('0198d98a-0000-7000-8000-000000000002')
+        corrupt.destination.ciphertext = Buffer.alloc(32).toString('base64url')
+        configuration.channels.push(corrupt)
+        expect(() => validateNotificationBackupSecrets(fixtureKey, configuration)).toThrow(
+            'invalid encrypted notification backup configuration',
+        )
+    })
+
+    test.each([
+        null,
+        '{broken',
+        { ...notificationConfiguration(), version: 2 },
+        { ...notificationConfiguration(), revision: 4_294_967_296 },
+        { ...notificationConfiguration(), revision: -1 },
+        { ...notificationConfiguration(), revision: 1.5 },
+        { ...notificationConfiguration(), pausedAfterRestore: undefined },
+        {
+            ...notificationConfiguration(),
+            channels: Array.from({ length: NOTIFICATION_LIMITS.channels + 1 }, () =>
+                notificationFixture(),
+            ),
+        },
+        {
+            ...notificationConfiguration(),
+            channels: [notificationFixture(), notificationFixture()],
+        },
+        {
+            ...notificationConfiguration(),
+            channels: [{ ...notificationFixture(), id: notificationId.toUpperCase() }],
+        },
+        {
+            ...notificationConfiguration(),
+            channels: [
+                {
+                    ...notificationFixture(),
+                    destination: {
+                        ciphertext: 'A'.repeat(65_537),
+                        iv: fixtureIv.toString('base64url'),
+                    },
+                },
+            ],
+        },
+        {
+            ...notificationConfiguration(),
+            channels: [
+                {
+                    ...notificationFixture(),
+                    destination: { ciphertext: 'AA==', iv: fixtureIv.toString('base64url') },
+                },
+            ],
+        },
+        {
+            ...notificationConfiguration(),
+            channels: [
+                {
+                    ...notificationFixture(),
+                    destination: {
+                        ciphertext: notificationFixture().destination.ciphertext,
+                        iv: 'A'.repeat(15),
+                    },
+                },
+            ],
+        },
+        { ...notificationConfiguration(), extra: 'A'.repeat(2 * 1_024 * 1_024) },
+    ])('rejects malformed or oversized notification storage %#', (configuration) => {
+        expect(() => validateNotificationBackupSecrets(fixtureKey, configuration)).toThrow(
+            'invalid encrypted notification backup configuration',
+        )
+    })
+})
 
 function encryptedFixture(): Buffer {
     const cipher = createCipheriv('aes-256-gcm', fixtureKey, fixtureIv)
