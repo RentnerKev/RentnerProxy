@@ -242,16 +242,11 @@ impl Config {
             });
         }
 
-        let proxy_http_port = proxy_http_port
-            .map(|value| {
-                value.parse::<u16>().ok().filter(|port| *port != 0).ok_or(
-                    ConfigError::InvalidProxyHttpPort {
-                        variable: PROXY_HTTP_PORT_ENV,
-                    },
-                )
-            })
-            .transpose()?
-            .unwrap_or(DEFAULT_PROXY_HTTP_PORT);
+        let proxy_http_port = parse_proxy_port(
+            proxy_http_port,
+            PROXY_HTTP_PORT_ENV,
+            DEFAULT_PROXY_HTTP_PORT,
+        )?;
 
         let proxy_state_dir = match proxy_state_dir {
             Some(path) if path.is_absolute() => path,

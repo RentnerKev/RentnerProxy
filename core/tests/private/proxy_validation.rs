@@ -1,4 +1,4 @@
-use super::fixtures::{host, request};
+use super::fixtures::{host, request, trusted_ca_certificate};
 use crate::{
     models::{
         AccessPolicy, AccessPolicyMode, IpDefaultAction, IpRules, ProxyConfigRequest,
@@ -9,6 +9,7 @@ use crate::{
         revision_for_configuration_with_redirects, validate_proxy_config, validate_trusted_ca_pem,
     },
 };
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 fn redirect_host(id: &str, domains: &[&str], destination: &str) -> RedirectHost {
     RedirectHost {
@@ -202,46 +203,14 @@ fn trusted_ca_validation_rejects_private_key_and_trailing_der_data() {
     let key_pair = rcgen::KeyPair::generate().expect("test key should generate");
     assert!(validate_trusted_ca_pem(&key_pair.serialize_pem()).is_err());
 
-    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
-        .expect("test CA names should be valid");
-    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
-    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
-    let certificate = parameters
-        .self_signed(&key_pair)
-        .expect("test CA certificate should generate");
+    let certificate = trusted_ca_certificate();
     let mut malformed_der = certificate.der().as_ref().to_vec();
     malformed_der.extend_from_slice(&[0, 1, 2]);
     let malformed_pem = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
-        base64_encode(&malformed_der)
+        STANDARD.encode(&malformed_der)
     );
     assert!(validate_trusted_ca_pem(&malformed_pem).is_err());
-}
-
-fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let first = chunk[0];
-        let second = *chunk.get(1).unwrap_or(&0);
-        let third = *chunk.get(2).unwrap_or(&0);
-        output.push(char::from(TABLE[usize::from(first >> 2)]));
-        output.push(char::from(
-            TABLE[usize::from(((first & 0b0000_0011) << 4) | (second >> 4))],
-        ));
-        output.push(if chunk.len() > 1 {
-            char::from(TABLE[usize::from(((second & 0b0000_1111) << 2) | (third >> 6))])
-        } else {
-            '='
-        });
-        output.push(if chunk.len() > 2 {
-            char::from(TABLE[usize::from(third & 0b0011_1111)])
-        } else {
-            '='
-        });
-    }
-    output
 }
 
 #[test]
