@@ -1,4 +1,6 @@
-import ImportItemDetails from './Components/ImportItemDetails/index.tsx'
+import ImportPreviewPanel from '@/shared/Imports/Components/ImportPreviewPanel.tsx'
+import ImportResultPanel from '@/shared/Imports/Components/ImportResultPanel.tsx'
+import ImportHistoryPanel from '@/shared/Imports/Components/ImportHistoryPanel.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { useNpmImportLogic } from './Hooks/useNpmImportLogic.ts'
@@ -54,123 +56,16 @@ export default function NpmImportPage() {
                 ) : null}
             </section>
             {state.preview ? (
-                <section
-                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
-                    aria-labelledby="npm-preview-title"
-                >
-                    <h2 id="npm-preview-title" className="text-lg font-extrabold text-ink">
-                        {t('admin.npmImport.previewTitle')}
-                    </h2>
-                    <p className="mt-2 text-sm text-ink-soft">{t('admin.npmImport.previewHelp')}</p>
-                    <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
-                        {Object.entries(state.preview.counts).map(([status, count]) => (
-                            <span
-                                key={status}
-                                className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
-                            >
-                                {count} {t(`admin.npmImport.status.${status}`)}
-                            </span>
-                        ))}
-                    </div>
-                    <details className="mt-5" open>
-                        <summary className="cursor-pointer font-bold text-ink">
-                            {t('admin.npmImport.details')}
-                        </summary>
-                        <ul className="mt-2 max-h-[32rem] overflow-y-auto">
-                            {state.preview.items.map((item) => (
-                                <ImportItemDetails
-                                    key={`${item.kind}:${item.sourceId}`}
-                                    item={item}
-                                />
-                            ))}
-                        </ul>
-                    </details>
-                    <div className="mt-5 flex flex-wrap gap-3">
-                        <button
-                            type="button"
-                            className={buttonClassName('primary')}
-                            disabled={
-                                state.busy !== null ||
-                                state.preview.counts.ready + state.preview.counts.partial === 0
-                            }
-                            onClick={() => void handler.applySource()}
-                        >
-                            {state.busy === 'apply'
-                                ? t('common.working')
-                                : t('admin.npmImport.apply')}
-                        </button>
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            disabled={state.busy !== null}
-                            onClick={handler.discardPreview}
-                        >
-                            {t('common.cancel')}
-                        </button>
-                    </div>
-                </section>
+                <ImportPreviewPanel
+                    preview={state.preview}
+                    busy={state.busy}
+                    help={t('admin.npmImport.previewHelp')}
+                    onApply={handler.applySource}
+                    onDiscard={handler.discardPreview}
+                />
             ) : null}
-            {state.result ? (
-                <section
-                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
-                    aria-live="polite"
-                >
-                    <h2 className="text-lg font-extrabold text-ink">
-                        {t('admin.npmImport.resultTitle')}
-                    </h2>
-                    <p className="mt-2 text-sm text-ink-soft">
-                        {t('admin.npmImport.resultSummary', {
-                            imported: state.result.imported,
-                            skipped: state.result.skipped,
-                            failed: state.result.failed,
-                            runtime: t(`admin.npmImport.runtime.${state.result.runtimeStatus}`),
-                        })}
-                    </p>
-                    <details className="mt-4">
-                        <summary className="cursor-pointer font-bold text-ink">
-                            {t('admin.npmImport.details')}
-                        </summary>
-                        <ul className="mt-2">
-                            {state.result.items.map((item) => (
-                                <ImportItemDetails
-                                    key={`${item.kind}:${item.sourceId}`}
-                                    item={item}
-                                />
-                            ))}
-                        </ul>
-                    </details>
-                </section>
-            ) : null}
-            {state.history.length > 0 ? (
-                <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
-                    <h2 className="text-lg font-extrabold text-ink">
-                        {t('admin.npmImport.history')}
-                    </h2>
-                    <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
-                        {state.history.map((entry) => (
-                            <li key={entry.runId}>
-                                <details>
-                                    <summary className="cursor-pointer">
-                                        {entry.imported} {t('admin.npmImport.imported')},{' '}
-                                        {entry.skipped} {t('admin.npmImport.skipped')},{' '}
-                                        {entry.failed} {t('admin.npmImport.failed')}
-                                        {' · '}
-                                        {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
-                                    </summary>
-                                    <ul className="mt-2 pl-4">
-                                        {entry.items.map((item) => (
-                                            <ImportItemDetails
-                                                key={`${item.kind}:${item.sourceId}`}
-                                                item={item}
-                                            />
-                                        ))}
-                                    </ul>
-                                </details>
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            ) : null}
+            {state.result ? <ImportResultPanel result={state.result} /> : null}
+            {state.history.length > 0 ? <ImportHistoryPanel history={state.history} /> : null}
         </div>
     )
 }

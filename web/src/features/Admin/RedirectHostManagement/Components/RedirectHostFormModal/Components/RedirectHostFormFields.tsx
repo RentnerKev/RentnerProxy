@@ -1,5 +1,6 @@
+import DomainInputRow from '@/shared/HostDomains/Components/DomainInputRow.tsx'
+import DomainListFieldset from '@/shared/HostDomains/Components/DomainListFieldset.tsx'
 import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
-import { Plus, Trash2 } from 'lucide-react'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
@@ -27,100 +28,62 @@ export default function RedirectHostFormFields({
         <>
             <form.Field name="domains" mode="array">
                 {(domainsField) => (
-                    <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
-                        <legend>{t('admin.redirectHosts.form.domains')}</legend>
-                        <div className="grid gap-3">
-                            {domainsField.state.value.map((_domain, index) => (
-                                <form.Field
-                                    key={domainKeys[index]}
-                                    name={`domains[${index}]`}
-                                    validators={{
-                                        onBlur: ({ value }) =>
-                                            getValidationIssue(redirectDomainSchema, value),
-                                    }}
-                                >
-                                    {(field) => {
-                                        const inputId = `${formId}-domain-${index}`
-                                        const errorId = `${inputId}-error`
-                                        return (
-                                            <div className="grid gap-[0.45rem]">
-                                                <label className="sr-only" htmlFor={inputId}>
-                                                    {t('admin.redirectHosts.form.domainLabel', {
-                                                        number: index + 1,
-                                                    })}
-                                                </label>
-                                                <div className="flex items-start gap-2">
-                                                    <TextInput
-                                                        id={inputId}
-                                                        name={field.name}
-                                                        value={field.state.value}
-                                                        maxLength={1024}
-                                                        disabled={isPending}
-                                                        autoCapitalize="none"
-                                                        autoCorrect="off"
-                                                        spellCheck={false}
-                                                        placeholder={t(
-                                                            'admin.redirectHosts.form.domainPlaceholder',
-                                                        )}
-                                                        onBlur={field.handleBlur}
-                                                        onValueChange={field.handleChange}
-                                                        aria-invalid={
-                                                            field.state.meta.errors.length > 0
-                                                        }
-                                                        aria-describedby={errorId}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-accent-border enabled:hover:text-accent-ring mt-1 shrink-0 px-2"
-                                                        aria-label={t(
-                                                            'admin.redirectHosts.form.removeDomain',
-                                                            { number: index + 1 },
-                                                        )}
-                                                        disabled={
-                                                            isPending ||
-                                                            domainsField.state.value.length <= 1
-                                                        }
-                                                        onClick={() => removeDomain(index)}
-                                                    >
-                                                        <Trash2
-                                                            aria-hidden="true"
-                                                            className="size-4"
-                                                        />
-                                                    </button>
-                                                </div>
-                                                <FieldError
-                                                    id={errorId}
-                                                    errors={field.state.meta.errors}
-                                                />
-                                            </div>
-                                        )
-                                    }}
-                                </form.Field>
-                            ))}
-                        </div>
-                        <button
-                            type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring mt-3 text-sm"
-                            disabled={
-                                isPending ||
-                                domainsField.state.value.length >= MAX_REDIRECT_HOST_DOMAINS
-                            }
-                            onClick={addDomain}
-                        >
-                            <Plus aria-hidden="true" className="size-4" />
-                            {t('admin.redirectHosts.form.addDomain')}
-                        </button>
-                        <p
-                            id={`${formId}-domains-hint`}
-                            className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2"
-                        >
-                            {t('admin.redirectHosts.form.domainsHint')}
-                        </p>
-                        <FieldError
-                            id={`${formId}-domains-error`}
-                            errors={domainsField.state.meta.errors}
-                        />
-                    </fieldset>
+                    <DomainListFieldset
+                        legend={t('admin.redirectHosts.form.domains')}
+                        addLabel={t('admin.redirectHosts.form.addDomain')}
+                        addDisabled={
+                            isPending ||
+                            domainsField.state.value.length >= MAX_REDIRECT_HOST_DOMAINS
+                        }
+                        onAdd={addDomain}
+                        hint={t('admin.redirectHosts.form.domainsHint')}
+                        hintId={`${formId}-domains-hint`}
+                        errorId={`${formId}-domains-error`}
+                        errors={domainsField.state.meta.errors}
+                    >
+                        {domainsField.state.value.map((_domain, index) => (
+                            <form.Field
+                                key={domainKeys[index]}
+                                name={`domains[${index}]`}
+                                validators={{
+                                    onBlur: ({ value }) =>
+                                        getValidationIssue(redirectDomainSchema, value),
+                                }}
+                            >
+                                {(field) => {
+                                    const inputId = `${formId}-domain-${index}`
+                                    const errorId = `${inputId}-error`
+                                    return (
+                                        <DomainInputRow
+                                            inputId={inputId}
+                                            errorId={errorId}
+                                            label={t('admin.redirectHosts.form.domainLabel', {
+                                                number: index + 1,
+                                            })}
+                                            name={field.name}
+                                            value={field.state.value}
+                                            placeholder={t(
+                                                'admin.redirectHosts.form.domainPlaceholder',
+                                            )}
+                                            disabled={isPending}
+                                            removeDisabled={
+                                                isPending || domainsField.state.value.length <= 1
+                                            }
+                                            removeLabel={t(
+                                                'admin.redirectHosts.form.removeDomain',
+                                                { number: index + 1 },
+                                            )}
+                                            onRemove={() => removeDomain(index)}
+                                            onBlur={field.handleBlur}
+                                            onValueChange={field.handleChange}
+                                            describedBy={errorId}
+                                            errors={field.state.meta.errors}
+                                        />
+                                    )
+                                }}
+                            </form.Field>
+                        ))}
+                    </DomainListFieldset>
                 )}
             </form.Field>
             <form.Field

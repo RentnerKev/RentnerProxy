@@ -7,25 +7,22 @@ import {
     ImportResponseError,
     getImportRequestErrorCode,
 } from '@/lib/Admin/Migration/importRequestErrors.ts'
-import type {
-    NpmImportPreview,
-    NpmImportResult,
-} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.types.ts'
 
 import type { MigrationSource } from '../Types/migration.types.ts'
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024
 
-async function loadHistory(): Promise<NpmImportResult[]> {
+async function loadHistory(): Promise<ImportResult[]> {
     const response = await fetch('/api/migration', { credentials: 'same-origin' })
-    return response.ok ? (response.json() as Promise<NpmImportResult[]>) : []
+    return response.ok ? (response.json() as Promise<ImportResult[]>) : []
 }
 
 async function upload(
     file: File,
     mode: 'preview' | 'apply',
     source: MigrationSource,
-    preview?: NpmImportPreview,
+    preview?: ImportPreview,
 ): Promise<unknown> {
     const query = new URLSearchParams({
         mode,
@@ -49,9 +46,9 @@ export function useMigrationLogic(): MigrationLogicResult {
     const { t } = useTranslationStore()
     const [source, setSource] = useState<MigrationSource>('rentnerproxy')
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<NpmImportPreview | null>(null)
-    const [result, setResult] = useState<NpmImportResult | null>(null)
-    const [history, setHistory] = useState<readonly NpmImportResult[]>([])
+    const [preview, setPreview] = useState<ImportPreview | null>(null)
+    const [result, setResult] = useState<ImportResult | null>(null)
+    const [history, setHistory] = useState<readonly ImportResult[]>([])
     const [busy, setBusy] = useState<'preview' | 'apply' | null>(null)
     const [exporting, setExporting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -116,11 +113,11 @@ export function useMigrationLogic(): MigrationLogicResult {
         setBusy(mode)
         try {
             if (mode === 'preview') {
-                const next = (await upload(file, 'preview', source)) as NpmImportPreview
+                const next = (await upload(file, 'preview', source)) as ImportPreview
                 setPreview(next)
                 setResult(null)
             } else if (preview) {
-                const next = (await upload(file, 'apply', source, preview)) as NpmImportResult
+                const next = (await upload(file, 'apply', source, preview)) as ImportResult
                 setResult(next)
                 setPreview(null)
                 setHistory((current) => [next, ...current].slice(0, 20))

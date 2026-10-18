@@ -1,9 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, like, or } from 'drizzle-orm'
 
-import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import {
     certificateDomains,
@@ -17,7 +15,6 @@ import {
 } from '@/db/schema.ts'
 import type { RequestCertificateInput } from '@/features/Admin/CertificateManagement/Types/validation.types.ts'
 import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
-import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import { retryCertificateJobService } from '@/server/Admin/ProxyHostManagement/certificate-jobs.service.ts'
@@ -28,6 +25,10 @@ import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-da
 import type { ProxyRuntimeStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
+import {
+    buildValidCertificateMetadata,
+    runWithCertificateJobSession as asUser,
+} from '@/tests/Helpers/certificateJobsFixture.ts'
 
 const enabled = process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null
 const integrationTest = enabled ? test : test.skip
@@ -59,22 +60,10 @@ function validMetadata(
     domains: readonly string[],
     overrides: Partial<ControllerCertificateMetadata> = {},
 ): ControllerCertificateMetadata {
-    const now = Date.now()
-    return {
-        id,
-        source: 'acme',
-        environment: 'staging',
-        domains: [...domains],
-        status: 'valid',
-        operation: 'idle',
-        issuedAt: new Date(now - 3_600_000).toISOString(),
-        expiresAt: new Date(now + 86_400_000).toISOString(),
+    return buildValidCertificateMetadata(id, domains, {
         issuer: 'Certificate job worker fixture',
-        fingerprint: 'sha256:' + 'a'.repeat(64),
-        lastErrorCode: null,
-        updatedAt: new Date(now).toISOString(),
         ...overrides,
-    }
+    })
 }
 
 function createController(issueOverrides: Partial<ControllerCertificateMetadata> = {}) {
@@ -198,31 +187,6 @@ async function createUser(): Promise<string> {
         await transaction.insert(userRoles).values({ userId: user.id, roleId: role.id })
         return user.id
     })
-}
-
-/** Runs an authenticated service operation as the supplied fixture user. */
-async function asUser<T>(userId: string, operation: () => Promise<T>): Promise<T> {
-    const session = await createSessionService(userId)
-    let result: T | undefined
-    let failure: unknown
-    const handler = createServerEntry({
-        fetch: async () => {
-            try {
-                result = await operation()
-            } catch (error) {
-                failure = error
-            }
-            return new Response(null, { status: failure ? 500 : 204 })
-        },
-    }).fetch
-    await handler(
-        new Request('http://localhost/', {
-            headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },
-        }),
-        {},
-    )
-    if (failure) throw failure
-    return result as T
 }
 
 async function createJob(actorId: string): Promise<FixtureJob> {

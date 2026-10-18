@@ -1,4 +1,3 @@
-// oxlint-disable-next-line import/no-unassigned-import -- Runtime workers must never execute in the browser.
 import '@tanstack/react-start/server-only'
 // oxlint-disable no-await-in-loop -- Runtime revisions must be applied serially.
 

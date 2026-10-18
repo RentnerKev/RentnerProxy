@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
 import { getResponseHeaders, getResponseStatus } from '@tanstack/react-start/server'
 import { createServerEntry } from '@tanstack/react-start/server-entry'
 
 import { localizedActionFailure } from '@/server/Auth/transport.server.ts'
 import { RateLimitError, RateLimitUnavailableError } from '@/server/Valkey/rate-limiter.service.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 const actorId = '019b85a0-7c29-7000-8abc-0123456789ab'
 
@@ -125,18 +125,7 @@ describe('sensitive action rate-limit placement', () => {
                 outcomes: outcomes.map((outcome) => outcome.status),
             }))
         `
-        const child = Bun.spawn([process.execPath, '-e', script], {
-            cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-            stdout: 'pipe',
-            stderr: 'pipe',
-        })
-        const [output, errors, code] = await Promise.all([
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-            child.exited,
-        ])
-
-        expect(code, errors).toBe(0)
+        const output = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
         const result = JSON.parse(output)
 
         expect(result.outcomes).toEqual(['rejected', 'rejected', 'rejected'])

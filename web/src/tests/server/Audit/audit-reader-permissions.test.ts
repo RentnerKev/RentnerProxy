@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
+
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 const serviceScript = `
     import { mock } from 'bun:test'
@@ -55,17 +56,9 @@ const serviceScript = `
 
 describe('audit viewer authorization', () => {
     test('checks AUDIT_LOGS_VIEW before opening a database transaction', async () => {
-        const child = Bun.spawn([process.execPath, '-e', serviceScript], {
-            cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-            stdout: 'pipe',
-            stderr: 'pipe',
+        const stdout = await runBunScript(serviceScript, {
+            cwd: new URL('../../..', import.meta.url),
         })
-        const [stdout, stderr, exitCode] = await Promise.all([
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-            child.exited,
-        ])
-        expect(exitCode, stderr).toBe(0)
         const output = JSON.parse(stdout) as {
             readonly deniedResult: string
             readonly deniedQueries: number
