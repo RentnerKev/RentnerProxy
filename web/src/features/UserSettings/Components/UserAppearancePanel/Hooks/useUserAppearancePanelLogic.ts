@@ -1,6 +1,6 @@
 import type { UserAppearancePanelLogicResult } from '../Types/user-appearance-panel.types.ts'
 import { type PickerMessages } from '@rentnerkev/picker'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'

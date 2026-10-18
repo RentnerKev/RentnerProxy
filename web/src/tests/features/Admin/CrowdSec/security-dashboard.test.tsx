@@ -198,7 +198,7 @@ test('shows the shared table, country flag and scenario explanation control', as
     expect(container.textContent).toContain('Blocked requests')
     expect(container.textContent).toContain('Active IP and network bans')
     expect(container.querySelector('table')).not.toBeNull()
-    expect(container.querySelector('.flag\\:DE')).not.toBeNull()
+    expect(container.querySelector('img[alt="Germany"]')).not.toBeNull()
     expect(
         container.querySelector(
             'button[aria-label="About scenario crowdsecurity/http-generic-bf"]',

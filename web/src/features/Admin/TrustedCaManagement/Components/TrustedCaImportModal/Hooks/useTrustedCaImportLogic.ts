@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useId, useState } from 'react'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createTrustedCaHandler, replaceTrustedCaHandler } from '../../../middleware.ts'
 import { createTrustedCaInputSchema } from '../../../validation.ts'

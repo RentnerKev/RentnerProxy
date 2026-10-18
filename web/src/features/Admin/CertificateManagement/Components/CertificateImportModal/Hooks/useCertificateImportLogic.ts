@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useId, useState } from 'react'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { CertificateActionResult } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { importCertificateHandler, replaceCertificateHandler } from '../../../middleware.ts'

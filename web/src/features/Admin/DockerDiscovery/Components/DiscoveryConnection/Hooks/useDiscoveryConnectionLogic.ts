@@ -1,6 +1,6 @@
 import { useForm, useStore } from '@tanstack/react-form'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { dockerEndpointSchema } from '@/lib/DockerDiscovery/validation.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type {

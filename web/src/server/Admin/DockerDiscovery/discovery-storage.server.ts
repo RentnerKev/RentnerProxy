@@ -7,7 +7,7 @@ import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts
 import { ProxyHostDomainError } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 
 const SETTINGS_KEY = 'docker_discovery_management_v1'
-export function emptyDiscoveryRegistry(): DiscoveryRegistry {
+function emptyDiscoveryRegistry(): DiscoveryRegistry {
     return {
         version: 1,
         revision: 0,

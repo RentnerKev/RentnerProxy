@@ -3,7 +3,7 @@ import type { ForgotPasswordLogicResult } from '../Types/forgot-password-logic.t
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { requestPasswordResetHandler } from '../middleware.ts'
 import { forgotPasswordInputSchema } from '../validation.ts'

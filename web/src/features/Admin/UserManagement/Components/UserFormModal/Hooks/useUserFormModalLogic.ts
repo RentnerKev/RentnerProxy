@@ -8,7 +8,7 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createUserHandler, updateUserHandler } from '../../../middleware.ts'
 

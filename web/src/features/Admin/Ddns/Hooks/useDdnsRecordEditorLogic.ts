@@ -1,6 +1,6 @@
 import { useForm, useStore } from '@tanstack/react-form'
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { DDNS_AUTO_ZONE } from '@/config/ddns.config.ts'
 import { buildDdnsRecordDraft, ddnsRecordEditorValues } from '@/lib/Ddns/recordEditor.ts'
 import { canonicalDdnsName, createDdnsTargetId } from '@/lib/Ddns/targets.ts'

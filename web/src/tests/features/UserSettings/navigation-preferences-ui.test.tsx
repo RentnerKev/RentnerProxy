@@ -51,7 +51,7 @@ const { default: AuthenticatedShell } =
 const { default: useNavigationGroupPreferencesLogic } =
     await import('@/layouts/AuthenticatedLayout/Hooks/useNavigationGroupPreferences.ts')
 const settingsServer = await import('@/features/UserSettings/middleware.ts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { toast } = await import('@rentnerkev/toasts')
 type NavigationSaver = (
     ...args: Parameters<typeof settingsServer.updateCurrentUserNavigationGroupHandler>
 ) => ReturnType<typeof settingsServer.updateCurrentUserNavigationGroupHandler>

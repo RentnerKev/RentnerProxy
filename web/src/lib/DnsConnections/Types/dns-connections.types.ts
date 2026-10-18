@@ -5,7 +5,7 @@ export interface CloudflareZone {
     readonly name: string
 }
 
-export interface DnsConnectionConsumer {
+interface DnsConnectionConsumer {
     readonly type: 'dns01' | 'ddns'
     readonly id: string
 }
@@ -16,7 +16,7 @@ export interface DnsConnectionReference {
     readonly consumer: DnsConnectionConsumer
 }
 
-export interface DnsConnectionUsage {
+interface DnsConnectionUsage {
     readonly zoneId: string
     readonly consumer: DnsConnectionConsumer
 }

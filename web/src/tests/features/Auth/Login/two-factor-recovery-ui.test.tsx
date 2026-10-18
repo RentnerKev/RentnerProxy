@@ -29,8 +29,10 @@ mock.module('@tanstack/react-router', () => ({
         </a>
     ),
 }))
-mock.module('@rentnerkev/toasts/toast', () => ({
-    toast: { error: errorToast, warning: warningToast },
+const toastPackage = await import('@rentnerkev/toasts')
+mock.module('@rentnerkev/toasts', () => ({
+    ...toastPackage,
+    toast: { ...toastPackage.toast, error: errorToast, warning: warningToast },
 }))
 
 const { act } = await import('react')

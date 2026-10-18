@@ -5,7 +5,7 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
 import { changePasswordHandler } from '../../../middleware.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { changePasswordInputSchema } from '../../../validation.ts'
 import type { ChangePasswordFormValues } from '../Types/change-password-form.types.ts'

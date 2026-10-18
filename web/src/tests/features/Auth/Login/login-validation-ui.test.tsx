@@ -21,7 +21,11 @@ mock.module('@tanstack/react-router', () => ({
     useRouterState: () => undefined,
     Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
 }))
-mock.module('@rentnerkev/toasts/toast', () => ({ toast: { error: () => {}, info: () => {} } }))
+const toastPackage = await import('@rentnerkev/toasts')
+mock.module('@rentnerkev/toasts', () => ({
+    ...toastPackage,
+    toast: { ...toastPackage.toast, error: () => {}, info: () => {} },
+}))
 
 const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')

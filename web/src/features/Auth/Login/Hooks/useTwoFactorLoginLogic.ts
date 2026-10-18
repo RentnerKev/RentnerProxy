@@ -3,7 +3,7 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { completeTwoFactorLoginHandler, getTwoFactorChallengeStatusHandler } from '../middleware.ts'
 import type { TwoFactorLoginFormValues, TwoFactorLoginMode } from '../Types/login-security.types.ts'

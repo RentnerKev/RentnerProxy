@@ -2,7 +2,7 @@ import type { BasicAuthAccountFormLogicResult } from '../Types/logic.types.ts'
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     createBasicAuthAccountHandler,

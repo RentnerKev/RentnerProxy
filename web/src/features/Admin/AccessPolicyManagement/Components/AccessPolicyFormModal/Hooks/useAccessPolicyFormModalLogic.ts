@@ -28,7 +28,7 @@ import {
     isValidForwardAuthGatewayPathPrefix,
 } from '@/lib/ForwardAuth/forwardAuth.ts'
 import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     accessPolicyIpRulesToDraft,

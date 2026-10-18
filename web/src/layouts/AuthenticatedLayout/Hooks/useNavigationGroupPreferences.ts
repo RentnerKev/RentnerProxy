@@ -1,7 +1,7 @@
 import type { NavigationGroupMutation } from '../Types/navigation-group-preferences.types.ts'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 
 import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
 import type {

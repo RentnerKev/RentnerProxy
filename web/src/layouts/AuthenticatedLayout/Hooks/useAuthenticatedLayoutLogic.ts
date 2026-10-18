@@ -3,7 +3,8 @@ import { getClientCspNonce } from '@/lib/Security/cspNonce.ts'
 import useApplicationLiveSync from '@/shared/Live/Hooks/useApplicationLiveSync.ts'
 import useThemeMode from '@/shared/Theme/Hooks/useThemeMode.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
-import useClearNotificationsOnLayoutExit from '@/layouts/RootLayout/Hooks/useClearNotificationsOnLayoutExit.ts'
+import { toast } from '@rentnerkev/toasts'
+import { useEffect } from 'react'
 import useControlLocalization from '@/layouts/RootLayout/Hooks/useControlLocalization.ts'
 import type { AuthenticatedLayoutLogicResult } from '../Types/authenticated-layout-logic.types.ts'
 import useNavigationGroupPreferences from './useNavigationGroupPreferences.ts'
@@ -12,7 +13,7 @@ export default function useAuthenticatedLayoutLogic(
     user: AuthenticatedUser,
 ): AuthenticatedLayoutLogicResult {
     useApplicationLiveSync()
-    useClearNotificationsOnLayoutExit()
+    useEffect(() => () => toast.dismissAll(), [])
     const logout = useLogout()
     const theme = useThemeMode(user.themeMode)
     const navigationGroups = useNavigationGroupPreferences(user)

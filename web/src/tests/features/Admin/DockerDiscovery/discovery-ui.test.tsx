@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
-import { toast } from '@rentnerkev/toasts/toast'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { DOCKER_DISCOVERY_QUERY_KEY } from '@/config/docker-discovery.config.ts'
 import { dockerDiscoveryIssues } from '@/lib/DockerDiscovery/validation.ts'
@@ -22,6 +21,7 @@ import { discoveredHost } from '@/tests/Helpers/discoveryFixture.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+const { toast } = await import('@rentnerkev/toasts')
 disableMotionAnimations()
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterContextProvider } =

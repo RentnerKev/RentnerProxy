@@ -21,7 +21,7 @@ import { getAssignableTrustedCasHandler } from '@/features/Admin/TrustedCaManage
 import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { getAssignableCertificatesHandler } from '@/features/Admin/CertificateManagement/middleware.ts'
 import { MAX_PROXY_HOST_DOMAINS } from '@/config/proxy-hosts.config.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import {

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
 import { DEFAULT_ACME_ENVIRONMENT } from '@/config/certificates.config.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { requestCertificateHandler } from '../middleware.ts'
 import {
