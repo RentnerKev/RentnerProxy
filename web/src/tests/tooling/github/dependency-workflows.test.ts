@@ -7,11 +7,15 @@ const root = resolve(import.meta.dir, '../../../../..')
 
 test('assesses production OCI before registry credentials and keeps source execution out of the publisher', async () => {
     const files = await Promise.all(
-        ['dev-image', 'release-pipeline', 'publish-assessed-image', 'dependency-security'].map(
-            (name) => readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8'),
-        ),
+        [
+            'dev-image',
+            'release-pipeline',
+            'publish-assessed-image',
+            'dependency-security',
+            'build-assessed-image',
+        ].map((name) => readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8')),
     )
-    for (const source of files.slice(0, 2)) {
+    for (const source of [files[4]!]) {
         const parsed = Bun.YAML.parse(source) as {
             jobs: Record<
                 string,
@@ -35,6 +39,12 @@ test('assesses production OCI before registry credentials and keeps source execu
         )
         expect(JSON.stringify(parsed.jobs.build)).not.toContain('secrets.GITHUB_TOKEN')
     }
+    for (const source of files.slice(0, 2)) {
+        expect(source).toContain('uses: ./.github/workflows/build-assessed-image.yml')
+        expect(source).toContain('revision: ${{ needs.prepare.outputs.revision }}')
+    }
+    expect(files[4]).toContain('ref: ${{ github.workflow_sha }}')
+    expect(files[4]).toContain('[[ "$(git -C source rev-parse HEAD)" == "$EXPECTED_REVISION" ]]')
     const publisher = files[2]!
     expect(publisher.indexOf('Independently reassess candidate')).toBeLessThan(
         publisher.indexOf('GHCR_TOKEN:'),
