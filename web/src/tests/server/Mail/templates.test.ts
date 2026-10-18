@@ -80,7 +80,8 @@ describe('RentnerProxy mail templates', () => {
             token: 'invite-token',
         })
 
-        expect(template.html).not.toMatch(/<img\b/i)
+        expect(template.html.match(/<img\b/gi)).toHaveLength(1)
+        expect(template.html).toContain('src="cid:rentnerproxy-logo"')
         expect(template.html).not.toMatch(/<script\b/i)
         expect(template.html).not.toMatch(/<link\b/i)
         expect(template.html).not.toMatch(/@import|url\s*\(/i)

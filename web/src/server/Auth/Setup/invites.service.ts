@@ -6,6 +6,7 @@ import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { ACTIVE_OWNER_ADVISORY_LOCK_ID, USER_INVITE_DURATION_MS } from '@/config/auth.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { userInvites, users } from '@/db/schema.ts'
+import { getUserMailAppearanceInTransaction } from '@/server/Mail/mail-appearance.service.ts'
 import type {
     TokenConsumptionResult,
     TokenDelivery,
@@ -184,6 +185,7 @@ export async function issueInviteService(input: {
                 token,
                 expiresAt,
                 userId,
+                appearance: await getUserMailAppearanceInTransaction(transaction, userId),
             }
         })
     } catch (error) {

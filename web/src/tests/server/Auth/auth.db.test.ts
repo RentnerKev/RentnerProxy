@@ -36,7 +36,9 @@ import {
     userSettings,
     users,
     userTotpFactors,
+    systemSettings,
 } from '@/db/schema.ts'
+import { userAppearanceSettingsKey } from '@/lib/UserSettings/appearance.ts'
 import { getDatabaseUrl, getValkeyUrl } from '@/server/env.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
@@ -1572,6 +1574,42 @@ describe('user enablement with PostgreSQL', () => {
 })
 
 describe('password reset with PostgreSQL', () => {
+    integrationTest(
+        'captures the recipient appearance afresh for each password-reset email',
+        async () => {
+            const user = await createTestUser({ email: testEmail('reset-appearance') })
+            const db = getAuthDatabase()
+            const key = userAppearanceSettingsKey(user.id)
+            await db
+                .insert(userSettings)
+                .values({ userId: user.id, themeMode: 'dark' })
+                .onConflictDoUpdate({ target: userSettings.userId, set: { themeMode: 'dark' } })
+            try {
+                await db
+                    .insert(systemSettings)
+                    .values({ key, value: sql`${{ version: 1, accentColor: '#8844ee' }}` })
+                expect((await issuePasswordResetService(user.email))?.appearance).toEqual({
+                    themeMode: 'dark',
+                    accentColor: '#8844ee',
+                })
+                await db
+                    .update(userSettings)
+                    .set({ themeMode: 'light' })
+                    .where(eq(userSettings.userId, user.id))
+                await db
+                    .update(systemSettings)
+                    .set({ value: sql`${{ version: 1, accentColor: '#bb2244' }}` })
+                    .where(eq(systemSettings.key, key))
+                expect((await issuePasswordResetService(user.email))?.appearance).toEqual({
+                    themeMode: 'light',
+                    accentColor: '#bb2244',
+                })
+            } finally {
+                await db.delete(systemSettings).where(eq(systemSettings.key, key))
+            }
+        },
+    )
+
     integrationTest('rejects unknown capabilities before password hashing', async () => {
         expect(
             await consumePasswordResetService({

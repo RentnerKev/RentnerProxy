@@ -27,7 +27,14 @@ export function createAuthorizedNotificationDelivery(dependencies: {
             )
                 return { success: false, code: 'destination_blocked', retryable: false }
             if (signal?.aborted) return { success: false, code: 'cancelled', retryable: true }
-            return await dependencies.deliver(destination, claim.payload, signal)
+            return destination.kind === 'email'
+                ? await dependencies.deliver(
+                      destination,
+                      claim.payload,
+                      signal,
+                      authorized.mailAppearance,
+                  )
+                : await dependencies.deliver(destination, claim.payload, signal)
         } catch (error) {
             return error instanceof NotificationDomainError
                 ? { success: false, code: 'configuration_unavailable', retryable: false }

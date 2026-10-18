@@ -142,6 +142,7 @@ export async function createUserService(input: {
         displayName: delivery.displayName,
         to: delivery.email,
         token: delivery.token,
+        appearance: delivery.appearance,
     })
 }
 

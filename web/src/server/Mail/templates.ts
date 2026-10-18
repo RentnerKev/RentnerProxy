@@ -3,6 +3,8 @@ import type {
     ActionMailTemplateInput,
     ActionMailDefinition,
 } from './Types/templates.types.ts'
+import { createMailHtml } from './layout.ts'
+import { createMailTheme } from './mail-theme.ts'
 
 const PASSWORD_RESET_DEFINITION: ActionMailDefinition = {
     path: '/reset-password',
@@ -66,11 +68,11 @@ function createActionMailTemplate(
     const actionUrl = createActionUrl(input.appUrl, definition.path, input.token)
     const greeting = createGreeting(input.displayName)
     const safeGreeting = Bun.escapeHTML(greeting)
-    const safeHeading = Bun.escapeHTML(definition.heading)
     const safeIntroduction = Bun.escapeHTML(definition.introduction)
     const safeActionLabel = Bun.escapeHTML(definition.actionLabel)
     const safeActionUrl = Bun.escapeHTML(actionUrl)
     const safeSecurityNotice = Bun.escapeHTML(definition.securityNotice)
+    const theme = createMailTheme(input.appearance)
 
     const text = [
         'RentnerProxy',
@@ -86,44 +88,24 @@ function createActionMailTemplate(
         definition.securityNotice,
     ].join('\n')
 
-    const html = `<!doctype html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${safeHeading}</title>
-</head>
-<body style="margin:0;background:#081923;color:#e7f0f2;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#081923;padding:32px 16px;">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#102a38;border:1px solid #1f4554;border-radius:10px;">
-                    <tr>
-                        <td style="padding:28px 32px 12px;">
-                            <div style="color:#6ee7a5;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">RentnerProxy</div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding:8px 32px 32px;">
-                            <h1 style="margin:0 0 20px;color:#ffffff;font-size:25px;line-height:1.25;">${safeHeading}</h1>
-                            <p style="margin:0 0 12px;color:#e7f0f2;font-size:16px;line-height:1.6;">${safeGreeting}</p>
-                            <p style="margin:0 0 24px;color:#c8d9de;font-size:16px;line-height:1.6;">${safeIntroduction}</p>
-                            <p style="margin:0 0 24px;">
-                                <a href="${safeActionUrl}" style="display:inline-block;background:#2f855a;border-radius:7px;color:#ffffff;font-size:16px;font-weight:700;padding:13px 20px;text-decoration:none;">${safeActionLabel}</a>
-                            </p>
-                            <p style="margin:0 0 8px;color:#9fb7bf;font-size:13px;line-height:1.5;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:</p>
-                            <p style="margin:0 0 24px;color:#8ee0b1;font-size:13px;line-height:1.5;overflow-wrap:anywhere;">${safeActionUrl}</p>
-                            <div style="border-top:1px solid #1f4554;padding-top:20px;">
-                                <p style="margin:0;color:#9fb7bf;font-size:13px;line-height:1.5;">${safeSecurityNotice}</p>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
+    const html = createMailHtml({
+        heading: definition.heading,
+        eyebrow: 'Dein Konto',
+        preview: definition.introduction,
+        appearance: input.appearance,
+        contentRowsHtml: `<tr>
+            <td style="padding:0 24px 24px;">
+                <p style="margin:0 0 12px;color:${theme.ink};font-size:14px;line-height:1.7;">${safeGreeting}</p>
+                <p style="margin:0 0 24px;color:${theme.muted};font-size:14px;line-height:1.7;">${safeIntroduction}</p>
+                <p style="margin:0 0 24px;">
+                    <a href="${safeActionUrl}" style="display:inline-block;background:${theme.accent};border:1px solid ${theme.accent};border-radius:12px;color:${theme.accentForeground};font-size:14px;font-weight:700;padding:13px 20px;text-decoration:none;">${safeActionLabel}</a>
+                </p>
+                <p style="margin:0 0 8px;color:${theme.muted};font-size:12px;line-height:1.6;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:</p>
+                <p style="margin:0 0 24px;color:${theme.accentText};font-family:Consolas,'Liberation Mono',monospace;font-size:12px;line-height:1.6;overflow-wrap:anywhere;word-break:break-word;">${safeActionUrl}</p>
+                <p style="margin:0;border-top:1px solid ${theme.border};padding-top:20px;color:${theme.muted};font-size:12px;line-height:1.7;">${safeSecurityNotice}</p>
             </td>
-        </tr>
-    </table>
-</body>
-</html>`
+        </tr>`,
+    })
 
     return {
         subject: definition.subject,

@@ -8,6 +8,7 @@ export type ActionMailTemplateInput = Readonly<{
     appUrl: string
     displayName: string
     token: string
+    appearance?: MailAppearance | undefined
 }>
 
 export type ActionMailDefinition = Readonly<{
@@ -26,3 +27,4 @@ export type NotificationMailCategoryDefinition = Readonly<{
     recovery: string
     nextStep: string
 }>
+import type { MailAppearance } from './mail-theme.types.ts'

@@ -4,6 +4,7 @@ import '@tanstack/react-start/server-only'
 import { randomUUID } from 'node:crypto'
 import type { NotificationDeliveryResult } from '@/lib/Notifications/Types/notifications.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 import {
     canUsePrivateNotificationDestinations,
     getAllowedNotificationCategories,
@@ -25,6 +26,7 @@ import {
 import type {
     NotificationCollectionClaim,
     NotificationDeliveryClaim,
+    NotificationDeliveryAuthorization,
 } from './Types/notification-internal.types.ts'
 import type { NotificationCollectedBatch } from './Types/notification-worker.types.ts'
 
@@ -129,7 +131,9 @@ export async function acknowledgeNotificationDelivery(
     })
 }
 
-export async function authorizeNotificationDelivery(claim: NotificationDeliveryClaim) {
+export async function authorizeNotificationDelivery(
+    claim: NotificationDeliveryClaim,
+): Promise<NotificationDeliveryAuthorization | null> {
     return getAuthDatabase().transaction(
         async (transaction) => {
             const configuration = await readNotificationConfiguration(transaction)
@@ -158,6 +162,10 @@ export async function authorizeNotificationDelivery(claim: NotificationDeliveryC
             return {
                 channel,
                 allowPrivateDestinations: canUsePrivateNotificationDestinations(owner.permissions),
+                mailAppearance: {
+                    themeMode: owner.themeMode,
+                    accentColor: owner.accentColor ?? DEFAULT_ACCENT_COLOR,
+                },
             }
         },
         { accessMode: 'read only' },

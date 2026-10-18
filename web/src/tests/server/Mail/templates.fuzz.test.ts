@@ -80,7 +80,9 @@ describe('mail template property fuzzing', () => {
                     expect(actionUrl.search).toBe('')
                     expect(tokenParameter).toBe(token)
                     expect(template.html).toContain(Bun.escapeHTML(greeting))
-                    expect(template.html).not.toMatch(/<(script|img|iframe|link)\b/i)
+                    expect(template.html.match(/<img\b/gi)).toHaveLength(1)
+                    expect(template.html).toContain('src="cid:rentnerproxy-logo"')
+                    expect(template.html).not.toMatch(/<(script|iframe|link)\b/i)
                     expect(unrecognizedAmpersands).not.toMatch(/[&<>"']/)
                 },
             ),
