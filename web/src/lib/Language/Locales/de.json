@@ -328,7 +328,8 @@
             "password": "Passwort",
             "twoFactor": "Zwei-Faktor",
             "passkeys": "Passkeys",
-            "appearance": "Darstellung"
+            "appearance": "Darstellung",
+            "notifications": "Benachrichtigungen"
         },
         "page": {
             "eyebrow": "Dein Konto",
@@ -517,6 +518,101 @@
         "validation": {
             "passwordsDoNotMatch": "Die Passwörter stimmen nicht überein.",
             "authenticatorCode": "Gib den sechsstelligen Code aus deiner Authenticator-App ein."
+        },
+        "notifications": {
+            "title": "Benachrichtigungen",
+            "description": "Wähle Ziele und Ereignisse für deine persönlichen Benachrichtigungen.",
+            "create": "Kanal hinzufügen",
+            "edit": "Kanal bearbeiten",
+            "delete": "Löschen",
+            "deleteTitle": "Kanal löschen?",
+            "deleteDescription": "„{{name}}“ löschen und ausstehende Zustellungen abbrechen?",
+            "editorDescription": "Lege Ziel und Ereignisregeln für diesen Kanal fest.",
+            "name": "Kanalname",
+            "kind": "Zieltyp",
+            "email": "E-Mail",
+            "webhook": "Webhook",
+            "events": "Ereignisse",
+            "minimumSeverity": "Minimaler Schweregrad",
+            "thresholdSeconds": "Minimale Störungsdauer (Sekunden)",
+            "enabled": "Aktiviert",
+            "disabled": "Deaktiviert",
+            "recovery": "Entwarnungen senden",
+            "replaceDestination": "Ziel ersetzen",
+            "keepDestination": "Gespeichertes Ziel und Bearer-Token bleiben erhalten, bis du das Ziel ersetzt. Gespeicherte Geheimnisse werden nie angezeigt.",
+            "recipients": "Empfänger (durch Komma getrennt)",
+            "url": "Webhook-URL",
+            "token": "Neues Bearer-Token (optional)",
+            "tokenHint": "Beim Ersetzen des Ziels entfernt ein leeres Token das bisherige Token.",
+            "cidrs": "Erlaubte private Netze (CIDRs, durch Komma getrennt)",
+            "paused": "Zustellung nach einer Wiederherstellung pausiert.",
+            "runtimeOff": "Die Zustellung wurde administrativ deaktiviert.",
+            "contactAdmin": "Bitte einen Administrator, die Zustellung zu aktivieren.",
+            "resume": "Zustellung fortsetzen",
+            "smtpMissing": "Für E-Mail-Zustellungen muss ein Administrator SMTP einrichten.",
+            "destinationSaved": "Ziel sicher gespeichert.",
+            "destinationMissing": "Kein Ziel eingerichtet.",
+            "noCategories": "Für dein Konto sind keine Ereigniskategorien verfügbar.",
+            "test": "Test senden",
+            "testSent": "Testbenachrichtigung gesendet.",
+            "saved": "Benachrichtigungen gespeichert.",
+            "loadFailed": "Benachrichtigungen konnten nicht geladen werden.",
+            "unavailable": "Benachrichtigungen sind derzeit nicht verfügbar.",
+            "actionFailed": "Die Aktion ist fehlgeschlagen. Dein Entwurf bleibt geöffnet.",
+            "invalidInput": "Gib einen Namen, mindestens ein Ereignis, eine gültige Dauer und ein vollständiges Ziel an.",
+            "deliveries": "Zustellungen",
+            "deliveriesHint": "Zustellergebnis und Zustand der Störung werden getrennt angezeigt.",
+            "search": "Zustellungen durchsuchen",
+            "noDeliveries": "Noch keine Zustellungen",
+            "noMatches": "Keine passenden Zustellungen",
+            "deletedChannel": "Gelöschter Kanal",
+            "resource": "Ressource",
+            "deliveryType": "Typ",
+            "incident": "Störungszustand",
+            "delivery": "Zustellstatus",
+            "attempts": "Versuche",
+            "updatedAt": "Letzte Änderung",
+            "deliveryError": "Zustellfehler",
+            "categories": {
+                "certificate_renewal": "Zertifikatserneuerung",
+                "ddns": "Dynamisches DNS",
+                "proxy_configuration": "Proxy-Konfiguration"
+            },
+            "severities": {
+                "warning": "Warnung",
+                "error": "Fehler",
+                "critical": "Kritisch"
+            },
+            "types": {
+                "incident": "Störung",
+                "recovery": "Entwarnung",
+                "test": "Test"
+            },
+            "incidentStates": {
+                "active": "Aktive Störung",
+                "recovered": "Behoben",
+                "test": "Test",
+                "unknown": "Nicht verfügbar"
+            },
+            "deliveryStates": {
+                "pending": "Ausstehend",
+                "inflight": "Wird gesendet",
+                "succeeded": "Zugestellt",
+                "failed": "Zustellung fehlgeschlagen",
+                "cancelled": "Abgebrochen"
+            },
+            "errors": {
+                "destination_blocked": "Ziel blockiert",
+                "destination_unavailable": "Ziel nicht erreichbar",
+                "redirect_denied": "Weiterleitung abgelehnt",
+                "http_rejected": "Webhook hat die Anfrage abgelehnt",
+                "smtp_unavailable": "SMTP nicht verfügbar",
+                "timeout": "Zeitüberschreitung",
+                "cancelled": "Zustellung abgebrochen",
+                "payload_limit": "Benachrichtigung zu groß",
+                "configuration_unavailable": "Konfiguration nicht verfügbar"
+            },
+            "conflict": "Die Einstellungen wurden inzwischen geändert. Dein Entwurf bleibt erhalten. Öffne den Kanal erneut, um die Änderungen abzugleichen."
         }
     },
     "admin": {
@@ -2902,6 +2998,7 @@
             "default_site": "Standardseite",
             "dns_connections": "DNS-Verbindungen",
             "ddns": "Dynamisches DNS",
+            "notifications": "Benachrichtigungen",
             "docker_discovery": "Docker Discovery"
         },
         "app": {
@@ -2983,6 +3080,10 @@
         "dns_connections": {
             "view": "DNS-Verbindungen anzeigen",
             "manage": "DNS-Verbindungen verwalten"
+        },
+        "notifications": {
+            "view": "Benachrichtigungskonfiguration und Zustellstatus anzeigen",
+            "manage": "Benachrichtigungskonfiguration verwalten"
         },
         "docker_discovery": {
             "view": "Docker-Discovery-Verbindung und Kandidaten ansehen",

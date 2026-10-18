@@ -72,6 +72,48 @@ afterEach(() => {
 })
 
 describe('controller certificate event transport', () => {
+    test.each(['issue', 'renew', 'import'])(
+        'preserves event operation kind %s at the wire boundary',
+        async (operationKind) => {
+            mockController({
+                events: [event({ operationKind })],
+                nextCursor: cursor,
+                hasMore: false,
+                resetRequired: false,
+            })
+            await expect(getControllerCertificateEvents(null)).resolves.toMatchObject({
+                events: [{ id: firstEventId, operationId, operationKind }],
+                nextCursor: cursor,
+            })
+        },
+    )
+
+    test('accepts legacy events without an operation kind', async () => {
+        mockController({
+            events: [event()],
+            nextCursor: cursor,
+            hasMore: false,
+            resetRequired: false,
+        })
+        const page = await getControllerCertificateEvents(null)
+        expect(page.events[0]).not.toHaveProperty('operationKind')
+    })
+
+    test.each(['unknown', 'RENEW', null, 1])(
+        'rejects invalid operation kind %s at the wire boundary',
+        async (operationKind) => {
+            mockController({
+                events: [event({ operationKind })],
+                nextCursor: cursor,
+                hasMore: false,
+                resetRequired: false,
+            })
+            await expect(getControllerCertificateEvents(null)).rejects.toMatchObject({
+                code: 'controller_unavailable',
+            })
+        },
+    )
+
     test('reads bounded pages and forwards the opaque cursor', async () => {
         mockController({
             events: [event()],

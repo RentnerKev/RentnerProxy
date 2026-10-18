@@ -328,7 +328,103 @@
             "password": "Hasło",
             "twoFactor": "Uwierzytelnianie dwuskładnikowe",
             "passkeys": "Klucze dostępu",
-            "appearance": "Wygląd"
+            "appearance": "Wygląd",
+            "notifications": "Powiadomienia"
+        },
+        "notifications": {
+            "title": "Powiadomienia",
+            "description": "Wybierz, dokąd mają trafiać powiadomienia i które zdarzenia są dla Ciebie ważne.",
+            "create": "Dodaj kanał",
+            "edit": "Edytuj kanał",
+            "delete": "Usuń",
+            "deleteTitle": "Usunąć kanał?",
+            "deleteDescription": "Usunąć „{{name}}” i anulować oczekujące dostarczenia?",
+            "editorDescription": "Ustaw miejsce docelowe i zdarzenia dla tego kanału.",
+            "name": "Nazwa kanału",
+            "kind": "Typ miejsca docelowego",
+            "email": "E-mail",
+            "webhook": "Webhook",
+            "events": "Zdarzenia",
+            "minimumSeverity": "Minimalny poziom ważności",
+            "thresholdSeconds": "Minimalny czas trwania incydentu (sekundy)",
+            "enabled": "Włączone",
+            "disabled": "Wyłączone",
+            "recovery": "Wysyłaj powiadomienia o przywróceniu działania",
+            "replaceDestination": "Zmień miejsce docelowe",
+            "keepDestination": "Zapisane miejsce docelowe i token bearer pozostaną bez zmian, chyba że zmienisz miejsce docelowe. Zapisane sekrety nigdy nie są wyświetlane.",
+            "recipients": "Odbiorcy (oddzieleni przecinkami)",
+            "url": "Adres URL webhooka",
+            "token": "Nowy token bearer (opcjonalnie)",
+            "tokenHint": "Po zmianie miejsca docelowego pusty token usunie zapisany token.",
+            "cidrs": "Dozwolone sieci prywatne (CIDR, oddzielone przecinkami)",
+            "paused": "Po przywróceniu kopii zapasowej dostarczanie jest wstrzymane.",
+            "runtimeOff": "Administrator wyłączył dostarczanie powiadomień.",
+            "contactAdmin": "Skontaktuj się z administratorem, aby włączyć dostarczanie.",
+            "resume": "Wznów dostarczanie",
+            "smtpMissing": "Dostarczanie e-maili wymaga konfiguracji SMTP przez administratora.",
+            "destinationSaved": "Miejsce docelowe zostało bezpiecznie zapisane.",
+            "destinationMissing": "Nie skonfigurowano miejsca docelowego.",
+            "noCategories": "Brak kategorii zdarzeń dostępnych dla Twojego konta.",
+            "test": "Wyślij test",
+            "testSent": "Wysłano powiadomienie testowe.",
+            "saved": "Zapisano ustawienia powiadomień.",
+            "loadFailed": "Nie udało się wczytać powiadomień.",
+            "unavailable": "Powiadomienia są obecnie niedostępne.",
+            "actionFailed": "Nie udało się wykonać działania. Wersja robocza została zachowana.",
+            "invalidInput": "Podaj nazwę, co najmniej jedno zdarzenie, prawidłowy czas trwania i kompletne miejsce docelowe.",
+            "deliveries": "Dostarczenia",
+            "deliveriesHint": "Wyniki dostarczeń i stan incydentów są wyświetlane osobno.",
+            "search": "Szukaj dostarczeń",
+            "noDeliveries": "Brak dostarczeń",
+            "noMatches": "Brak pasujących dostarczeń",
+            "deletedChannel": "Usunięty kanał",
+            "resource": "Zasób",
+            "deliveryType": "Typ",
+            "incident": "Stan incydentu",
+            "delivery": "Stan dostarczenia",
+            "attempts": "Próby",
+            "updatedAt": "Ostatnia aktualizacja",
+            "deliveryError": "Błąd dostarczenia",
+            "categories": {
+                "certificate_renewal": "Odnowienie certyfikatu",
+                "ddns": "Dynamiczny DNS",
+                "proxy_configuration": "Konfiguracja serwera proxy"
+            },
+            "severities": {
+                "warning": "Ostrzeżenie",
+                "error": "Błąd",
+                "critical": "Krytyczny"
+            },
+            "types": {
+                "incident": "Incydent",
+                "recovery": "Przywrócenie działania",
+                "test": "Test"
+            },
+            "incidentStates": {
+                "active": "Aktywny incydent",
+                "recovered": "Działanie przywrócone",
+                "test": "Test",
+                "unknown": "Niedostępne"
+            },
+            "deliveryStates": {
+                "pending": "Oczekuje",
+                "inflight": "Wysyłanie",
+                "succeeded": "Dostarczono",
+                "failed": "Dostarczenie nie powiodło się",
+                "cancelled": "Anulowano"
+            },
+            "errors": {
+                "destination_blocked": "Miejsce docelowe zablokowane",
+                "destination_unavailable": "Miejsce docelowe niedostępne",
+                "redirect_denied": "Odmowa przekierowania",
+                "http_rejected": "Webhook odrzucił żądanie",
+                "smtp_unavailable": "SMTP niedostępne",
+                "timeout": "Przekroczono limit czasu dostarczenia",
+                "cancelled": "Dostarczenie anulowane",
+                "payload_limit": "Powiadomienie jest zbyt duże",
+                "configuration_unavailable": "Konfiguracja niedostępna"
+            },
+            "conflict": "Ustawienia uległy zmianie. Wersja robocza została zachowana. Otwórz kanał ponownie, aby sprawdzić zmiany."
         },
         "page": {
             "eyebrow": "Twoje konto",
@@ -2928,6 +3024,7 @@
             "default_site": "Witryna domyślna",
             "dns_connections": "Połączenia DNS",
             "ddns": "Dynamiczny DNS",
+            "notifications": "Powiadomienia",
             "docker_discovery": "Wykrywanie Dockera"
         },
         "app": {
@@ -3013,6 +3110,10 @@
         "ddns": {
             "view": "Wyświetl stan DDNS",
             "manage": "Zarządzaj konfiguracją DDNS"
+        },
+        "notifications": {
+            "view": "Wyświetlanie konfiguracji powiadomień i stanu dostarczenia",
+            "manage": "Zarządzanie konfiguracją powiadomień"
         },
         "docker_discovery": {
             "view": "Wyświetlanie połączenia i kandydatów Dockera",

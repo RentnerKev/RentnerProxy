@@ -18,3 +18,11 @@ export type ActionMailDefinition = Readonly<{
     actionLabel: string
     securityNotice: string
 }>
+
+export type NotificationMailCategoryDefinition = Readonly<{
+    label: string
+    heading: string
+    summary: string
+    recovery: string
+    nextStep: string
+}>

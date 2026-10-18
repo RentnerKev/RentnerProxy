@@ -77,6 +77,15 @@ const startCertificateJobsLifecycle = createServerOnlyFn(() =>
 
 if (typeof window === 'undefined') void startCertificateJobsLifecycle()
 
+const startNotificationLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { notificationWorker } =
+            await import('@/server/Notifications/notification-worker.server.ts')
+        return notificationWorker
+    }),
+)
+if (typeof window === 'undefined') void startNotificationLifecycle()
+
 const startNpmImportTempCleanup = createServerOnlyFn(async () => {
     const { pruneStaleNpmImports } = await import('@/server/Admin/NpmImport/npm-temp.ts')
     await pruneStaleNpmImports().catch(() => undefined)

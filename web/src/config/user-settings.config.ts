@@ -5,6 +5,7 @@ export const USER_SETTINGS_SECTIONS = [
     'two-factor',
     'passkeys',
     'appearance',
+    'notifications',
 ] as const
 
 export const DEFAULT_USER_SETTINGS_SECTION = 'profile'

@@ -328,7 +328,103 @@
             "password": "Mot de passe",
             "twoFactor": "2FA",
             "passkeys": "Clés d’accès",
-            "appearance": "Apparence"
+            "appearance": "Apparence",
+            "notifications": "Notifications"
+        },
+        "notifications": {
+            "title": "Notifications",
+            "description": "Choisissez où vos notifications sont envoyées et quels événements vous intéressent.",
+            "create": "Ajouter un canal",
+            "edit": "Modifier le canal",
+            "delete": "Supprimer",
+            "deleteTitle": "Supprimer le canal ?",
+            "deleteDescription": "Supprimer « {{name}} » et annuler ses envois en attente ?",
+            "editorDescription": "Définissez la destination et les événements de ce canal.",
+            "name": "Nom du canal",
+            "kind": "Type de destination",
+            "email": "E-mail",
+            "webhook": "Webhook",
+            "events": "Événements",
+            "minimumSeverity": "Gravité minimale",
+            "thresholdSeconds": "Durée minimale de l’incident (secondes)",
+            "enabled": "Activé",
+            "disabled": "Désactivé",
+            "recovery": "Envoyer les notifications de rétablissement",
+            "replaceDestination": "Remplacer la destination",
+            "keepDestination": "La destination enregistrée et le jeton bearer restent inchangés, sauf si vous remplacez la destination. Les secrets enregistrés ne sont jamais affichés.",
+            "recipients": "Destinataires (séparés par des virgules)",
+            "url": "URL du webhook",
+            "token": "Nouveau jeton bearer (facultatif)",
+            "tokenHint": "Lors du remplacement de la destination, un jeton vide supprime le jeton enregistré.",
+            "cidrs": "Réseaux privés autorisés (CIDR, séparés par des virgules)",
+            "paused": "Les envois sont suspendus après une restauration.",
+            "runtimeOff": "L’administrateur a désactivé l’envoi des notifications.",
+            "contactAdmin": "Contactez un administrateur pour activer les envois.",
+            "resume": "Reprendre les envois",
+            "smtpMissing": "L’envoi d’e-mails nécessite une configuration SMTP par un administrateur.",
+            "destinationSaved": "Destination enregistrée de manière sécurisée.",
+            "destinationMissing": "Aucune destination configurée.",
+            "noCategories": "Aucune catégorie d’événement n’est disponible pour votre compte.",
+            "test": "Envoyer un test",
+            "testSent": "Notification de test envoyée.",
+            "saved": "Paramètres de notification enregistrés.",
+            "loadFailed": "Impossible de charger les notifications.",
+            "unavailable": "Les notifications sont actuellement indisponibles.",
+            "actionFailed": "L’action sur les notifications a échoué. Votre brouillon est conservé.",
+            "invalidInput": "Saisissez un nom, au moins un événement, une durée valide et une destination complète.",
+            "deliveries": "Envois",
+            "deliveriesHint": "Les résultats des envois et l’état des incidents sont affichés séparément.",
+            "search": "Rechercher des envois",
+            "noDeliveries": "Aucun envoi pour le moment",
+            "noMatches": "Aucun envoi correspondant",
+            "deletedChannel": "Canal supprimé",
+            "resource": "Ressource",
+            "deliveryType": "Type",
+            "incident": "État de l’incident",
+            "delivery": "État de l’envoi",
+            "attempts": "Tentatives",
+            "updatedAt": "Dernière mise à jour",
+            "deliveryError": "Erreur d’envoi",
+            "categories": {
+                "certificate_renewal": "Renouvellement des certificats",
+                "ddns": "DNS dynamique",
+                "proxy_configuration": "Configuration du proxy"
+            },
+            "severities": {
+                "warning": "Avertissement",
+                "error": "Erreur",
+                "critical": "Critique"
+            },
+            "types": {
+                "incident": "Incident",
+                "recovery": "Rétablissement",
+                "test": "Test"
+            },
+            "incidentStates": {
+                "active": "Incident actif",
+                "recovered": "Rétabli",
+                "test": "Test",
+                "unknown": "Indisponible"
+            },
+            "deliveryStates": {
+                "pending": "En attente",
+                "inflight": "En cours d’envoi",
+                "succeeded": "Envoyé",
+                "failed": "Échec de l’envoi",
+                "cancelled": "Annulé"
+            },
+            "errors": {
+                "destination_blocked": "Destination bloquée",
+                "destination_unavailable": "Destination indisponible",
+                "redirect_denied": "Redirection refusée",
+                "http_rejected": "Le webhook a refusé la requête",
+                "smtp_unavailable": "SMTP indisponible",
+                "timeout": "Délai d’envoi dépassé",
+                "cancelled": "Envoi annulé",
+                "payload_limit": "Notification trop volumineuse",
+                "configuration_unavailable": "Configuration indisponible"
+            },
+            "conflict": "Les paramètres ont changé. Votre brouillon est conservé. Rouvrez le canal pour examiner les changements."
         },
         "page": {
             "eyebrow": "Votre compte",
@@ -2902,6 +2998,7 @@
             "default_site": "Site par défaut",
             "dns_connections": "Connexions DNS",
             "ddns": "DNS dynamique",
+            "notifications": "Notifications",
             "docker_discovery": "Découverte Docker"
         },
         "app": {
@@ -2987,6 +3084,10 @@
         "ddns": {
             "view": "Voir l’état DDNS",
             "manage": "Gérer la configuration DDNS"
+        },
+        "notifications": {
+            "view": "Afficher la configuration des notifications et leur état de livraison",
+            "manage": "Gérer la configuration des notifications"
         },
         "docker_discovery": {
             "view": "Afficher la connexion et les candidats Docker",

@@ -34,5 +34,14 @@ describe('quick search navigation', () => {
         const [result] = getQuickSearchNavigation([PERMISSIONS.ACCOUNT_VIEW], 'language', translate)
         expect(result).toMatchObject({ to: '/account', category: 'settings', section: 'language' })
         expect(getQuickSearchNavigation([], 'language', translate)).toEqual([])
+        expect(
+            getQuickSearchNavigation([PERMISSIONS.ACCOUNT_VIEW], 'notifications', translate),
+        ).toEqual([
+            expect.objectContaining({
+                to: '/account',
+                category: 'settings',
+                section: 'notifications',
+            }),
+        ])
     })
 })
