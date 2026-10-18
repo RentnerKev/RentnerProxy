@@ -2,6 +2,7 @@ import type { NotificationDestination } from '@/lib/Notifications/Types/notifica
 
 export type WebhookDestination = Extract<NotificationDestination, { kind: 'webhook' }>
 export type WebhookResolver = (hostname: string, signal: AbortSignal) => Promise<readonly string[]>
+export type WebhookSystemLookup = (hostname: string) => Promise<readonly string[]>
 export interface WebhookDeliveryOptions {
     readonly request?: (
         options: import('node:https').RequestOptions,

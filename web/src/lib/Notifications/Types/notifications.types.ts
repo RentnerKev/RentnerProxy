@@ -59,9 +59,11 @@ export interface NotificationConfiguration {
 }
 
 export interface NotificationObservation {
+    readonly source: 'event' | 'snapshot'
     readonly category: NotificationCategory
     readonly resourceId: string
-    readonly health: 'failing' | 'healthy'
+    readonly health: 'failing' | 'healthy' | 'pending'
+    readonly desiredRevision?: string
     readonly severity: NotificationSeverity
     readonly occurredAt: string
     readonly evidence: string

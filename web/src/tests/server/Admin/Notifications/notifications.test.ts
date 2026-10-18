@@ -149,6 +149,7 @@ describe('notification admin authorization and persistence', () => {
             initial,
             [
                 {
+                    source: 'snapshot',
                     category: 'ddns',
                     resourceId: 'resource',
                     health: 'failing',
@@ -236,6 +237,7 @@ describe('notification admin authorization and persistence', () => {
                 initial,
                 [
                     {
+                        source: 'snapshot',
                         category: 'ddns',
                         resourceId: 'resource',
                         health: 'failing',

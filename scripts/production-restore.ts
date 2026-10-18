@@ -201,7 +201,11 @@ function postgresRestoreCommand(validateOnly: boolean): string {
             ? []
             : [
                   'cat >> "$restore_sql_path" <<\'RESTORE_NOTIFICATION_SQL\'',
-                  "UPDATE rentnerproxy.system_settings SET value = jsonb_set(jsonb_set(jsonb_set(value, '{enabled}', 'false'::jsonb), '{pausedAfterRestore}', 'true'::jsonb), '{revision}', to_jsonb(least((value->>'revision')::bigint + 1, 4294967295))) WHERE key = 'notification_configuration_v1';",
+                  'WITH normalized AS MATERIALIZED (',
+                  "    SELECT id, CASE jsonb_typeof(value) WHEN 'string' THEN (value #>> '{}')::jsonb ELSE value END AS value",
+                  "    FROM rentnerproxy.system_settings WHERE key = 'notification_configuration_v1'",
+                  ')',
+                  "UPDATE rentnerproxy.system_settings AS settings SET value = jsonb_set(jsonb_set(jsonb_set(normalized.value, '{enabled}', 'false'::jsonb), '{pausedAfterRestore}', 'true'::jsonb), '{revision}', to_jsonb(least((normalized.value->>'revision')::bigint + 1, 4294967295))) FROM normalized WHERE settings.id = normalized.id;",
                   "DELETE FROM rentnerproxy.system_settings WHERE key = 'notification_delivery_state_v1';",
                   'RESTORE_NOTIFICATION_SQL',
               ]),

@@ -44,6 +44,13 @@ const payload = z.strictObject({
 export const notificationStateSchema: z.ZodType<NotificationState> = z
     .strictObject({
         version: z.literal(1),
+        proxyApplyPending: z
+            .strictObject({
+                desiredRevision: z.string().min(1).max(128),
+                since: time,
+                observedAt: time,
+            })
+            .nullable(),
         deferredCount: counter,
         saturationCount: counter,
         incidents: z
@@ -98,6 +105,11 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
         )
             context.addIssue({ code: 'custom', message: 'Notification state exceeds size limit' })
         const open = new Set<string>()
+        if (
+            state.proxyApplyPending &&
+            state.proxyApplyPending.observedAt < state.proxyApplyPending.since
+        )
+            context.addIssue({ code: 'custom', message: 'Invalid proxy apply chronology' })
         const incidentIds = new Set<string>()
         for (const incident of state.incidents) {
             const key = JSON.stringify([incident.category, incident.resourceId])

@@ -1,4 +1,4 @@
-import { Resolver } from 'node:dns/promises'
+import { lookup } from 'node:dns/promises'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { isIP } from 'node:net'
@@ -12,35 +12,89 @@ import type {
     WebhookDeliveryOptions,
     WebhookDestination,
     WebhookResolver,
+    WebhookSystemLookup,
 } from './Types/transport.types.ts'
 import { isWebhookAddressAllowed, parseWebhookDestination } from './webhook-policy.ts'
 
-const resolveAddresses: WebhookResolver = async (hostname, signal) => {
-    const resolver = new Resolver({ timeout: NOTIFICATION_LIMITS.dnsTimeoutMs, tries: 1 })
-    const cancel = () => resolver.cancel()
-    signal.addEventListener('abort', cancel, { once: true })
-    try {
+export function createWebhookSystemResolver(
+    systemLookup: WebhookSystemLookup = async (hostname) =>
+        (await lookup(hostname, { all: true, verbatim: true })).map((answer) => answer.address),
+): WebhookResolver {
+    // getaddrinfo/NSS cannot be cancelled. Keep at most one OS lookup per host,
+    // bounded across hosts, and remove cancelled subscribers independently.
+    const pending = new Map<string, Set<(addresses: readonly string[] | null) => void>>()
+    return (hostname, signal) => {
         signal.throwIfAborted()
-        const results = await Promise.allSettled([
-            resolver.resolve4(hostname),
-            resolver.resolve6(hostname),
-        ])
-        const addresses: string[] = []
-        for (const result of results) {
-            if (result.status === 'fulfilled') addresses.push(...result.value)
-            else {
-                const code =
-                    result.reason && typeof result.reason === 'object' && 'code' in result.reason
-                        ? result.reason.code
-                        : null
-                if (code !== 'ENODATA' && code !== 'ENOTFOUND')
-                    throw new Error('destination_unavailable')
+        let subscribers = pending.get(hostname)
+        if (!subscribers) {
+            if (pending.size >= NOTIFICATION_LIMITS.channels)
+                return Promise.reject(new Error('destination_unavailable'))
+            subscribers = new Set()
+            pending.set(hostname, subscribers)
+            const activeSubscribers = subscribers
+            const complete = (addresses: readonly string[] | null) => {
+                pending.delete(hostname)
+                for (const subscriber of activeSubscribers) subscriber(addresses)
+                activeSubscribers.clear()
             }
+            void Promise.resolve()
+                .then(() => (activeSubscribers.size === 0 ? null : systemLookup(hostname)))
+                .then(complete, () => complete(null))
         }
-        return addresses
-    } finally {
-        signal.removeEventListener('abort', cancel)
+        const activeSubscribers = subscribers
+        return new Promise((resolve, reject) => {
+            const cancel = () => {
+                activeSubscribers.delete(complete)
+                signal.removeEventListener('abort', cancel)
+                reject(new Error('cancelled'))
+            }
+            const complete = (addresses: readonly string[] | null) => {
+                activeSubscribers.delete(complete)
+                signal.removeEventListener('abort', cancel)
+                if (addresses === null) reject(new Error('destination_unavailable'))
+                else resolve(addresses)
+            }
+            activeSubscribers.add(complete)
+            signal.addEventListener('abort', cancel, { once: true })
+            if (signal.aborted) cancel()
+        })
     }
+}
+
+const resolveAddresses = createWebhookSystemResolver()
+
+function resolveBeforeAbort(
+    resolver: WebhookResolver,
+    hostname: string,
+    signal: AbortSignal,
+): Promise<readonly string[]> {
+    return new Promise((resolve, reject) => {
+        const cancel = () => {
+            signal.removeEventListener('abort', cancel)
+            reject(new Error('cancelled'))
+        }
+        const complete = (addresses: readonly string[]) => {
+            signal.removeEventListener('abort', cancel)
+            resolve(addresses)
+        }
+        const fail = () => {
+            signal.removeEventListener('abort', cancel)
+            reject(new Error('destination_unavailable'))
+        }
+        signal.addEventListener('abort', cancel, { once: true })
+        if (signal.aborted) {
+            cancel()
+            return
+        }
+        // A custom resolver may ignore cancellation; its late result cannot resume
+        // the delivery after this independent deadline facade has rejected.
+        void Promise.resolve()
+            .then(() => {
+                signal.throwIfAborted()
+                return resolver(hostname, signal)
+            })
+            .then(complete, fail)
+    })
 }
 
 export async function deliverWebhookNotification(
@@ -82,7 +136,11 @@ export async function deliverWebhookNotification(
                     NOTIFICATION_LIMITS.dnsTimeoutMs,
                 ),
             )
-            addresses = await (options.resolve ?? resolveAddresses)(hostname, controller.signal)
+            addresses = await resolveBeforeAbort(
+                options.resolve ?? resolveAddresses,
+                hostname,
+                controller.signal,
+            )
             clearTimeout(dnsTimer)
         }
         if (controller.signal.aborted) throw new Error('timeout')

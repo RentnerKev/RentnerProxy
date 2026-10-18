@@ -41,6 +41,7 @@ const initial = (): NotificationRuntime => ({
 const batch = {
     observations: [
         {
+            source: 'snapshot' as const,
             category: 'ddns' as const,
             resourceId: tokenB,
             health: 'failing' as const,

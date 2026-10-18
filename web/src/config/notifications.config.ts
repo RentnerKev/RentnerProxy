@@ -22,5 +22,6 @@ export const NOTIFICATION_LIMITS = {
     transportTimeoutMs: 15_000,
     dnsTimeoutMs: 5_000,
     pollIntervalMs: 15_000,
+    proxyApplyGraceMs: 30_000,
     deliveriesPerTick: 4,
 } as const

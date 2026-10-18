@@ -53,6 +53,7 @@ export interface NotificationQueuedDelivery {
 
 export interface NotificationState {
     version: 1
+    proxyApplyPending: { desiredRevision: string; since: number; observedAt: number } | null
     incidents: NotificationIncident[]
     deliveries: NotificationQueuedDelivery[]
     deferredCount: number

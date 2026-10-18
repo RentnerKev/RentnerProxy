@@ -61,6 +61,7 @@ export function certificateEventObservations(
             Date.parse(activation) >= Date.parse(event.occurredAt)
         if (!failing && !recovered) continue
         observations.push({
+            source: 'event',
             category: 'certificate_renewal',
             resourceId: event.certificateId,
             health: failing ? 'failing' : 'healthy',
@@ -100,6 +101,7 @@ export function certificateSnapshotObservations(
             const occurred = time(at)
             if (at && occurred !== null && occurred <= nowMs)
                 observations.push({
+                    source: 'snapshot',
                     category: 'certificate_renewal',
                     resourceId: certificate.id,
                     health: 'failing',
@@ -117,6 +119,7 @@ export function certificateSnapshotObservations(
         const activation = activatedAt(certificate, nowMs)
         if (activation)
             observations.push({
+                source: 'snapshot',
                 category: 'certificate_renewal',
                 resourceId: certificate.id,
                 health: 'healthy',
@@ -154,6 +157,7 @@ export function ddnsObservations(snapshot: DdnsSnapshot, nowMs: number): Notific
         const at = failed ? target.lastAttemptAt : success ? target.lastSuccessAt : null
         if (at === null || at * 1_000 > nowMs) continue
         observations.push({
+            source: 'snapshot',
             category: 'ddns',
             resourceId: target.targetId,
             health: failed ? 'failing' : 'healthy',
@@ -180,14 +184,16 @@ export function proxyConfigurationObservation(
     afterRevision: string,
     nowMs: number,
 ): NotificationObservation[] {
-    if (beforeRevision !== afterRevision) return []
+    if (beforeRevision !== afterRevision || runtime === null) return []
     const healthy =
         runtime?.available === true && runtime.running && runtime.activeRevision === beforeRevision
     return [
         {
+            source: 'snapshot',
             category: 'proxy_configuration',
             resourceId: 'instance',
-            health: healthy ? 'healthy' : 'failing',
+            health: healthy ? 'healthy' : 'pending',
+            desiredRevision: beforeRevision,
             severity: 'error',
             occurredAt: new Date(nowMs).toISOString(),
             evidence: JSON.stringify([

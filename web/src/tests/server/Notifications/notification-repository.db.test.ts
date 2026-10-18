@@ -67,6 +67,7 @@ function batch(resourceId = 'repository-resource'): NotificationCollectedBatch {
         certificateCursor: nextCursor,
         observations: [
             {
+                source: 'snapshot',
                 category: 'ddns',
                 resourceId,
                 health: 'failing',

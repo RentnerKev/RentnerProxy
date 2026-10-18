@@ -39,6 +39,7 @@ const observation = (
     health: 'healthy' | 'failing' = 'failing',
     evidence = health === 'healthy' ? 'healthy-attempt-1' : 'attempt-1',
 ): NotificationObservation => ({
+    source: 'event',
     category: 'ddns',
     resourceId: 'host-1',
     health,
@@ -54,6 +55,14 @@ const proxySignal = (at: number, health: 'failing' | 'healthy'): NotificationObs
     ...observation(at, health, health),
     category: 'proxy_configuration',
     resourceId: 'instance',
+})
+
+const pendingProxy = (at: number, desiredRevision = 'revision-1'): NotificationObservation => ({
+    ...proxySignal(at, 'failing'),
+    source: 'snapshot',
+    health: 'pending',
+    desiredRevision,
+    evidence: `pending:${desiredRevision}`,
 })
 
 describe('durable notification incidents and outbox', () => {
@@ -369,6 +378,31 @@ describe('durable notification incidents and outbox', () => {
         expect(claimNotificationDelivery(state, configuration, 4_000, makeId).delivery).toBeNull()
     })
 
+    test('keeps the actual receiver failure when a pending delivery expires', () => {
+        const claimed = claimNotificationDelivery(
+            observe(createNotificationState(), 1_000),
+            configuration,
+            1_000,
+            makeId,
+        )
+        const failed = finishNotificationDelivery(
+            claimed.state,
+            configuration,
+            claimed.delivery!.leaseToken,
+            { success: false, code: 'http_rejected', retryable: true },
+            1_001,
+        )
+        const expired = claimNotificationDelivery(
+            failed,
+            configuration,
+            1_000 + NOTIFICATION_LIMITS.deliveryLifetimeMs,
+            makeId,
+        )
+        expect(expired.delivery).toBeNull()
+        expect(expired.state.deliveries[0]?.status).toBe('failed')
+        expect(summarizeNotificationState(expired.state).deliveries[0]?.error).toBe('http_rejected')
+    })
+
     test('security rejection is terminal even if incorrectly labelled retryable', () => {
         const claimed = claimNotificationDelivery(
             observe(createNotificationState(), 1_000),
@@ -461,6 +495,99 @@ describe('durable notification incidents and outbox', () => {
         )
         expect(state.incidents).toHaveLength(2)
         expect(state.incidents.map((incident) => incident.recoveredAt)).toEqual([3_000, 5_000])
+    })
+
+    test('confirms a proxy apply only after durable grace, including a restart', () => {
+        const config = {
+            ...configuration,
+            channels: configuration.channels.map((channel) => ({
+                ...channel,
+                events: ['proxy_configuration' as const],
+            })),
+        }
+        let state = observeNotificationSignals(
+            createNotificationState(),
+            config,
+            [pendingProxy(1_000)],
+            1_000,
+            makeId,
+        )
+        expect(state.incidents).toHaveLength(0)
+        state = notificationStateSchema.parse(JSON.parse(JSON.stringify(state)))
+        state = observeNotificationSignals(state, config, [pendingProxy(30_999)], 30_999, makeId)
+        expect(state.deliveries).toHaveLength(0)
+        state = observeNotificationSignals(state, config, [pendingProxy(31_000)], 31_000, makeId)
+        expect(state.deliveries).toHaveLength(1)
+        expect(state.incidents[0]?.startedAt).toBe(1_000)
+        expect(state.incidents[0]?.observedAt).toBe(31_000)
+    })
+
+    test('restarts proxy grace for a new desired revision and clears it only after verified health', () => {
+        const config = {
+            ...configuration,
+            channels: configuration.channels.map((channel) => ({
+                ...channel,
+                events: ['proxy_configuration' as const],
+            })),
+        }
+        let state = observeNotificationSignals(
+            createNotificationState(),
+            config,
+            [pendingProxy(1_000)],
+            1_000,
+            makeId,
+        )
+        state = observeNotificationSignals(
+            state,
+            config,
+            [pendingProxy(30_000, 'revision-2')],
+            30_000,
+            makeId,
+        )
+        expect(state.proxyApplyPending?.since).toBe(30_000)
+        state = observeNotificationSignals(state, config, [], 70_000, makeId)
+        expect(state.incidents).toHaveLength(0)
+        state = observeNotificationSignals(
+            state,
+            config,
+            [proxySignal(29_000, 'healthy')],
+            70_000,
+            makeId,
+        )
+        expect(state.proxyApplyPending).not.toBeNull()
+        state = observeNotificationSignals(
+            state,
+            config,
+            [proxySignal(70_000, 'healthy')],
+            70_000,
+            makeId,
+        )
+        expect(state.proxyApplyPending).toBeNull()
+        expect(state.incidents).toHaveLength(0)
+    })
+
+    test('proxy grace and channel duration thresholds share the same failure start', () => {
+        const config = {
+            ...configuration,
+            channels: configuration.channels.map((channel) => ({
+                ...channel,
+                events: ['proxy_configuration' as const],
+                thresholdSeconds: 60,
+            })),
+        }
+        let state = observeNotificationSignals(
+            createNotificationState(),
+            config,
+            [pendingProxy(1_000)],
+            1_000,
+            makeId,
+        )
+        state = observeNotificationSignals(state, config, [pendingProxy(31_000)], 31_000, makeId)
+        expect(state.incidents).toHaveLength(1)
+        expect(state.deliveries).toHaveLength(0)
+        expect(
+            claimNotificationDelivery(state, config, 61_000, makeId).delivery?.payload.startedAt,
+        ).toBe(new Date(1_000).toISOString())
     })
 
     test('same-time repeated evidence can escalate severity without counting another attempt', () => {
@@ -560,6 +687,41 @@ describe('durable notification incidents and outbox', () => {
         ).toBe('succeeded')
         expect(state.incidents.some((incident) => incident.resourceId === 'new-host')).toBeFalse()
         expect(state.deferredCount).toBeGreaterThan(0)
+    })
+
+    test('keeps long-standing current failures actionable while rejecting expired journal history', () => {
+        const now = NOTIFICATION_LIMITS.retentionMs + 2_000
+        const config = {
+            ...configuration,
+            channels: configuration.channels.map((channel) =>
+                Object.assign({}, channel, {
+                    events: ['ddns' as const, 'certificate_renewal' as const],
+                }),
+            ),
+        }
+        const old = observation(1_000)
+        expect(
+            observeNotificationSignals(createNotificationState(), config, [old], now, makeId)
+                .incidents,
+        ).toHaveLength(0)
+        const state = observeNotificationSignals(
+            createNotificationState(),
+            config,
+            [
+                { ...old, source: 'snapshot', category: 'ddns', severity: 'critical' },
+                {
+                    ...old,
+                    source: 'snapshot',
+                    category: 'certificate_renewal',
+                    severity: 'critical',
+                },
+            ],
+            now,
+            makeId,
+        )
+        expect(state.incidents).toHaveLength(2)
+        expect(state.deliveries).toHaveLength(2)
+        expect(state.incidents.every((incident) => incident.startedAt === 1_000)).toBeTrue()
     })
 
     test('state validation rejects secrets, unbounded arrays, invalid times and duplicate open incidents', () => {

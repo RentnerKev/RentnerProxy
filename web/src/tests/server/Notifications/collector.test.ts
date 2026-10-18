@@ -13,6 +13,11 @@ import type {
 } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { NotificationCollectorDependencies } from '@/server/Notifications/Types/collector.types.ts'
 import { ddnsSnapshotSchema } from '@/lib/Ddns/validation.ts'
+import { NOTIFICATION_LIMITS } from '@/config/notifications.config.ts'
+import {
+    createNotificationState,
+    observeNotificationSignals,
+} from '@/server/Notifications/incident-engine.ts'
 
 const ID = '0197a000-0000-7000-8000-000000000001'
 const OPERATION_ID = '0197a000-0000-7000-8000-000000000002'
@@ -264,6 +269,60 @@ describe('notification source adapters', () => {
         snapshot.targets[0]!.consecutiveFailures++
         expect(ddnsObservations(snapshot, NOW)[0]?.evidence).not.toBe(before[0]?.evidence)
     })
+    test('current old DDNS and renewal failures remain actionable beyond historical retention', () => {
+        const at = NOW - NOTIFICATION_LIMITS.retentionMs - 1_000
+        const status = ddns()
+        status.targets[0]!.lastAttemptAt = at / 1_000
+        status.targets[0]!.permanentFailure = true
+        const metadata = certificate({
+            lastErrorAt: iso(at),
+            lastAttemptAt: iso(at),
+            currentOperation: {
+                id: OPERATION_ID,
+                kind: 'renew',
+                stage: 'needs_attention',
+                startedAt: iso(at),
+                updatedAt: iso(at),
+            },
+        })
+        const config = {
+            enabled: true,
+            pausedAfterRestore: false,
+            channels: [
+                {
+                    id: ID,
+                    name: 'Critical',
+                    kind: 'email' as const,
+                    revision: 1,
+                    enabled: true,
+                    events: ['ddns' as const, 'certificate_renewal' as const],
+                    minimumSeverity: 'critical' as const,
+                    thresholdSeconds: 60,
+                    recovery: true,
+                },
+            ],
+        }
+        const signals = [
+            ...ddnsObservations(status, NOW),
+            ...certificateSnapshotObservations([metadata], NOW),
+        ]
+        let sequence = 0
+        const state = observeNotificationSignals(
+            createNotificationState(),
+            config,
+            signals,
+            NOW,
+            () => `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}`,
+        )
+        expect(state.incidents).toHaveLength(2)
+        expect(state.deliveries).toHaveLength(2)
+        expect(state.incidents.every((incident) => incident.startedAt === at)).toBeTrue()
+        expect(
+            certificateEventObservations([event({ occurredAt: iso(at) })], [metadata], NOW)[0]
+                ?.source,
+        ).toBe('event')
+    })
+
     test('proxy recovery requires a stable desired revision and a fresh verified runtime match', () => {
         const runtime = {
             available: true,
@@ -284,10 +343,8 @@ describe('notification source adapters', () => {
                 'desired',
                 NOW,
             )[0]?.health,
-        ).toBe('failing')
-        expect(proxyConfigurationObservation('desired', null, 'desired', NOW)[0]?.health).toBe(
-            'failing',
-        )
+        ).toBe('pending')
+        expect(proxyConfigurationObservation('desired', null, 'desired', NOW)).toEqual([])
     })
 })
 

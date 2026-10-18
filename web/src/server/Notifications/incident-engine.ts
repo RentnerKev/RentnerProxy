@@ -35,7 +35,14 @@ function recoveryOwed(
 }
 
 export function createNotificationState(): NotificationState {
-    return { version: 1, incidents: [], deliveries: [], deferredCount: 0, saturationCount: 0 }
+    return {
+        version: 1,
+        proxyApplyPending: null,
+        incidents: [],
+        deliveries: [],
+        deferredCount: 0,
+        saturationCount: 0,
+    }
 }
 
 function isActive(delivery: NotificationQueuedDelivery) {
@@ -61,8 +68,10 @@ function terminate(
     status: 'failed' | 'cancelled',
     nowMs: number,
 ) {
+    const leaseLost = delivery.status === 'inflight'
     delivery.status = status
-    delivery.error = status === 'cancelled' ? 'cancelled' : 'timeout'
+    delivery.error =
+        status === 'cancelled' ? 'cancelled' : leaseLost ? 'timeout' : (delivery.error ?? 'timeout')
     delivery.updatedAt = nowMs
     delivery.leaseToken = null
     delivery.leaseExpiresAt = null
@@ -275,7 +284,8 @@ export function observeNotificationSignals(
             !Number.isSafeInteger(observedAt) ||
             observedAt < 0 ||
             observedAt > nowMs ||
-            nowMs - observedAt >= NOTIFICATION_LIMITS.retentionMs ||
+            (observation.source === 'event' &&
+                nowMs - observedAt >= NOTIFICATION_LIMITS.retentionMs) ||
             observation.resourceId.length === 0 ||
             observation.resourceId.length > 512 ||
             observation.evidence.length > 512 ||
@@ -294,8 +304,31 @@ export function observeNotificationSignals(
             ...matching.map((incident) => incident.recoveredAt ?? incident.observedAt),
         )
         if (observedAt < lastObservedAt) continue
+        let health = observation.health
+        let startedAt = observedAt
+        if (observation.category === 'proxy_configuration') {
+            const pending = next.proxyApplyPending
+            if (pending && observedAt < pending.observedAt) continue
+            if (health === 'pending') {
+                if (!observation.desiredRevision || observation.desiredRevision.length > 128)
+                    continue
+                if (!pending || pending.desiredRevision !== observation.desiredRevision) {
+                    next.proxyApplyPending = {
+                        desiredRevision: observation.desiredRevision,
+                        since: observedAt,
+                        observedAt,
+                    }
+                    continue
+                }
+                pending.observedAt = observedAt
+                if (observedAt - pending.since < NOTIFICATION_LIMITS.proxyApplyGraceMs) continue
+                health = 'failing'
+                startedAt = pending.since
+            } else if (health === 'healthy') next.proxyApplyPending = null
+        }
+        if (health === 'pending') continue
         const evidence = createHash('sha256').update(observation.evidence).digest('hex')
-        if (observation.health === 'healthy' && current?.evidence === evidence) continue
+        if (health === 'healthy' && current?.evidence === evidence) continue
         // Only an equal source timestamp can be a replay of a closed transition. The same
         // runtime state at a later time may be a new outage after a real recovery.
         if (
@@ -308,7 +341,7 @@ export function observeNotificationSignals(
             )
         )
             continue
-        if (observation.health === 'healthy') {
+        if (health === 'healthy') {
             if (current) {
                 current.recoveredAt = observedAt
                 current.recoveryEvidence = evidence
@@ -347,7 +380,7 @@ export function observeNotificationSignals(
             category: observation.category,
             resourceId: observation.resourceId,
             severity: observation.severity,
-            startedAt: observedAt,
+            startedAt,
             observedAt,
             evidence,
             failures: Math.max(1, observation.failures),
