@@ -212,7 +212,7 @@ describe('read-only update checker', () => {
                 Object.assign(data.metadata, mutation)
                 const result = await checkerFor(data)('1.0.0-beta.1')
                 expect(result.latest?.image.status).toBe('invalid')
-                expect(data.calls.some((url) => url.includes('ghcr.io'))).toBe(false)
+                expect(data.calls.some((url) => new URL(url).hostname === 'ghcr.io')).toBe(false)
             }),
         )
     })
@@ -228,7 +228,7 @@ describe('read-only update checker', () => {
         )
         const result = await checkerFor(data)('1.0.0-beta.1')
         expect(result.latest?.image.status).toBe('invalid')
-        expect(data.calls.some((url) => url.includes('attacker.example'))).toBe(false)
+        expect(data.calls.some((url) => new URL(url).hostname === 'attacker.example')).toBe(false)
     })
     test('follows a bounded official release-asset redirect', async () => {
         const data = fixture()
