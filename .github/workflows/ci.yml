@@ -16,7 +16,7 @@ concurrency:
 
 env:
     BUN_VERSION: 1.4.3
-    RUST_VERSION: 1.99.0
+    RUST_VERSION: 1.99.1
 
 jobs:
     format:
@@ -231,10 +231,10 @@ jobs:
                   key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
             - name: Run Clippy
-              run: cargo clippy --manifest-path core/Cargo.toml --all-targets --all-features -- -D warnings
+              run: cargo clippy --locked --manifest-path core/Cargo.toml --all-targets --all-features -- -D warnings
 
             - name: Run Rust tests
-              run: cargo test --manifest-path core/Cargo.toml
+              run: cargo test --locked --manifest-path core/Cargo.toml
 
             - name: Save Cargo dependency cache
               if: github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true'

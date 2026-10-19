@@ -186,7 +186,10 @@ async fn health_payload_is_stable_and_public() {
     let expected = format!(
         r#"{{"status":"ok","service":"{}","version":"{}"}}"#,
         env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION")
+        option_env!("RENTNERPROXY_BUILD_VERSION")
+            .map(str::trim)
+            .filter(|version| !version.is_empty())
+            .unwrap_or(concat!(env!("CARGO_PKG_VERSION"), "-dev"))
     );
     assert_eq!(body.as_ref(), expected.as_bytes());
 }

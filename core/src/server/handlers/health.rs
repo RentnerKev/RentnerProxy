@@ -14,7 +14,7 @@ pub(in crate::server) async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
         service: env!("CARGO_PKG_NAME"),
-        version: env!("CARGO_PKG_VERSION"),
+        version: crate::version::version(),
     })
 }
 
