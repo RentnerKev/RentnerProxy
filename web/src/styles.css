@@ -219,3 +219,26 @@
 *::-webkit-scrollbar-thumb:hover {
     background: var(--color-brand-600);
 }
+
+/* Animate the wrapper so the update arrow remains crisp. */
+.application-update-signal {
+    animation: application-update-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes application-update-pulse {
+    0%,
+    100% {
+        transform: translateY(1px);
+        box-shadow: 0 0 5px rgb(251 191 36 / 12%);
+    }
+    50% {
+        transform: translateY(-2px);
+        box-shadow: 0 0 14px rgb(251 191 36 / 35%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .application-update-signal {
+        animation: none;
+    }
+}

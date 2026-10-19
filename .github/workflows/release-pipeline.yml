@@ -150,6 +150,7 @@ jobs:
         name: Publish release notes
         needs:
             - prepare
+            - build
             - publish-image
         runs-on: ubuntu-latest
         timeout-minutes: 10
@@ -186,3 +187,23 @@ jobs:
                   RELEASE_TAG: ${{ inputs.release_tag }}
               shell: bash
               run: bash automation/.github/scripts/release/publish-release-notes.sh
+
+            - name: Set up Bun for release readiness
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Publish readiness after verified image and release assets
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_CHANNEL: ${{ inputs.channel }}
+                  RELEASE_DIGEST: ${{ needs.build.outputs.digest }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+                  RELEASE_PLATFORMS: linux/amd64
+                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+              shell: bash
+              run: bash automation/.github/scripts/release/publish-release-readiness.sh

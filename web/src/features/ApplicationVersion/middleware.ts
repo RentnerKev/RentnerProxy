@@ -7,5 +7,5 @@ import { getAvailableUpdateService } from '@/server/Updates/releases.service.ts'
 
 export const getApplicationUpdateHandler = createServerFn({ method: 'GET' }).handler(async () => {
     await requirePermissionService(PERMISSIONS.APP_ACCESS)
-    return { latestVersion: await getAvailableUpdateService(APP_VERSION) }
+    return getAvailableUpdateService(APP_VERSION)
 })
