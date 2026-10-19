@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/rust:1.99.0-trixie@sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181 AS builder
+FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:e259494b14672950a909b4c54527e19d29cae6ebf980672114c8bb85e5594e4a AS builder
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
