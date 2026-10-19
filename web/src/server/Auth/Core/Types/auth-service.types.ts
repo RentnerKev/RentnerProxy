@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type { MailAppearance } from '@/server/Mail/Types/mail-theme.types.ts'
 
 export interface CurrentSession {
     readonly id: string
@@ -48,6 +49,7 @@ export interface TokenDelivery {
     readonly email: string
     readonly token: string
     readonly expiresAt: Date
+    readonly appearance?: MailAppearance | undefined
 }
 
 export type TokenConsumptionResult =

@@ -1,9 +1,10 @@
-FROM mirror.gcr.io/library/rust:1.99.0-trixie@sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181 AS builder
+FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:e259494b14672950a909b4c54527e19d29cae6ebf980672114c8bb85e5594e4a AS builder
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
 COPY core/src ./src
-RUN cargo build --locked --release
+ARG RENTNERPROXY_BUILD_VERSION
+RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" cargo build --locked --release
 
 FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS caddy-go-toolchain
 
@@ -11,7 +12,7 @@ FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdab
 # The module revision is the signed v0.14.1 release.
 # Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
 # registrations so the appliance exposes only the required HTTP bouncer.
-FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:b25f47453fa02f7e66c0828b4b1343658808b9000950b6825c4a1cb0c988f5f8 AS caddy-build
+FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:d842facfd63b960922e57444ff76fd8f0793a66dfdcf481af8026e1f4e6a39b4 AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/

@@ -94,6 +94,8 @@ export async function sendNotificationEmailService(
     const serializedPayload = JSON.stringify(payload, null, 2)
     if (Buffer.byteLength(serializedPayload) > NOTIFICATION_LIMITS.payloadBytes)
         return { success: false, code: 'payload_limit', retryable: false }
+    const appUrl = getPublicOrigin()
+    if (!appUrl) return { success: false, code: 'configuration_unavailable', retryable: false }
     let client: NotificationMailClient | null
     try {
         if (options.createClient) client = options.createClient()
@@ -112,67 +114,79 @@ export async function sendNotificationEmailService(
     }
     if (!client) return { success: false, code: 'smtp_unavailable', retryable: false }
     const activeClient = client
-    return await new Promise<NotificationDeliveryResult>((resolve) => {
-        let finished = false
-        const finish = (result: NotificationDeliveryResult) => {
-            if (finished) return
-            finished = true
-            clearTimeout(timer)
-            signal?.removeEventListener('abort', cancel)
-            activeClient.close()
-            resolve(result)
-        }
-        const cancel = () => finish({ success: false, code: 'cancelled', retryable: false })
-        const timer = setTimeout(
-            () => finish({ success: false, code: 'timeout', retryable: true }),
-            Math.min(
-                options.timeoutMs ?? NOTIFICATION_LIMITS.transportTimeoutMs,
-                NOTIFICATION_LIMITS.transportTimeoutMs,
-            ),
-        )
-        signal?.addEventListener('abort', cancel, { once: true })
-        if (signal?.aborted) {
-            cancel()
-            return
-        }
-        void Promise.resolve()
-            .then(() => {
-                if (finished) throw new Error('cancelled')
-                return activeClient.sendMail({
-                    ...createNotificationEmailTemplate(payload),
-                    from: activeClient.from,
-                    to: [...recipients],
-                    messageId: `<${createHash('sha256').update(payload.id).digest('hex')}@notifications.rentnerproxy>`,
-                    disableFileAccess: true,
-                    disableUrlAccess: true,
-                })
-            })
-            .then(
-                (result) => {
-                    const missing =
-                        result.rejected?.length ??
-                        Math.max(0, recipients.length - (result.accepted?.length ?? 0))
-                    const permanent =
-                        result.rejectedErrors !== undefined &&
-                        result.rejectedErrors.length > 0 &&
-                        result.rejectedErrors.length >= missing &&
-                        result.rejectedErrors.every(
-                            (error) =>
-                                typeof error.responseCode === 'number' &&
-                                error.responseCode >= 500 &&
-                                error.responseCode < 600,
-                        )
-                    finish(
-                        result.accepted?.length === recipients.length &&
-                            !result.rejected?.length &&
-                            !result.rejectedErrors?.length
-                            ? { success: true }
-                            : { success: false, code: 'smtp_unavailable', retryable: !permanent },
-                    )
-                },
-                () => finish({ success: false, code: 'smtp_unavailable', retryable: true }),
+    try {
+        const content = createNotificationEmailTemplate(payload, {
+            appUrl,
+            appearance: options.appearance,
+        })
+        if (signal?.aborted) return { success: false, code: 'cancelled', retryable: false }
+        return await new Promise<NotificationDeliveryResult>((resolve) => {
+            let finished = false
+            const finish = (result: NotificationDeliveryResult) => {
+                if (finished) return
+                finished = true
+                clearTimeout(timer)
+                signal?.removeEventListener('abort', cancel)
+                resolve(result)
+            }
+            const cancel = () => finish({ success: false, code: 'cancelled', retryable: false })
+            const timer = setTimeout(
+                () => finish({ success: false, code: 'timeout', retryable: true }),
+                Math.min(
+                    options.timeoutMs ?? NOTIFICATION_LIMITS.transportTimeoutMs,
+                    NOTIFICATION_LIMITS.transportTimeoutMs,
+                ),
             )
-    })
+            signal?.addEventListener('abort', cancel, { once: true })
+            if (signal?.aborted) {
+                cancel()
+                return
+            }
+            void Promise.resolve()
+                .then(() => {
+                    if (finished) throw new Error('cancelled')
+                    return activeClient.sendMail({
+                        ...content,
+                        disableFileAccess: true,
+                        disableUrlAccess: true,
+                        from: activeClient.from,
+                        to: [...recipients],
+                        messageId: `<${createHash('sha256').update(payload.id).digest('hex')}@notifications.rentnerproxy>`,
+                    })
+                })
+                .then(
+                    (result) => {
+                        const missing =
+                            result.rejected?.length ??
+                            Math.max(0, recipients.length - (result.accepted?.length ?? 0))
+                        const permanent =
+                            result.rejectedErrors !== undefined &&
+                            result.rejectedErrors.length > 0 &&
+                            result.rejectedErrors.length >= missing &&
+                            result.rejectedErrors.every(
+                                (error) =>
+                                    typeof error.responseCode === 'number' &&
+                                    error.responseCode >= 500 &&
+                                    error.responseCode < 600,
+                            )
+                        finish(
+                            result.accepted?.length === recipients.length &&
+                                !result.rejected?.length &&
+                                !result.rejectedErrors?.length
+                                ? { success: true }
+                                : {
+                                      success: false,
+                                      code: 'smtp_unavailable',
+                                      retryable: !permanent,
+                                  },
+                        )
+                    },
+                    () => finish({ success: false, code: 'smtp_unavailable', retryable: true }),
+                )
+        })
+    } finally {
+        activeClient.close()
+    }
 }
 
 function getMailClient(): MailClient {
@@ -215,13 +229,11 @@ async function sendMail(to: string, template: MailTemplate): Promise<void> {
     const client = getMailClient()
 
     await client.transport.sendMail({
-        from: client.from,
-        to,
-        subject: template.subject,
-        text: template.text,
-        html: template.html,
+        ...template,
         disableFileAccess: true,
         disableUrlAccess: true,
+        from: client.from,
+        to,
     })
 }
 
@@ -229,11 +241,13 @@ export async function sendPasswordResetEmailService({
     to,
     displayName,
     token,
+    appearance,
 }: SendActionEmailInput): Promise<void> {
     const template = createPasswordResetEmailTemplate({
         appUrl: await getRequiredPublicOrigin(),
         displayName,
         token,
+        appearance,
     })
 
     await sendMail(to, template)
@@ -243,11 +257,13 @@ export async function sendUserInviteEmailService({
     to,
     displayName,
     token,
+    appearance,
 }: SendActionEmailInput): Promise<void> {
     const template = createUserInviteEmailTemplate({
         appUrl: await getRequiredPublicOrigin(),
         displayName,
         token,
+        appearance,
     })
 
     await sendMail(to, template)

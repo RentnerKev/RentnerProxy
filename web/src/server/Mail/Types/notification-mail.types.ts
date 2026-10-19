@@ -1,4 +1,5 @@
 import type { SendMailOptions } from 'nodemailer'
+import type { MailAppearance } from './mail-theme.types.ts'
 
 export interface NotificationMailClient {
     readonly from: string
@@ -13,6 +14,7 @@ export interface NotificationMailClient {
 }
 
 export interface NotificationMailOptions {
+    readonly appearance?: MailAppearance | undefined
     readonly createClient?: () => NotificationMailClient | null
     readonly timeoutMs?: number
 }

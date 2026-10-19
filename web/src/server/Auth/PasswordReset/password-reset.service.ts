@@ -6,6 +6,7 @@ import { and, eq, gt, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { PASSWORD_RESET_DURATION_MS } from '@/config/auth.config.ts'
 import { passwordResetTokens, users } from '@/db/schema.ts'
 import { sendPasswordResetEmailService } from '@/server/Mail/mail.service.ts'
+import { getUserMailAppearanceInTransaction } from '@/server/Mail/mail-appearance.service.ts'
 import type {
     TokenConsumptionResult,
     TokenDelivery,
@@ -74,6 +75,7 @@ export async function issuePasswordResetService(emailInput: string): Promise<Tok
             email: user.email,
             token,
             expiresAt,
+            appearance: await getUserMailAppearanceInTransaction(transaction, user.id),
         }
     })
 }
@@ -97,6 +99,7 @@ export async function requestPasswordResetService(emailInput: string): Promise<v
         displayName: delivery.displayName,
         to: delivery.email,
         token: delivery.token,
+        appearance: delivery.appearance,
     }).catch(() => console.warn('[auth] password reset delivery unavailable'))
 }
 

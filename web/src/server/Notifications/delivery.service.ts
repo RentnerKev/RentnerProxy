@@ -4,6 +4,7 @@ import type {
     NotificationPayload,
 } from '@/lib/Notifications/Types/notifications.types.ts'
 import { sendNotificationEmailService } from '@/server/Mail/mail.service.ts'
+import type { MailAppearance } from '@/server/Mail/Types/mail-theme.types.ts'
 import { deliverWebhookNotification } from './webhook-delivery.ts'
 import { parseWebhookDestination } from './webhook-policy.ts'
 
@@ -30,6 +31,7 @@ export async function deliverNotification(
     destination: NotificationDestination,
     payload: NotificationPayload,
     signal?: AbortSignal,
+    appearance?: MailAppearance,
 ): Promise<NotificationDeliveryResult> {
     try {
         validateNotificationDestination(destination)
@@ -52,7 +54,9 @@ export async function deliverNotification(
     }
     try {
         return destination.kind === 'email'
-            ? await sendNotificationEmailService(destination.recipients, safe, signal)
+            ? await sendNotificationEmailService(destination.recipients, safe, signal, {
+                  appearance,
+              })
             : await deliverWebhookNotification(destination, safe, signal)
     } catch {
         return { success: false, code: 'destination_unavailable', retryable: true }

@@ -6,6 +6,7 @@ mod proxy;
 mod runtime;
 mod server;
 mod shutdown;
+mod version;
 
 pub use application::{healthcheck, run};
 

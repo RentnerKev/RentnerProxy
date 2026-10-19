@@ -68,7 +68,7 @@ pub async fn run() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    info!(target: "rentnerproxy_controller", version = env!("CARGO_PKG_VERSION"), "controller starting");
+    info!(target: "rentnerproxy_controller", version = crate::version::version(), "controller starting");
     match serve().await {
         Ok(()) => {
             info!(target: "rentnerproxy_controller", "controller stopped");
