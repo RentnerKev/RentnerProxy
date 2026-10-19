@@ -4,6 +4,11 @@ export const MAIL_LOGO_VERSION = '1'
 export const MAIL_LOGO_WIDTH = 512
 export const MAIL_LOGO_HEIGHT = 192
 export const MAIL_LOGO_CACHE_SIZE = 32
+export const MAIL_LOGO_MAX_PENDING = 32
+export const MAIL_LOGO_RENDER_RATE_LIMITS = {
+    client: { scope: 'mail-logo-render-client', limit: 6, windowMs: 60_000 },
+    global: { scope: 'mail-logo-render-global', limit: 24, windowMs: 60_000 },
+} as const
 
 export const MAIL_BASE_THEMES = {
     light: {

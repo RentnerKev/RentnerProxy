@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import { createServer } from 'vite'
+import { createServer, isRunnableDevEnvironment } from 'vite'
 
 test('serves the actual mail logo route to anonymous image requests through TanStack Start', async () => {
     const parent = resolve(import.meta.dir, '../../../../tmp')
@@ -40,6 +40,14 @@ export const getRouter = () => createRouter({ routeTree })`,
         })
         try {
             await server.listen()
+            // Seed a trusted image in the same SSR module graph. Admission behavior
+            // is tested with a fake Valkey client; this fixture must never contact one.
+            const ssr = server.environments.ssr
+            if (!ssr || !isRunnableDevEnvironment(ssr)) throw new Error('Missing SSR runner.')
+            const renderer = await ssr.runner.import<{
+                getMailLogoPng: (accent: string) => Promise<Buffer>
+            }>('@/server/Mail/mail-logo.ts')
+            await renderer.getMailLogoPng('#8844ee')
             const origin = server.resolvedUrls?.local[0]
             if (!origin) throw new Error('The image fixture must listen locally.')
             const url = new URL('/media/mail-logo/8844ee?v=1', origin)

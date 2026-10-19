@@ -4,11 +4,24 @@ import type { DecodedPng } from 'fast-png'
 import logoAsset from '../../../public/rentnerproxy-logo-long.png?inline'
 import maskAsset from '../../../public/rentnerproxy-logo-long-accent-mask.png?inline'
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
-import { MAIL_LOGO_CACHE_SIZE, MAIL_LOGO_HEIGHT, MAIL_LOGO_WIDTH } from '@/config/mail.config.ts'
+import {
+    MAIL_LOGO_CACHE_SIZE,
+    MAIL_LOGO_HEIGHT,
+    MAIL_LOGO_WIDTH,
+    MAIL_LOGO_MAX_PENDING,
+} from '@/config/mail.config.ts'
 import { deriveAccentPalette } from '@/lib/Theme/accentPalette.ts'
 
-const logos = new Map<string, Promise<Buffer>>()
+const logos = new Map<string, Buffer>()
+const pending = new Map<string, Promise<Buffer>>()
 let sources: Promise<readonly [DecodedPng, DecodedPng]> | undefined
+
+export class MailLogoBusyError extends Error {
+    constructor() {
+        super('Mail logo rendering is busy')
+        this.name = 'MailLogoBusyError'
+    }
+}
 
 async function readBrandAsset(kind: 'logo' | 'mask'): Promise<DecodedPng> {
     // Vite embeds these literal imports in SSR; Bun resolves them to local absolute paths.
@@ -118,23 +131,38 @@ async function renderLogo(accent: string): Promise<Buffer> {
     )
 }
 
-export async function getMailLogoPng(accentColor: string): Promise<Buffer> {
+export async function getMailLogoPng(
+    accentColor: string,
+    beforeRender?: () => Promise<void>,
+): Promise<Buffer> {
     const accent = deriveAccentPalette(accentColor).accent
-    let content = logos.get(accent)
-    if (content) {
+    const cached = logos.get(accent)
+    if (cached) {
         logos.delete(accent)
-        logos.set(accent, content)
-    } else {
-        content = renderLogo(accent)
-        logos.set(accent, content)
-        const pending = content
-        void pending.catch(() => {
-            if (logos.get(accent) === pending) logos.delete(accent)
-        })
-        if (logos.size > MAIL_LOGO_CACHE_SIZE) {
-            const oldest = logos.keys().next().value
-            if (oldest !== undefined) logos.delete(oldest)
-        }
+        logos.set(accent, cached)
+        return Buffer.from(cached)
     }
-    return Buffer.from(await content)
+    let content = pending.get(accent)
+    if (!content) {
+        if (pending.size >= MAIL_LOGO_MAX_PENDING) throw new MailLogoBusyError()
+        content = Promise.resolve().then(async () => {
+            // Admission is shared by concurrent requests for the same color and
+            // completes before any synchronous rasterization starts.
+            await beforeRender?.()
+            const rendered = await renderLogo(accent)
+            logos.set(accent, rendered)
+            if (logos.size > MAIL_LOGO_CACHE_SIZE) {
+                const oldest = logos.keys().next().value
+                if (oldest !== undefined) logos.delete(oldest)
+            }
+            return rendered
+        })
+        // Pending/unapproved requests must not evict successfully cached images.
+        pending.set(accent, content)
+    }
+    try {
+        return Buffer.from(await content)
+    } finally {
+        if (pending.get(accent) === content) pending.delete(accent)
+    }
 }
