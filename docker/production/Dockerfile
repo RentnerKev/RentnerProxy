@@ -87,14 +87,14 @@ RUN bun --no-env-file /tmp/download-geoip.ts
 
 # Retain upstream CrowdSec 1.8.1 and its full static build profile with patched
 # gRPC, SSH, HTTP/2 and PostgreSQL dependencies.
-FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS crowdsec-build
+FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS crowdsec-build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
 RUN /bin/sh /opt/crowdsec-build/build.sh /out
 
-FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS gosu-build
+FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS gosu-build
 COPY docker/gosu/tooling/ /opt/gosu-build/
 RUN /bin/sh /opt/gosu-build/build.sh /out
 
