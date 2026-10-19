@@ -1,5 +1,6 @@
 import type { NotificationChannelPolicy } from '@/lib/Notifications/Types/notifications.types.ts'
 import type { NotificationState, NotificationClaimedDelivery } from './notification-state.types.ts'
+import type { MailAppearance } from '@/server/Mail/Types/mail-theme.types.ts'
 
 export interface EncryptedNotificationDestination {
     readonly ciphertext: string
@@ -35,4 +36,10 @@ export interface NotificationCollectionClaim {
 
 export interface NotificationDeliveryClaim extends NotificationClaimedDelivery {
     readonly channel: StoredNotificationChannel
+}
+
+export interface NotificationDeliveryAuthorization {
+    readonly channel: StoredNotificationChannel
+    readonly allowPrivateDestinations: boolean
+    readonly mailAppearance?: MailAppearance | undefined
 }

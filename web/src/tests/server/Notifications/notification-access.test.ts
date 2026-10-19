@@ -59,6 +59,19 @@ const claim = {
 }
 
 describe('notification ownership and current access', () => {
+    test('passes the currently authorized owner appearance only to email delivery', async () => {
+        const mailAppearance = { themeMode: 'dark' as const, accentColor: '#8844ee' }
+        const destination = { kind: 'email' as const, recipients: ['test@example.test'] }
+        const deliver = mock(async () => ({ success: true as const }))
+        const send = createAuthorizedNotificationDelivery({
+            authorize: async () => ({ channel, allowPrivateDestinations: false, mailAppearance }),
+            open: async () => destination,
+            deliver,
+        })
+        expect(await send(claim)).toEqual({ success: true })
+        expect(deliver).toHaveBeenCalledWith(destination, PAYLOAD, undefined, mailAppearance)
+    })
+
     test('maps categories to domain permissions without granting them from notification administration', () => {
         expect(
             getAllowedNotificationCategories([

@@ -32,7 +32,9 @@ describe('sensitive action rate-limit placement', () => {
                 auditEvents: {},
                 passwordResetTokens: {},
                 sessions: {},
+                systemSettings: {},
                 userInvites: {},
+                userSettings: {},
                 users: {},
             }))
             mock.module('./server/Valkey/rate-limiter.service.ts', () => ({
