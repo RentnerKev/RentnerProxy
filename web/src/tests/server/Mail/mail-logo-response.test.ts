@@ -1,7 +1,11 @@
 import { describe, expect, mock, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { decode } from 'fast-png'
-import { MAIL_LOGO_RENDER_RATE_LIMITS } from '@/config/mail.config.ts'
+import {
+    MAIL_LOGO_CACHE_SIZE,
+    MAIL_LOGO_RENDER_RATE_LIMITS,
+    MAIL_LOGO_VERSION,
+} from '@/config/mail.config.ts'
 import { getMailLogoPng } from '@/server/Mail/mail-logo.ts'
 import { getMailLogoResponseService } from '@/server/Mail/mail-logo.service.ts'
 import { createRateLimitKey } from '@/server/Valkey/rate-limiter.service.ts'
@@ -27,7 +31,7 @@ describe('public mail logo response', () => {
             const content = Buffer.from(await response.arrayBuffer())
             expect(content).toEqual(Buffer.from(await getMailLogoPng(`#${accent}`)))
             expect(response.headers.get('etag')).toBe(
-                `"${createHash('sha256').update(content).digest('hex')}"`,
+                `"${createHash('sha256').update(`${accent.toLowerCase()}:${MAIL_LOGO_VERSION}`).digest('hex')}"`,
             )
             const image = decode(content)
             expect([image.width, image.height, image.channels]).toEqual([512, 192, 4])
@@ -185,5 +189,40 @@ describe('public mail logo response', () => {
         expect(await unavailable.text()).toBe('')
         const retried = await getMailLogoResponseService(new Request(url), 'a10003', admitted)
         expect(retried.status).toBe(200)
+    })
+
+    test('revalidates an evicted image without rendering or consuming unavailable admission', async () => {
+        const first = await getMailLogoResponseService(new Request(url), 'a10004', admitted)
+        expect(first.status).toBe(200)
+        const etag = first.headers.get('etag')!
+        await Promise.all(
+            Array.from({ length: MAIL_LOGO_CACHE_SIZE }, (_, index) =>
+                getMailLogoPng(`#e${index.toString(16).padStart(5, '0')}`),
+            ),
+        )
+        const getClient = mock(() => {
+            throw new Error('Admission is unavailable')
+        })
+        await Promise.all(
+            [etag, `W/${etag}`, `"other", W/${etag}`, '*'].map(async (validator) => {
+                const response = await getMailLogoResponseService(
+                    new Request(url, { headers: { 'If-None-Match': validator } }),
+                    'A10004',
+                    { getClient },
+                )
+                expect(response.status).toBe(304)
+                expect(response.headers.get('etag')).toBe(etag)
+                expect(response.headers.get('cache-control')).toBe('public, max-age=86400')
+                expect(await response.text()).toBe('')
+            }),
+        )
+        expect(getClient).not.toHaveBeenCalled()
+        const miss = await getMailLogoResponseService(
+            new Request(url, { headers: { 'If-None-Match': '"outdated"' } }),
+            'a10004',
+            { getClient },
+        )
+        expect(miss.status).toBe(503)
+        expect(getClient).toHaveBeenCalledTimes(1)
     })
 })

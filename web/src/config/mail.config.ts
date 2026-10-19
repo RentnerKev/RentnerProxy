@@ -1,5 +1,6 @@
 export const MAIL_LOGO_PATH = '/media/mail-logo/'
-// Change this version when the logo assets or rasterization change.
+// Bump whenever assets, rasterization or encoder updates change the output bytes.
+// The public URL and strong ETag both depend on this representation version.
 export const MAIL_LOGO_VERSION = '1'
 export const MAIL_LOGO_WIDTH = 512
 export const MAIL_LOGO_HEIGHT = 192

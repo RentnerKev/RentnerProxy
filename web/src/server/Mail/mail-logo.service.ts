@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { createHash } from 'node:crypto'
-import { MAIL_LOGO_RENDER_RATE_LIMITS } from '@/config/mail.config.ts'
+import { MAIL_LOGO_RENDER_RATE_LIMITS, MAIL_LOGO_VERSION } from '@/config/mail.config.ts'
 import {
     consumeRateLimit,
     getClientIp,
@@ -19,9 +19,28 @@ export async function getMailLogoResponseService(
         return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
     }
 
+    const normalized = accent.toLowerCase()
+    // The representation version covers assets and encoding, so revalidation
+    // does not depend on an in-memory image surviving restarts or LRU eviction.
+    const etag = `"${createHash('sha256').update(`${normalized}:${MAIL_LOGO_VERSION}`).digest('hex')}"`
+    const headers = {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=86400',
+        'X-Content-Type-Options': 'nosniff',
+        ETag: etag,
+    }
+    const condition = request.headers.get('if-none-match')
+    const unchanged =
+        condition?.trim() === '*' ||
+        condition?.split(',').some((candidate) => {
+            const validator = candidate.trim()
+            return validator === etag || validator === `W/${etag}`
+        })
+    if (unchanged) return new Response(null, { status: 304, headers })
+
     let content: Buffer
     try {
-        content = await getMailLogoPng(`#${accent}`, async () => {
+        content = await getMailLogoPng(`#${normalized}`, async () => {
             // Reuse trusted client identification, including its conservative unknown
             // bucket. Never use caller-supplied forwarding headers to mint new buckets.
             await consumeRateLimit(
@@ -55,22 +74,5 @@ export async function getMailLogoResponseService(
             },
         })
     }
-    const etag = `"${createHash('sha256').update(content).digest('hex')}"`
-    const headers = {
-        'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=86400',
-        'X-Content-Type-Options': 'nosniff',
-        ETag: etag,
-    }
-    const condition = request.headers.get('if-none-match')
-    const unchanged =
-        condition?.trim() === '*' ||
-        condition?.split(',').some((candidate) => {
-            const validator = candidate.trim()
-            return validator === etag || validator === `W/${etag}`
-        })
-    return new Response(unchanged ? null : new Uint8Array(content), {
-        status: unchanged ? 304 : 200,
-        headers,
-    })
+    return new Response(new Uint8Array(content), { status: 200, headers })
 }
