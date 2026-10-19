@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Updatecontrole mislukt — details openen",
+        "platform": "Imageplatform",
+        "minimumVersion": "Minimale bronversie",
+        "intermediateVersion": "Vereiste tussenversie",
+        "title": "RentnerProxy bijwerken",
+        "description": "Bekijk de release en bereid een handmatige update voor. Dit venster installeert niets en maakt geen back-up.",
+        "current": "Geïnstalleerde versie",
+        "target": "Gepubliceerd doel",
+        "channel": "Doelkanaal",
+        "unknown": "Niet beschikbaar",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stabiel"
+        },
+        "availability": "Release- en upgradecontroles",
+        "published": "Er is een nieuwere release gepubliceerd. Alleen de publicatie betekent niet dat de image of upgradeprocedure klaar is.",
+        "checkFailed": "Updategegevens zijn niet beschikbaar. Controleer opnieuw voordat je de image wijzigt; de eerdere verificatie wordt niet meer getoond.",
+        "images": {
+            "verified": "De onveranderlijke image-digest en het platform zijn gecontroleerd aan de hand van de releasemetadata.",
+            "pending": "De release-image is nog niet geverifieerd. Wacht met bijwerken tot de publicatie en verificatie zijn afgerond.",
+            "unavailable": "De image kon niet worden geverifieerd. Selecteer geen niet-geverifieerd doel.",
+            "unsupported-platform": "Deze image ondersteunt het geconfigureerde platform niet.",
+            "invalid": "De metadata van de release-image zijn ongeldig. Gebruik dit doel niet."
+        },
+        "compatibility": {
+            "supported": "Het gepubliceerde compatibiliteitsbeleid ondersteunt deze bronversie. Voltooi de back-up en voorbereiding hieronder voordat je bijwerkt.",
+            "requires-beta1": "Direct upgraden is geblokkeerd: Alpha moet via de vastgepinde v1.0.0-beta.1. Voltooi de reconciliatie, controleer hosts en certificaten en maak daarna een nieuwe v4-back-up.",
+            "unsupported": "Ondersteuning voor deze bronversie is niet bevestigd. Upgrade niet direct; controleer eerst de officiële releasevereisten."
+        },
+        "imageReference": "Geverifieerde imageverwijzing voor het doel",
+        "copy": "Imageverwijzing kopiëren",
+        "copyHint": "Kopiëren staat een niet-ondersteunde upgrade niet toe en wijzigt je implementatie niet.",
+        "copyStates": {
+            "copied": "Imageverwijzing gekopieerd.",
+            "failed": "Toegang tot het klembord mislukt. Selecteer en kopieer de verwijzing in het veld hierboven handmatig."
+        },
+        "notes": "Releasenotities",
+        "noNotes": "Hier zijn geen releasenotities beschikbaar. Lees de officiële releasepagina voordat je verdergaat.",
+        "releaseLink": "Officiële GitHub-release lezen ↗",
+        "guideTitle": "Checklist voor handmatig bijwerken",
+        "interruption": "Plan een onderhoudsvenster: back-ups en het vervangen van de container onderbreken zowel het proxyverkeer als de webinterface.",
+        "guide": {
+            "prepare": "Gebruik een checkout van de momenteel geïnstalleerde bronrelease met de bijbehorende Bun-tools en de werkelijke Compose-omgeving en het project van de implementatie. Bewaar de exacte digest van de actieve bronimage, de Compose-configuratie, poorten, implementatieomgeving en inloggegevens of versleutelingsmateriaal privé. De interface inspecteert of certificeert geen back-up van de host.",
+            "backup": "Maak voordat je de image wijzigt een volledige productieback-up met de tools van die bronrelease. Vervang de tijdelijke waarden en bewaar de voltooide back-up buiten het appliancevolume op een privé en vertrouwde locatie. De back-uptool controleert of de door Compose geselecteerde image overeenkomt met het veld .Image van de daadwerkelijke container; los afwijkingen op voordat je verdergaat.",
+            "alpha": "Gebruik voor Alpha eerst ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (nooit de bewegende tag :beta). Voltooi het opstarten en de reconciliatie van de configuratie, controleer hosts en certificaten en maak daarna met de Beta 1-tools een nieuwe v4-back-up. Rechtstreeks van Alpha naar Beta 2 of hoger upgraden, rechtstreeks v3 herstellen en oude geheimen uit omgevingsbestanden importeren worden niet ondersteund. Herstel een Alpha v3-archief eerst en uitsluitend via de vastgepinde Beta 1 en de bijbehorende hersteltools.",
+            "image": "Ga alleen verder als de imageverificatie en compatibiliteit de bedoelde stap toestaan. Wijzig de bestaande gezaghebbende waarde RENTNERPROXY_IMAGE of selecteer de image in je externe implementatiebeheerder. Laat de Compose-structuur intact, maak de appliance opnieuw aan met je bestaande implementatieprocedure en behoud het huidige persistente volume, inclusief bootstrap/secrets-v1.json. Vervang of genereer die geheime status nooit opnieuw.",
+            "verify": "Controleer na het opstarten de gereedheid, de gemelde versie, het daadwerkelijke proxyverkeer, hosts, certificaten, machtigingen en de volledige reconciliatie van de configuratie. Accepteer de upgrade pas wanneer deze controles slagen."
+        },
+        "recoveryTitle": "Herstel als de update mislukt",
+        "recovery": "Herstel de back-up van vóór de upgrade op een nieuw volume met de exacte digest van de bronimage en de hersteltools van die bronrelease. Start nooit een oudere image op een volume dat al door een nieuwere versie is gemigreerd. Herstellen vervangt de doelgegevens; selecteer het project en de back-up zorgvuldig.",
+        "restoreValidation": "De hersteltools valideren de back-up en de bronidentiteit. De ondersteunde v4-migratiegeschiedenis moet een niet-lege, exacte prefix van de doelgeschiedenis zijn, inclusief posities, SHA-256-hashes en tijdstempels. Oudere indelingen, afwijkende geschiedenissen en downgrades worden geweigerd. Bewaar implementatiegeheimen privé bij de back-up; ze ontbreken in het manifest. Controleer de CIDR-bereiken van origin en vertrouwde proxies voordat je de implementatie bewust wijzigt.",
+        "resume": "Als het herstel wordt onderbroken nadat de vervanging is begonnen, blokkeert het persistente journal het opstarten. Stop een appliance die handmatig is gestart en voer dezelfde back-up opnieuw uit met --resume --confirm-replace. Dezelfde back-up wordt opnieuw gevalideerd en de vervanging wordt herhaald; een andere back-up wordt geweigerd zolang het journal openstaat."
+    },
     "toast": {
         "notification": "Melding",
         "dismiss": "Melding sluiten",

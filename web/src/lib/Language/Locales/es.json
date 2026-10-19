@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Error al comprobar actualizaciones — abrir detalles",
+        "platform": "Plataforma de imagen",
+        "minimumVersion": "Versión de origen mínima",
+        "intermediateVersion": "Versión intermedia obligatoria",
+        "title": "Actualizar RentnerProxy",
+        "description": "Revisa la versión y prepara una actualización manual. Este diálogo no instala nada ni crea una copia de seguridad.",
+        "current": "Versión instalada",
+        "target": "Destino publicado",
+        "channel": "Canal de destino",
+        "unknown": "No disponible",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Estable"
+        },
+        "availability": "Comprobaciones de versión y actualización",
+        "published": "Hay una versión más reciente publicada. Su publicación no confirma por sí sola que la imagen o la ruta de actualización estén listas.",
+        "checkFailed": "La información de actualización no está disponible. Vuelve a comprobarla antes de cambiar la imagen; la verificación anterior ya no se muestra.",
+        "images": {
+            "verified": "El digest inmutable de la imagen y la plataforma se verificaron con los metadatos de la versión.",
+            "pending": "La imagen de la versión aún no está verificada. Espera a que se publique y verifique antes de actualizar.",
+            "unavailable": "No se pudo verificar la imagen. No selecciones un destino sin verificar.",
+            "unsupported-platform": "Esta imagen no es compatible con la plataforma configurada.",
+            "invalid": "Los metadatos de la imagen de esta versión no son válidos. No uses este destino."
+        },
+        "compatibility": {
+            "supported": "La política de compatibilidad publicada admite esta versión de origen. Completa la copia de seguridad y los preparativos indicados abajo antes de actualizar.",
+            "requires-beta1": "Actualización directa bloqueada: Alpha debe pasar por v1.0.0-beta.1 fijada. Completa la conciliación, verifica los hosts y certificados, y después crea una copia de seguridad v4 nueva.",
+            "unsupported": "No se ha confirmado que esta versión de origen sea compatible. No actualices directamente; consulta primero los requisitos oficiales de la versión."
+        },
+        "imageReference": "Referencia verificada de la imagen de destino",
+        "copy": "Copiar referencia de imagen",
+        "copyHint": "Copiarla no autoriza una actualización incompatible ni cambia tu despliegue.",
+        "copyStates": {
+            "copied": "Referencia de imagen copiada.",
+            "failed": "No se pudo acceder al portapapeles. Selecciona y copia manualmente la referencia del campo superior."
+        },
+        "notes": "Notas de la versión",
+        "noNotes": "Aquí no hay notas de la versión. Lee la página oficial antes de continuar.",
+        "releaseLink": "Leer la versión oficial en GitHub ↗",
+        "guideTitle": "Lista para la actualización manual",
+        "interruption": "Planifica una ventana de mantenimiento: la copia de seguridad y la sustitución del contenedor interrumpen el tráfico del proxy y la interfaz web.",
+        "guide": {
+            "prepare": "Usa un checkout de la versión de código fuente instalada, con sus herramientas Bun y el entorno/proyecto Compose real del despliegue. Guarda de forma privada el digest exacto de la imagen de origen en ejecución, la configuración de Compose, los puertos, el entorno de despliegue y las credenciales o el material de cifrado. La interfaz no inspecciona ni certifica las copias de seguridad del host.",
+            "backup": "Antes de cambiar la imagen, completa una copia de seguridad íntegra de producción con las herramientas de esa versión de origen. Sustituye los marcadores y guarda la copia terminada fuera del volumen de la appliance, en un lugar privado y de confianza. La herramienta comprueba que la imagen seleccionada por Compose coincida con el campo .Image del contenedor real; resuelve cualquier discrepancia antes de continuar.",
+            "alpha": "Para Alpha, usa primero ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (nunca la etiqueta móvil :beta). Completa el inicio y la conciliación de configuración, verifica hosts y certificados y, después, crea una copia de seguridad v4 nueva con las herramientas de Beta 1. No se admite pasar directamente de Alpha a Beta 2+, restaurar directamente v3 ni importar secretos de archivos de entorno antiguos. Restaura un archivo Alpha v3 primero y únicamente mediante Beta 1 fijada y sus herramientas de restauración.",
+            "image": "Continúa solo si la verificación de la imagen y la compatibilidad permiten el paso previsto. Actualiza el valor RENTNERPROXY_IMAGE autorizado existente o selecciona la imagen en el gestor de despliegue externo. Mantén intacta la estructura de Compose, recrea la appliance con el procedimiento de despliegue existente y conserva el volumen persistente actual, incluido bootstrap/secrets-v1.json. Nunca sustituyas ni regeneres ese estado secreto.",
+            "verify": "Tras el inicio, verifica la disponibilidad, la versión indicada, el tráfico real del proxy, los hosts, certificados, permisos y la conciliación completa de la configuración. Acepta la actualización solo cuando todas estas comprobaciones se superen."
+        },
+        "recoveryTitle": "Recuperación si falla la actualización",
+        "recovery": "Recupera la copia previa a la actualización en un volumen nuevo, usando el digest exacto de la imagen de origen y las herramientas de restauración de esa versión. Nunca inicies una imagen antigua en un volumen ya migrado por una versión más reciente. La restauración reemplaza los datos de destino; selecciona deliberadamente el proyecto y la copia.",
+        "restoreValidation": "Las herramientas de restauración validan la copia y la identidad de origen. El historial de migraciones v4 compatible debe ser un prefijo exacto no vacío del historial de destino, incluidas las posiciones, los hashes SHA-256 y las marcas de tiempo. Se rechazan los formatos antiguos, los historiales divergentes y las versiones anteriores. Guarda las credenciales del despliegue en privado junto a la copia; no aparecen en su manifiesto. Revisa los CIDR de origen y de proxies de confianza antes de cambiar intencionadamente el despliegue.",
+        "resume": "Si la restauración se interrumpe después de empezar el reemplazo, el diario persistente bloquea el inicio. Detén cualquier appliance iniciada manualmente y vuelve a ejecutar la misma copia con --resume --confirm-replace. La misma copia se valida de nuevo y se repite el reemplazo; se rechaza otra copia mientras el diario siga pendiente."
+    },
     "toast": {
         "notification": "Notificación",
         "dismiss": "Cerrar notificación",

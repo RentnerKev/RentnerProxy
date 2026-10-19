@@ -1,4 +1,55 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Update-Prüfung fehlgeschlagen — Details öffnen",
+        "platform": "Image-Plattform",
+        "minimumVersion": "Minimale Ausgangsversion",
+        "intermediateVersion": "Erforderliche Zwischenversion",
+        "title": "RentnerProxy aktualisieren",
+        "description": "Release prüfen und ein manuelles Update vorbereiten. Dieser Dialog installiert nichts und erstellt kein Backup.",
+        "current": "Installierte Version",
+        "target": "Veröffentlichtes Ziel",
+        "channel": "Zielkanal",
+        "unknown": "Nicht verfügbar",
+        "channels": { "alpha": "Alpha", "beta": "Beta", "stable": "Stabil" },
+        "availability": "Release- und Upgrade-Prüfungen",
+        "published": "Ein neueres Release ist veröffentlicht. Das allein bestätigt weder das Image noch den Upgrade-Pfad.",
+        "checkFailed": "Update-Informationen sind nicht verfügbar. Vor einem Image-Wechsel erneut prüfen; die vorherige Verifizierung wird nicht mehr angezeigt.",
+        "images": {
+            "verified": "Unveränderlicher Image-Digest und Plattform wurden anhand der Release-Metadaten verifiziert.",
+            "pending": "Das Release-Image ist noch nicht verifiziert. Vor dem Update Veröffentlichung und Verifizierung abwarten.",
+            "unavailable": "Das Image konnte nicht verifiziert werden. Kein unverifiziertes Ziel auswählen.",
+            "unsupported-platform": "Dieses Image unterstützt die konfigurierte Plattform nicht.",
+            "invalid": "Die Image-Metadaten sind ungültig. Dieses Ziel nicht verwenden."
+        },
+        "compatibility": {
+            "supported": "Die veröffentlichte Kompatibilitätsrichtlinie unterstützt diese Ausgangsversion. Vor dem Update Backup und Vorbereitung unten vollständig abschließen.",
+            "requires-beta1": "Direktes Upgrade gesperrt: Alpha muss zuerst über die fest gepinnte v1.0.0-beta.1 gehen. Abgleich abschließen, Hosts und Zertifikate prüfen und danach ein neues v4-Backup erstellen.",
+            "unsupported": "Diese Ausgangsversion ist nicht als unterstützt bestätigt. Kein direktes Upgrade durchführen; zuerst die offiziellen Release-Voraussetzungen prüfen."
+        },
+        "imageReference": "Verifizierte Ziel-Image-Referenz",
+        "copy": "Image-Referenz kopieren",
+        "copyHint": "Kopieren erlaubt kein inkompatibles Upgrade und ändert deine Bereitstellung nicht.",
+        "copyStates": {
+            "copied": "Image-Referenz kopiert.",
+            "failed": "Zugriff auf die Zwischenablage fehlgeschlagen. Die Referenz im Feld oben markieren und manuell kopieren."
+        },
+        "notes": "Release-Hinweise",
+        "noNotes": "Hier sind keine Release-Hinweise verfügbar. Vor dem Fortfahren die offizielle Release-Seite lesen.",
+        "releaseLink": "Offizielles GitHub-Release lesen ↗",
+        "guideTitle": "Checkliste für das manuelle Update",
+        "interruption": "Wartungsfenster einplanen: Backup und Container-Austausch unterbrechen sowohl Proxy-Verkehr als auch Weboberfläche.",
+        "guide": {
+            "prepare": "Den Checkout des aktuell installierten Quell-Releases mit dessen Bun-Werkzeugen und der tatsächlichen Compose-Umgebung sowie dem Bereitstellungsprojekt verwenden. Exakten Digest des laufenden Quell-Images, Compose-Konfiguration, Ports, Bereitstellungsumgebung und Zugangsdaten/Verschlüsselungsmaterial privat sichern. Die Oberfläche prüft oder zertifiziert kein Host-Backup.",
+            "backup": "Vor jedem Image-Wechsel ein vollständiges Produktionsbackup mit den Werkzeugen des Quell-Releases abschließen. Platzhalter ersetzen und das fertige Backup außerhalb des Appliance-Volumes privat und vertrauenswürdig ablegen. Das Backup-Werkzeug prüft, dass das von Compose ausgewählte Image der tatsächlichen Container-.Image entspricht; Abweichungen zuerst beheben.",
+            "alpha": "Bei Alpha zuerst ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 verwenden (niemals den beweglichen :beta-Tag). Start und Konfigurationsabgleich abschließen, Hosts und Zertifikate prüfen und dann mit Beta-1-Werkzeugen ein neues v4-Backup erstellen. Direktes Alpha → Beta 2+, direkte v3-Wiederherstellung und Import alter Umgebungsdatei-Secrets sind nicht unterstützt. Ein Alpha-v3-Archiv zuerst ausschließlich über die gepinnte Beta 1 und deren Wiederherstellungswerkzeuge einspielen.",
+            "image": "Nur fortfahren, wenn Image-Verifizierung und Kompatibilität den beabsichtigten Schritt erlauben. Den vorhandenen maßgeblichen RENTNERPROXY_IMAGE-Wert ändern oder das Image im externen Bereitstellungsmanager auswählen. Compose-Struktur beibehalten, Appliance über deinen vorhandenen Bereitstellungsablauf neu erstellen und das bestehende persistente Volume einschließlich bootstrap/secrets-v1.json erhalten. Diesen Secret-Zustand niemals ersetzen oder neu erzeugen.",
+            "verify": "Nach dem Start Bereitschaft, gemeldete Version, tatsächlichen Proxy-Verkehr, Hosts, Zertifikate, Berechtigungen und vollständigen Konfigurationsabgleich prüfen. Das Upgrade erst nach erfolgreichen Prüfungen akzeptieren."
+        },
+        "recoveryTitle": "Wiederherstellung bei fehlgeschlagenem Update",
+        "recovery": "Das Backup vor dem Upgrade auf einem frischen Volume mit dem exakten Quell-Image-Digest und den Wiederherstellungswerkzeugen dieses Quell-Releases einspielen. Niemals ein älteres Image auf einem bereits von einer neueren Version migrierten Volume starten. Wiederherstellung ersetzt Zieldaten; Projekt und Backup bewusst auswählen.",
+        "restoreValidation": "Die Wiederherstellungswerkzeuge prüfen Backup und Quellidentität. Unterstützte v4-Migrationshistorie muss ein nichtleeres exaktes Präfix der Zielhistorie sein, einschließlich Positionen, SHA-256-Hashes und Zeitstempeln. Ältere Formate, abweichende Historien und Downgrades werden abgelehnt. Bereitstellungs-Secrets privat neben dem Backup aufbewahren; sie fehlen im Manifest. Vor einer beabsichtigten Umgebungsänderung Origin und vertrauenswürdige Proxy-CIDRs prüfen.",
+        "resume": "Wird eine Wiederherstellung nach Beginn des Ersetzens unterbrochen, blockiert das persistente Journal den Start. Eine manuell gestartete Appliance stoppen und dasselbe Backup mit --resume --confirm-replace erneut ausführen. Es wird erneut geprüft und der Austausch wiederholt; ein anderes Backup wird bei offenem Journal abgelehnt."
+    },
     "toast": {
         "notification": "Benachrichtigung",
         "dismiss": "Benachrichtigung schließen",

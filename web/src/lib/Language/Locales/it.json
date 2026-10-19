@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Controllo degli aggiornamenti non riuscito — apri i dettagli",
+        "platform": "Piattaforma dell’immagine",
+        "minimumVersion": "Versione sorgente minima",
+        "intermediateVersion": "Versione intermedia richiesta",
+        "title": "Aggiorna RentnerProxy",
+        "description": "Esamina la release e prepara un aggiornamento manuale. Questa finestra di dialogo non installa nulla e non crea backup.",
+        "current": "Versione installata",
+        "target": "Destinazione pubblicata",
+        "channel": "Canale di destinazione",
+        "unknown": "Non disponibile",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stabile"
+        },
+        "availability": "Controlli della release e dell’aggiornamento",
+        "published": "È stata pubblicata una release più recente. La pubblicazione da sola non garantisce che l’immagine o il percorso di aggiornamento siano pronti.",
+        "checkFailed": "Le informazioni sull’aggiornamento non sono disponibili. Ricontrolla prima di cambiare immagine; la verifica precedente non è più mostrata.",
+        "images": {
+            "verified": "Il digest immutabile dell’immagine e la piattaforma sono stati verificati con i metadati della release.",
+            "pending": "L’immagine della release non è ancora verificata. Attendi la pubblicazione e la verifica prima di aggiornare.",
+            "unavailable": "Impossibile verificare l’immagine. Non selezionare una destinazione non verificata.",
+            "unsupported-platform": "Questa immagine non supporta la piattaforma configurata.",
+            "invalid": "I metadati dell’immagine della release non sono validi. Non usare questa destinazione."
+        },
+        "compatibility": {
+            "supported": "La policy di compatibilità pubblicata supporta questa versione sorgente. Completa il backup e la preparazione indicati sotto prima di aggiornare.",
+            "requires-beta1": "Aggiornamento diretto bloccato: Alpha deve passare per v1.0.0-beta.1 fissata. Completa la riconciliazione, verifica host e certificati, quindi crea un nuovo backup v4.",
+            "unsupported": "Il supporto per questa versione sorgente non è confermato. Non eseguire un aggiornamento diretto; consulta prima i requisiti ufficiali della release."
+        },
+        "imageReference": "Riferimento verificato dell’immagine di destinazione",
+        "copy": "Copia riferimento immagine",
+        "copyHint": "La copia non autorizza un aggiornamento non supportato e non modifica la distribuzione.",
+        "copyStates": {
+            "copied": "Riferimento immagine copiato.",
+            "failed": "Accesso agli appunti non riuscito. Seleziona e copia manualmente il riferimento nel campo sopra."
+        },
+        "notes": "Note della release",
+        "noNotes": "Qui non sono disponibili note della release. Leggi la pagina ufficiale prima di procedere.",
+        "releaseLink": "Leggi la release ufficiale su GitHub ↗",
+        "guideTitle": "Elenco di controllo per l’aggiornamento manuale",
+        "interruption": "Pianifica una finestra di manutenzione: backup e sostituzione del container interrompono sia il traffico del proxy sia l’interfaccia web.",
+        "guide": {
+            "prepare": "Usa un checkout della versione sorgente attualmente installata, con gli strumenti Bun relativi e l’ambiente/progetto Compose effettivo della distribuzione. Conserva privatamente il digest esatto dell’immagine sorgente in esecuzione, la configurazione Compose, le porte, l’ambiente di distribuzione e le credenziali o il materiale di cifratura. L’interfaccia non ispeziona né certifica i backup dell’host.",
+            "backup": "Prima di cambiare immagine, completa un backup di produzione integrale con gli strumenti di quella versione sorgente. Sostituisci i segnaposto e conserva il backup completato fuori dal volume dell’appliance, in un archivio privato e affidabile. Lo strumento verifica che l’immagine selezionata da Compose corrisponda al campo .Image del container effettivo; risolvi ogni differenza prima di procedere.",
+            "alpha": "Per Alpha, usa prima ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (mai il tag mobile :beta). Completa l’avvio e la riconciliazione della configurazione, verifica host e certificati, quindi crea un nuovo backup v4 con gli strumenti di Beta 1. Il passaggio diretto da Alpha a Beta 2 o successiva, il ripristino diretto di v3 e l’importazione dei segreti da vecchi file di ambiente non sono supportati. Ripristina un archivio Alpha v3 prima e solo tramite Beta 1 fissata e i relativi strumenti di ripristino.",
+            "image": "Procedi solo se la verifica dell’immagine e la compatibilità consentono il passaggio previsto. Aggiorna il valore RENTNERPROXY_IMAGE autorevole già esistente oppure seleziona l’immagine nel gestore di distribuzione esterno. Mantieni invariata la struttura Compose, ricrea l’appliance con il flusso di distribuzione esistente e conserva il volume persistente attuale, incluso bootstrap/secrets-v1.json. Non sostituire né rigenerare mai quello stato segreto.",
+            "verify": "Dopo l’avvio, verifica disponibilità, versione indicata, traffico effettivo del proxy, host, certificati, autorizzazioni e riconciliazione completa della configurazione. Accetta l’aggiornamento solo dopo il superamento di tutti i controlli."
+        },
+        "recoveryTitle": "Ripristino in caso di aggiornamento non riuscito",
+        "recovery": "Ripristina il backup precedente all’aggiornamento su un volume nuovo usando il digest esatto dell’immagine sorgente e gli strumenti di ripristino di quella release sorgente. Non avviare mai un’immagine precedente su un volume già migrato da una versione più recente. Il ripristino sostituisce i dati di destinazione; seleziona con attenzione progetto e backup.",
+        "restoreValidation": "Gli strumenti di ripristino convalidano il backup e l’identità sorgente. La cronologia di migrazione v4 supportata deve essere un prefisso esatto e non vuoto della cronologia di destinazione, incluse posizioni, hash SHA-256 e timestamp. I formati precedenti, le cronologie divergenti e i downgrade vengono rifiutati. Conserva privatamente i segreti di distribuzione insieme al backup; non sono inclusi nel manifesto. Esamina i CIDR di origine e dei proxy attendibili prima di qualsiasi modifica intenzionale alla distribuzione.",
+        "resume": "Se il ripristino si interrompe dopo l’inizio della sostituzione, il journal persistente blocca l’avvio. Arresta eventuali appliance avviate manualmente e riesegui lo stesso backup con --resume --confirm-replace. Lo stesso backup viene convalidato di nuovo e la sostituzione viene ripetuta; un altro backup viene rifiutato finché il journal è in sospeso."
+    },
     "toast": {
         "notification": "Notifica",
         "dismiss": "Ignora notifica",

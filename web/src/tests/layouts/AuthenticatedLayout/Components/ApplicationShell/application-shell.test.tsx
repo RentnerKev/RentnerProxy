@@ -17,6 +17,8 @@ const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterC
     await import('@tanstack/react-router')
 const { default: ApplicationTopbar } =
     await import('@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationTopbar.tsx')
+const { default: ApplicationVersion } =
+    await import('@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationVersion.tsx')
 const { default: ApplicationNavigation } =
     await import('@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationNavigation/index.tsx')
 const { default: ApplicationSidebarScrollIndicator } =
@@ -106,6 +108,82 @@ afterEach(async () => {
 })
 
 describe('application topbar', () => {
+    test('failed update checks show a static focusable details button and tooltip', async () => {
+        let opens = 0
+        const container = await render(
+            <ApplicationVersion
+                data={{
+                    status: 'unavailable',
+                    checkedAt: null,
+                    currentChannel: null,
+                    latest: null,
+                }}
+                onOpen={() => {
+                    opens += 1
+                }}
+            />,
+        )
+        const button = container.querySelector<HTMLButtonElement>('button')!
+        expect(button.getAttribute('aria-label')).toBe('Update check failed — open details')
+        expect(button.getAttribute('aria-haspopup')).toBe('dialog')
+        expect(button.classList.contains('size-11')).toBeTrue()
+        expect(button.querySelector('.application-update-signal')).toBeNull()
+        await act(async () => {
+            button.focus()
+            await Promise.resolve()
+        })
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+            'Update check failed',
+        )
+        await click(button)
+        expect(opens).toBe(1)
+    })
+
+    test('update indicator has a focus tooltip and an accessible dialog button', async () => {
+        let opens = 0
+        const container = await render(
+            <ApplicationVersion
+                data={{
+                    status: 'available',
+                    checkedAt: null,
+                    currentChannel: 'beta',
+                    latest: {
+                        version: '1.0.0-beta.2',
+                        tag: 'v1.0.0-beta.2',
+                        channel: 'beta',
+                        url: 'https://github.com/RentnerKev/RentnerProxy/releases',
+                        notes: null,
+                        image: {
+                            status: 'pending',
+                            reference: null,
+                            digest: null,
+                            platform: 'linux/amd64',
+                        },
+                        compatibility: {
+                            status: 'unsupported',
+                            minimumVersion: null,
+                            intermediateVersion: null,
+                        },
+                    },
+                }}
+                onOpen={() => {
+                    opens += 1
+                }}
+            />,
+        )
+        const button = container.querySelector<HTMLButtonElement>('button')!
+        expect(button.getAttribute('aria-haspopup')).toBe('dialog')
+        expect(button.classList.contains('size-11')).toBeTrue()
+        expect(button.classList.contains('text-amber-400')).toBeTrue()
+        await act(async () => {
+            button.focus()
+            await Promise.resolve()
+        })
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('1.0.0-beta.2')
+        await click(button)
+        expect(opens).toBe(1)
+    })
+
     test('replaces session metadata with an accessible navigation toggle', async () => {
         const container = await render(<ApplicationTopbarHarness />)
         const collapseButton = container.querySelector<HTMLButtonElement>(
