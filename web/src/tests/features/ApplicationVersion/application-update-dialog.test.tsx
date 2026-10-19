@@ -123,6 +123,43 @@ test('pending and blocked upgrades have no copy action; refetch failure removes 
     expect(dialog.textContent).toContain('No release notes')
 })
 
+test('verified target images cannot be copied before the required Beta 1 intermediate upgrade', async () => {
+    const dialog = await render(result)
+    expect(dialog.querySelector('textarea')?.value).toBe(result.latest!.image.reference!)
+    await render({
+        ...result,
+        currentChannel: 'alpha',
+        latest: {
+            ...result.latest!,
+            compatibility: {
+                status: 'requires-beta1',
+                minimumVersion: 'v1.0.0-beta.1',
+                intermediateVersion: 'v1.0.0-beta.1',
+            },
+        },
+    })
+    expect(dialog.textContent).toContain('Direct upgrade is blocked')
+    expect(dialog.textContent).toContain('ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1')
+    expect(dialog.querySelector('textarea') === null).toBe(true)
+    expect(dialog.textContent).not.toContain('Copy image reference')
+})
+
+test('verified references remain available for manual review of unsupported upgrade paths', async () => {
+    const dialog = await render({
+        ...result,
+        latest: {
+            ...result.latest!,
+            compatibility: {
+                status: 'unsupported',
+                minimumVersion: null,
+                intermediateVersion: null,
+            },
+        },
+    })
+    expect(dialog.querySelector('textarea')?.value).toBe(result.latest!.image.reference!)
+    expect(dialog.textContent).toContain('Copy image reference')
+})
+
 test('untrusted release links fall back to the official release listing', async () => {
     const dialog = await render({
         ...result,

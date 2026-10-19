@@ -9,7 +9,11 @@ import type {
 export default function useApplicationUpdateDialogLogic(
     data: ApplicationUpdateDialogProps['data'],
 ): ApplicationUpdateDialogLogicResult {
-    const reference = data?.latest?.image.status === 'verified' ? data.latest.image.reference : null
+    const reference =
+        data?.latest?.image.status === 'verified' &&
+        data.latest.compatibility.status !== 'requires-beta1'
+            ? data.latest.image.reference
+            : null
     const [copiedReference, setCopiedReference] = useState<string | null>(null)
     const [failedReference, setFailedReference] = useState<string | null>(null)
     const releaseUrl = data?.latest?.url
