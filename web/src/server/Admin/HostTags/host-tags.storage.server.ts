@@ -44,8 +44,8 @@ export async function assignHostTagsInTransaction(
     hostId: string,
     tagIds: readonly string[] | undefined,
 ) {
-    if (tagIds === undefined) return undefined
     const state = await readHostTags(transaction, kind)
+    if (tagIds === undefined) return tagsForHost(state, hostId)
     const next = assignHostTags(state, hostId, tagIds)
     if (next !== state) await writeHostTags(transaction, kind, next)
     return tagsForHost(next, hostId)

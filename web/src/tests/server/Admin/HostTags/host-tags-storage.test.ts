@@ -27,12 +27,17 @@ function setup(value: unknown) {
 }
 
 describe('host classification storage within host transactions', () => {
-    test('preserves assignments without reading or writing when older clients or discovery omit tag IDs', async () => {
-        const fixture = setup({ invalid: 'not read' })
+    test('preserves assignments and returns current metadata when older clients or discovery omit tag IDs', async () => {
+        const fixture = setup({
+            version: 1,
+            revision: 1,
+            tags: [tag],
+            assignments: { [hostId]: [tag.id] },
+        })
         expect(
             await assignHostTagsInTransaction(fixture.transaction, 'proxy', hostId, undefined),
-        ).toBeUndefined()
-        expect(fixture.read).not.toHaveBeenCalled()
+        ).toEqual([tag])
+        expect(fixture.read).toHaveBeenCalledTimes(1)
         expect(fixture.rows).toHaveLength(0)
     })
     test.each(['proxy', 'redirect'] as const)(

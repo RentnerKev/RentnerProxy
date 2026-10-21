@@ -133,7 +133,11 @@ export async function createProxyHostInTransaction(
     const parsedInput = parseCreateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
-    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_CREATE)
+    const actor = await requirePermissionInTransaction(
+        transaction,
+        actorId,
+        PERMISSIONS.PROXY_HOSTS_CREATE,
+    )
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     await assertDomainsAvailableInTransaction(transaction, domains)
@@ -185,12 +189,15 @@ export async function createProxyHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
-    const tags = await assignHostTagsInTransaction(
-        transaction,
-        'proxy',
-        proxyHost.id,
-        parsedInput.tagIds,
-    )
+    const tags =
+        parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
+            ? await assignHostTagsInTransaction(
+                  transaction,
+                  'proxy',
+                  proxyHost.id,
+                  parsedInput.tagIds,
+              )
+            : undefined
 
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
@@ -213,7 +220,11 @@ export async function updateProxyHostInTransaction(
     const parsedInput = parseUpdateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
-    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_UPDATE)
+    const actor = await requirePermissionInTransaction(
+        transaction,
+        actorId,
+        PERMISSIONS.PROXY_HOSTS_UPDATE,
+    )
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     await assertDiscoveryHostEditable(transaction, parsedInput.proxyHostId, discoveryKey)
@@ -294,12 +305,15 @@ export async function updateProxyHostInTransaction(
     }
 
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
-    const tags = await assignHostTagsInTransaction(
-        transaction,
-        'proxy',
-        proxyHost.id,
-        parsedInput.tagIds,
-    )
+    const tags =
+        parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
+            ? await assignHostTagsInTransaction(
+                  transaction,
+                  'proxy',
+                  proxyHost.id,
+                  parsedInput.tagIds,
+              )
+            : undefined
 
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,

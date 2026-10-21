@@ -242,7 +242,11 @@ export async function createRedirectHostInTransaction(
     const parsedInput = parseCreateInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
-    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.REDIRECT_HOSTS_CREATE)
+    const actor = await requirePermissionInTransaction(
+        transaction,
+        actorId,
+        PERMISSIONS.REDIRECT_HOSTS_CREATE,
+    )
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.REDIRECT_HOSTS_VIEW)
     await assertDomainsAvailableInTransaction(transaction, domains)
@@ -265,12 +269,16 @@ export async function createRedirectHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
-    const tags = await assignHostTagsInTransaction(
-        transaction,
-        'redirect',
-        redirectHost.id,
-        parsedInput.tagIds,
-    )
+    const tags =
+        parsedInput.tagIds !== undefined ||
+        actor.permissions.includes(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+            ? await assignHostTagsInTransaction(
+                  transaction,
+                  'redirect',
+                  redirectHost.id,
+                  parsedInput.tagIds,
+              )
+            : undefined
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
@@ -293,7 +301,7 @@ export async function updateRedirectHostService(
     try {
         saved = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
-            await requirePermissionInTransaction(
+            const currentActor = await requirePermissionInTransaction(
                 transaction,
                 actor.id,
                 PERMISSIONS.REDIRECT_HOSTS_UPDATE,
@@ -346,12 +354,16 @@ export async function updateRedirectHostService(
             if (!updated)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await replaceDomainsInTransaction(transaction, redirectHost.id, domains)
-            const tags = await assignHostTagsInTransaction(
-                transaction,
-                'redirect',
-                redirectHost.id,
-                parsedInput.tagIds,
-            )
+            const tags =
+                parsedInput.tagIds !== undefined ||
+                currentActor.permissions.includes(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+                    ? await assignHostTagsInTransaction(
+                          transaction,
+                          'redirect',
+                          redirectHost.id,
+                          parsedInput.tagIds,
+                      )
+                    : undefined
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
