@@ -238,7 +238,11 @@ describe('localized accessible host tags', () => {
         expect(states.proxy.assignments[hostId]).toBeUndefined()
         expect(states.redirect).toEqual(emptyHostTagState())
     })
-    test('allows keyboard multi-selection on a discovered host and submits an independent metadata assignment', async () => {
+    test('renders colored option and selection badges, keeps label search and keyboard multi-selection, and assigns discovered hosts', async () => {
+        states.proxy.tags = [
+            { ...infra, color: '#003366' },
+            { ...privateTag, color: '#ffcc00' },
+        ]
         await render(
             <HostTagsCell
                 kind="proxy"
@@ -254,11 +258,29 @@ describe('localized accessible host tags', () => {
                 document.querySelector<HTMLButtonElement>('button[role="combobox"]')?.disabled ===
                 false,
         )
-        await click(document.querySelector('button[role="combobox"]')!)
+        const selectTrigger = document.querySelector('button[role="combobox"]')!
+        expect(
+            selectTrigger.querySelector<HTMLSpanElement>('span[style]')?.style.backgroundColor,
+        ).toBe('#003366')
+        await click(selectTrigger)
         await waitFor(() => document.querySelectorAll('[role="option"]').length === 2)
+        const infraOption = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+            (element) => element.textContent?.includes('Infrastruktur'),
+        )!
+        expect(
+            infraOption.querySelector<HTMLSpanElement>('span[style]')?.style.backgroundColor,
+        ).toBe('#003366')
+        await input(
+            'Privat',
+            document.querySelector<HTMLInputElement>('input[placeholder="Tags suchen"]')!,
+        )
+        await waitFor(() => document.querySelectorAll('[role="option"]').length === 1)
         const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
             (element) => element.textContent?.includes('Privat'),
         )!
+        expect(option.querySelector<HTMLSpanElement>('span[style]')?.style.backgroundColor).toBe(
+            '#ffcc00',
+        )
         await act(async () => {
             option.focus()
             option.dispatchEvent(
@@ -270,6 +292,11 @@ describe('localized accessible host tags', () => {
                 new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
             )
         })
+        expect(
+            [...selectTrigger.querySelectorAll<HTMLSpanElement>('span[style]')].map(
+                (badge) => badge.style.backgroundColor,
+            ),
+        ).toEqual(['#003366', '#ffcc00'])
         await click(button('Änderungen speichern'))
         await waitFor(() => states.proxy.assignments[hostId]?.length === 2)
         expect(mutate.mock.calls[0]?.[0].data).toEqual({

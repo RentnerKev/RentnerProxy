@@ -13,6 +13,7 @@ export default function useHostTagSelectLogic(kind: HostKind) {
         state: {
             id,
             options: (query.data?.tags ?? []).map((tag) => ({ value: tag.id, label: tag.name })),
+            tagsById: new Map((query.data?.tags ?? []).map((tag) => [tag.id, tag])),
             loading: query.isPending,
             error: query.isError,
         },
