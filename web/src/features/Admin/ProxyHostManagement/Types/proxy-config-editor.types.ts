@@ -17,6 +17,9 @@ export interface ProxyConfigEditorModalProps {
 export type ProxyConfigEditorLogicProps = ProxyConfigEditorModalProps
 
 export interface ProxyConfigEditorState {
+    readonly hasConflict: boolean
+    readonly reviewedLatest: ProxyHttpSettings | null
+    readonly isConflictConfirmationOpen: boolean
     readonly activeTab: ProxyConfigEditorTab
     readonly settings: ProxyHttpSettings
     readonly baseRevision: string | null
@@ -30,6 +33,11 @@ export interface ProxyConfigEditorState {
 }
 
 export interface ProxyConfigEditorHandlers {
+    readonly reviewLatest: () => Promise<void>
+    readonly keepDraft: () => void
+    readonly useSaved: () => void
+    readonly acceptDraft: () => void
+    readonly setConflictConfirmationOpen: (open: boolean) => void
     readonly confirmReset: () => Promise<void>
     readonly reset: () => void
     readonly save: () => void
@@ -50,6 +58,9 @@ export interface ProxyGlobalConfigEditorModalProps {
 }
 
 export interface ProxyGlobalConfigEditorState {
+    readonly hasConflict: boolean
+    readonly reviewedLatest: ProxyHttpSettings | null
+    readonly isConflictConfirmationOpen: boolean
     readonly isResetConfirmationOpen: boolean
     readonly activeTab: 'edit' | 'active'
     readonly settings: ProxyHttpSettings
@@ -59,4 +70,9 @@ export interface ProxyGlobalConfigEditorState {
     readonly isRefreshing: boolean
     readonly isSaving: boolean
     readonly isResetting: boolean
+}
+
+export interface ProxyConfigEditorSubmission {
+    readonly settings: ProxyHttpSettings
+    readonly baseRevision: string
 }

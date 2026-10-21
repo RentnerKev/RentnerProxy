@@ -1,3 +1,5 @@
+import type { ProxyConfigEditorSubmission } from '../../../Types/proxy-config-editor.types.ts'
+import useProxyConfigDraft from '../../../Hooks/useProxyConfigDraft.ts'
 import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
@@ -22,8 +24,6 @@ import type {
     ProxyConfigEditorTab,
 } from '../../../Types/proxy-config-editor.types.ts'
 
-const EMPTY_SETTINGS: ProxyHttpSettings = {}
-
 /** Manages the per-host proxy configuration query, mutations, and local draft state. */
 export default function useProxyConfigEditorLogic({
     canEdit,
@@ -34,10 +34,6 @@ export default function useProxyConfigEditorLogic({
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState<ProxyConfigEditorTab>('edit')
-    const [draft, setDraft] = useState<{
-        settings: ProxyHttpSettings
-        baseRevision: string
-    } | null>(null)
     const [isResetConfirmationOpen, setResetConfirmationOpen] = useState(false)
     const queryKey = proxyHostManagementQueryKeys.hostConfigEditor(proxyHost.id)
     const query = useQuery({
@@ -48,18 +44,43 @@ export default function useProxyConfigEditorLogic({
         refetchOnReconnect: false,
     })
     const data = query.data as ProxyHostConfigEditorData | undefined
-    const settings = draft?.settings ?? data?.settings ?? EMPTY_SETTINGS
-    const baseRevision = draft?.baseRevision ?? data?.baseRevision ?? null
-    const setSetting = useCallback(
-        (key: keyof ProxyHttpSettings, value: number | undefined) => {
-            if (!canEdit || !data || baseRevision === null) return
-            const next = { ...settings }
-            if (value === undefined) delete next[key]
-            else next[key] = value
-            setDraft({ settings: next, baseRevision })
-        },
-        [baseRevision, canEdit, data, settings],
-    )
+    const {
+        settings,
+        baseRevision,
+        hasConflict,
+        reviewedLatest,
+        isConflictConfirmationOpen,
+        updateSetting,
+        markConflict,
+        clearDraft,
+        setReviewedLatest,
+        setConflictConfirmationOpen,
+        acceptDraft,
+        keepDraft,
+        useSaved,
+    } = useProxyConfigDraft(data)
+    const setSetting = (key: keyof ProxyHttpSettings, value: number | undefined) => {
+        if (canEdit && !query.isFetching && !saveMutation.isPending && !resetMutation.isPending)
+            updateSetting(key, value)
+    }
+    const reviewLatest = async () => {
+        if (
+            !canEdit ||
+            !hasConflict ||
+            query.isFetching ||
+            saveMutation.isPending ||
+            resetMutation.isPending
+        )
+            return
+        const latest = await query.refetch()
+        if (latest.isError || !latest.data) {
+            toast.error(t('admin.proxyHosts.config.errors.loadFailed'), {
+                title: t('toast.titles.error'),
+            })
+            return
+        }
+        setReviewedLatest(latest.data)
+    }
     const invalidate = useCallback(async () => {
         await Promise.all([
             queryClient.invalidateQueries({ queryKey }),
@@ -67,21 +88,25 @@ export default function useProxyConfigEditorLogic({
         ])
     }, [queryClient, queryKey])
     const saveMutation = useMutation({
-        mutationFn: (value: ProxyHttpSettings) =>
+        mutationFn: (value: ProxyConfigEditorSubmission) =>
             saveProxyHostConfigEditorHandler({
                 data: {
                     proxyHostId: proxyHost.id,
-                    baseRevision: baseRevision ?? '',
-                    settings: value,
+                    baseRevision: value.baseRevision,
+                    settings: value.settings,
                 },
             }),
-        onSuccess: async (result) => {
+        onSuccess: async (result, submitted) => {
             if (!result.success) {
+                if (result.message === 'admin.proxyHosts.config.errors.configuration_conflict') {
+                    markConflict(submitted)
+                    setResetConfirmationOpen(false)
+                }
                 toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
-            setDraft(null)
+            clearDraft()
             toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
                 title: t(
                     'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
@@ -96,17 +121,21 @@ export default function useProxyConfigEditorLogic({
         },
     })
     const resetMutation = useMutation({
-        mutationFn: () =>
+        mutationFn: (value: ProxyConfigEditorSubmission) =>
             resetProxyHostConfigEditorHandler({
-                data: { proxyHostId: proxyHost.id, baseRevision: baseRevision ?? '' },
+                data: { proxyHostId: proxyHost.id, baseRevision: value.baseRevision },
             }),
-        onSuccess: async (result) => {
+        onSuccess: async (result, submitted) => {
             if (!result.success) {
+                if (result.message === 'admin.proxyHosts.config.errors.configuration_conflict') {
+                    markConflict(submitted)
+                    setResetConfirmationOpen(false)
+                }
                 toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
-            setDraft(null)
+            clearDraft()
             setResetConfirmationOpen(false)
             toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
                 title: t(
@@ -122,20 +151,40 @@ export default function useProxyConfigEditorLogic({
         },
     })
     const save = useCallback(() => {
-        if (canEdit && baseRevision !== null && !saveMutation.isPending && !resetMutation.isPending)
-            saveMutation.mutate(settings)
-    }, [baseRevision, canEdit, resetMutation, saveMutation, settings])
+        if (
+            canEdit &&
+            !hasConflict &&
+            !query.isFetching &&
+            baseRevision !== null &&
+            !saveMutation.isPending &&
+            !resetMutation.isPending
+        )
+            saveMutation.mutate({ settings, baseRevision })
+    }, [
+        baseRevision,
+        canEdit,
+        hasConflict,
+        query.isFetching,
+        resetMutation,
+        saveMutation,
+        settings,
+    ])
     const reset = useCallback(() => {
         if (
             canEdit &&
+            !hasConflict &&
+            !query.isFetching &&
             baseRevision !== null &&
             !saveMutation.isPending &&
             !resetMutation.isPending
         ) {
             setResetConfirmationOpen(true)
         }
-    }, [baseRevision, canEdit, resetMutation, saveMutation])
+    }, [baseRevision, canEdit, hasConflict, query.isFetching, resetMutation, saveMutation])
     const state: ProxyConfigEditorState = {
+        hasConflict,
+        reviewedLatest: reviewedLatest?.settings ?? null,
+        isConflictConfirmationOpen,
         activeTab,
         settings,
         baseRevision,
@@ -148,8 +197,23 @@ export default function useProxyConfigEditorLogic({
         isSaving: saveMutation.isPending,
     }
     const handler: ProxyConfigEditorHandlers = {
+        reviewLatest,
+        keepDraft,
+        useSaved,
+        acceptDraft,
+        setConflictConfirmationOpen,
         confirmReset: async () => {
-            await resetMutation.mutateAsync().catch(() => undefined)
+            if (
+                !canEdit ||
+                hasConflict ||
+                query.isFetching ||
+                saveMutation.isPending ||
+                resetMutation.isPending
+            )
+                return
+            await resetMutation
+                .mutateAsync({ settings, baseRevision: baseRevision ?? '' })
+                .catch(() => undefined)
         },
         reset,
         save,

@@ -1,3 +1,4 @@
+import ProxyConfigEditorConflict from '../ProxyConfigEditorConflict.tsx'
 import ProxyConfigEditorActions from '../ProxyConfigEditorActions.tsx'
 import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -247,6 +248,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                 closeDisabled={busy || state.isResetConfirmationOpen}
                 footer={
                     <ProxyConfigEditorActions
+                        isBlocked={state.hasConflict}
                         canEdit={props.canEdit}
                         isBusy={busy}
                         hasData={Boolean(state.data)}
@@ -266,6 +268,16 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                     </p>
                 ) : (
                     <div className="grid gap-4">
+                        {state.hasConflict ? (
+                            <ProxyConfigEditorConflict
+                                settings={state.settings}
+                                latest={state.reviewedLatest}
+                                busy={busy}
+                                global={false}
+                                confirmationOpen={state.isConflictConfirmationOpen}
+                                handler={handler}
+                            />
+                        ) : null}
                         <HostConfigurationOverview
                             activeAvailable={Boolean(source)}
                             enabled={state.data.enabled}
@@ -302,7 +314,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                                             field={field}
                                             inheritedSettings={state.data!.inheritedSettings}
                                             settings={state.settings}
-                                            busy={busy}
+                                            busy={busy || state.hasConflict}
                                             canEdit={props.canEdit}
                                             setSetting={handler.setSetting}
                                             t={t}
