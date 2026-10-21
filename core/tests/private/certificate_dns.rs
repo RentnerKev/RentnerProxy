@@ -200,7 +200,10 @@ fn dns_lifecycle_with_isolated_key() {
                     .await,
                 Err(CertificateError::DnsCleanupFailed)
             ));
-            let (_, renewed_request) = reopened.begin_renewal(ID).await.unwrap();
+            let (retry, renewed_request) = reopened.begin_acme_retry(ID).await.unwrap();
+            assert_eq!(retry.operation, CertificateOperation::Issuing);
+            assert_eq!(retry.current_operation.unwrap().kind, OperationKind::Issue);
+            assert_eq!(reopened.pending_dns_records(ID).await.unwrap(), intents);
             assert_eq!(renewed_request.domains, request.domains);
             assert_eq!(renewed_request.dns_provider, request.dns_provider);
             assert_eq!(renewed_request.challenge_type, AcmeChallengeType::Dns01);
