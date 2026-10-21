@@ -125,6 +125,7 @@ fn start_caddy(
     workspace: &Path,
     mode_index: usize,
     site: DefaultSite,
+    controller_addr: Option<SocketAddr>,
 ) -> (CaddyChild, SocketAddr, SocketAddr) {
     let listeners: Vec<_> = (0..2)
         .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
@@ -160,7 +161,7 @@ fn start_caddy(
             probe_socket: None,
             admin_socket: None,
             state_dir: state.clone(),
-            controller_port: addresses[0].port(),
+            controller_addr: controller_addr.unwrap_or(addresses[0]),
             trusted_proxy_cidrs: Vec::new(),
         },
     )
@@ -235,7 +236,7 @@ fn default_site_real_caddy_smoke() {
         DefaultSite::CustomHtml { html: html.clone() },
     ];
     for (index, mode) in modes.into_iter().enumerate() {
-        let (_child, public, probe) = start_caddy(&binary, &workspace.0, index, mode.clone());
+        let (_child, public, probe) = start_caddy(&binary, &workspace.0, index, mode.clone(), None);
         let known =
             response(&exchange(public, Some("known.example"), "/incoming?discard=yes").unwrap());
         assert_eq!(known.status, 308);
@@ -291,5 +292,68 @@ fn default_site_real_caddy_smoke() {
             response(&exchange(probe, None, "/unmatched").unwrap()).status,
             404
         );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN and IPv6 loopback"]
+async fn http01_real_caddy_reaches_ipv4_and_ipv6_controller_binds() {
+    use crate::{
+        runtime::{ProxyRuntime, RuntimeSettings},
+        server::{AppState, app_with_state},
+    };
+    let binary = PathBuf::from(
+        std::env::var_os("RENTNERPROXY_TEST_CADDY_BIN").expect("set RENTNERPROXY_TEST_CADDY_BIN"),
+    );
+    let binary = binary.canonicalize().unwrap();
+    let workspace = SmokeWorkspace::new();
+    for (index, bind) in ["127.0.0.1:0", "[::1]:0"].into_iter().enumerate() {
+        let listener = tokio::net::TcpListener::bind(bind).await.unwrap();
+        let controller_addr = listener.local_addr().unwrap();
+        let runtime = ProxyRuntime::new(
+            RuntimeSettings::new(workspace.0.join(format!("controller-{index}")), 8080),
+            None,
+        );
+        let state = AppState::new(runtime, None);
+        state
+            .challenges
+            .insert(
+                "challenge.example".to_owned(),
+                "test-token".to_owned(),
+                "test-token.proof".to_owned(),
+            )
+            .await
+            .unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app_with_state(state)).await.unwrap();
+        });
+        let (_caddy, public, _) = start_caddy(
+            &binary,
+            &workspace.0,
+            index,
+            DefaultSite::NotFound,
+            Some(controller_addr),
+        );
+        let challenge = response(
+            &exchange(
+                public,
+                Some("challenge.example"),
+                "/.well-known/acme-challenge/test-token",
+            )
+            .unwrap(),
+        );
+        assert_eq!(challenge.status, 200, "controller bind {controller_addr}");
+        assert_eq!(challenge.body, b"test-token.proof");
+        let missing = response(
+            &exchange(
+                public,
+                Some("unknown.example"),
+                "/.well-known/acme-challenge/test-token",
+            )
+            .unwrap(),
+        );
+        assert_eq!(missing.status, 404);
+        server.abort();
+        let _ = server.await;
     }
 }

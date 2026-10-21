@@ -111,7 +111,7 @@ pub(super) fn render_config_inner(
         let mut policies = Vec::new();
         let mut https_routes = vec![
             alt_svc_route(tls.public_https_port),
-            challenge_route(settings.controller_port, "https"),
+            challenge_route(settings.controller_addr, "https"),
         ];
         if crowdsec.is_some() {
             https_routes.push(crowdsec_route());

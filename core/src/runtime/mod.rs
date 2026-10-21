@@ -33,6 +33,7 @@ pub(crate) use engine::{CaddyProcess, EngineEnvironment, EngineError, EngineFutu
 use renderer::RenderSettings;
 use std::{
     collections::BTreeMap,
+    net::{Ipv4Addr, SocketAddr},
     path::PathBuf,
     sync::{
         Arc,
@@ -61,7 +62,7 @@ pub(crate) struct RuntimeSettings {
     pub(crate) https_port: u16,
     pub(crate) public_https_port: u16,
     pub(crate) trusted_proxy_cidrs: Vec<String>,
-    pub(crate) controller_port: u16,
+    pub(crate) controller_addr: SocketAddr,
     pub(crate) lock_wait: Duration,
     pub(crate) stage_timeout: Duration,
     pub(crate) recovery_interval: Duration,
@@ -79,7 +80,7 @@ impl RuntimeSettings {
             https_port: 8_443,
             public_https_port: 443,
             trusted_proxy_cidrs: Vec::new(),
-            controller_port: 8_081,
+            controller_addr: SocketAddr::from((Ipv4Addr::LOCALHOST, 8_081)),
             lock_wait: Duration::from_secs(2),
             stage_timeout: Duration::from_secs(15),
             recovery_interval: Duration::from_secs(5),
@@ -98,7 +99,7 @@ impl RuntimeSettings {
             probe_socket: self.probe_socket(),
             admin_socket: cfg!(unix).then(|| self.state_dir.join("caddy-admin.sock")),
             state_dir: self.state_dir.clone(),
-            controller_port: self.controller_port,
+            controller_addr: self.controller_addr,
             trusted_proxy_cidrs: self.trusted_proxy_cidrs.clone(),
         }
     }

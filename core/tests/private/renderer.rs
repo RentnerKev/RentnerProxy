@@ -24,7 +24,7 @@ fn settings() -> RenderSettings {
         probe_socket: cfg!(unix).then(|| base.join("runtime-probe.sock")),
         admin_socket: cfg!(unix).then(|| base.join("caddy-admin.sock")),
         state_dir: base,
-        controller_port: 8081,
+        controller_addr: "127.0.0.1:8081".parse().unwrap(),
         trusted_proxy_cidrs: Vec::new(),
     }
 }
@@ -184,6 +184,55 @@ fn crowdsec_wraps_https_after_transport_headers_and_acme_bypass() {
         rendered.contains("{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}")
             && !rendered.contains("super-secret-bouncer-key")
     );
+}
+
+#[test]
+fn challenge_routes_use_the_same_complete_controller_address_on_http_and_https() {
+    let mut configuration = config();
+    let certificate_id = "018f4b4a-7d1f-7abc-8def-2123456789ab";
+    configuration.proxy_hosts[0].certificate_id = Some(certificate_id.to_owned());
+    let materials = BTreeMap::from([(
+        certificate_id.to_owned(),
+        TlsMaterial {
+            fullchain_path: std::env::temp_dir().join("fullchain.pem"),
+            private_key_path: std::env::temp_dir().join("private-key.pem"),
+        },
+    )]);
+    let upstream = UpstreamTlsRenderSettings {
+        system_ca_bundle: std::env::temp_dir().join("ca-certificates.crt"),
+        trusted_ca_paths: BTreeMap::new(),
+    };
+    for address in [
+        "127.0.0.1:49152",
+        "192.0.2.10:49153",
+        "[::1]:49154",
+        "[2001:db8::10]:49155",
+        "[fe80::1%7]:49156",
+    ] {
+        let mut settings = settings();
+        settings.controller_addr = address.parse().unwrap();
+        let rendered = render_config_with_tls(
+            &configuration,
+            &settings,
+            &TlsRenderSettings {
+                https_port: 8443,
+                public_https_port: 443,
+                controller_port: 8081,
+            },
+            &materials,
+            &upstream,
+        )
+        .unwrap();
+        let json: Value = serde_json::from_str(&rendered).unwrap();
+        for (server, index) in [("rentnerproxy-http", 0), ("rentnerproxy-https", 1)] {
+            let challenge = &json["apps"]["http"]["servers"][server]["routes"][index];
+            assert_eq!(
+                challenge["match"][0]["path"][0],
+                "/.well-known/acme-challenge/*"
+            );
+            assert_eq!(challenge["handle"][0]["upstreams"][0]["dial"], address);
+        }
+    }
 }
 
 #[test]

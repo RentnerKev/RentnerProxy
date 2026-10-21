@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, net::SocketAddr};
 
 use serde::Serialize;
 
@@ -26,7 +26,7 @@ pub(super) fn http_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     crowdsec_enabled: bool,
 ) -> Result<Vec<Route>, RenderError> {
-    let mut routes = vec![challenge_route(settings.controller_port, "http")];
+    let mut routes = vec![challenge_route(settings.controller_addr, "http")];
     if crowdsec_enabled {
         routes.push(crowdsec_route());
     }
@@ -57,14 +57,14 @@ pub(super) fn crowdsec_route() -> Route {
     }
 }
 
-pub(super) fn challenge_route(controller_port: u16, forwarded_proto: &str) -> Route {
+pub(super) fn challenge_route(controller_addr: SocketAddr, forwarded_proto: &str) -> Route {
     Route {
         matchers: vec![MatcherSet::path(vec![
             "/.well-known/acme-challenge/*".to_owned(),
         ])],
         handle: vec![Handler::ReverseProxy(Box::new(
             reverse_proxy(
-                &format!("127.0.0.1:{controller_port}"),
+                &controller_addr.to_string(),
                 None,
                 None,
                 None,

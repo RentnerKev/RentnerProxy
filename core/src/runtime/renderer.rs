@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf};
 
 mod config;
 mod default_site;
@@ -18,7 +18,7 @@ pub(crate) struct RenderSettings {
     pub(crate) probe_socket: Option<PathBuf>,
     pub(crate) admin_socket: Option<PathBuf>,
     pub(crate) state_dir: PathBuf,
-    pub(crate) controller_port: u16,
+    pub(crate) controller_addr: SocketAddr,
     pub(crate) trusted_proxy_cidrs: Vec<String>,
 }
 
