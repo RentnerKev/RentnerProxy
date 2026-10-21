@@ -7,7 +7,7 @@ import type { Root } from 'react-dom/client'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { PERMISSIONS, RUNTIME_SUPPORT_REPORT_PERMISSIONS } from '@/config/permissions.config.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
@@ -1086,6 +1086,24 @@ describe('ProxyHost permissions and row actions', () => {
         await click(getButton('Try again'))
         await waitFor(() => getRows().length === 2)
         expect(document.querySelector('button[data-severity]')).toBeNull()
+    })
+
+    test('keeps configuration and support download as adjacent explained icon actions', async () => {
+        const container = await renderPage(RUNTIME_SUPPORT_REPORT_PERMISSIONS)
+        await waitFor(() => getRows().length === 2)
+        const config = getButton('Caddy config')
+        const support = getButton('Download support report')
+        expect(config.textContent).toBe('')
+        expect(support.textContent).toBe('')
+        expect(config.parentElement).toBe(support.parentElement)
+        expect(container.textContent).not.toContain('Includes only versions, status and counts')
+        await act(async () => {
+            config.focus()
+            await new Promise((resolve) => setTimeout(resolve, 100))
+        })
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+            'Adjust shared HTTP settings',
+        )
     })
 
     test('hides synchronized runtime status and its apply action', async () => {

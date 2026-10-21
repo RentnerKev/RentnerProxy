@@ -1,6 +1,7 @@
 import useProxyHostManagementLogic from './Hooks/useProxyHostManagementLogic.ts'
 import type { ProxyHostManagementPageProps } from './Types/proxy-host-management.types.ts'
-import { Plus } from 'lucide-react'
+import { Plus, Settings } from 'lucide-react'
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import CertificateRequestModal from '@/features/Admin/CertificateManagement/Components/CertificateRequestModal/index.tsx'
@@ -31,13 +32,31 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
     ) : undefined
     const headerAction = (
         <>
-            <button
-                type="button"
-                className={buttonClassName('secondary')}
-                onClick={handler.openGlobalConfig}
-            >
-                {t('admin.proxyHosts.config.open')}
-            </button>
+            <div className="flex items-center gap-2">
+                <CustomTooltip
+                    collisionPadding={10}
+                    content={
+                        <div className="grid gap-1 text-left">
+                            <p className="m-0 font-extrabold">
+                                {t('admin.proxyHosts.config.open')}
+                            </p>
+                            <p className="m-0 leading-relaxed text-muted">
+                                {t('admin.proxyHosts.config.globalDescription')}
+                            </p>
+                        </div>
+                    }
+                >
+                    <button
+                        type="button"
+                        className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-xl border border-border-strong bg-surface-raised text-muted transition-colors hover:border-accent-border hover:bg-surface-hover hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring motion-reduce:transition-none"
+                        aria-label={t('admin.proxyHosts.config.open')}
+                        onClick={handler.openGlobalConfig}
+                    >
+                        <Settings aria-hidden="true" className="size-5" />
+                    </button>
+                </CustomTooltip>
+                <RuntimeSupportDownload permissions={props.permissions} />
+            </div>
             {createAction}
         </>
     )
@@ -48,8 +67,8 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 eyebrow={t('admin.proxyHosts.page.eyebrow')}
                 title={t('admin.proxyHosts.page.title')}
                 description={t('admin.proxyHosts.page.description')}
+                action={state.isError ? headerAction : undefined}
             />
-            <RuntimeSupportDownload permissions={props.permissions} />
             <ProxyRuntimeStatusPanel
                 canApply={state.canApply}
                 isApplying={state.isApplying}

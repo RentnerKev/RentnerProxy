@@ -13,6 +13,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { default: withTestPageAlerts, openPageAlerts } =
+    await import('@/tests/Helpers/withTestPageAlerts.tsx')
 const report = createRuntimeSupportReport(supportReportFixture(), new Date('2026-10-06T10:00:00Z'))
 const exportMock = mock(async () => report)
 mock.module('@/features/Admin/RuntimeDiagnostics/middleware.ts', () => ({
@@ -40,7 +42,11 @@ async function render(
     document.body.append(container)
     root = createRoot(container)
     await act(async () =>
-        root?.render(withTestLanguage(<RuntimeSupportDownload permissions={permissions} />)),
+        root?.render(
+            withTestLanguage(
+                withTestPageAlerts(<RuntimeSupportDownload permissions={permissions} />),
+            ),
+        ),
     )
     return container
 }
@@ -71,15 +77,23 @@ describe('explicit local support report download', () => {
     test('provides a focusable explained action and downloads only on explicit activation', async () => {
         const container = await render()
         const button = container.querySelector('button')!
-        expect(button.textContent).toContain('Download support report')
+        expect(button.textContent).toBe('')
+        expect(button.getAttribute('aria-label')).toBe('Download support report')
         expect(button.type).toBe('button')
-        expect(button.getAttribute('aria-describedby')).toBe('runtime-support-privacy')
-        expect(container.querySelector('#runtime-support-privacy')?.textContent).toContain(
+        expect(container.querySelector('section')).toBeNull()
+        expect(container.textContent).not.toContain('without domains or credentials')
+        expect(exportMock).not.toHaveBeenCalled()
+        await act(async () => {
+            button.focus()
+            await new Promise((resolve) => setTimeout(resolve, 100))
+        })
+        expect(document.activeElement).toBe(button)
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+            'Download support report',
+        )
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
             'without domains or credentials',
         )
-        expect(exportMock).not.toHaveBeenCalled()
-        button.focus()
-        expect(document.activeElement).toBe(button)
         await act(async () => button.click())
         expect(exportMock).toHaveBeenCalledTimes(1)
         expect(createUrlMock).toHaveBeenCalledTimes(1)
@@ -88,8 +102,12 @@ describe('explicit local support report download', () => {
         expect(blobs[0]?.type).toBe('application/json')
         expect(JSON.parse(await blobs[0]!.text())).toEqual(report)
         expect(container.querySelector('a')).toBeNull()
-        expect(container.querySelector('output')?.textContent).toContain('download started')
-        expect(button.disabled).toBe(false)
+        expect(container.querySelector('output[aria-live="polite"]')?.textContent).toContain(
+            'download started',
+        )
+        expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
+            false,
+        )
     })
 
     test('blocks duplicate activation while preparing and honestly identifies a partial report', async () => {
@@ -107,18 +125,25 @@ describe('explicit local support report download', () => {
             button.click()
         })
         expect(exportMock).toHaveBeenCalledTimes(1)
-        expect(button.disabled).toBe(true)
-        expect(button.getAttribute('aria-busy')).toBe('true')
-        expect(button.textContent).toContain('Preparing report')
+        const busyButton = container.querySelector<HTMLButtonElement>('button[aria-busy]')!
+        expect(busyButton.disabled).toBe(true)
+        expect(busyButton.getAttribute('aria-busy')).toBe('true')
+        expect(busyButton.getAttribute('aria-label')).toContain('Preparing report')
         expect(createUrlMock).not.toHaveBeenCalled()
         await act(async () =>
             resolveReport({ ...report, completeness: 'partial', unavailableSections: ['valkey'] }),
         )
-        expect(container.querySelector('output')?.textContent).toContain(
+        expect(container.querySelector('output[aria-live="polite"]')?.textContent).toContain(
             'Partial report download started',
         )
+        expect(
+            container.querySelector('button[data-severity]')?.getAttribute('data-severity'),
+        ).toBe('warning')
+        expect((await openPageAlerts()).textContent).toContain('Partial report download started')
         expect(JSON.parse(await blobs[0]!.text()).unavailableSections).toEqual(['valkey'])
-        expect(button.disabled).toBe(false)
+        expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
+            false,
+        )
     })
 
     test('shows an accessible failure without leaking source errors and permits retry', async () => {
@@ -126,13 +151,21 @@ describe('explicit local support report download', () => {
         const container = await render()
         const button = container.querySelector('button')!
         await act(async () => button.click())
-        expect(container.querySelector('output')?.getAttribute('aria-live')).toBe('polite')
+        expect(container.querySelector('output[aria-live="polite"]')).not.toBeNull()
         expect(container.textContent).toContain('could not be downloaded')
         expect(container.textContent).not.toContain('PRIVATE-FIXTURE')
         expect(createUrlMock).not.toHaveBeenCalled()
-        expect(button.disabled).toBe(false)
-        await act(async () => button.click())
+        expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
+            false,
+        )
+        expect(
+            container.querySelector('button[data-severity]')?.getAttribute('data-severity'),
+        ).toBe('error')
+        const details = await openPageAlerts()
+        expect(details.textContent).toContain('could not be downloaded')
+        await act(async () => details.querySelector<HTMLButtonElement>('li button')?.click())
         expect(createUrlMock).toHaveBeenCalledTimes(1)
         expect(container.textContent).toContain('download started')
+        expect(container.querySelector('button[data-severity]')).toBeNull()
     })
 })
