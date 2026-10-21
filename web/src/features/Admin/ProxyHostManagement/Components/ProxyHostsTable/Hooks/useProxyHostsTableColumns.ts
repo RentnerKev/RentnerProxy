@@ -1,6 +1,6 @@
 import { filterFn_equalsString, sortFn_datetime } from '@tanstack/react-table'
-import type { ColumnDef } from '@tanstack/react-table'
-import { createElement, useMemo } from 'react'
+import type { CellContext, ColumnDef } from '@tanstack/react-table'
+import { createElement, useCallback, useMemo } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createDateRangeFilter } from '@/lib/Table/tableFilters.ts'
@@ -36,7 +36,18 @@ export default function useProxyHostsTableColumns({
 }: ProxyHostTableActionProps) {
     const { t } = useTranslationStore()
 
-    // Preserve the stateful tag cell when unrelated row actions refresh.
+    // TanStack renders this callback as a component, so translation refreshes must not replace it.
+    const renderTagsCell = useCallback(
+        ({ row }: CellContext<ClientTableFeatures, ProxyHostSummary>) =>
+            createElement(HostTagsCell, {
+                kind: 'proxy',
+                hostId: row.original.id,
+                hostLabel: row.original.domains[0] ?? row.original.forwardHost,
+                tags: row.original.tags,
+                canManage: canUpdate && !isPending,
+            }),
+        [canUpdate, isPending],
+    )
     const tagsColumn = useMemo<ColumnDef<ClientTableFeatures, ProxyHostSummary>>(
         () => ({
             id: 'tags',
@@ -47,16 +58,9 @@ export default function useProxyHostsTableColumns({
                 value === 'untagged'
                     ? !row.original.tags?.length
                     : Boolean(row.original.tags?.some((tag) => tag.id === value)),
-            cell: ({ row }) =>
-                createElement(HostTagsCell, {
-                    kind: 'proxy',
-                    hostId: row.original.id,
-                    hostLabel: row.original.domains[0] ?? row.original.forwardHost,
-                    tags: row.original.tags,
-                    canManage: canUpdate && !isPending,
-                }),
+            cell: renderTagsCell,
         }),
-        [canUpdate, isPending, t],
+        [renderTagsCell, t],
     )
 
     return useMemo<Array<ColumnDef<ClientTableFeatures, ProxyHostSummary>>>(() => {

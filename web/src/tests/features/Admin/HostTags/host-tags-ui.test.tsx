@@ -11,7 +11,8 @@ import type {
 } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { emptyHostTagState, HostTagDomainError, mutateHostTags } from '@/lib/HostTags/hostTags.ts'
 import { hostTagMutationSchema } from '@/features/Admin/HostTags/validation.ts'
-import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import withTestLanguage, { bootstraps } from '@/tests/Helpers/withTestLanguage.tsx'
+import { AuthenticatedLanguageProvider } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -72,8 +73,12 @@ function HostListInputProbe() {
 
 function HostTableRefreshProbe({ kind }: { readonly kind: HostKind }) {
     const [version, setVersion] = useState(0)
+    const [bootstrap, setBootstrap] = useState(() => structuredClone(bootstraps.de))
     useEffect(() => {
-        refreshHostTable = () => setVersion((current) => current + 1)
+        refreshHostTable = () => {
+            setVersion((current) => current + 1)
+            setBootstrap(structuredClone(bootstraps.de))
+        }
         return () => {
             refreshHostTable = undefined
         }
@@ -100,34 +105,38 @@ function HostTableRefreshProbe({ kind }: { readonly kind: HostKind }) {
         createdAt: new Date('2026-10-01T00:00:00Z'),
         updatedAt: new Date('2026-10-01T00:00:00Z'),
     }
-    return kind === 'proxy' ? (
-        <ProxyHostsTable
-            {...common}
-            proxyHosts={[
-                {
-                    ...host,
-                    forwardScheme: 'http',
-                    forwardHost: 'upstream.internal',
-                    forwardPort: 80,
-                    forceHttps: false,
-                    verifyUpstreamTls: true,
-                    upstreamTlsServerName: null,
-                    trustedCaId: null,
-                },
-            ]}
-        />
-    ) : (
-        <RedirectHostsTable
-            {...common}
-            redirectHosts={[
-                {
-                    ...host,
-                    destination: 'https://example.com',
-                    statusCode: 302,
-                    preserveRequestUri: true,
-                },
-            ]}
-        />
+    const table =
+        kind === 'proxy' ? (
+            <ProxyHostsTable
+                {...common}
+                proxyHosts={[
+                    {
+                        ...host,
+                        forwardScheme: 'http',
+                        forwardHost: 'upstream.internal',
+                        forwardPort: 80,
+                        forceHttps: false,
+                        verifyUpstreamTls: true,
+                        upstreamTlsServerName: null,
+                        trustedCaId: null,
+                    },
+                ]}
+            />
+        ) : (
+            <RedirectHostsTable
+                {...common}
+                redirectHosts={[
+                    {
+                        ...host,
+                        destination: 'https://example.com',
+                        statusCode: 302,
+                        preserveRequestUri: true,
+                    },
+                ]}
+            />
+        )
+    return (
+        <AuthenticatedLanguageProvider bootstrap={bootstrap}>{table}</AuthenticatedLanguageProvider>
     )
 }
 
@@ -225,7 +234,7 @@ afterEach(async () => {
 
 describe('localized accessible host tags', () => {
     test.each(['proxy', 'redirect'] as const)(
-        'keeps %s tag selection and its draft open during pointer selection and table refreshes',
+        'keeps %s tag selection and its draft open during pointer selection and authenticated route refreshes',
         async (kind) => {
             states[kind] = structuredClone(states.proxy)
             await render(<HostTableRefreshProbe kind={kind} />)
