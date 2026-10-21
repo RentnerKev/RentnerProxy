@@ -22,6 +22,28 @@ const textFilter = createTrimmedIncludesStringFilter<RedirectHostSummary>()
 const dateFilter = createDateRangeFilter<RedirectHostSummary>()
 export default function useRedirectHostsTableColumns(props: RedirectHostTableActionProps) {
     const { t } = useTranslationStore()
+    // Preserve the stateful tag cell when unrelated row actions refresh.
+    const tagsColumn = useMemo<ColumnDef<ClientTableFeatures, RedirectHostSummary>>(
+        () => ({
+            id: 'tags',
+            accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
+            header: t('admin.hostTags.title'),
+            sortFn: 'text',
+            filterFn: (row, _id, value) =>
+                value === 'untagged'
+                    ? !row.original.tags?.length
+                    : Boolean(row.original.tags?.some((tag) => tag.id === value)),
+            cell: ({ row }) =>
+                createElement(HostTagsCell, {
+                    kind: 'redirect',
+                    hostId: row.original.id,
+                    hostLabel: row.original.domains[0] ?? row.original.destination,
+                    tags: row.original.tags,
+                    canManage: props.canUpdate && !props.isPending,
+                }),
+        }),
+        [props.canUpdate, props.isPending, t],
+    )
     return useMemo<Array<ColumnDef<ClientTableFeatures, RedirectHostSummary>>>(() => {
         const columns: Array<ColumnDef<ClientTableFeatures, RedirectHostSummary>> = [
             {
@@ -34,24 +56,7 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                 cell: ({ row }) =>
                     createElement(RedirectHostDomainsCell, { domains: row.original.domains }),
             },
-            {
-                id: 'tags',
-                accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
-                header: t('admin.hostTags.title'),
-                sortFn: 'text',
-                filterFn: (row, _id, value) =>
-                    value === 'untagged'
-                        ? !row.original.tags?.length
-                        : Boolean(row.original.tags?.some((tag) => tag.id === value)),
-                cell: ({ row }) =>
-                    createElement(HostTagsCell, {
-                        kind: 'redirect',
-                        hostId: row.original.id,
-                        hostLabel: row.original.domains[0] ?? row.original.destination,
-                        tags: row.original.tags,
-                        canManage: props.canUpdate && !props.isPending,
-                    }),
-            },
+            tagsColumn,
             {
                 id: 'destination',
                 accessorFn: (host) => host.destination,
@@ -125,5 +130,5 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                     createElement(RedirectHostTableActions, { ...props, host: row.original }),
             })
         return columns
-    }, [props, t])
+    }, [props, tagsColumn, t])
 }

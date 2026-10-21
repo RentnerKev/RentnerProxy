@@ -17,7 +17,7 @@ import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
-const { act, useEffect } = await import('react')
+const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { ToastProvider } = await import('@rentnerkev/toasts')
@@ -53,9 +53,14 @@ const { default: HostTagsCell } =
     await import('@/features/Admin/HostTags/Components/HostTagsCell.tsx')
 const { default: useHostListInput } =
     await import('@/features/Admin/HostTags/Hooks/useHostListInput.ts')
+const { default: ProxyHostsTable } =
+    await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostsTable/index.tsx')
+const { default: RedirectHostsTable } =
+    await import('@/features/Admin/RedirectHostManagement/Components/RedirectHostsTable/index.tsx')
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
 let listInput: ReturnType<typeof useHostListInput>
+let refreshHostTable: (() => void) | undefined
 
 function HostListInputProbe() {
     const logic = useHostListInput()
@@ -63,6 +68,67 @@ function HostListInputProbe() {
         listInput = logic
     }, [logic])
     return <output>{logic.query.search}</output>
+}
+
+function HostTableRefreshProbe({ kind }: { readonly kind: HostKind }) {
+    const [version, setVersion] = useState(0)
+    useEffect(() => {
+        refreshHostTable = () => setVersion((current) => current + 1)
+        return () => {
+            refreshHostTable = undefined
+        }
+    }, [])
+    const onAction = () => setVersion(version)
+    const common = {
+        loading: false,
+        canUpdate: true,
+        canDelete: false,
+        canEnable: false,
+        canDisable: false,
+        isPending: false,
+        onEdit: onAction,
+        onDelete: onAction,
+        onEnable: onAction,
+        onDisable: onAction,
+    }
+    const host = {
+        id: hostId,
+        domains: ['app.example.com'],
+        tags: [infra],
+        enabled: true,
+        certificateId: null,
+        createdAt: new Date('2026-10-01T00:00:00Z'),
+        updatedAt: new Date('2026-10-01T00:00:00Z'),
+    }
+    return kind === 'proxy' ? (
+        <ProxyHostsTable
+            {...common}
+            proxyHosts={[
+                {
+                    ...host,
+                    forwardScheme: 'http',
+                    forwardHost: 'upstream.internal',
+                    forwardPort: 80,
+                    forceHttps: false,
+                    verifyUpstreamTls: true,
+                    upstreamTlsServerName: null,
+                    trustedCaId: null,
+                },
+            ]}
+        />
+    ) : (
+        <RedirectHostsTable
+            {...common}
+            redirectHosts={[
+                {
+                    ...host,
+                    destination: 'https://example.com',
+                    statusCode: 302,
+                    preserveRequestUri: true,
+                },
+            ]}
+        />
+    )
 }
 
 async function render(element: ReactElement) {
@@ -107,6 +173,18 @@ async function click(element: Element) {
         element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     })
 }
+function mousePointer(type: string, pageY: number) {
+    const event = new PointerEvent(type, {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        pointerType: 'mouse',
+        clientY: pageY,
+    })
+    // Happy DOM does not derive page coordinates from client coordinates.
+    Object.defineProperty(event, 'pageY', { value: pageY })
+    return event
+}
 async function input(
     value: string,
     element = document.querySelector<HTMLInputElement>('input[id$="-name"]')!,
@@ -146,6 +224,52 @@ afterEach(async () => {
 })
 
 describe('localized accessible host tags', () => {
+    test.each(['proxy', 'redirect'] as const)(
+        'keeps %s tag selection and its draft open during pointer selection and table refreshes',
+        async (kind) => {
+            states[kind] = structuredClone(states.proxy)
+            await render(<HostTableRefreshProbe kind={kind} />)
+            await click(button('Tags für app.example.com bearbeiten'))
+            const assignmentDialog = document.querySelector('[role="dialog"]')!
+            await waitFor(
+                () =>
+                    assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')
+                        ?.disabled === false,
+            )
+            const trigger =
+                assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')!
+            await act(async () => {
+                trigger.dispatchEvent(mousePointer('pointerdown', 100))
+            })
+            await waitFor(() => document.querySelectorAll('[role="option"]').length === 2)
+            const searchInput = document.querySelector<HTMLInputElement>(
+                'input[placeholder="Tags suchen"]',
+            )!
+            await input('Privat', searchInput)
+            await waitFor(() => document.querySelectorAll('[role="option"]').length === 1)
+            const option = document.querySelector<HTMLElement>('[role="option"]')!
+            const badge = option.querySelector('span[style]')!
+            await act(async () => {
+                option.focus()
+                badge.dispatchEvent(mousePointer('pointermove', 180))
+                badge.dispatchEvent(mousePointer('pointerdown', 180))
+                badge.dispatchEvent(mousePointer('pointerup', 180))
+                badge.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+            })
+            expect(option.getAttribute('aria-selected')).toBe('true')
+            expect(trigger.getAttribute('aria-expanded')).toBe('true')
+            expect(trigger.textContent).toContain('Privat')
+            await act(async () => {
+                refreshHostTable?.()
+                await new Promise((resolve) => setTimeout(resolve, 20))
+            })
+            expect(assignmentDialog.isConnected).toBe(true)
+            expect(searchInput.isConnected).toBe(true)
+            expect(searchInput.value).toBe('Privat')
+            expect(trigger.getAttribute('aria-expanded')).toBe('true')
+            expect(trigger.textContent).toContain('Privat')
+        },
+    )
     test('bounds pasted search text and keeps the last valid query when table state is invalid', async () => {
         await render(<HostListInputProbe />)
         await act(async () => {

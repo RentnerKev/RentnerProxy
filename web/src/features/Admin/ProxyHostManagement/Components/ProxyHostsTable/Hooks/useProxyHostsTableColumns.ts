@@ -36,6 +36,29 @@ export default function useProxyHostsTableColumns({
 }: ProxyHostTableActionProps) {
     const { t } = useTranslationStore()
 
+    // Preserve the stateful tag cell when unrelated row actions refresh.
+    const tagsColumn = useMemo<ColumnDef<ClientTableFeatures, ProxyHostSummary>>(
+        () => ({
+            id: 'tags',
+            accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
+            header: t('admin.hostTags.title'),
+            sortFn: 'text',
+            filterFn: (row, _id, value) =>
+                value === 'untagged'
+                    ? !row.original.tags?.length
+                    : Boolean(row.original.tags?.some((tag) => tag.id === value)),
+            cell: ({ row }) =>
+                createElement(HostTagsCell, {
+                    kind: 'proxy',
+                    hostId: row.original.id,
+                    hostLabel: row.original.domains[0] ?? row.original.forwardHost,
+                    tags: row.original.tags,
+                    canManage: canUpdate && !isPending,
+                }),
+        }),
+        [canUpdate, isPending, t],
+    )
+
     return useMemo<Array<ColumnDef<ClientTableFeatures, ProxyHostSummary>>>(() => {
         const columns: Array<ColumnDef<ClientTableFeatures, ProxyHostSummary>> = [
             {
@@ -51,24 +74,7 @@ export default function useProxyHostsTableColumns({
                         discovery: row.original.discovery,
                     }),
             },
-            {
-                id: 'tags',
-                accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
-                header: t('admin.hostTags.title'),
-                sortFn: 'text',
-                filterFn: (row, _id, value) =>
-                    value === 'untagged'
-                        ? !row.original.tags?.length
-                        : Boolean(row.original.tags?.some((tag) => tag.id === value)),
-                cell: ({ row }) =>
-                    createElement(HostTagsCell, {
-                        kind: 'proxy',
-                        hostId: row.original.id,
-                        hostLabel: row.original.domains[0] ?? row.original.forwardHost,
-                        tags: row.original.tags,
-                        canManage: canUpdate && !isPending,
-                    }),
-            },
+            tagsColumn,
             {
                 id: 'forward',
                 accessorFn: (host) => host.forwardScheme,
@@ -158,6 +164,7 @@ export default function useProxyHostsTableColumns({
         onDuplicate,
         onEnable,
         onRequestCertificate,
+        tagsColumn,
         t,
     ])
 }

@@ -870,6 +870,41 @@ describe('background certificate job progress', () => {
 })
 
 describe('ProxyHost management table', () => {
+    test('keeps tag assignment and its dropdown mounted through background runtime refreshes', async () => {
+        await renderPage(allManagementPermissions)
+        await waitFor(() => getRows().length === 2)
+        await click(getButton('Edit tags for app.example.com'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        const assignmentDialog = document.querySelector('[role="dialog"]')!
+        await waitFor(
+            () =>
+                assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')
+                    ?.disabled === false,
+        )
+        const trigger =
+            assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')!
+        await act(async () => {
+            trigger.dispatchEvent(
+                new PointerEvent('pointerdown', {
+                    bubbles: true,
+                    button: 0,
+                    cancelable: true,
+                    pointerType: 'mouse',
+                }),
+            )
+        })
+        await waitFor(() => document.querySelector('input[placeholder="Search tags"]') !== null)
+        const searchInput = document.querySelector('input[placeholder="Search tags"]')!
+        await act(async () => {
+            await activeQueryClient?.invalidateQueries({
+                queryKey: proxyHostManagementQueryKeys.runtimeStatus,
+            })
+            await new Promise((resolve) => setTimeout(resolve, 30))
+        })
+        expect(assignmentDialog.isConnected).toBe(true)
+        expect(searchInput.isConnected).toBe(true)
+        expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    })
     test('keeps tag assignment accessible for discovered hosts without editing routing', async () => {
         getProxyHostsHandlerMock.mockResolvedValue([
             {
