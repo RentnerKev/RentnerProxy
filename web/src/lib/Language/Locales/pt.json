@@ -3059,6 +3059,35 @@
                 "container_not_running": "Contentor parado",
                 "domain_conflict": "Este domínio já está atribuído a outro host proxy."
             }
+        },
+        "hostTags": {
+            "title": "Etiquetas",
+            "manage": "Gerir etiquetas",
+            "description": "Organize os hosts deste tipo com etiquetas. Ordene a coluna Etiquetas para os agrupar ou escolha uma etiqueta nos filtros da tabela.",
+            "behavior": "Renomear mantém as atribuições. Eliminar remove apenas a etiqueta; os hosts permanecem. Duplicar um host copia as suas etiquetas. As etiquetas não alteram o encaminhamento nem as permissões.",
+            "name": "Nome da etiqueta",
+            "create": "Criar etiqueta",
+            "rename": "Renomear",
+            "renameNamed": "Renomear {{name}}",
+            "deleteNamed": "Eliminar etiqueta {{name}}",
+            "deleteDescription": "Remover esta etiqueta de todos os hosts deste tipo? Os hosts e a configuração de encaminhamento são mantidos.",
+            "empty": "Ainda não há etiquetas. Crie uma para organizar os seus hosts.",
+            "untagged": "Sem etiquetas",
+            "filter": "Filtrar por etiqueta",
+            "select": "Selecionar etiquetas",
+            "search": "Pesquisar etiquetas",
+            "editFor": "Editar etiquetas de {{name}}",
+            "assignmentDescription": "Escolha várias etiquetas ou deixe este host sem etiquetas. A gestão pelo Discovery e o encaminhamento mantêm-se.",
+            "saved": "Etiquetas guardadas.",
+            "errors": {
+                "duplicate": "Já existe uma etiqueta com este nome para este tipo de host.",
+                "missing": "Esta etiqueta ou host já não existe. Recarregue a lista.",
+                "conflict": "As etiquetas mudaram durante a edição. Reabra o editor para usar as atribuições atuais.",
+                "limit": "Foi atingido o limite de etiquetas.",
+                "invalid": "Introduza um nome com 1–64 carateres sem carateres de controlo.",
+                "loadFailed": "Não foi possível carregar as etiquetas.",
+                "saveFailed": "Não foi possível guardar as etiquetas."
+            }
         }
     },
     "permissions": {

@@ -54,6 +54,7 @@ mock.module('@/features/Admin/RedirectHostManagement/middleware.ts', () => ({
     updateRedirectHostHandler: updateHost,
     getAssignableRedirectCertificatesHandler: async () => [certificate],
     getRedirectHostsHandler: async () => [],
+    getRedirectHostPageHandler: async () => ({ hosts: [], total: 0, domains: [], tags: [] }),
     getRedirectRuntimeStatusHandler: async () => ({
         available: true,
         running: true,
@@ -66,6 +67,10 @@ mock.module('@/features/Admin/RedirectHostManagement/middleware.ts', () => ({
     deleteRedirectHostHandler: async () => ({ success: true }),
     disableRedirectHostHandler: async () => ({ success: true }),
     enableRedirectHostHandler: async () => ({ success: true }),
+}))
+mock.module('@/features/Admin/HostTags/middleware.ts', () => ({
+    getHostTagCatalogHandler: async () => ({ revision: 0, tags: [] }),
+    mutateHostTagHandler: async () => ({ success: true, value: { revision: 1, tags: [] } }),
 }))
 mock.module('@/shared/Live/Hooks/useLiveInvalidation.ts', () => ({ default: () => undefined }))
 const { default: useManagement } =

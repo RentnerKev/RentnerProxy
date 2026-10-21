@@ -35,6 +35,7 @@ export default function useRedirectHostsTableLogic(
     const data = useMemo(() => [...props.redirectHosts], [props.redirectHosts])
     const columns = useRedirectHostsTableColumns(props)
     const tableLogic = useClientTable({
+        ...(props.remote ? { remote: props.remote } : {}),
         data,
         columns,
         getRowId,
@@ -46,7 +47,20 @@ export default function useRedirectHostsTableLogic(
             domains: {
                 type: 'searchableSelect',
                 placeholder: t('admin.redirectHosts.filters.domains'),
-                options: createSortedUniqueFilterOptions(data.flatMap((host) => host.domains)),
+                options: createSortedUniqueFilterOptions(
+                    props.remote?.domains ?? data.flatMap((host) => host.domains),
+                ),
+            },
+            tags: {
+                type: 'searchableSelect',
+                placeholder: t('admin.hostTags.filter'),
+                options: [
+                    { value: 'untagged', label: t('admin.hostTags.untagged') },
+                    ...(props.remote?.tags ?? []).map((tag) => ({
+                        value: tag.id,
+                        label: tag.name,
+                    })),
+                ],
             },
             statusCode: {
                 type: 'select',
@@ -68,7 +82,7 @@ export default function useRedirectHostsTableLogic(
                 type: 'dateRange',
             },
         }),
-        [data, t],
+        [data, props.remote?.domains, props.remote?.tags, t],
     )
     return {
         table: tableLogic.table,

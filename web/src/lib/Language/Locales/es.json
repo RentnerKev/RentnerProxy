@@ -3033,6 +3033,35 @@
                 "container_not_running": "Contenedor detenido",
                 "domain_conflict": "Este dominio ya está asignado a otro host proxy."
             }
+        },
+        "hostTags": {
+            "title": "Etiquetas",
+            "manage": "Gestionar etiquetas",
+            "description": "Organiza los hosts de este tipo con etiquetas. Ordena la columna Etiquetas para agruparlos o selecciona una etiqueta en los filtros.",
+            "behavior": "Cambiar el nombre conserva las asignaciones. Eliminar solo quita la etiqueta; los hosts se conservan. Al duplicar un host se copian sus etiquetas. Las etiquetas no cambian el enrutamiento ni los permisos.",
+            "name": "Nombre de la etiqueta",
+            "create": "Crear etiqueta",
+            "rename": "Cambiar nombre",
+            "renameNamed": "Cambiar nombre de {{name}}",
+            "deleteNamed": "Eliminar etiqueta {{name}}",
+            "deleteDescription": "¿Quitar esta etiqueta de todos los hosts de este tipo? Los hosts y su configuración de enrutamiento se conservan.",
+            "empty": "Aún no hay etiquetas. Crea una para organizar tus hosts.",
+            "untagged": "Sin etiquetas",
+            "filter": "Filtrar por etiqueta",
+            "select": "Seleccionar etiquetas",
+            "search": "Buscar etiquetas",
+            "editFor": "Editar etiquetas de {{name}}",
+            "assignmentDescription": "Elige varias etiquetas o deja este host sin etiquetas. La propiedad de Discovery y el enrutamiento se conservan.",
+            "saved": "Etiquetas guardadas.",
+            "errors": {
+                "duplicate": "Ya existe una etiqueta con este nombre para este tipo de host.",
+                "missing": "Esta etiqueta o host ya no existe. Recarga la lista.",
+                "conflict": "Las etiquetas cambiaron durante la edición. Abre de nuevo el editor para usar las asignaciones actuales.",
+                "limit": "Se ha alcanzado el límite de etiquetas.",
+                "invalid": "Introduce un nombre de 1–64 caracteres sin caracteres de control.",
+                "loadFailed": "No se pudieron cargar las etiquetas.",
+                "saveFailed": "No se pudieron guardar las etiquetas."
+            }
         }
     },
     "permissions": {

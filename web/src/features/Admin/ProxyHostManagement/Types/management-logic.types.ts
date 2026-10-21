@@ -1,8 +1,10 @@
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 
 export interface ProxyHostManagementLogicResult {
     readonly state: {
+        readonly remote: HostTableRemote
         readonly canApply: boolean
         readonly canAssignCertificates: boolean
         readonly canAssignPolicies: boolean

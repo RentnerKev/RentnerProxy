@@ -24,6 +24,8 @@ import type {
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { certificateJobProgressQueryKeys } from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
+import { filterHostPage } from '@/lib/HostTags/hostList.ts'
+import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -166,8 +168,18 @@ mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
     enableProxyHostHandler: enableProxyHostHandlerMock,
     getProxyRuntimeStatusHandler: getProxyRuntimeStatusHandlerMock,
     getProxyHostsHandler: getProxyHostsHandlerMock,
+    getProxyHostPageHandler: async ({ data }: { data: unknown }) =>
+        filterHostPage(await getProxyHostsHandlerMock(), [], hostListQuerySchema.parse(data), {
+            enabled: 'Enabled',
+            disabled: 'Disabled',
+        }),
     applyProxyConfigurationHandler: applyProxyConfigurationHandlerMock,
     updateProxyHostHandler: updateProxyHostHandlerMock,
+}))
+
+mock.module('@/features/Admin/HostTags/middleware.ts', () => ({
+    getHostTagCatalogHandler: async () => ({ revision: 0, tags: [] }),
+    mutateHostTagHandler: async () => ({ success: true, value: { revision: 1, tags: [] } }),
 }))
 
 const getAssignableCertificatesHandlerMock = mock(async (): Promise<CertificateSummary[]> => [])
@@ -858,6 +870,25 @@ describe('background certificate job progress', () => {
 })
 
 describe('ProxyHost management table', () => {
+    test('keeps tag assignment accessible for discovered hosts without editing routing', async () => {
+        getProxyHostsHandlerMock.mockResolvedValue([
+            {
+                ...enabledHost,
+                discovery: { state: 'managed' },
+                tags: [{ id: '00000000-0000-4000-8000-000000000001', name: 'Farm' }],
+            },
+        ])
+        await renderPage(allManagementPermissions)
+        await waitFor(() => getRows().length === 1)
+        expect(getRows()[0]?.textContent).toContain('Farm')
+        await click(getButton('Edit tags for app.example.com'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+            'Discovery ownership and routing stay the same',
+        )
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(applyProxyConfigurationHandlerMock).not.toHaveBeenCalled()
+    })
     test('renders all columns, compact domain overflow, forward target, IPv6, and status', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)
@@ -905,7 +936,7 @@ describe('ProxyHost management table', () => {
             forwardScheme: index % 2 === 0 ? 'http' : 'https',
             id: `018f2f52-7c1b-7cc0-9f3c-6a9952c5${String(index).padStart(3, '0')}`,
         }))
-        getProxyHostsHandlerMock.mockResolvedValueOnce(hosts)
+        getProxyHostsHandlerMock.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
@@ -935,7 +966,7 @@ describe('ProxyHost management table', () => {
                       : `host-${index}.example.com`,
             ],
         }))
-        getProxyHostsHandlerMock.mockResolvedValueOnce(hosts)
+        getProxyHostsHandlerMock.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         await click(getButton('Filters'))
@@ -987,7 +1018,7 @@ describe('ProxyHost management table', () => {
                 id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54032',
             },
         ]
-        getProxyHostsHandlerMock.mockResolvedValueOnce(hosts)
+        getProxyHostsHandlerMock.mockResolvedValue(hosts)
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 3)
 
@@ -1003,6 +1034,7 @@ describe('ProxyHost management table', () => {
 
         await click(createdSortButton)
         await waitFor(() => createdHeader.getAttribute('aria-sort') === 'ascending')
+        await waitFor(() => domainOrder()[0] === 'alpha.example.com')
         expect(domainOrder()).toEqual([
             'alpha.example.com',
             'zulu.example.com',
@@ -1434,7 +1466,6 @@ describe('ProxyHost form modal', () => {
         })
         expect(invalidate).toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.all,
-            exact: true,
         })
         expect(invalidate).toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.runtimeStatus,

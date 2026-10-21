@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hostTagIdsSchema } from '@/lib/HostTags/hostTags.ts'
 
 import {
     MAX_REDIRECT_DESTINATION_LENGTH,
@@ -124,6 +125,7 @@ export const redirectStatusCodeSchema = z.union([
 ])
 
 const redirectHostFieldsSchema = z.object({
+    tagIds: hostTagIdsSchema.optional(),
     domains: redirectHostDomainsSchema,
     destination: redirectDestinationSchema,
     statusCode: redirectStatusCodeSchema,

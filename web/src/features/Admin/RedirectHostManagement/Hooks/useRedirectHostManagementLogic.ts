@@ -2,6 +2,7 @@ import type { RedirectHostManagementLogicResult } from '../Types/management-logi
 import { invalidateRedirectHostManagementRuntimeStatusCache } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
+import useHostListInput from '@/features/Admin/HostTags/Hooks/useHostListInput.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import { toast } from '@rentnerkev/toasts'
@@ -13,7 +14,7 @@ import {
     deleteRedirectHostHandler,
     disableRedirectHostHandler,
     enableRedirectHostHandler,
-    getRedirectHostsHandler,
+    getRedirectHostPageHandler,
     getRedirectRuntimeStatusHandler,
 } from '../middleware.ts'
 import type { RedirectHostManagementPageProps } from '../Types/redirect-host-management.types.ts'
@@ -37,10 +38,12 @@ export default function useRedirectHostManagementLogic({
     const [selected, setSelected] = useState<RedirectHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<RedirectHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<RedirectHostSummary | null>(null)
+    const hostList = useHostListInput()
     const hostsQuery = useQuery({
-        queryKey: redirectHostManagementQueryKeys.all,
-        queryFn: () => getRedirectHostsHandler(),
+        queryKey: [...redirectHostManagementQueryKeys.all, 'page', hostList.query],
+        queryFn: () => getRedirectHostPageHandler({ data: hostList.query }),
         enabled: canView,
+        placeholderData: (previous) => previous,
     })
     const runtimeQuery = useQuery({
         queryKey: redirectHostManagementQueryKeys.runtimeStatus,
@@ -60,7 +63,6 @@ export default function useRedirectHostManagementLogic({
         await Promise.all([
             queryClient.invalidateQueries({
                 queryKey: redirectHostManagementQueryKeys.all,
-                exact: true,
             }),
             invalidateRedirectHostManagementRuntimeStatusCache(queryClient),
         ])
@@ -198,7 +200,14 @@ export default function useRedirectHostManagementLogic({
                 deleteMutation.isPending || disableMutation.isPending || enableMutation.isPending,
             isError: hostsQuery.isError,
             isLoading: hostsQuery.isPending,
-            redirectHosts: hostsQuery.data ?? EMPTY_REDIRECT_HOSTS,
+            redirectHosts: hostsQuery.data?.hosts ?? EMPTY_REDIRECT_HOSTS,
+            remote: {
+                rowCount: hostsQuery.data?.total ?? 0,
+                domains: hostsQuery.data?.domains ?? [],
+                tags: hostsQuery.data?.tags ?? [],
+                initialState: hostList.initialState,
+                onStateChange: hostList.onStateChange,
+            },
             runtimeStatus: runtimeQuery.data,
             runtimeStatusError: runtimeQuery.isError,
             runtimeStatusRetrying: runtimeQuery.isFetching,

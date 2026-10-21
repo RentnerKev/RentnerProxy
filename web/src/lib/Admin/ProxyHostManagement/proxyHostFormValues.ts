@@ -10,6 +10,7 @@ export function getProxyHostFormValues(
 ): ProxyHostEditorFormValues {
     const source = mode === 'create' ? undefined : proxyHost
     return {
+        ...(source?.tags ? { tagIds: source.tags.map((tag) => tag.id) } : {}),
         domains: mode === 'edit' && source ? [...source.domains] : [''],
         forwardScheme: source?.forwardScheme ?? 'http',
         forwardHost: source?.forwardHost ?? '',

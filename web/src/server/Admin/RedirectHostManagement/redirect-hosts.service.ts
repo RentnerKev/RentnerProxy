@@ -1,5 +1,7 @@
 import type { RedirectHostMutationSummary, RedirectHostRow } from './Types/redirect-hosts.types.ts'
 import '@tanstack/react-start/server-only'
+import { attachHostTagsService } from '@/server/Admin/HostTags/host-tags.service.ts'
+import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type {
@@ -201,7 +203,10 @@ export async function getRedirectHostsService(): Promise<Array<RedirectHostSumma
         )
     }
 
-    return [...summaries.values()].map((summary) => toRedirectHostSummary(summary, summary.domains))
+    return attachHostTagsService(
+        'redirect',
+        [...summaries.values()].map((summary) => toRedirectHostSummary(summary, summary.domains)),
+    )
 }
 
 export async function createRedirectHostService(
@@ -238,6 +243,8 @@ export async function createRedirectHostInTransaction(
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
     await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.REDIRECT_HOSTS_CREATE)
+    if (parsedInput.tagIds !== undefined)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.REDIRECT_HOSTS_VIEW)
     await assertDomainsAvailableInTransaction(transaction, domains)
     const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
     await validateCertificateAssignmentInTransaction(transaction, certificateId, false, domains)
@@ -258,6 +265,12 @@ export async function createRedirectHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
+    const tags = await assignHostTagsInTransaction(
+        transaction,
+        'redirect',
+        redirectHost.id,
+        parsedInput.tagIds,
+    )
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
@@ -266,7 +279,7 @@ export async function createRedirectHostInTransaction(
         targetId: redirectHost.id,
         result: 'success',
     })
-    return toRedirectHostSummary(redirectHost, domains)
+    return { ...toRedirectHostSummary(redirectHost, domains), ...(tags ? { tags } : {}) }
 }
 
 export async function updateRedirectHostService(
@@ -289,6 +302,12 @@ export async function updateRedirectHostService(
                 transaction,
                 parsedInput.redirectHostId,
             )
+            if (parsedInput.tagIds !== undefined)
+                await requirePermissionInTransaction(
+                    transaction,
+                    actor.id,
+                    PERMISSIONS.REDIRECT_HOSTS_VIEW,
+                )
             if (!redirectHost)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             if (parsedInput.enabled !== redirectHost.enabled) {
@@ -327,6 +346,12 @@ export async function updateRedirectHostService(
             if (!updated)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await replaceDomainsInTransaction(transaction, redirectHost.id, domains)
+            const tags = await assignHostTagsInTransaction(
+                transaction,
+                'redirect',
+                redirectHost.id,
+                parsedInput.tagIds,
+            )
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
@@ -334,9 +359,11 @@ export async function updateRedirectHostService(
                 resource: 'redirect-host',
                 targetId: redirectHost.id,
                 result: 'success',
-                metadata: { changedFields: ['domains'] },
+                metadata: {
+                    changedFields: ['domains', ...(parsedInput.tagIds ? ['tags' as const] : [])],
+                },
             })
-            return toRedirectHostSummary(updated, domains)
+            return { ...toRedirectHostSummary(updated, domains), ...(tags ? { tags } : {}) }
         })
     } catch (error) {
         await recordMutationFailureBestEffort({
@@ -370,6 +397,7 @@ export async function deleteRedirectHostService(
             if (!redirectHost)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await transaction.delete(redirectHosts).where(eq(redirectHosts.id, redirectHost.id))
+            await assignHostTagsInTransaction(transaction, 'redirect', redirectHost.id, [])
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',

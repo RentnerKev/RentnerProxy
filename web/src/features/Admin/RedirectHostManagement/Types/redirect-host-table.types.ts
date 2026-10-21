@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
+import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 export interface RedirectHostsTableProps {
+    readonly remote?: HostTableRemote
     readonly redirectHosts: ReadonlyArray<RedirectHostSummary>
     readonly loading: boolean
     readonly action?: ReactNode

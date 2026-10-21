@@ -3033,6 +3033,35 @@
                 "container_not_running": "Conteneur arrêté",
                 "domain_conflict": "Ce domaine est déjà attribué à un autre hôte proxy."
             }
+        },
+        "hostTags": {
+            "title": "Étiquettes",
+            "manage": "Gérer les étiquettes",
+            "description": "Organisez les hôtes de ce type avec des étiquettes. Triez la colonne Étiquettes pour les regrouper ou choisissez une étiquette dans les filtres.",
+            "behavior": "Renommer conserve les affectations. Supprimer retire uniquement l’étiquette ; les hôtes restent. Dupliquer un hôte copie ses étiquettes. Les étiquettes ne modifient ni le routage ni les autorisations.",
+            "name": "Nom de l’étiquette",
+            "create": "Créer une étiquette",
+            "rename": "Renommer",
+            "renameNamed": "Renommer {{name}}",
+            "deleteNamed": "Supprimer l’étiquette {{name}}",
+            "deleteDescription": "Retirer cette étiquette de tous les hôtes de ce type ? Les hôtes et leur configuration de routage sont conservés.",
+            "empty": "Aucune étiquette. Créez-en une pour organiser vos hôtes.",
+            "untagged": "Sans étiquette",
+            "filter": "Filtrer par étiquette",
+            "select": "Choisir des étiquettes",
+            "search": "Rechercher des étiquettes",
+            "editFor": "Modifier les étiquettes de {{name}}",
+            "assignmentDescription": "Choisissez plusieurs étiquettes ou laissez cet hôte sans étiquette. La gestion par Discovery et le routage restent inchangés.",
+            "saved": "Étiquettes enregistrées.",
+            "errors": {
+                "duplicate": "Une étiquette de ce nom existe déjà pour ce type d’hôte.",
+                "missing": "Cette étiquette ou cet hôte n’existe plus. Rechargez la liste.",
+                "conflict": "Les étiquettes ont changé pendant la modification. Rouvrez l’éditeur pour utiliser les affectations actuelles.",
+                "limit": "Le nombre maximal d’étiquettes est atteint.",
+                "invalid": "Saisissez un nom de 1 à 64 caractères sans caractère de contrôle.",
+                "loadFailed": "Impossible de charger les étiquettes.",
+                "saveFailed": "Impossible d’enregistrer les étiquettes."
+            }
         }
     },
     "permissions": {

@@ -45,6 +45,7 @@ export default function useProxyHostsTableLogic(
     const data = useMemo(() => [...props.proxyHosts], [props.proxyHosts])
     const columns = useProxyHostsTableColumns(props)
     const tableLogic = useClientTable({
+        ...(props.remote ? { remote: props.remote } : {}),
         data,
         columns,
         getRowId: getProxyHostRowId,
@@ -56,7 +57,20 @@ export default function useProxyHostsTableLogic(
             domains: {
                 type: 'searchableSelect',
                 placeholder: t('admin.proxyHosts.filters.domains'),
-                options: createSortedUniqueFilterOptions(data.flatMap((host) => host.domains)),
+                options: createSortedUniqueFilterOptions(
+                    props.remote?.domains ?? data.flatMap((host) => host.domains),
+                ),
+            },
+            tags: {
+                type: 'searchableSelect',
+                placeholder: t('admin.hostTags.filter'),
+                options: [
+                    { value: 'untagged', label: t('admin.hostTags.untagged') },
+                    ...(props.remote?.tags ?? []).map((tag) => ({
+                        value: tag.id,
+                        label: tag.name,
+                    })),
+                ],
             },
             forward: {
                 type: 'select',
@@ -78,7 +92,7 @@ export default function useProxyHostsTableLogic(
                 type: 'dateRange',
             },
         }),
-        [data, t],
+        [data, props.remote?.domains, props.remote?.tags, t],
     )
 
     return {

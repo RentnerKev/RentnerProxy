@@ -3046,6 +3046,35 @@
                 "container_not_running": "Container arrestato",
                 "domain_conflict": "Questo dominio è già assegnato a un altro host proxy."
             }
+        },
+        "hostTags": {
+            "title": "Tag",
+            "manage": "Gestisci tag",
+            "description": "Organizza gli host di questo tipo con tag. Ordina la colonna Tag per raggrupparli o scegli un tag nei filtri della tabella.",
+            "behavior": "Rinominare mantiene le assegnazioni. Eliminare rimuove solo il tag; gli host rimangono. Duplicare un host copia i suoi tag. I tag non cambiano instradamento o autorizzazioni.",
+            "name": "Nome del tag",
+            "create": "Crea tag",
+            "rename": "Rinomina",
+            "renameNamed": "Rinomina {{name}}",
+            "deleteNamed": "Elimina tag {{name}}",
+            "deleteDescription": "Rimuovere questo tag da tutti gli host di questo tipo? Gli host e la loro configurazione di instradamento vengono mantenuti.",
+            "empty": "Nessun tag. Crea un tag per organizzare i tuoi host.",
+            "untagged": "Senza tag",
+            "filter": "Filtra per tag",
+            "select": "Seleziona tag",
+            "search": "Cerca tag",
+            "editFor": "Modifica i tag di {{name}}",
+            "assignmentDescription": "Scegli più tag o lascia questo host senza tag. La gestione di Discovery e l’instradamento restano invariati.",
+            "saved": "Tag salvati.",
+            "errors": {
+                "duplicate": "Esiste già un tag con questo nome per questo tipo di host.",
+                "missing": "Questo tag o host non esiste più. Ricarica l’elenco.",
+                "conflict": "I tag sono cambiati durante la modifica. Riapri l’editor per usare le assegnazioni attuali.",
+                "limit": "È stato raggiunto il limite dei tag.",
+                "invalid": "Inserisci un nome di 1–64 caratteri senza caratteri di controllo.",
+                "loadFailed": "Impossibile caricare i tag.",
+                "saveFailed": "Impossibile salvare i tag."
+            }
         }
     },
     "permissions": {

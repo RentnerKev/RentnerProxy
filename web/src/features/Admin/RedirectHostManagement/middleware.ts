@@ -2,6 +2,9 @@ import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.
 import { searchRedirectHostsService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import type { AuthActionFailureResult } from '@/server/Auth/Types/auth-transport.types.ts'
 import { createServerFn } from '@tanstack/react-start'
+import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
+import { getRedirectHostPageService } from '@/server/Admin/HostTags/host-list.service.ts'
+import { HostTagDomainError } from '@/lib/HostTags/hostTags.ts'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -31,6 +34,7 @@ import {
 } from './validation.ts'
 
 function redirectHostActionFailure(error: unknown, fallback: string): AuthActionFailureResult {
+    if (error instanceof HostTagDomainError) return { success: false, message: error.message }
     if (error instanceof CertificateDomainError) {
         setResponseStatus(error.code === 'controller_unavailable' ? 503 : 422)
         return { success: false, message: `admin.certificates.errors.${error.code}` }
@@ -63,6 +67,17 @@ export const getRedirectHostsHandler = createServerFn({ method: 'GET' }).handler
         throwLocalizedQueryError(error, 'admin.redirectHosts.errors.loadFailed')
     }
 })
+
+export const getRedirectHostPageHandler = createServerFn({ method: 'GET' })
+    .validator(hostListQuerySchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            return await getRedirectHostPageService(data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.redirectHosts.errors.loadFailed')
+        }
+    })
 
 export const getRedirectRuntimeStatusHandler = createServerFn({ method: 'GET' }).handler(
     async () => {

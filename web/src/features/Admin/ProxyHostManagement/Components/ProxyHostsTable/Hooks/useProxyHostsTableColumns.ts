@@ -7,6 +7,7 @@ import { createDateRangeFilter } from '@/lib/Table/tableFilters.ts'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import ProxyHostTableActions from '../Components/ProxyHostTableActions.tsx'
+import HostTagsCell from '@/features/Admin/HostTags/Components/HostTagsCell.tsx'
 import {
     ProxyHostCreatedAtCell,
     ProxyHostDomainsCell,
@@ -48,6 +49,24 @@ export default function useProxyHostsTableColumns({
                     createElement(ProxyHostDomainsCell, {
                         domains: row.original.domains,
                         discovery: row.original.discovery,
+                    }),
+            },
+            {
+                id: 'tags',
+                accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
+                header: t('admin.hostTags.title'),
+                sortFn: 'text',
+                filterFn: (row, _id, value) =>
+                    value === 'untagged'
+                        ? !row.original.tags?.length
+                        : Boolean(row.original.tags?.some((tag) => tag.id === value)),
+                cell: ({ row }) =>
+                    createElement(HostTagsCell, {
+                        kind: 'proxy',
+                        hostId: row.original.id,
+                        hostLabel: row.original.domains[0] ?? row.original.forwardHost,
+                        tags: row.original.tags,
+                        canManage: canUpdate && !isPending,
                     }),
             },
             {

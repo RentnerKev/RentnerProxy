@@ -9,6 +9,7 @@ import {
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import RedirectHostTableActions from '../Components/RedirectHostTableActions.tsx'
+import HostTagsCell from '@/features/Admin/HostTags/Components/HostTagsCell.tsx'
 import {
     RedirectHostCertificateCell,
     RedirectHostCreatedAtCell,
@@ -32,6 +33,24 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
                     createElement(RedirectHostDomainsCell, { domains: row.original.domains }),
+            },
+            {
+                id: 'tags',
+                accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
+                header: t('admin.hostTags.title'),
+                sortFn: 'text',
+                filterFn: (row, _id, value) =>
+                    value === 'untagged'
+                        ? !row.original.tags?.length
+                        : Boolean(row.original.tags?.some((tag) => tag.id === value)),
+                cell: ({ row }) =>
+                    createElement(HostTagsCell, {
+                        kind: 'redirect',
+                        hostId: row.original.id,
+                        hostLabel: row.original.domains[0] ?? row.original.destination,
+                        tags: row.original.tags,
+                        canManage: props.canUpdate && !props.isPending,
+                    }),
             },
             {
                 id: 'destination',

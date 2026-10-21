@@ -159,7 +159,6 @@ export default function useProxyHostFormModalLogic({
                 invalidateTrustedCaManagementCache(queryClient),
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.all,
-                    exact: true,
                 }),
                 invalidateProxyHostManagementRuntimeStatusCache(queryClient),
                 invalidateCertificateManagementAssignableCache(queryClient),

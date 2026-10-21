@@ -3014,6 +3014,35 @@
                 "container_not_running": "Container gestopt",
                 "domain_conflict": "Dit domein is al aan een andere proxyhost toegewezen."
             }
+        },
+        "hostTags": {
+            "title": "Tags",
+            "manage": "Tags beheren",
+            "description": "Organiseer hosts van dit type met tags. Sorteer de kolom Tags om hosts te groeperen of kies een tag in de tabelfilters.",
+            "behavior": "Hernoemen behoudt alle toewijzingen. Verwijderen wist alleen de tag; hosts blijven bestaan. Een host dupliceren kopieert de tags. Tags wijzigen geen routering of rechten.",
+            "name": "Tagnaam",
+            "create": "Tag maken",
+            "rename": "Hernoemen",
+            "renameNamed": "{{name}} hernoemen",
+            "deleteNamed": "Tag {{name}} verwijderen",
+            "deleteDescription": "Deze tag van alle hosts van dit type verwijderen? De hosts en hun routeringsconfiguratie blijven behouden.",
+            "empty": "Nog geen tags. Maak een tag om je hosts te organiseren.",
+            "untagged": "Zonder tags",
+            "filter": "Filteren op tag",
+            "select": "Tags selecteren",
+            "search": "Tags zoeken",
+            "editFor": "Tags voor {{name}} bewerken",
+            "assignmentDescription": "Kies meerdere tags of laat deze host zonder tags. Discovery-beheer en routering blijven behouden.",
+            "saved": "Tags opgeslagen.",
+            "errors": {
+                "duplicate": "Er bestaat al een tag met deze naam voor dit hosttype.",
+                "missing": "Deze tag of host bestaat niet meer. Laad de lijst opnieuw.",
+                "conflict": "Tags zijn tijdens het bewerken gewijzigd. Open de editor opnieuw om de huidige toewijzingen te gebruiken.",
+                "limit": "Het maximale aantal tags is bereikt.",
+                "invalid": "Voer een tagnaam van 1–64 tekens zonder besturingstekens in.",
+                "loadFailed": "Tags konden niet worden geladen.",
+                "saveFailed": "Tags konden niet worden opgeslagen."
+            }
         }
     },
     "permissions": {
