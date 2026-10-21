@@ -10,7 +10,11 @@
         "target": "Veröffentlichtes Ziel",
         "channel": "Zielkanal",
         "unknown": "Nicht verfügbar",
-        "channels": { "alpha": "Alpha", "beta": "Beta", "stable": "Stabil" },
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stabil"
+        },
         "availability": "Release- und Upgrade-Prüfungen",
         "published": "Ein neueres Release ist veröffentlicht. Das allein bestätigt weder das Image noch den Upgrade-Pfad.",
         "checkFailed": "Update-Informationen sind nicht verfügbar. Vor einem Image-Wechsel erneut prüfen; die vorherige Verifizierung wird nicht mehr angezeigt.",
@@ -3029,6 +3033,39 @@
                 "title": "Verwalteten Record entfernen?",
                 "description": "{{name}} nicht mehr verwalten? Der DNS-Record bei Cloudflare bleibt unverändert."
             }
+        },
+        "hostTags": {
+            "title": "Tags",
+            "manage": "Tags verwalten",
+            "description": "Organisiere Hosts dieses Typs mit benannten Tags. Sortiere die Tag-Spalte zum Gruppieren oder wähle einen Tag in den Tabellenfiltern.",
+            "behavior": "Umbenennen erhält alle Zuweisungen. Löschen entfernt nur den Tag; Hosts bleiben erhalten. Beim Duplizieren werden Tags übernommen. Tags ändern weder Routing noch Berechtigungen.",
+            "name": "Tag-Name",
+            "create": "Tag erstellen",
+            "rename": "Bearbeiten",
+            "renameNamed": "{{name}} bearbeiten",
+            "deleteNamed": "Tag {{name}} löschen",
+            "deleteDescription": "Diesen Tag von allen Hosts dieses Typs entfernen? Die Hosts und ihre Routing-Konfiguration bleiben erhalten.",
+            "empty": "Noch keine Tags. Erstelle einen Tag, um deine Hosts zu organisieren.",
+            "untagged": "Ohne Tags",
+            "filter": "Nach Tag filtern",
+            "select": "Tags auswählen",
+            "search": "Tags suchen",
+            "editFor": "Tags für {{name}} bearbeiten",
+            "assignmentDescription": "Wähle mehrere Tags oder lasse diesen Host ohne Tags. Discovery-Zuständigkeit und Routing bleiben erhalten.",
+            "saved": "Tags gespeichert.",
+            "errors": {
+                "duplicate": "Ein Tag mit diesem Namen existiert bereits für diesen Hosttyp.",
+                "missing": "Dieser Tag oder Host existiert nicht mehr. Lade die Liste neu.",
+                "conflict": "Die Tags wurden während der Bearbeitung geändert. Öffne den Editor erneut, um die aktuellen Zuweisungen zu verwenden.",
+                "limit": "Die maximale Anzahl an Tags ist erreicht.",
+                "invalid": "Gib einen Tag-Namen mit 1–64 Zeichen ohne Steuerzeichen ein.",
+                "loadFailed": "Tags konnten nicht geladen werden.",
+                "saveFailed": "Tags konnten nicht gespeichert werden.",
+                "invalidColor": "Gib eine gültige Farbe im Format #RRGGBB ein."
+            },
+            "color": "Farbe",
+            "colorSaturation": "Sättigung",
+            "colorBrightness": "Helligkeit"
         }
     },
     "permissions": {

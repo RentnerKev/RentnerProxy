@@ -7,6 +7,7 @@ import type { AccessPolicyBasicAuthRuntime } from '../../../AccessPolicies/Types
 import type { AccessPolicyIpRules } from '../../../AccessPolicies/Types/ip-access-rules.types.ts'
 import type { ForwardAuthRuntimeConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 import type { CertificateJobSummary } from '../../../CertificateJobs/Types/certificate-jobs.types.ts'
+import type { HostTag } from '@/lib/HostTags/Types/host-tags.types.ts'
 
 export interface ProxyHostAccessPolicy {
     readonly id: string
@@ -18,6 +19,7 @@ export interface ProxyHostAccessPolicy {
 }
 
 export interface ProxyHostSummary {
+    readonly tags?: readonly HostTag[]
     readonly discovery?: { readonly state: 'managed' | 'orphaned' } | null
     readonly certificateJob?: CertificateJobSummary | null
     readonly id: string

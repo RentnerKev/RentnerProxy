@@ -1,6 +1,6 @@
 import { filterFn_equalsString, sortFn_datetime } from '@tanstack/react-table'
-import type { ColumnDef } from '@tanstack/react-table'
-import { createElement, useMemo } from 'react'
+import type { CellContext, ColumnDef } from '@tanstack/react-table'
+import { createElement, useCallback, useMemo } from 'react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     createDateRangeFilter,
@@ -9,6 +9,7 @@ import {
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import RedirectHostTableActions from '../Components/RedirectHostTableActions.tsx'
+import HostTagsCell from '@/features/Admin/HostTags/Components/HostTagsCell.tsx'
 import {
     RedirectHostCertificateCell,
     RedirectHostCreatedAtCell,
@@ -21,6 +22,32 @@ const textFilter = createTrimmedIncludesStringFilter<RedirectHostSummary>()
 const dateFilter = createDateRangeFilter<RedirectHostSummary>()
 export default function useRedirectHostsTableColumns(props: RedirectHostTableActionProps) {
     const { t } = useTranslationStore()
+    // TanStack renders this callback as a component, so translation refreshes must not replace it.
+    const renderTagsCell = useCallback(
+        ({ row }: CellContext<ClientTableFeatures, RedirectHostSummary>) =>
+            createElement(HostTagsCell, {
+                kind: 'redirect',
+                hostId: row.original.id,
+                hostLabel: row.original.domains[0] ?? row.original.destination,
+                tags: row.original.tags,
+                canManage: props.canUpdate && !props.isPending,
+            }),
+        [props.canUpdate, props.isPending],
+    )
+    const tagsColumn = useMemo<ColumnDef<ClientTableFeatures, RedirectHostSummary>>(
+        () => ({
+            id: 'tags',
+            accessorFn: (host) => (host.tags ?? []).map((tag) => tag.name).join(' '),
+            header: t('admin.hostTags.title'),
+            sortFn: 'text',
+            filterFn: (row, _id, value) =>
+                value === 'untagged'
+                    ? !row.original.tags?.length
+                    : Boolean(row.original.tags?.some((tag) => tag.id === value)),
+            cell: renderTagsCell,
+        }),
+        [renderTagsCell, t],
+    )
     return useMemo<Array<ColumnDef<ClientTableFeatures, RedirectHostSummary>>>(() => {
         const columns: Array<ColumnDef<ClientTableFeatures, RedirectHostSummary>> = [
             {
@@ -33,6 +60,7 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                 cell: ({ row }) =>
                     createElement(RedirectHostDomainsCell, { domains: row.original.domains }),
             },
+            tagsColumn,
             {
                 id: 'destination',
                 accessorFn: (host) => host.destination,
@@ -106,5 +134,5 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                     createElement(RedirectHostTableActions, { ...props, host: row.original }),
             })
         return columns
-    }, [props, t])
+    }, [props, tagsColumn, t])
 }

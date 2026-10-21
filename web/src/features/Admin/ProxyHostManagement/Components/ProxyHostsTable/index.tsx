@@ -15,7 +15,9 @@ export default function ProxyHostsTable(props: ProxyHostsTableProps) {
             title={
                 loading
                     ? t('admin.proxyHosts.table.loading')
-                    : t('admin.proxyHosts.table.count', { count: proxyHosts.length })
+                    : t('admin.proxyHosts.table.count', {
+                          count: props.remote?.rowCount ?? proxyHosts.length,
+                      })
             }
             description={t('admin.proxyHosts.table.description')}
             searchInput={state.searchInput}

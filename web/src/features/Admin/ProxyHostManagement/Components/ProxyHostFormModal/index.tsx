@@ -6,6 +6,7 @@ import type { ProxyHostFormModalProps } from './Types/proxy-host-form.types.ts'
 import ProxyHostSetupGuide from './Components/ProxyHostSetupGuide.tsx'
 import ProxyHostFormFields from './Components/ProxyHostFormFields.tsx'
 import ProxyHostFormModalFooter from './Components/ProxyHostFormModalFooter.tsx'
+import HostTagSelect from '@/features/Admin/HostTags/Components/HostTagSelect.tsx'
 
 export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
     const { state, handler, refs, form, certificateRequestForm } = useProxyHostFormModalLogic(props)
@@ -52,6 +53,16 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         retryAssignableCertificates={handler.retryAssignableCertificates}
                         setRequestNewCertificate={handler.setRequestNewCertificate}
                     />
+                    <form.Field name="tagIds">
+                        {(field) => (
+                            <HostTagSelect
+                                kind="proxy"
+                                value={field.state.value ?? []}
+                                onChange={field.handleChange}
+                                disabled={state.isPending}
+                            />
+                        )}
+                    </form.Field>
                 </form>
             </Modal>
             {state.disableConfirmationOpen ? (

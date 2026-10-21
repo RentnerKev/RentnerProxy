@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 
 export interface ProxyHostsTableProps {
+    readonly remote?: HostTableRemote
     readonly proxyHosts: ReadonlyArray<ProxyHostSummary>
     readonly loading: boolean
     readonly action?: ReactNode

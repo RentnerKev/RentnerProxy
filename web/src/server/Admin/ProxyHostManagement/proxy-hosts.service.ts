@@ -1,6 +1,8 @@
 import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 import '@tanstack/react-start/server-only'
+import { attachHostTagsService } from '@/server/Admin/HostTags/host-tags.service.ts'
+import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type {
@@ -135,7 +137,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
         })
     }
 
-    return result
+    return attachHostTagsService('proxy', result)
 }
 
 export async function createProxyHostService(
@@ -220,6 +222,7 @@ export async function deleteProxyHostService(
 
             await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
             await assertDiscoveryHostEditable(transaction, proxyHost.id)
+            await assignHostTagsInTransaction(transaction, 'proxy', proxyHost.id, [])
             await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,

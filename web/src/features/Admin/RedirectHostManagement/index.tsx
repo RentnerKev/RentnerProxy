@@ -1,6 +1,7 @@
 import useRedirectHostManagementLogic from './Hooks/useRedirectHostManagementLogic.ts'
 import type { RedirectHostManagementPageProps } from './Types/redirect-host-management.types.ts'
 import { Plus } from 'lucide-react'
+import HostTagManager from '@/features/Admin/HostTags/Components/HostTagManager.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
@@ -55,9 +56,15 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                 />
             ) : (
                 <RedirectHostsTable
+                    remote={state.remote}
                     redirectHosts={state.redirectHosts}
                     loading={state.isLoading}
-                    action={action}
+                    action={
+                        <>
+                            {action}
+                            {state.canUpdate ? <HostTagManager kind="redirect" /> : null}
+                        </>
+                    }
                     canDuplicate={state.canDuplicate}
                     onDuplicate={handler.openDuplicate}
                     canUpdate={state.canUpdate}

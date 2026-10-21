@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hostTagIdsSchema } from '@/lib/HostTags/hostTags.ts'
 
 import { MAX_PROXY_HOST_DOMAINS, PROXY_HOST_FORWARD_SCHEMES } from '@/config/proxy-hosts.config.ts'
 import {
@@ -77,6 +78,7 @@ export const proxyUpstreamTlsServerNameSchema = z
     })
 
 const proxyHostInputSchema = z.object({
+    tagIds: hostTagIdsSchema.optional(),
     domains: proxyHostDomainsSchema,
     forwardScheme: z.enum(PROXY_HOST_FORWARD_SCHEMES),
     forwardHost: proxyForwardHostSchema,

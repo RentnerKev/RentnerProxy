@@ -10,7 +10,11 @@
         "target": "Published target",
         "channel": "Target channel",
         "unknown": "Unavailable",
-        "channels": { "alpha": "Alpha", "beta": "Beta", "stable": "Stable" },
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stable"
+        },
         "availability": "Release and upgrade checks",
         "published": "A newer release is published. Publication alone does not mean its image or upgrade path is ready.",
         "checkFailed": "Update information is unavailable. Recheck before changing the image; previous verification is no longer shown.",
@@ -3029,6 +3033,39 @@
                 "title": "Remove managed record?",
                 "description": "Stop managing {{name}}? Its Cloudflare DNS record remains unchanged."
             }
+        },
+        "hostTags": {
+            "title": "Tags",
+            "manage": "Manage tags",
+            "description": "Organize hosts of this type with named tags. Sort the Tags column to group hosts, or select a tag in the table filters.",
+            "behavior": "Renaming keeps all assignments. Deleting removes only the tag; hosts remain. Duplicating a host copies its tags. Tags do not change routing or permissions.",
+            "name": "Tag name",
+            "create": "Create tag",
+            "rename": "Edit",
+            "renameNamed": "Edit {{name}}",
+            "deleteNamed": "Delete tag {{name}}",
+            "deleteDescription": "Remove this tag from all hosts of this type? The hosts and their routing configuration are kept.",
+            "empty": "No tags yet. Create a tag to organize your hosts.",
+            "untagged": "Untagged",
+            "filter": "Filter by tag",
+            "select": "Select tags",
+            "search": "Search tags",
+            "editFor": "Edit tags for {{name}}",
+            "assignmentDescription": "Choose several tags or leave this host untagged. Discovery ownership and routing stay the same.",
+            "saved": "Tags saved.",
+            "errors": {
+                "duplicate": "A tag with this name already exists for this host type.",
+                "missing": "This tag or host no longer exists. Reload the list.",
+                "conflict": "Tags changed while you were editing. Reopen the editor to use the current assignments.",
+                "limit": "The tag limit has been reached.",
+                "invalid": "Enter a tag name of 1–64 characters without control characters.",
+                "loadFailed": "Tags could not be loaded.",
+                "saveFailed": "Tags could not be saved.",
+                "invalidColor": "Enter a valid color in #RRGGBB format."
+            },
+            "color": "Color",
+            "colorSaturation": "Saturation",
+            "colorBrightness": "Brightness"
         }
     },
     "permissions": {

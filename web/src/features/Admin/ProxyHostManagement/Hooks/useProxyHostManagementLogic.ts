@@ -4,6 +4,7 @@ import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/Pro
 import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
+import useHostListInput from '@/features/Admin/HostTags/Hooks/useHostListInput.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts'
@@ -17,7 +18,7 @@ import {
     disableProxyHostHandler,
     enableProxyHostHandler,
     getProxyRuntimeStatusHandler,
-    getProxyHostsHandler,
+    getProxyHostPageHandler,
 } from '../middleware.ts'
 import type { ProxyHostManagementPageProps } from '../Types/proxy-host-management.types.ts'
 
@@ -52,10 +53,12 @@ export default function useProxyHostManagementLogic({
     const [deleteTarget, setDeleteTarget] = useState<ProxyHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<ProxyHostSummary | null>(null)
     const queryClient = useQueryClient()
+    const hostList = useHostListInput()
     const proxyHostsQuery = useQuery({
-        queryKey: proxyHostManagementQueryKeys.all,
-        queryFn: () => getProxyHostsHandler(),
+        queryKey: [...proxyHostManagementQueryKeys.all, 'page', hostList.query],
+        queryFn: () => getProxyHostPageHandler({ data: hostList.query }),
         enabled: canView,
+        placeholderData: (previous) => previous,
     })
     const runtimeStatusQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.runtimeStatus,
@@ -72,7 +75,6 @@ export default function useProxyHostManagementLogic({
         await Promise.all([
             queryClient.invalidateQueries({
                 queryKey: proxyHostManagementQueryKeys.all,
-                exact: true,
             }),
             invalidateProxyHostManagementRuntimeStatusCache(queryClient),
             invalidateAccessPoliciesCache(queryClient),
@@ -277,7 +279,7 @@ export default function useProxyHostManagementLogic({
         void runtimeStatusQuery.refetch()
     }, [runtimeStatusQuery])
     const currentCertificateRequestTarget = certificateRequestTarget
-        ? (proxyHostsQuery.data?.find((host) => host.id === certificateRequestTarget.id) ??
+        ? (proxyHostsQuery.data?.hosts.find((host) => host.id === certificateRequestTarget.id) ??
           certificateRequestTarget)
         : null
 
@@ -311,7 +313,14 @@ export default function useProxyHostManagementLogic({
                 deleteMutation.isPending || disableMutation.isPending || enableMutation.isPending,
             isError: proxyHostsQuery.isError,
             isLoading: proxyHostsQuery.isPending,
-            proxyHosts: proxyHostsQuery.data ?? EMPTY_PROXY_HOSTS,
+            proxyHosts: proxyHostsQuery.data?.hosts ?? EMPTY_PROXY_HOSTS,
+            remote: {
+                rowCount: proxyHostsQuery.data?.total ?? 0,
+                domains: proxyHostsQuery.data?.domains ?? [],
+                tags: proxyHostsQuery.data?.tags ?? [],
+                initialState: hostList.initialState,
+                onStateChange: hostList.onStateChange,
+            },
             runtimeStatus: runtimeStatusQuery.data,
             runtimeStatusError: runtimeStatusQuery.isError,
             runtimeStatusRetrying: runtimeStatusQuery.isFetching,
