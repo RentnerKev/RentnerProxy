@@ -3,7 +3,7 @@ import type { RedirectHostManagementPageProps } from './Types/redirect-host-mana
 import { Plus } from 'lucide-react'
 import HostTagManager from '@/features/Admin/HostTags/Components/HostTagManager.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import RedirectHostFormModal from './Components/RedirectHostFormModal/index.tsx'
@@ -41,7 +41,8 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                 isRetrying={state.runtimeStatusRetrying}
             />
             {state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.redirectHosts.states.unavailableTitle')}
                     description={t('admin.redirectHosts.states.unavailableDescription')}
                     action={

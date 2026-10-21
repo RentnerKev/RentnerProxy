@@ -15,6 +15,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { default: withTestPageAlerts, openPageAlerts } =
+    await import('@/tests/Helpers/withTestPageAlerts.tsx')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 
 const firstEntry = {
@@ -82,11 +84,13 @@ async function renderPage(
     await act(async () => {
         activeRoot?.render(
             withTestLanguage(
-                <QueryClientProvider client={activeQueryClient!}>
-                    <TooltipProvider>
-                        <ProxyAccessLogsPage permissions={permissions} />
-                    </TooltipProvider>
-                </QueryClientProvider>,
+                withTestPageAlerts(
+                    <QueryClientProvider client={activeQueryClient!}>
+                        <TooltipProvider>
+                            <ProxyAccessLogsPage permissions={permissions} />
+                        </TooltipProvider>
+                    </QueryClientProvider>,
+                ),
             ),
         )
         await Promise.resolve()
@@ -333,7 +337,9 @@ describe('proxy access-log UI', () => {
         )
         await click(getButton(container, 'Go to next page'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
-        await waitFor(() => container.textContent?.includes('previous snapshot expired') === true)
+        await waitFor(() => container.querySelector('button[data-severity]') !== null)
+        expect(container.textContent).not.toContain('previous snapshot expired')
+        expect((await openPageAlerts()).textContent).toContain('previous snapshot expired')
         expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
             data: {
                 limit: 15,

@@ -1,5 +1,6 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import type { AuditLogsPageProps } from './Types/audit-logs.types.ts'
 import useAuditLogsLogic from './Hooks/useAuditLogsLogic.ts'
@@ -27,7 +28,8 @@ export default function AuditLogsPage(props: AuditLogsPageProps) {
                     description={t('admin.auditLogs.states.forbiddenDescription')}
                 />
             ) : state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.auditLogs.states.unavailableTitle')}
                     description={t('admin.auditLogs.states.unavailableDescription')}
                     action={

@@ -5,6 +5,7 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import { Fragment } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
 import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
 import TableFilterToggle from '@/shared/Table/Components/TableFilterToggle.tsx'
@@ -189,17 +190,18 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                 isLoading ? null : (
                     <div>
                         {snapshotReset ? (
-                            <output
-                                className="block border-t border-border bg-surface-subtle px-4 pt-3 text-xs text-muted"
-                                aria-live="polite"
-                            >
-                                {t('admin.proxyAccessLogs.pagination.snapshotReset')}
-                            </output>
+                            <PageAlert
+                                severity="warning"
+                                title={t('admin.proxyAccessLogs.page.title')}
+                                description={t('admin.proxyAccessLogs.pagination.snapshotReset')}
+                            />
                         ) : null}
                         {truncated ? (
-                            <p className="bg-surface-subtle px-4 pt-3 text-xs text-muted">
-                                {t('admin.proxyAccessLogs.pagination.truncated')}
-                            </p>
+                            <PageAlert
+                                severity="warning"
+                                title={t('admin.proxyAccessLogs.page.title')}
+                                description={t('admin.proxyAccessLogs.pagination.truncated')}
+                            />
                         ) : null}
                         <RemoteTablePagination
                             pageIndex={Math.max(currentPage - 1, 0)}

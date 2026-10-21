@@ -1,4 +1,12 @@
 {
+    "pageAlerts": {
+        "title": "Paginameldingen",
+        "error_one": "1 melding op deze pagina, met fouten",
+        "error_other": "{{count}} meldingen op deze pagina, met fouten",
+        "warning_one": "1 waarschuwing op deze pagina",
+        "warning_other": "{{count}} waarschuwingen op deze pagina",
+        "openDetails": "Open de details en beschikbare acties."
+    },
     "updates": {
         "checkFailedIndicator": "Updatecontrole mislukt — details openen",
         "platform": "Imageplatform",

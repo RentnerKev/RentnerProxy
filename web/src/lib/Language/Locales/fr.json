@@ -1,4 +1,14 @@
 {
+    "pageAlerts": {
+        "title": "Alertes de la page",
+        "error_one": "1 alerte sur cette page, avec des erreurs",
+        "error_other": "{{count}} alertes sur cette page, avec des erreurs",
+        "error_many": "{{count}} alertes sur cette page, avec des erreurs",
+        "warning_one": "1 avertissement sur cette page",
+        "warning_other": "{{count}} avertissements sur cette page",
+        "warning_many": "{{count}} avertissements sur cette page",
+        "openDetails": "Ouvrir les détails et les actions disponibles."
+    },
     "updates": {
         "checkFailedIndicator": "Échec de la vérification des mises à jour — afficher les détails",
         "platform": "Plateforme de l’image",

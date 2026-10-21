@@ -2,6 +2,7 @@ import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { EllipsisVertical, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 
 import type { ApplicationTopbarProps } from '../Types/application-shell.types.ts'
+import PageAlerts from '@/shared/PageAlerts/index.tsx'
 
 export default function ApplicationTopbar({
     mobileNavigationToggleRef,
@@ -62,6 +63,7 @@ export default function ApplicationTopbar({
                 </button>
             </CustomTooltip>
             <div className="flex items-center gap-2">
+                <PageAlerts />
                 {searchControl}
                 {themeControl}
             </div>

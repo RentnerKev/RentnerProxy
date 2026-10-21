@@ -12,14 +12,19 @@ import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-poli
 import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { scenarioDescriptionKey } from '@/lib/Admin/CrowdSec/scenarioDescription.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { default: withTestPageAlerts, openPageAlerts } =
+    await import('@/tests/Helpers/withTestPageAlerts.tsx')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
+const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterContextProvider } =
+    await import('@tanstack/react-router')
 
 const decisions: CrowdSecDecision[] = Array.from({ length: 24 }, (_, index) => ({
     id: 24 - index,
@@ -52,6 +57,13 @@ const configuration: CrowdSecConfiguration = {
 }
 
 let blockedMetricsAvailable = true
+let configurationFetchFails = false
+let configurationGate: Promise<CrowdSecConfiguration> | null = null
+const configurationMock = mock(async () => {
+    if (configurationGate) return configurationGate
+    if (configurationFetchFails) throw new Error('private connection diagnostics')
+    return configuration
+})
 const dashboardMock = mock(
     async ({ data }: { data: CrowdSecDashboardQuery }): Promise<CrowdSecDashboard> => {
         const search = data.search.toLowerCase()
@@ -137,8 +149,11 @@ mock.module('@/features/Admin/AccessPolicyManagement/middleware.ts', () => ({
 }))
 
 mock.module('@/features/Admin/CrowdSec/middleware.ts', () => ({
+    getCrowdSecConfigurationHandler: configurationMock,
     getCrowdSecDashboardHandler: dashboardMock,
 }))
+const { default: SecurityDashboardPage } =
+    await import('@/features/Admin/CrowdSec/Components/SecurityDashboardPage/index.tsx')
 const { default: CrowdSecDashboardPanel } =
     await import('@/features/Admin/CrowdSec/Components/CrowdSecDashboardPanel/index.tsx')
 const { default: ForwardAuthSummaryPanel } =
@@ -179,11 +194,94 @@ async function renderDashboard(): Promise<HTMLElement> {
     return container
 }
 
+async function renderPage(): Promise<HTMLElement> {
+    const container = document.createElement('div')
+    document.body.append(container)
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    root = createRoot(container)
+    const route = createRootRoute()
+    const router = createRouter({
+        routeTree: route.addChildren([
+            createRoute({ getParentRoute: () => route, path: '/' }),
+            createRoute({ getParentRoute: () => route, path: '/crowdsec' }),
+        ]),
+        history: createMemoryHistory({ initialEntries: ['/'] }),
+    })
+    await act(async () => {
+        root?.render(
+            withTestLanguage(
+                withTestPageAlerts(
+                    <QueryClientProvider client={queryClient!}>
+                        <RouterContextProvider router={router}>
+                            <main>
+                                <SecurityDashboardPage />
+                            </main>
+                        </RouterContextProvider>
+                    </QueryClientProvider>,
+                ),
+            ),
+        )
+    })
+    return container
+}
+
 beforeEach(() => {
     blockedMetricsAvailable = true
+    configurationFetchFails = false
+    configurationGate = null
+    configurationMock.mockClear()
     dashboardMock.mockClear()
     getAccessPoliciesMock.mockClear()
     getAccessPolicyRuntimeStatusMock.mockClear()
+})
+
+test('moves configuration failures into the navbar and disables retry until recovery completes', async () => {
+    configurationFetchFails = true
+    const container = await renderPage()
+    await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
+    expect(container.querySelector('main')?.textContent).not.toContain('Try again')
+    expect(container.textContent).not.toContain('private connection diagnostics')
+    const details = await openPageAlerts()
+    const retry = [...details.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Try again',
+    )!
+    expect(retry).toBeDefined()
+    const retryRequest = Promise.withResolvers<CrowdSecConfiguration>()
+    configurationGate = retryRequest.promise
+    await act(async () => retry.click())
+    await waitFor(() => retry.disabled)
+    await act(async () => retry.click())
+    expect(configurationMock).toHaveBeenCalledTimes(2)
+    await act(async () => {
+        configurationGate = null
+        configurationFetchFails = false
+        retryRequest.resolve(configuration)
+    })
+    await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
+    await waitFor(() => container.querySelector('button[data-severity]') === null)
+    expect(document.querySelector('[role="dialog"][aria-label="Page alerts"]')).toBeNull()
+})
+
+test('retains cached dashboard data when configuration refresh fails and clears the navbar alert after retry', async () => {
+    const container = await renderPage()
+    await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
+    configurationFetchFails = true
+    await act(async () => {
+        await queryClient?.refetchQueries({
+            queryKey: crowdSecQueryKeys.configuration,
+            exact: true,
+        })
+    })
+    await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
+    expect(container.querySelector('main')?.textContent).toContain('2001:db8::/64')
+    const details = await openPageAlerts()
+    const retry = [...details.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Try again',
+    )!
+    configurationFetchFails = false
+    await act(async () => retry.click())
+    await waitFor(() => container.querySelector('button[data-severity]') === null)
+    expect(container.querySelector('main')?.textContent).toContain('2001:db8::/64')
 })
 afterEach(async () => {
     await act(async () => root?.unmount())

@@ -1,4 +1,12 @@
 {
+    "pageAlerts": {
+        "title": "Seitenmeldungen",
+        "error_one": "1 Meldung auf dieser Seite, darunter Fehler",
+        "error_other": "{{count}} Meldungen auf dieser Seite, darunter Fehler",
+        "warning_one": "1 Warnung auf dieser Seite",
+        "warning_other": "{{count}} Warnungen auf dieser Seite",
+        "openDetails": "Für Details und verfügbare Aktionen öffnen."
+    },
     "updates": {
         "checkFailedIndicator": "Update-Prüfung fehlgeschlagen — Details öffnen",
         "platform": "Image-Plattform",

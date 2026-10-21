@@ -1,6 +1,7 @@
 import { ChevronDown, Settings2 } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import DdnsSettings from './Components/DdnsSettings.tsx'
@@ -19,6 +20,13 @@ export default function DdnsPage(props: DdnsPageProps) {
                 title={t('admin.ddns.page.title')}
                 description={t('admin.ddns.page.description')}
             />
+            {state.isError ? (
+                <PageAlert
+                    severity="error"
+                    title={t('admin.ddns.status.title')}
+                    description={t('admin.ddns.errors.controller_unavailable')}
+                />
+            ) : null}
             {state.isLoading ? (
                 <ContentState
                     busy
@@ -180,7 +188,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                         onDelete={handler.askDelete}
                     />
                 </div>
-            ) : (
+            ) : state.isError ? null : (
                 <ContentState
                     title={t('admin.ddns.status.title')}
                     description={t('admin.ddns.states.waiting')}

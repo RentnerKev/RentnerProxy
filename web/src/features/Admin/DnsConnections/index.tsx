@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import DnsConnectionEditor from './Components/DnsConnectionEditor.tsx'
@@ -32,6 +33,13 @@ export default function DnsConnectionsPage(props: DnsConnectionsPageProps) {
                     ) : null
                 }
             />
+            {state.isError ? (
+                <PageAlert
+                    severity="error"
+                    title={t('admin.dnsConnections.states.error')}
+                    description={t('admin.dnsConnections.states.waiting')}
+                />
+            ) : null}
             {state.isLoading ? (
                 <ContentState
                     busy
@@ -39,18 +47,12 @@ export default function DnsConnectionsPage(props: DnsConnectionsPageProps) {
                     description={t('admin.dnsConnections.states.loading')}
                 />
             ) : !state.connections.length ? (
-                <ContentState
-                    title={t(
-                        state.isError
-                            ? 'admin.dnsConnections.states.error'
-                            : 'admin.dnsConnections.states.empty',
-                    )}
-                    description={t(
-                        state.isError
-                            ? 'admin.dnsConnections.states.waiting'
-                            : 'admin.dnsConnections.states.emptyDescription',
-                    )}
-                />
+                state.isError ? null : (
+                    <ContentState
+                        title={t('admin.dnsConnections.states.empty')}
+                        description={t('admin.dnsConnections.states.emptyDescription')}
+                    />
+                )
             ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,24rem),1fr))] gap-5">
                     {state.connections.map((connection) => (
