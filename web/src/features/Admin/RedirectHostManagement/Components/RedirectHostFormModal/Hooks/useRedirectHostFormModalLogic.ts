@@ -63,7 +63,6 @@ export default function useRedirectHostFormModalLogic({
                 invalidateCertificateManagementAssignableCache(queryClient),
                 queryClient.invalidateQueries({
                     queryKey: ['admin', 'redirect-hosts'],
-                    exact: true,
                 }),
                 queryClient.invalidateQueries({
                     queryKey: ['admin', 'redirect-hosts', 'runtime-status'],

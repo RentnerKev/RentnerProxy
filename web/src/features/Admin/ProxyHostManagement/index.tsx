@@ -2,6 +2,7 @@ import useProxyHostManagementLogic from './Hooks/useProxyHostManagementLogic.ts'
 import type { ProxyHostManagementPageProps } from './Types/proxy-host-management.types.ts'
 import { Plus, Settings } from 'lucide-react'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import HostTagManager from '@/features/Admin/HostTags/Components/HostTagManager.tsx'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import CertificateRequestModal from '@/features/Admin/CertificateManagement/Components/CertificateRequestModal/index.tsx'
@@ -58,6 +59,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 <RuntimeSupportDownload permissions={props.permissions} />
             </div>
             {createAction}
+            {state.canUpdate ? <HostTagManager kind="proxy" /> : null}
         </>
     )
 
@@ -95,6 +97,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 />
             ) : (
                 <ProxyHostsTable
+                    remote={state.remote}
                     proxyHosts={state.proxyHosts}
                     loading={state.isLoading}
                     action={headerAction}
@@ -150,7 +153,11 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     open
                     mode={state.duplicateSource ? 'duplicate' : 'create'}
                     initialGuideOpen={
-                        !state.duplicateSource && !state.isLoading && state.proxyHosts.length === 0
+                        !state.duplicateSource &&
+                        !state.isLoading &&
+                        state.remote.rowCount === 0 &&
+                        !state.remote.initialState.globalFilter &&
+                        state.remote.initialState.columnFilters.length === 0
                     }
                     proxyHost={state.duplicateSource ?? undefined}
                     canEnable={state.canEnable}

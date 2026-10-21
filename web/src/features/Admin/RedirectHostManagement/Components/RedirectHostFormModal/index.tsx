@@ -5,6 +5,7 @@ import useRedirectHostFormModalLogic from './Hooks/useRedirectHostFormModalLogic
 import type { RedirectHostFormModalProps } from './Types/redirect-host-form.types.ts'
 import RedirectHostFormFields from './Components/RedirectHostFormFields.tsx'
 import RedirectHostFormModalFooter from './Components/RedirectHostFormModalFooter.tsx'
+import HostTagSelect from '@/features/Admin/HostTags/Components/HostTagSelect.tsx'
 export default function RedirectHostFormModal(props: RedirectHostFormModalProps) {
     const { state, handler, form } = useRedirectHostFormModalLogic(props)
     const { t } = useTranslationStore()
@@ -38,6 +39,16 @@ export default function RedirectHostFormModal(props: RedirectHostFormModalProps)
                         removeDomain={handler.removeDomain}
                         retryAssignableCertificates={handler.retryAssignableCertificates}
                     />
+                    <form.Field name="tagIds">
+                        {(field) => (
+                            <HostTagSelect
+                                kind="redirect"
+                                value={field.state.value ?? []}
+                                onChange={field.handleChange}
+                                disabled={state.isPending}
+                            />
+                        )}
+                    </form.Field>
                 </form>
             </Modal>
             {state.disableConfirmationOpen ? (

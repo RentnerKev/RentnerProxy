@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { HostTagDomainError } from '@/lib/HostTags/hostTags.ts'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import { CERTIFICATE_ERROR_CODES } from '@/config/certificates.config.ts'
 import type {
@@ -31,6 +32,7 @@ async function jobAction(
     try {
         return { success: true, message, job: await action() }
     } catch (error) {
+        if (error instanceof HostTagDomainError) return { success: false, message: error.message }
         if (error instanceof CertificateJobDomainError) {
             setResponseStatus(error.code === 'job_not_found' ? 404 : 409)
             const prefix = (CERTIFICATE_ERROR_CODES as readonly string[]).includes(error.code)

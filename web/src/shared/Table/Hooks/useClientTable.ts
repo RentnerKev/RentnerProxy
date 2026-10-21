@@ -12,9 +12,10 @@ export default function useClientTable<TData extends RowData>({
     initialSorting = [],
     initialPageSize = 10,
     globalFilterFn,
+    remote,
 }: UseClientTableParams<TData>): UseClientTableReturn<TData> {
-    const [searchInput, setSearchInput] = useState('')
-    const [debouncedSearch, setDebouncedSearch] = useState('')
+    const [searchInput, setSearchInput] = useState(String(remote?.initialState.globalFilter ?? ''))
+    const [debouncedSearch, setDebouncedSearch] = useState(searchInput)
     const table = useTable(
         {
             features: clientTableFeatures,
@@ -23,9 +24,18 @@ export default function useClientTable<TData extends RowData>({
             getRowId,
             globalFilterFn: globalFilterFn ?? 'includesString',
             autoResetPageIndex: false,
+            ...(remote
+                ? {
+                      manualFiltering: true,
+                      manualSorting: true,
+                      manualPagination: true,
+                      rowCount: remote.rowCount,
+                  }
+                : {}),
             initialState: {
                 sorting: initialSorting,
                 pagination: { pageIndex: 0, pageSize: initialPageSize },
+                ...remote?.initialState,
             },
         },
         () => null,
@@ -39,6 +49,25 @@ export default function useClientTable<TData extends RowData>({
     const globalFilterAtom = table.atoms.globalFilter
     const paginationAtom = table.atoms.pagination
     const sortingAtom = table.atoms.sorting
+    const onRemoteStateChange = remote?.onStateChange
+
+    useEffect(() => {
+        if (!onRemoteStateChange) return
+        const emit = () =>
+            onRemoteStateChange({
+                globalFilter: globalFilterAtom.get(),
+                columnFilters: columnFiltersAtom.get(),
+                sorting: sortingAtom.get(),
+                pagination: paginationAtom.get(),
+            })
+        const subscriptions = [
+            globalFilterAtom,
+            columnFiltersAtom,
+            sortingAtom,
+            paginationAtom,
+        ].map((atom) => atom.subscribe(emit))
+        return () => subscriptions.forEach((subscription) => subscription.unsubscribe())
+    }, [onRemoteStateChange, globalFilterAtom, columnFiltersAtom, sortingAtom, paginationAtom])
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {

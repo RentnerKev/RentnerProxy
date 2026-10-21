@@ -7,6 +7,9 @@ export function getRedirectHostFormDefaultValues(
     redirectHost?: RedirectHostFormModalProps['redirectHost'],
 ): RedirectHostEditorFormValues {
     return {
+        ...(mode !== 'create' && redirectHost?.tags
+            ? { tagIds: redirectHost.tags.map((tag) => tag.id) }
+            : {}),
         domains: mode === 'edit' && redirectHost ? [...redirectHost.domains] : [''],
         destination: redirectHost?.destination ?? '',
         statusCode: String(redirectHost?.statusCode ?? 302),

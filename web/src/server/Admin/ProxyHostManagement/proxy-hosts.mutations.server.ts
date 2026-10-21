@@ -1,5 +1,6 @@
 import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
+import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 
 import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
@@ -132,7 +133,13 @@ export async function createProxyHostInTransaction(
     const parsedInput = parseCreateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
-    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_CREATE)
+    const actor = await requirePermissionInTransaction(
+        transaction,
+        actorId,
+        PERMISSIONS.PROXY_HOSTS_CREATE,
+    )
+    if (parsedInput.tagIds !== undefined)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     await assertDomainsAvailableInTransaction(transaction, domains)
     const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
     const forceHttps = parsedInput.forceHttps ?? false
@@ -182,6 +189,15 @@ export async function createProxyHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
+    const tags =
+        parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
+            ? await assignHostTagsInTransaction(
+                  transaction,
+                  'proxy',
+                  proxyHost.id,
+                  parsedInput.tagIds,
+              )
+            : undefined
 
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
@@ -192,7 +208,7 @@ export async function createProxyHostInTransaction(
         result: 'success',
     })
 
-    return toProxyHostSummary(proxyHost, domains)
+    return { ...toProxyHostSummary(proxyHost, domains), ...(tags ? { tags } : {}) }
 }
 
 export async function updateProxyHostInTransaction(
@@ -204,7 +220,13 @@ export async function updateProxyHostInTransaction(
     const parsedInput = parseUpdateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
-    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_UPDATE)
+    const actor = await requirePermissionInTransaction(
+        transaction,
+        actorId,
+        PERMISSIONS.PROXY_HOSTS_UPDATE,
+    )
+    if (parsedInput.tagIds !== undefined)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     await assertDiscoveryHostEditable(transaction, parsedInput.proxyHostId, discoveryKey)
     const proxyHost = await loadProxyHostForUpdate(transaction, parsedInput.proxyHostId)
 
@@ -283,6 +305,15 @@ export async function updateProxyHostInTransaction(
     }
 
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
+    const tags =
+        parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
+            ? await assignHostTagsInTransaction(
+                  transaction,
+                  'proxy',
+                  proxyHost.id,
+                  parsedInput.tagIds,
+              )
+            : undefined
 
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
@@ -296,6 +327,7 @@ export async function updateProxyHostInTransaction(
                 'domains',
                 'upstream',
                 'tls',
+                ...(parsedInput.tagIds ? ['tags' as const] : []),
                 ...(parsedInput.certificateId === undefined ? [] : (['certificate'] as const)),
                 ...(parsedInput.trustedCaId === undefined ? [] : (['trustedCa'] as const)),
                 ...(parsedInput.enabled === proxyHost.enabled ? [] : (['status'] as const)),
@@ -311,5 +343,5 @@ export async function updateProxyHostInTransaction(
         },
     })
 
-    return toProxyHostSummary(updatedProxyHost, domains)
+    return { ...toProxyHostSummary(updatedProxyHost, domains), ...(tags ? { tags } : {}) }
 }

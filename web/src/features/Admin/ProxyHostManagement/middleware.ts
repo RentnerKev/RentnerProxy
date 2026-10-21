@@ -6,6 +6,9 @@ import type {
     AuthActionFailureResult,
 } from '@/server/Auth/Types/auth-transport.types.ts'
 import { createServerFn } from '@tanstack/react-start'
+import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
+import { getProxyHostPageService } from '@/server/Admin/HostTags/host-list.service.ts'
+import { HostTagDomainError } from '@/lib/HostTags/hostTags.ts'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import {
     getProxyHostConfigEditorService,
@@ -52,6 +55,7 @@ import {
 } from './validation.ts'
 
 function proxyHostActionFailure(error: unknown, fallback: string): AuthActionFailureResult {
+    if (error instanceof HostTagDomainError) return { success: false, message: error.message }
     if (error instanceof CertificateDomainError) {
         setResponseStatus(error.code === 'controller_unavailable' ? 503 : 422)
         return { success: false, message: `admin.certificates.errors.${error.code}` }
@@ -90,6 +94,17 @@ export const getProxyRuntimeStatusHandler = createServerFn({ method: 'GET' }).ha
         throwLocalizedQueryError(error, 'admin.proxyHosts.runtime.unavailable')
     }
 })
+
+export const getProxyHostPageHandler = createServerFn({ method: 'GET' })
+    .validator(hostListQuerySchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            return await getProxyHostPageService(data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.proxyHosts.errors.loadFailed')
+        }
+    })
 
 export const applyProxyConfigurationHandler = createServerFn({ method: 'POST' }).handler(
     async (): Promise<AuthActionResult> => {

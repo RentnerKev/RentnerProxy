@@ -1,4 +1,12 @@
-import type { Column, ColumnDef, FilterFn, RowData, SortingState } from '@tanstack/react-table'
+import type {
+    Column,
+    ColumnDef,
+    FilterFn,
+    RowData,
+    SortingState,
+    ColumnFiltersState,
+    PaginationState,
+} from '@tanstack/react-table'
 import type { ReactNode } from 'react'
 import type { TablePaginationControlsProps } from '../Components/TablePaginationControls/Types/table-pagination-controls.types.ts'
 
@@ -70,12 +78,26 @@ export interface TableLoadingBodyProps {
 }
 
 export interface UseClientTableParams<TData extends RowData> {
+    readonly remote?: RemoteClientTable
     readonly data: Array<TData>
     readonly columns: Array<ColumnDef<ClientTableFeatures, TData>>
     readonly getRowId: (row: TData) => string
     readonly initialSorting?: SortingState
     readonly initialPageSize?: number
     readonly globalFilterFn?: FilterFn<ClientTableFeatures, TData>
+}
+
+export interface ClientTableState {
+    readonly globalFilter: unknown
+    readonly columnFilters: ColumnFiltersState
+    readonly sorting: SortingState
+    readonly pagination: PaginationState
+}
+
+export interface RemoteClientTable {
+    readonly rowCount: number
+    readonly initialState: ClientTableState
+    readonly onStateChange: (state: ClientTableState) => void
 }
 
 export interface UseClientTableReturn<TData extends RowData> {

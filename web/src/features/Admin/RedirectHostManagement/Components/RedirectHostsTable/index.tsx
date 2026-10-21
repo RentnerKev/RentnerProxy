@@ -13,7 +13,9 @@ export default function RedirectHostsTable(props: RedirectHostsTableProps) {
             title={
                 loading
                     ? t('admin.redirectHosts.table.loading')
-                    : t('admin.redirectHosts.table.count', { count: redirectHosts.length })
+                    : t('admin.redirectHosts.table.count', {
+                          count: props.remote?.rowCount ?? redirectHosts.length,
+                      })
             }
             description={t('admin.redirectHosts.table.description')}
             searchInput={state.searchInput}

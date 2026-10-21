@@ -37,6 +37,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
             await requirePermissionService('docker_discovery.view'); reads++; return { endpoint: 'http://restricted-docker:2375', candidates: [] }
         } }))
         mock.module('./server/Admin/RedirectHostManagement/redirect-hosts.service.ts', () => ({ getRedirectHostsService: async () => [] }))
+        mock.module('./server/Admin/HostTags/host-tags.service.ts', () => ({ getHostTagCatalogService: async () => ({ revision: 0, tags: [] }) }))
         mock.module('./server/Admin/AccessPolicyManagement/access-policies.service.ts', () => ({ getAccessPoliciesService: async () => [] }))
         mock.module('./server/ProxyRuntime/proxy-runtime.service.ts', () => ({ getProxyRuntimeStatusService: async () => ({ state: 'synced' }) }))
         const { getLiveSnapshotResponse } = await import('./server/WebSockets/realtimeSnapshots.service.ts')

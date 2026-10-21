@@ -18,6 +18,7 @@ import { getAccessPoliciesService } from '@/server/Admin/AccessPolicyManagement/
 import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
 import { getDiscoveryOverviewService } from '@/server/Admin/DockerDiscovery/discovery-management.service.ts'
+import { getHostTagCatalogService } from '@/server/Admin/HostTags/host-tags.service.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -47,7 +48,11 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
             case 'proxy-hosts':
                 data = {
                     revision: revisionOf(
-                        await Promise.all([getProxyHostsService(), getProxyRuntimeStatusService()]),
+                        await Promise.all([
+                            getProxyHostsService(),
+                            getProxyRuntimeStatusService(),
+                            getHostTagCatalogService('proxy'),
+                        ]),
                     ),
                 }
                 break
@@ -68,6 +73,7 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                     revision: revisionOf(
                         await Promise.all([
                             getRedirectHostsService(),
+                            getHostTagCatalogService('redirect'),
                             getProxyRuntimeStatusService(PERMISSIONS.REDIRECT_HOSTS_VIEW),
                         ]),
                     ),

@@ -1,8 +1,10 @@
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 
 export interface RedirectHostManagementLogicResult {
     readonly state: {
+        readonly remote: HostTableRemote
         readonly canApply: boolean
         readonly canCreate: boolean
         readonly canDuplicate: (host: RedirectHostSummary) => boolean
