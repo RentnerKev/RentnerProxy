@@ -3067,8 +3067,8 @@
             "behavior": "Zmiana nazwy zachowuje przypisania. Usunięcie usuwa tylko tag; hosty pozostają. Duplikowanie hosta kopiuje jego tagi. Tagi nie zmieniają routingu ani uprawnień.",
             "name": "Nazwa tagu",
             "create": "Utwórz tag",
-            "rename": "Zmień nazwę",
-            "renameNamed": "Zmień nazwę {{name}}",
+            "rename": "Edytuj",
+            "renameNamed": "Edytuj {{name}}",
             "deleteNamed": "Usuń tag {{name}}",
             "deleteDescription": "Usunąć ten tag ze wszystkich hostów tego typu? Hosty i ich konfiguracja routingu zostaną zachowane.",
             "empty": "Brak tagów. Utwórz tag, aby uporządkować hosty.",
@@ -3086,8 +3086,12 @@
                 "limit": "Osiągnięto limit tagów.",
                 "invalid": "Wpisz nazwę tagu o długości 1–64 znaków bez znaków sterujących.",
                 "loadFailed": "Nie udało się wczytać tagów.",
-                "saveFailed": "Nie udało się zapisać tagów."
-            }
+                "saveFailed": "Nie udało się zapisać tagów.",
+                "invalidColor": "Wprowadź prawidłowy kolor w formacie #RRGGBB."
+            },
+            "color": "Kolor",
+            "colorSaturation": "Nasycenie",
+            "colorBrightness": "Jasność"
         }
     },
     "permissions": {

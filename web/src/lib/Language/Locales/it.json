@@ -3054,8 +3054,8 @@
             "behavior": "Rinominare mantiene le assegnazioni. Eliminare rimuove solo il tag; gli host rimangono. Duplicare un host copia i suoi tag. I tag non cambiano instradamento o autorizzazioni.",
             "name": "Nome del tag",
             "create": "Crea tag",
-            "rename": "Rinomina",
-            "renameNamed": "Rinomina {{name}}",
+            "rename": "Modifica",
+            "renameNamed": "Modifica {{name}}",
             "deleteNamed": "Elimina tag {{name}}",
             "deleteDescription": "Rimuovere questo tag da tutti gli host di questo tipo? Gli host e la loro configurazione di instradamento vengono mantenuti.",
             "empty": "Nessun tag. Crea un tag per organizzare i tuoi host.",
@@ -3073,8 +3073,12 @@
                 "limit": "È stato raggiunto il limite dei tag.",
                 "invalid": "Inserisci un nome di 1–64 caratteri senza caratteri di controllo.",
                 "loadFailed": "Impossibile caricare i tag.",
-                "saveFailed": "Impossibile salvare i tag."
-            }
+                "saveFailed": "Impossibile salvare i tag.",
+                "invalidColor": "Inserisci un colore valido nel formato #RRGGBB."
+            },
+            "color": "Colore",
+            "colorSaturation": "Saturazione",
+            "colorBrightness": "Luminosità"
         }
     },
     "permissions": {

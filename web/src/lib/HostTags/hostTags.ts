@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
+import { DEFAULT_HOST_TAG_COLOR, HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
+import { hostTagColorSchema } from './hostTagColor.ts'
 import type { HostTag, HostTagMutation, HostTagState } from './Types/host-tags.types.ts'
 
 export const hostTagIdsSchema = z
@@ -19,7 +20,13 @@ export const hostTagStateSchema = z
         version: z.literal(1),
         revision: z.number().int().nonnegative().safe(),
         tags: z
-            .array(z.object({ id: z.uuid().toLowerCase(), name: hostTagNameSchema }))
+            .array(
+                z.object({
+                    id: z.uuid().toLowerCase(),
+                    name: hostTagNameSchema,
+                    color: hostTagColorSchema.optional(),
+                }),
+            )
             .max(HOST_TAG_LIMITS.tags),
         assignments: z.record(z.uuid(), hostTagIdsSchema),
     })
@@ -86,6 +93,7 @@ export function mutateHostTags(
     }
     if (input.action === 'create' || input.action === 'rename') {
         const name = hostTagNameSchema.parse(input.name)
+        const color = input.color === undefined ? undefined : hostTagColorSchema.parse(input.color)
         if (
             state.tags.some(
                 (tag) =>
@@ -99,7 +107,7 @@ export function mutateHostTags(
             return {
                 ...state,
                 revision: state.revision + 1,
-                tags: [...state.tags, { id: newId, name }],
+                tags: [...state.tags, { id: newId, name, color: color ?? DEFAULT_HOST_TAG_COLOR }],
             }
         }
         if (!state.tags.some((tag) => tag.id === input.tagId))
@@ -107,7 +115,11 @@ export function mutateHostTags(
         return {
             ...state,
             revision: state.revision + 1,
-            tags: state.tags.map((tag) => (tag.id === input.tagId ? { ...tag, name } : tag)),
+            tags: state.tags.map((tag) =>
+                tag.id === input.tagId
+                    ? { ...tag, name, ...(color !== undefined ? { color } : {}) }
+                    : tag,
+            ),
         }
     }
     if (!state.tags.some((tag) => tag.id === input.tagId)) throw new HostTagDomainError('missing')

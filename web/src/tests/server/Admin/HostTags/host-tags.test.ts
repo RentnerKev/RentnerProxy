@@ -3,6 +3,7 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { emptyHostTagState } from '@/lib/HostTags/hostTags.ts'
+import { DEFAULT_HOST_TAG_COLOR } from '@/config/host-tags.config.ts'
 import type { HostKind, HostTagState } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { createHostTagServices } from '@/server/Admin/HostTags/host-tags.service.ts'
 import type { HostTagDependencies } from '@/server/Admin/HostTags/Types/host-tags-service.types.ts'
@@ -90,7 +91,7 @@ describe('authorized host tag services', () => {
         })
         expect(await fixture.services.catalog('proxy')).toEqual({
             revision: 1,
-            tags: [{ id: tagId, name: 'Infra' }],
+            tags: [{ id: tagId, name: 'Infra', color: DEFAULT_HOST_TAG_COLOR }],
         })
         expect(fixture.state().redirect).toEqual(emptyHostTagState())
         for (const args of (fixture.dependencies.read as ReturnType<typeof mock>).mock.calls)
@@ -134,6 +135,7 @@ describe('authorized host tag services', () => {
             kind: 'proxy',
             action: 'create',
             name: 'Infra',
+            color: '#003366',
             expectedRevision: 0,
         })
         const assignment = {
@@ -164,9 +166,11 @@ describe('authorized host tag services', () => {
             action: 'rename',
             tagId,
             name: 'Büro',
+            color: '#ffcc00',
             expectedRevision: 2,
         })
         expect(fixture.state().proxy.assignments[hostId]).toEqual([tagId])
+        expect((await fixture.services.catalog('proxy')).tags[0]?.color).toBe('#ffcc00')
         await fixture.services.mutate({
             kind: 'proxy',
             action: 'delete',

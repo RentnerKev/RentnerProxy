@@ -3067,8 +3067,8 @@
             "behavior": "Renomear mantém as atribuições. Eliminar remove apenas a etiqueta; os hosts permanecem. Duplicar um host copia as suas etiquetas. As etiquetas não alteram o encaminhamento nem as permissões.",
             "name": "Nome da etiqueta",
             "create": "Criar etiqueta",
-            "rename": "Renomear",
-            "renameNamed": "Renomear {{name}}",
+            "rename": "Editar",
+            "renameNamed": "Editar {{name}}",
             "deleteNamed": "Eliminar etiqueta {{name}}",
             "deleteDescription": "Remover esta etiqueta de todos os hosts deste tipo? Os hosts e a configuração de encaminhamento são mantidos.",
             "empty": "Ainda não há etiquetas. Crie uma para organizar os seus hosts.",
@@ -3086,8 +3086,12 @@
                 "limit": "Foi atingido o limite de etiquetas.",
                 "invalid": "Introduza um nome com 1–64 carateres sem carateres de controlo.",
                 "loadFailed": "Não foi possível carregar as etiquetas.",
-                "saveFailed": "Não foi possível guardar as etiquetas."
-            }
+                "saveFailed": "Não foi possível guardar as etiquetas.",
+                "invalidColor": "Insira uma cor válida no formato #RRGGBB."
+            },
+            "color": "Cor",
+            "colorSaturation": "Saturação",
+            "colorBrightness": "Brilho"
         }
     },
     "permissions": {

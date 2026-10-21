@@ -9,6 +9,7 @@ export type HostKind = 'proxy' | 'redirect'
 export interface HostTag {
     readonly id: string
     readonly name: string
+    readonly color?: string | undefined
 }
 export type HostTagState = z.output<typeof hostTagStateSchema>
 export type HostTagMutation = z.output<typeof hostTagMutationSchema>

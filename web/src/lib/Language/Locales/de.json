@@ -3041,8 +3041,8 @@
             "behavior": "Umbenennen erhält alle Zuweisungen. Löschen entfernt nur den Tag; Hosts bleiben erhalten. Beim Duplizieren werden Tags übernommen. Tags ändern weder Routing noch Berechtigungen.",
             "name": "Tag-Name",
             "create": "Tag erstellen",
-            "rename": "Umbenennen",
-            "renameNamed": "{{name}} umbenennen",
+            "rename": "Bearbeiten",
+            "renameNamed": "{{name}} bearbeiten",
             "deleteNamed": "Tag {{name}} löschen",
             "deleteDescription": "Diesen Tag von allen Hosts dieses Typs entfernen? Die Hosts und ihre Routing-Konfiguration bleiben erhalten.",
             "empty": "Noch keine Tags. Erstelle einen Tag, um deine Hosts zu organisieren.",
@@ -3060,8 +3060,12 @@
                 "limit": "Die maximale Anzahl an Tags ist erreicht.",
                 "invalid": "Gib einen Tag-Namen mit 1–64 Zeichen ohne Steuerzeichen ein.",
                 "loadFailed": "Tags konnten nicht geladen werden.",
-                "saveFailed": "Tags konnten nicht gespeichert werden."
-            }
+                "saveFailed": "Tags konnten nicht gespeichert werden.",
+                "invalidColor": "Gib eine gültige Farbe im Format #RRGGBB ein."
+            },
+            "color": "Farbe",
+            "colorSaturation": "Sättigung",
+            "colorBrightness": "Helligkeit"
         }
     },
     "permissions": {

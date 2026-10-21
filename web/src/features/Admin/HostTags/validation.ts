@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { hostTagIdsSchema, hostTagNameSchema } from '@/lib/HostTags/hostTags.ts'
+import { hostTagColorSchema } from '@/lib/HostTags/hostTagColor.ts'
 
 export const hostKindSchema = z.enum(['proxy', 'redirect'])
 const mutation = z.object({
@@ -7,11 +8,16 @@ const mutation = z.object({
     expectedRevision: z.number().int().nonnegative().safe(),
 })
 export const hostTagMutationSchema = z.discriminatedUnion('action', [
-    mutation.extend({ action: z.literal('create'), name: hostTagNameSchema }),
+    mutation.extend({
+        action: z.literal('create'),
+        name: hostTagNameSchema,
+        color: hostTagColorSchema.optional(),
+    }),
     mutation.extend({
         action: z.literal('rename'),
         tagId: z.uuid().toLowerCase(),
         name: hostTagNameSchema,
+        color: hostTagColorSchema.optional(),
     }),
     mutation.extend({ action: z.literal('delete'), tagId: z.uuid().toLowerCase() }),
     mutation.extend({

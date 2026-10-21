@@ -4,6 +4,7 @@ import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useHostTagAssignmentLogic from '../Hooks/useHostTagAssignmentLogic.ts'
 import HostTagSelect from './HostTagSelect.tsx'
+import HostTagBadge from './HostTagBadge.tsx'
 import type { HostTagsCellProps } from '../Types/host-tags-ui.types.ts'
 
 export default function HostTagsCell(props: HostTagsCellProps) {
@@ -12,12 +13,7 @@ export default function HostTagsCell(props: HostTagsCellProps) {
     return (
         <div className="flex max-w-72 flex-wrap items-center gap-1.5">
             {(props.tags ?? []).map((tag) => (
-                <span
-                    key={tag.id}
-                    className="max-w-full break-words rounded-lg border border-border bg-surface-raised px-2 py-1 text-xs"
-                >
-                    {tag.name}
-                </span>
+                <HostTagBadge key={tag.id} tag={tag} />
             ))}
             {!props.tags?.length ? (
                 <span className="text-xs text-muted">{t('admin.hostTags.untagged')}</span>

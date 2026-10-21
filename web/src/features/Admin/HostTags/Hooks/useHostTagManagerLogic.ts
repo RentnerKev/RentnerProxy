@@ -4,15 +4,20 @@ import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { toast } from '@rentnerkev/toasts'
 import { z } from 'zod'
+import type { PickerMessages } from '@rentnerkev/picker'
+import { DEFAULT_HOST_TAG_COLOR } from '@/config/host-tags.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { hostTagNameSchema } from '@/lib/HostTags/hostTags.ts'
+import { hostTagColorSchema } from '@/lib/HostTags/hostTagColor.ts'
 import type { HostKind, HostTag, HostTagMutation } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { getHostTagCatalogHandler, mutateHostTagHandler } from '../middleware.ts'
 
 export default function useHostTagManagerLogic(kind: HostKind) {
-    const { t } = useTranslationStore()
+    const { language, t } = useTranslationStore()
     const formId = useId()
     const [open, setOpen] = useState(false)
+    const [isColorValid, setIsColorValid] = useState(true)
+    const [pickerContainer, setPickerContainer] = useState<HTMLDivElement | null>(null)
     const [editing, setEditing] = useState<{ tag: HostTag; revision: number } | null>(null)
     const [deleting, setDeleting] = useState<{ tag: HostTag; revision: number } | null>(null)
     const queryClient = useQueryClient()
@@ -33,40 +38,46 @@ export default function useHostTagManagerLogic(kind: HostKind) {
                 ) {
                     setEditing(null)
                     setDeleting(null)
-                    form.reset()
+                    resetForm()
                 }
                 return
             }
             setEditing(null)
             setDeleting(null)
-            form.reset()
+            resetForm()
             toast.success(t('admin.hostTags.saved'), { title: t('toast.titles.success') })
         },
         onError: () =>
             toast.error(t('admin.hostTags.errors.saveFailed'), { title: t('toast.titles.error') }),
     })
     const form = useForm({
-        defaultValues: { name: '' },
-        validators: { onSubmit: z.object({ name: hostTagNameSchema }) },
+        defaultValues: { name: '', color: DEFAULT_HOST_TAG_COLOR },
+        validators: { onSubmit: z.object({ name: hostTagNameSchema, color: hostTagColorSchema }) },
         onSubmit: async ({ value }) => {
-            if (!query.data) return
+            if (!query.data || !isColorValid) return
             const input: HostTagMutation = editing
                 ? {
                       kind,
                       action: 'rename',
                       tagId: editing.tag.id,
                       name: value.name,
+                      color: value.color,
                       expectedRevision: editing.revision,
                   }
                 : {
                       kind,
                       action: 'create',
                       name: value.name,
+                      color: value.color,
                       expectedRevision: query.data.revision,
                   }
             await mutation.mutateAsync(input).catch(() => undefined)
         },
     })
+    function resetForm() {
+        form.reset()
+        setIsColorValid(true)
+    }
     return {
         form,
         state: {
@@ -78,6 +89,24 @@ export default function useHostTagManagerLogic(kind: HostKind) {
             pending: mutation.isPending,
             loading: query.isPending,
             error: query.isError,
+            isColorValid,
+            pickerContainer,
+            pickerLocale: language === 'de' ? ('de' as const) : ('en' as const),
+            pickerMessages: {
+                required: t('userAppearance.picker.required'),
+                invalidColor: t('userAppearance.picker.invalidColor'),
+                eyeDropper: t('userAppearance.picker.eyeDropper'),
+                closePicker: t('userAppearance.picker.closePicker'),
+                colorArea: t('userAppearance.picker.colorArea'),
+                colorAreaInstructions: t('userAppearance.picker.colorAreaInstructions'),
+                colorAreaValue: (saturation, value) =>
+                    t('userAppearance.picker.colorAreaValue', { saturation, value }),
+                hue: t('userAppearance.picker.hue'),
+                saturation: t('admin.hostTags.colorSaturation'),
+                brightness: t('admin.hostTags.colorBrightness'),
+                selectColor: t('userAppearance.picker.selectColor'),
+                presetColor: (color) => t('userAppearance.picker.presetColor', { color }),
+            } satisfies Partial<PickerMessages>,
         },
         handler: {
             setOpen: (value: boolean) => {
@@ -85,7 +114,7 @@ export default function useHostTagManagerLogic(kind: HostKind) {
                     setOpen(value)
                     setEditing(null)
                     setDeleting(null)
-                    form.reset()
+                    resetForm()
                 }
             },
             submit: (event: FormEvent<HTMLFormElement>) => {
@@ -97,10 +126,12 @@ export default function useHostTagManagerLogic(kind: HostKind) {
                 if (!query.data) return
                 setEditing({ tag, revision: query.data.revision })
                 form.setFieldValue('name', tag.name)
+                form.setFieldValue('color', tag.color ?? DEFAULT_HOST_TAG_COLOR)
+                setIsColorValid(true)
             },
             cancelRename: () => {
                 setEditing(null)
-                form.reset()
+                resetForm()
             },
             requestDelete: (tag: HostTag) => {
                 if (query.data) setDeleting({ tag, revision: query.data.revision })
@@ -123,5 +154,7 @@ export default function useHostTagManagerLogic(kind: HostKind) {
                 void query.refetch()
             },
         },
+        setter: { setIsColorValid },
+        refs: { pickerContainer: setPickerContainer },
     }
 }

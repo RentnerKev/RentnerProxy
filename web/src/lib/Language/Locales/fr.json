@@ -3041,8 +3041,8 @@
             "behavior": "Renommer conserve les affectations. Supprimer retire uniquement l’étiquette ; les hôtes restent. Dupliquer un hôte copie ses étiquettes. Les étiquettes ne modifient ni le routage ni les autorisations.",
             "name": "Nom de l’étiquette",
             "create": "Créer une étiquette",
-            "rename": "Renommer",
-            "renameNamed": "Renommer {{name}}",
+            "rename": "Modifier",
+            "renameNamed": "Modifier {{name}}",
             "deleteNamed": "Supprimer l’étiquette {{name}}",
             "deleteDescription": "Retirer cette étiquette de tous les hôtes de ce type ? Les hôtes et leur configuration de routage sont conservés.",
             "empty": "Aucune étiquette. Créez-en une pour organiser vos hôtes.",
@@ -3060,8 +3060,12 @@
                 "limit": "Le nombre maximal d’étiquettes est atteint.",
                 "invalid": "Saisissez un nom de 1 à 64 caractères sans caractère de contrôle.",
                 "loadFailed": "Impossible de charger les étiquettes.",
-                "saveFailed": "Impossible d’enregistrer les étiquettes."
-            }
+                "saveFailed": "Impossible d’enregistrer les étiquettes.",
+                "invalidColor": "Saisissez une couleur valide au format #RRGGBB."
+            },
+            "color": "Couleur",
+            "colorSaturation": "Saturation",
+            "colorBrightness": "Luminosité"
         }
     },
     "permissions": {

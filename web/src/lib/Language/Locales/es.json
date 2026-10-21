@@ -3041,8 +3041,8 @@
             "behavior": "Cambiar el nombre conserva las asignaciones. Eliminar solo quita la etiqueta; los hosts se conservan. Al duplicar un host se copian sus etiquetas. Las etiquetas no cambian el enrutamiento ni los permisos.",
             "name": "Nombre de la etiqueta",
             "create": "Crear etiqueta",
-            "rename": "Cambiar nombre",
-            "renameNamed": "Cambiar nombre de {{name}}",
+            "rename": "Editar",
+            "renameNamed": "Editar {{name}}",
             "deleteNamed": "Eliminar etiqueta {{name}}",
             "deleteDescription": "¿Quitar esta etiqueta de todos los hosts de este tipo? Los hosts y su configuración de enrutamiento se conservan.",
             "empty": "Aún no hay etiquetas. Crea una para organizar tus hosts.",
@@ -3060,8 +3060,12 @@
                 "limit": "Se ha alcanzado el límite de etiquetas.",
                 "invalid": "Introduce un nombre de 1–64 caracteres sin caracteres de control.",
                 "loadFailed": "No se pudieron cargar las etiquetas.",
-                "saveFailed": "No se pudieron guardar las etiquetas."
-            }
+                "saveFailed": "No se pudieron guardar las etiquetas.",
+                "invalidColor": "Introduce un color válido en formato #RRGGBB."
+            },
+            "color": "Color",
+            "colorSaturation": "Saturación",
+            "colorBrightness": "Brillo"
         }
     },
     "permissions": {

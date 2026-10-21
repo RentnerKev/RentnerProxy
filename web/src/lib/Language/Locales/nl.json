@@ -3022,8 +3022,8 @@
             "behavior": "Hernoemen behoudt alle toewijzingen. Verwijderen wist alleen de tag; hosts blijven bestaan. Een host dupliceren kopieert de tags. Tags wijzigen geen routering of rechten.",
             "name": "Tagnaam",
             "create": "Tag maken",
-            "rename": "Hernoemen",
-            "renameNamed": "{{name}} hernoemen",
+            "rename": "Bewerken",
+            "renameNamed": "{{name}} bewerken",
             "deleteNamed": "Tag {{name}} verwijderen",
             "deleteDescription": "Deze tag van alle hosts van dit type verwijderen? De hosts en hun routeringsconfiguratie blijven behouden.",
             "empty": "Nog geen tags. Maak een tag om je hosts te organiseren.",
@@ -3041,8 +3041,12 @@
                 "limit": "Het maximale aantal tags is bereikt.",
                 "invalid": "Voer een tagnaam van 1–64 tekens zonder besturingstekens in.",
                 "loadFailed": "Tags konden niet worden geladen.",
-                "saveFailed": "Tags konden niet worden opgeslagen."
-            }
+                "saveFailed": "Tags konden niet worden opgeslagen.",
+                "invalidColor": "Voer een geldige kleur in de notatie #RRGGBB in."
+            },
+            "color": "Kleur",
+            "colorSaturation": "Verzadiging",
+            "colorBrightness": "Helderheid"
         }
     },
     "permissions": {

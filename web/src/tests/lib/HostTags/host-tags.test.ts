@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
+import { DEFAULT_HOST_TAG_COLOR, HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
+import { hostTagBadgeStyle, hostTagColorSchema } from '@/lib/HostTags/hostTagColor.ts'
+import { accentContrastRatio } from '@/lib/Theme/accentPalette.ts'
 import {
     assignHostTags,
     emptyHostTagState,
@@ -20,6 +22,100 @@ const hostId = '00000000-0000-4000-8000-000000000003'
 const kind = 'proxy' as const
 
 describe('host classification', () => {
+    test('validates and persists colors while preserving assignments and legacy metadata', () => {
+        expect(hostTagColorSchema.parse('#AABBCC')).toBe('#aabbcc')
+        for (const color of ['red', '#abc', '#abcdef00', 'url(https://example.com)', null]) {
+            expect(hostTagColorSchema.safeParse(color).success).toBe(false)
+            expect(
+                hostTagMutationSchema.safeParse({
+                    kind,
+                    action: 'create',
+                    name: 'Infra',
+                    color,
+                    expectedRevision: 0,
+                }).success,
+            ).toBe(false)
+        }
+        let state = mutateHostTags(
+            emptyHostTagState(),
+            {
+                kind,
+                action: 'create',
+                name: 'Infra',
+                color: '#0033AA',
+                expectedRevision: 0,
+            },
+            first,
+        )
+        expect(state.tags[0]?.color).toBe('#0033aa')
+        state = assignHostTags(state, hostId, [first])
+        const recolored = mutateHostTags(
+            state,
+            {
+                kind,
+                action: 'rename',
+                tagId: first,
+                name: 'Infra',
+                color: '#ffcc00',
+                expectedRevision: state.revision,
+            },
+            second,
+        )
+        expect(recolored.tags[0]?.color).toBe('#ffcc00')
+        expect(recolored.assignments).toEqual(state.assignments)
+        const renamed = mutateHostTags(
+            recolored,
+            {
+                kind,
+                action: 'rename',
+                tagId: first,
+                name: 'Büro',
+                expectedRevision: recolored.revision,
+            },
+            second,
+        )
+        expect(renamed.tags[0]?.color).toBe('#ffcc00')
+        expect(hostTagStateSchema.parse(JSON.parse(JSON.stringify(renamed)))).toEqual(renamed)
+        const legacy = {
+            version: 1 as const,
+            revision: 1,
+            tags: [{ id: first, name: 'Legacy' }],
+            assignments: { [hostId]: [first] },
+        }
+        expect(hostTagStateSchema.parse(legacy)).toEqual(legacy)
+        expect(
+            hostTagStateSchema.safeParse({
+                ...legacy,
+                tags: [{ ...legacy.tags[0], color: 'url(https://example.com)' }],
+            }).success,
+        ).toBe(false)
+        expect(hostTagBadgeStyle(undefined).backgroundColor).toBe(DEFAULT_HOST_TAG_COLOR)
+        const defaultTag = mutateHostTags(
+            emptyHostTagState(),
+            {
+                kind,
+                action: 'create',
+                name: 'Default',
+                expectedRevision: 0,
+            },
+            first,
+        )
+        expect(defaultTag.tags[0]?.color).toBe(DEFAULT_HOST_TAG_COLOR)
+    })
+    test.each([
+        '#000000',
+        '#ffffff',
+        '#003366',
+        '#ffcc00',
+        '#808080',
+        '#ff0000',
+        '#00ff00',
+        '#0000ff',
+    ])('keeps badge text readable on %s in both themes', (color) => {
+        const style = hostTagBadgeStyle(color)
+        expect(style.backgroundColor).toBe(color)
+        expect(accentContrastRatio(style.backgroundColor, style.color)).toBeGreaterThanOrEqual(4.5)
+    })
     test('normalizes Unicode, case and whitespace for names and rejects empty, control and excessive input', () => {
         expect(hostTagNameSchema.parse('  Ｉnfra   Büro  ')).toBe('Infra Büro')
         for (const invalid of [

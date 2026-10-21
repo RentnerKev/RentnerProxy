@@ -3041,8 +3041,8 @@
             "behavior": "Renaming keeps all assignments. Deleting removes only the tag; hosts remain. Duplicating a host copies its tags. Tags do not change routing or permissions.",
             "name": "Tag name",
             "create": "Create tag",
-            "rename": "Rename",
-            "renameNamed": "Rename {{name}}",
+            "rename": "Edit",
+            "renameNamed": "Edit {{name}}",
             "deleteNamed": "Delete tag {{name}}",
             "deleteDescription": "Remove this tag from all hosts of this type? The hosts and their routing configuration are kept.",
             "empty": "No tags yet. Create a tag to organize your hosts.",
@@ -3060,8 +3060,12 @@
                 "limit": "The tag limit has been reached.",
                 "invalid": "Enter a tag name of 1–64 characters without control characters.",
                 "loadFailed": "Tags could not be loaded.",
-                "saveFailed": "Tags could not be saved."
-            }
+                "saveFailed": "Tags could not be saved.",
+                "invalidColor": "Enter a valid color in #RRGGBB format."
+            },
+            "color": "Color",
+            "colorSaturation": "Saturation",
+            "colorBrightness": "Brightness"
         }
     },
     "permissions": {

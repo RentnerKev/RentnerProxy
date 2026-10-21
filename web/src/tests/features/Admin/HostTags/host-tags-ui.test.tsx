@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import type { ReactElement } from 'react'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
+import { TOOLTIP_PROVIDER_PROPS } from '@/config/tooltip.config.ts'
 import type {
     HostKind,
     HostTagCatalog,
@@ -20,6 +21,7 @@ const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { ToastProvider } = await import('@rentnerkev/toasts')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const infra = { id: '00000000-0000-4000-8000-000000000001', name: 'Infrastruktur' }
 const privateTag = { id: '00000000-0000-4000-8000-000000000002', name: 'Privat' }
 const hostId = '00000000-0000-4000-8000-000000000003'
@@ -74,7 +76,9 @@ async function render(element: ReactElement) {
         root!.render(
             withTestLanguage(
                 <QueryClientProvider client={client}>
-                    <ToastProvider {...TOAST_PROVIDER_PROPS}>{element}</ToastProvider>
+                    <TooltipProvider {...TOOLTIP_PROVIDER_PROPS}>
+                        <ToastProvider {...TOAST_PROVIDER_PROPS}>{element}</ToastProvider>
+                    </TooltipProvider>
                 </QueryClientProvider>,
                 'de',
             ),
@@ -103,8 +107,10 @@ async function click(element: Element) {
         element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     })
 }
-async function input(value: string) {
-    const element = document.querySelector<HTMLInputElement>('input[id$="-name"]')!
+async function input(
+    value: string,
+    element = document.querySelector<HTMLInputElement>('input[id$="-name"]')!,
+) {
     await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
             element,
@@ -113,6 +119,11 @@ async function input(value: string) {
         element.dispatchEvent(new Event('input', { bubbles: true }))
         element.dispatchEvent(new Event('change', { bubbles: true }))
     })
+}
+function colorInput() {
+    return document
+        .querySelector('button[id$="-color"]')!
+        .parentElement!.querySelector<HTMLInputElement>('input')!
 }
 beforeEach(() => {
     states = {
@@ -161,25 +172,56 @@ describe('localized accessible host tags', () => {
         })
         expect(listInput.query.search).toBe('infra')
     })
-    test('creates and renames a tag, validates duplicates, and confirms deletion without removing hosts', async () => {
+    test('manages tags through an icon tooltip, saves colors, validates edits, and confirms deletion without removing hosts', async () => {
         await render(<HostTagManager kind="proxy" />)
+        expect(button('Tags verwalten').textContent?.trim()).toBe('')
+        await act(async () => button('Tags verwalten').focus())
+        await waitFor(
+            () => document.querySelector('[role="tooltip"]')?.textContent === 'Tags verwalten',
+        )
         await click(button('Tags verwalten'))
         await waitFor(() => document.querySelector('input[id$="-name"]') !== null)
         expect(document.querySelector('label')?.textContent).toContain('Tag-Name')
         expect(document.body.textContent).toContain('Beim Duplizieren werden Tags übernommen')
+        const managerDialog = document.querySelector('[role="dialog"]')!
+        await click(document.querySelector('button[id$="-color"]')!)
+        await waitFor(() => document.querySelector('[role="dialog"][aria-modal="false"]') !== null)
+        const pickerDialog = document.querySelector('[role="dialog"][aria-modal="false"]')!
+        expect(managerDialog.contains(pickerDialog)).toBe(true)
+        expect(pickerDialog.contains(document.activeElement)).toBe(true)
+        await act(async () => {
+            document.activeElement?.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            )
+        })
+        expect(colorInput().value).toMatch(/^#[\da-f]{6}$/u)
+        await click(button('Farbauswahl schließen'))
+        expect(document.querySelector('[role="dialog"][aria-modal="false"]')).toBeNull()
+        expect(managerDialog.isConnected).toBe(true)
         await input('  büro  ')
+        await input('#003366', colorInput())
         await click(button('Tag erstellen'))
         await waitFor(() => states.proxy.tags.length === 3)
         expect(states.proxy.tags[2]?.name).toBe('büro')
+        expect(states.proxy.tags[2]?.color).toBe('#003366')
         await input('INFRASTRUKTUR')
         await click(button('Tag erstellen'))
         await waitFor(() => document.body.textContent?.includes('existiert bereits') === true)
         expect(states.proxy.tags).toHaveLength(3)
-        await click(button('Infrastruktur umbenennen'))
+        await click(button('Infrastruktur bearbeiten'))
         await input('Serverfarm')
+        await input('invalid', colorInput())
+        await waitFor(() => button('Änderungen speichern').disabled)
+        await input('#ffcc00', colorInput())
+        await waitFor(() => !button('Änderungen speichern').disabled)
         await click(button('Änderungen speichern'))
         await waitFor(() => states.proxy.tags[0]?.name === 'Serverfarm')
         expect(states.proxy.assignments[hostId]).toEqual([infra.id])
+        expect(states.proxy.tags[0]?.color).toBe('#ffcc00')
         await waitFor(() => button('Tag Serverfarm löschen').disabled === false)
         await click(button('Tag Serverfarm löschen'))
         await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 2)
@@ -245,11 +287,16 @@ describe('localized accessible host tags', () => {
                 kind="redirect"
                 hostId={hostId}
                 hostLabel="redirect.example.com"
-                tags={[infra]}
+                tags={[{ ...infra, color: '#003366' }]}
                 canManage={false}
             />,
         )
         expect(document.body.textContent).toContain('Infrastruktur')
+        const badge = [...document.querySelectorAll<HTMLSpanElement>('span')].find(
+            (element) => element.textContent === 'Infrastruktur' && element.style.backgroundColor,
+        )!
+        expect(badge.style.backgroundColor).toBe('#003366')
+        expect(badge.style.color).toBe('#ffffff')
         expect(
             document.querySelector('button[aria-label="Tags für redirect.example.com bearbeiten"]'),
         ).toBeNull()
