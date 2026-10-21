@@ -1,5 +1,6 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import type { ProxyAccessLogsPageProps } from './Types/proxy-access-logs.types.ts'
 import useProxyAccessLogsLogic from './Hooks/useProxyAccessLogsLogic.ts'
@@ -27,7 +28,8 @@ export default function ProxyAccessLogsPage(props: ProxyAccessLogsPageProps) {
                     description={t('admin.proxyAccessLogs.states.forbiddenDescription')}
                 />
             ) : state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.proxyAccessLogs.states.unavailableTitle')}
                     description={t('admin.proxyAccessLogs.states.unavailableDescription')}
                     action={

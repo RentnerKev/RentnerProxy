@@ -20,6 +20,8 @@ disableMotionAnimations()
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { default: withTestPageAlerts, openPageAlerts } =
+    await import('@/tests/Helpers/withTestPageAlerts.tsx')
 const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { InputProvider } = await import('@rentnerkev/inputs')
@@ -72,13 +74,15 @@ async function renderPanel(canUpdate = true) {
     await act(async () => {
         root!.render(
             withTestLanguage(
-                <ToastProvider {...TOAST_PROVIDER_PROPS}>
-                    <InputProvider {...INPUT_PROVIDER_PROPS}>
-                        <QueryClientProvider client={client!}>
-                            <DefaultSitePanel canUpdate={canUpdate} />
-                        </QueryClientProvider>
-                    </InputProvider>
-                </ToastProvider>,
+                withTestPageAlerts(
+                    <ToastProvider {...TOAST_PROVIDER_PROPS}>
+                        <InputProvider {...INPUT_PROVIDER_PROPS}>
+                            <QueryClientProvider client={client!}>
+                                <DefaultSitePanel canUpdate={canUpdate} />
+                            </QueryClientProvider>
+                        </InputProvider>
+                    </ToastProvider>,
+                ),
             ),
         )
     })
@@ -93,10 +97,7 @@ async function waitForPanel(container: HTMLElement) {
         const mode = container.querySelector<HTMLInputElement>('input[name="mode"]')?.value
         if (
             (form && (mode !== 'custom-html' || container.querySelector('#default-site-html'))) ||
-            (!form &&
-                container.querySelector(
-                    'section[aria-labelledby="default-site-heading"] [role="alert"]',
-                ))
+            (!form && container.querySelector('button[data-severity="error"]'))
         )
             return
         if (Date.now() >= deadline)
@@ -308,7 +309,8 @@ describe('default-site settings panel', () => {
             data: { baseRevision: 'revision-1', settings: { mode: 'welcome' } },
         })
         expect(container.textContent).toContain('Saved mode: Welcome page')
-        expect(container.textContent).toContain('Runtime application is pending')
+        expect(container.textContent).not.toContain('Runtime application is pending')
+        expect((await openPageAlerts()).textContent).toContain('Runtime application is pending')
         expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
             true,
         )
@@ -585,11 +587,13 @@ describe('default-site settings panel', () => {
         expect(
             container.querySelector(
                 'section[aria-labelledby="default-site-heading"] [role="alert"]',
-            )?.textContent,
-        ).toContain('Could not load')
+            ),
+        ).toBeNull()
+        const details = await openPageAlerts()
+        expect(details.textContent).toContain('Could not load')
         await click(
-            [...container.querySelectorAll('button')].find((button) =>
-                button.textContent?.includes('Reload saved'),
+            [...details.querySelectorAll('li button')].find((button) =>
+                button.textContent?.includes('Try again'),
             )!,
         )
         expect(

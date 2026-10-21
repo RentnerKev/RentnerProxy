@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useCrowdSecOverviewLogic from './Hooks/useCrowdSecOverviewLogic.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 
 const stateStyles = {
     disabled: 'border-border-strong bg-surface-raised text-muted',
@@ -49,18 +50,20 @@ export default function CrowdSecOverview({ enabled }: { readonly enabled: boolea
                     {t('foundation.crowdSec.checking')}
                 </output>
             ) : state.isError || !configuration ? (
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-                    <p className="m-0 text-sm text-danger-text" role="alert">
-                        {t('foundation.crowdSec.loadError')}
-                    </p>
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        onClick={handler.retry}
-                    >
-                        {t('common.retry')}
-                    </button>
-                </div>
+                <PageAlert
+                    severity="error"
+                    title={t('admin.crowdSec.page.title')}
+                    description={t('foundation.crowdSec.loadError')}
+                    action={
+                        <button
+                            type="button"
+                            className={buttonClassName('secondary')}
+                            onClick={handler.retry}
+                        >
+                            {t('common.retry')}
+                        </button>
+                    }
+                />
             ) : (
                 <div className="mt-5 border-t border-border pt-4" aria-live="polite">
                     <dl className="grid gap-4 sm:grid-cols-3">

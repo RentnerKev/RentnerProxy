@@ -6,6 +6,8 @@ import { Globe } from 'lucide-react'
 import { MAX_DEFAULT_SITE_HTML_BYTES } from '@/config/default-site.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { useDefaultSitePanelLogic } from './Hooks/useDefaultSitePanelLogic.ts'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 const HtmlSourceEditor = lazy(() => import('./Components/HtmlSourceEditor/index.tsx'))
 
@@ -35,9 +37,21 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
             <p className="mt-4 text-sm leading-relaxed text-muted">{t('defaultSite.tlsHint')}</p>
             {state.isLoading ? <output>{t('defaultSite.loading')}</output> : null}
             {state.loadFailed ? (
-                <p role="alert" className="text-danger-text">
-                    {t('defaultSite.errors.loadFailed')}
-                </p>
+                <PageAlert
+                    severity="error"
+                    title={t('defaultSite.title')}
+                    description={t('defaultSite.errors.loadFailed')}
+                    action={
+                        <button
+                            type="button"
+                            className={buttonClassName('secondary')}
+                            onClick={handler.handleReload}
+                            disabled={state.isReloading}
+                        >
+                            {t('common.retry')}
+                        </button>
+                    }
+                />
             ) : null}
             {state.savedMode ? (
                 <p className="mt-4 text-sm font-bold text-ink-soft">
@@ -49,14 +63,14 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     {state.error}
                 </p>
             ) : null}
-            {state.runtimeStatus ? (
-                <output className="block text-sm text-muted">
-                    {t(
-                        state.runtimeStatus === 'pending'
-                            ? 'defaultSite.pending'
-                            : 'defaultSite.saved',
-                    )}
-                </output>
+            {state.runtimeStatus === 'pending' ? (
+                <PageAlert
+                    severity="warning"
+                    title={t('defaultSite.title')}
+                    description={t('defaultSite.pending')}
+                />
+            ) : state.runtimeStatus ? (
+                <output className="block text-sm text-muted">{t('defaultSite.saved')}</output>
             ) : null}
             {!state.isLoading && !state.loadFailed ? (
                 <form className="mt-5 grid gap-4" onSubmit={handler.handleSubmit}>

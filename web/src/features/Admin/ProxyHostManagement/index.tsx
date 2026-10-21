@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import CertificateRequestModal from '@/features/Admin/CertificateManagement/Components/CertificateRequestModal/index.tsx'
-import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import ProxyHostFormModal from './Components/ProxyHostFormModal/index.tsx'
@@ -60,7 +60,8 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 isRetrying={state.runtimeStatusRetrying}
             />
             {state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.proxyHosts.states.unavailableTitle')}
                     description={t('admin.proxyHosts.states.unavailableDescription')}
                     action={

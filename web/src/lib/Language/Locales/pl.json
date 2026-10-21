@@ -1,4 +1,16 @@
 {
+    "pageAlerts": {
+        "title": "Alerty strony",
+        "error_one": "1 alert na tej stronie, w tym błędy",
+        "error_few": "{{count}} alerty na tej stronie, w tym błędy",
+        "error_many": "{{count}} alertów na tej stronie, w tym błędy",
+        "error_other": "{{count}} alertu na tej stronie, w tym błędy",
+        "warning_one": "1 ostrzeżenie na tej stronie",
+        "warning_few": "{{count}} ostrzeżenia na tej stronie",
+        "warning_many": "{{count}} ostrzeżeń na tej stronie",
+        "warning_other": "{{count}} ostrzeżenia na tej stronie",
+        "openDetails": "Otwórz szczegóły i dostępne działania."
+    },
     "updates": {
         "checkFailedIndicator": "Nie udało się sprawdzić aktualizacji — otwórz szczegóły",
         "platform": "Platforma obrazu",

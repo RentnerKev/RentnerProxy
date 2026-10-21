@@ -2,7 +2,6 @@ import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runt
 
 export interface RuntimeStatusPanelProps {
     readonly translationPrefix: string
-    readonly showStatusDot?: boolean
     readonly canApply: boolean
     readonly isError?: boolean
     readonly isApplying: boolean
