@@ -374,6 +374,17 @@ async fn http01_real_caddy_reaches_ipv4_and_ipv6_controller_binds() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN"]
 async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_headers() {
+    verify_real_caddy_client_addresses(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN"]
+async fn real_caddy_ip_policies_use_socket_peer_even_with_a_trusted_forwarded_client() {
+    verify_real_caddy_client_addresses(true).await;
+}
+
+async fn verify_real_caddy_client_addresses(peer_policy: bool) {
+    use crate::models::{AccessPolicy, AccessPolicyMode, IpDefaultAction, IpRules};
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     use crate::runtime::renderer::{
         TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config_with_tls,
@@ -385,15 +396,20 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
     let workspace = SmokeWorkspace::new();
     let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let upstream_addr = upstream.local_addr().unwrap();
+    let upstream_requests = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let echo_requests = upstream_requests.clone();
     let echo = axum::Router::new().route(
         "/",
-        axum::routing::get(|headers: axum::http::HeaderMap| async move {
-            headers
-                .get("x-real-ip")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned()
+        axum::routing::get(move |headers: axum::http::HeaderMap| {
+            echo_requests.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            async move {
+                headers
+                    .get("x-real-ip")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            }
         }),
     );
     let echo_task = tokio::spawn(async move {
@@ -413,13 +429,34 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
     .unwrap();
     let trusted_root = reqwest::Certificate::from_pem(certificate.cert.pem().as_bytes()).unwrap();
     let host_id = "018f4b4a-7d1f-7abc-8def-2123456789ab";
-    for (index, trusted) in [
-        Vec::new(),
-        vec!["127.0.0.1/32".to_owned(), "192.0.2.0/24".to_owned()],
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    let trusted = || vec!["127.0.0.1/32".to_owned(), "192.0.2.0/24".to_owned()];
+    let scenarios = if peer_policy {
+        [
+            (vec!["127.0.0.1/32".to_owned()], Vec::new(), 200_u16),
+            (vec!["198.51.100.66/32".to_owned()], Vec::new(), 403),
+            (
+                vec!["127.0.0.1/32".to_owned()],
+                vec!["127.0.0.1/32".to_owned()],
+                403,
+            ),
+        ]
+        .into_iter()
+        .map(|(allow, deny, status)| {
+            (
+                trusted(),
+                Some(IpRules {
+                    default_action: IpDefaultAction::Deny,
+                    allow,
+                    deny,
+                }),
+                status,
+            )
+        })
+        .collect::<Vec<_>>()
+    } else {
+        vec![(Vec::new(), None, 200), (trusted(), None, 200)]
+    };
+    for (index, (trusted, ip_rules, expected_status)) in scenarios.into_iter().enumerate() {
         let listeners: Vec<_> = (0..3)
             .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
             .collect();
@@ -437,6 +474,14 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
             upstream_addr.port(),
         );
         host.certificate_id = Some(host_id.to_owned());
+        host.access_policy = ip_rules.map(|rules| AccessPolicy {
+            id: host_id.to_owned(),
+            mode: AccessPolicyMode::IpRestricted,
+            combination: None,
+            basic_auth: None,
+            forward_auth: None,
+            ip_rules: Some(rules),
+        });
         let config = validate_proxy_config(request(vec![host])).unwrap();
         let settings = RenderSettings {
             http_port: addresses[0].port(),
@@ -477,14 +522,19 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
             .timeout(Duration::from_secs(3))
             .build()
             .unwrap();
-        for (forwarded, trusted_expected) in [
-            (None, "127.0.0.1"),
-            (Some("203.0.113.7"), "203.0.113.7"),
-            (
-                Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
-                "203.0.113.7",
-            ),
-        ] {
+        let forwarded_cases = if peer_policy {
+            vec![(Some("198.51.100.66"), "198.51.100.66")]
+        } else {
+            vec![
+                (None, "127.0.0.1"),
+                (Some("203.0.113.7"), "203.0.113.7"),
+                (
+                    Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
+                    "203.0.113.7",
+                ),
+            ]
+        };
+        for (forwarded, trusted_expected) in forwarded_cases {
             for url in [
                 format!("http://127.0.0.1:{}/", addresses[0].port()),
                 format!("https://{domain}:{}/", addresses[2].port()),
@@ -496,9 +546,22 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
                 if let Some(forwarded) = forwarded {
                     request = request.header("X-Forwarded-For", forwarded);
                 }
+                let before = upstream_requests.load(std::sync::atomic::Ordering::Relaxed);
                 let response = request.send().await.unwrap();
-                assert_eq!(response.status(), 200);
-                let expected = if index == 0 {
+                assert_eq!(
+                    response.status(),
+                    expected_status,
+                    "scenario={index}, peer_policy={peer_policy}"
+                );
+                if expected_status == 403 {
+                    assert_eq!(
+                        upstream_requests.load(std::sync::atomic::Ordering::Relaxed),
+                        before,
+                        "denied requests must not reach the upstream"
+                    );
+                    continue;
+                }
+                let expected = if !peer_policy && index == 0 {
                     "127.0.0.1"
                 } else {
                     trusted_expected
