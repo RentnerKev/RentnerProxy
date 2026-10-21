@@ -1,4 +1,5 @@
 import type { CommandOptions } from './backup/Types/production-backup.types.ts'
+import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import {
     crowdSecArchiveExclusions,
@@ -31,6 +32,7 @@ const databaseUser = 'rentnerproxy'
 const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
+const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)
@@ -196,6 +198,7 @@ async function backup(): Promise<void> {
     const crowdSecArchivePath = join(stagingPath, 'crowdsec-state.tar')
     await chmod(stagingPath, 0o700)
     let restartAppliance = false
+    let backupPublished = false
 
     try {
         restartAppliance =
@@ -372,6 +375,7 @@ async function backup(): Promise<void> {
             }
         }
         await rename(stagingPath, finalPath)
+        backupPublished = true
         if (process.platform !== 'win32') {
             const directory = await open(outputRoot, 'r')
             try {
@@ -389,10 +393,28 @@ async function backup(): Promise<void> {
                 await runCommand([...compose, 'start', applianceService], 'restart appliance', {
                     timeoutMs: 180_000,
                 })
+                await waitForApplianceReadiness((timeoutMs) =>
+                    runCommand(
+                        [
+                            ...compose,
+                            'exec',
+                            '--no-TTY',
+                            applianceService,
+                            'bun',
+                            healthcheckScript,
+                        ],
+                        'wait for appliance',
+                        { timeoutMs },
+                    ),
+                )
             } catch {
                 process.exitCode = 1
                 process.stderr.write(
-                    'Backup captured, but the RentnerProxy appliance could not be restarted automatically.\n',
+                    'RentnerProxy appliance could not be restarted or did not become ready automatically. ' +
+                        (backupPublished
+                            ? 'Completed backup retained: ' + finalPath
+                            : 'Backup did not complete.') +
+                        '\n',
                 )
             }
         }

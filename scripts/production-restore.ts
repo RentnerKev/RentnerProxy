@@ -15,6 +15,7 @@ const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
+import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import {
     assertDeploymentCompatible,
     parseBackupMetadata,
@@ -140,20 +141,13 @@ function formatInputCommandFailure(operation: string, stderr: string): string {
 }
 
 async function waitForAppliance(compose: string[]): Promise<void> {
-    const deadline = Date.now() + 180_000
-    while (Date.now() < deadline) {
-        try {
-            await runCommand(
-                [...compose, 'exec', '--no-TTY', applianceService, 'bun', healthcheckScript],
-                'wait for appliance',
-                5_000,
-            )
-            return
-        } catch {
-            await Bun.sleep(500)
-        }
-    }
-    throw new Error('RentnerProxy appliance did not become ready')
+    await waitForApplianceReadiness((timeoutMs) =>
+        runCommand(
+            [...compose, 'exec', '--no-TTY', applianceService, 'bun', healthcheckScript],
+            'wait for appliance',
+            timeoutMs,
+        ),
+    )
 }
 
 async function readBackupFile(path: string, maximumBytes = 8 * 1024 ** 3): Promise<Buffer> {
