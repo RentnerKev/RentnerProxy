@@ -52,7 +52,22 @@ export default function useProxyAccessLogsLogic({
     }, [request])
     const logsQuery = useQuery<ProxyAccessLogsResult>({
         queryKey: proxyAccessLogsQueryKeys.list(request),
-        queryFn: () => getProxyAccessLogsHandler({ data: request }),
+        queryFn: async ({ signal }) => {
+            const data = await getProxyAccessLogsHandler({ data: request })
+            if (
+                !signal.aborted &&
+                requestRef.current === request &&
+                offset > 0 &&
+                data.snapshotReset
+            ) {
+                const firstRequest = toProxyAccessLogsQuery(filters, 0, pageSize)
+                queryClient.setQueryData(proxyAccessLogsQueryKeys.list(firstRequest), data)
+                setPage(1)
+                setSnapshot(undefined)
+                setExpandedEntry(null)
+            }
+            return data
+        },
         enabled: canView,
         retry: false,
         refetchOnMount: false,

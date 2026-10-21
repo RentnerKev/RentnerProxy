@@ -8,6 +8,7 @@ import type {
     ProxyAccessLogsResult,
 } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -44,7 +45,7 @@ const getProxyAccessLogsHandlerMock = mock(
         const snapshotReset = resetNextResponse
         resetNextResponse = false
         return {
-            entries: data.offset === 0 ? [firstEntry] : [secondEntry],
+            entries: data.offset === 0 || snapshotReset ? [firstEntry] : [secondEntry],
             limit: data.limit ?? 15,
             offset: snapshotReset ? 0 : (data.offset ?? 0),
             total: 101,
@@ -64,6 +65,14 @@ const getProxyAccessLogsHandlerMock = mock(
 mock.module('@/features/Admin/ProxyAccessLogs/middleware.ts', () => ({
     getProxyAccessLogsHandler: getProxyAccessLogsHandlerMock,
 }))
+
+const useLiveQueryMock = mock(
+    (_options: {
+        enabled: boolean
+        onData: (data: ProxyAccessLogsResult) => void | Promise<void>
+    }) => 'inactive',
+)
+mock.module('@/shared/Live/Hooks/useLiveQuery.ts', () => ({ default: useLiveQueryMock }))
 
 const { default: ProxyAccessLogsPage } = await import('@/features/Admin/ProxyAccessLogs/index.tsx')
 
@@ -225,6 +234,7 @@ function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLEleme
 
 beforeEach(() => {
     getProxyAccessLogsHandlerMock.mockClear()
+    useLiveQueryMock.mockClear()
     resetNextResponse = false
 })
 
@@ -344,6 +354,21 @@ describe('proxy access-log UI', () => {
         await waitFor(() => container.textContent?.includes('Page 1 of 7') === true)
         expect(getProxyAccessLogsHandlerMock).toHaveBeenCalledTimes(2)
         expect(container.textContent).toContain('Page 1 of 7')
+        expect(container.textContent).toContain('/dashboard')
+        const firstPageKey = proxyAccessLogsQueryKeys.list({ limit: 15, offset: 0 })
+        const fresh = activeQueryClient!.getQueryData<ProxyAccessLogsResult>(firstPageKey)!
+        expect(fresh).toMatchObject({ offset: 0, snapshot: 'snapshot-fresh-20260912' })
+        const live = useLiveQueryMock.mock.lastCall![0]
+        expect(live.enabled).toBeTrue()
+        await act(async () => {
+            await live.onData({
+                ...fresh,
+                entries: [{ ...firstEntry, path: '/live-after-reset' }],
+                snapshotReset: false,
+            })
+        })
+        await waitFor(() => container.textContent?.includes('/live-after-reset') === true)
+        expect(getProxyAccessLogsHandlerMock).toHaveBeenCalledTimes(2)
         await click(getButton(container, 'Go to next page'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
         expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
