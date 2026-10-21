@@ -951,6 +951,33 @@ fn global_timeouts_are_server_timeouts_and_host_body_limit_is_typed() {
 }
 
 #[test]
+fn normal_upstreams_forward_effective_client_ip_with_and_without_trusted_proxies() {
+    fn assert_proxy_headers(value: &Value) -> usize {
+        match value {
+            Value::Object(object) => {
+                if object.get("handler").and_then(Value::as_str) == Some("reverse_proxy") {
+                    assert_eq!(
+                        value["headers"]["request"]["set"]["X-Real-IP"],
+                        serde_json::json!(["{http.vars.client_ip}"])
+                    );
+                    return 1;
+                }
+                object.values().map(assert_proxy_headers).sum()
+            }
+            Value::Array(values) => values.iter().map(assert_proxy_headers).sum(),
+            _ => 0,
+        }
+    }
+    for trusted in [Vec::new(), vec!["192.0.2.0/24".to_owned()]] {
+        let mut settings = settings();
+        settings.trusted_proxy_cidrs = trusted;
+        let rendered = render_config(Some(&config()), &settings).unwrap();
+        let json: Value = serde_json::from_str(&rendered).unwrap();
+        assert!(assert_proxy_headers(&json) >= 2);
+    }
+}
+
+#[test]
 fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
     use crate::models::UpstreamTls;
     use crate::runtime::renderer::RenderError;
@@ -993,7 +1020,7 @@ fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
     );
     assert_eq!(
         proxy["headers"]["request"]["set"]["X-Real-IP"][0],
-        "{http.request.remote.host}"
+        "{http.vars.client_ip}"
     );
     assert_eq!(
         proxy["headers"]["request"]["delete"],

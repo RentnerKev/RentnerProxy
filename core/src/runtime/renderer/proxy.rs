@@ -35,7 +35,7 @@ pub(super) fn reverse_proxy(
     set.insert("Host".to_owned(), vec!["{http.request.host}".to_owned()]);
     set.insert(
         "X-Real-IP".to_owned(),
-        vec!["{http.request.remote.host}".to_owned()],
+        vec!["{http.vars.client_ip}".to_owned()],
     );
     set.insert(
         "X-Forwarded-Proto".to_owned(),

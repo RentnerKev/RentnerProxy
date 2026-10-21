@@ -171,6 +171,19 @@ fn start_caddy(
         json!([addresses[0].to_string()]);
     json["apps"]["http"]["servers"]["rentnerproxy-probe"]["listen"] =
         json!([addresses[1].to_string()]);
+    start_rendered_caddy(binary, &state, json, listeners)
+}
+
+fn start_rendered_caddy(
+    binary: &Path,
+    state: &Path,
+    json: Value,
+    listeners: Vec<TcpListener>,
+) -> (CaddyChild, SocketAddr, SocketAddr) {
+    let addresses: Vec<_> = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect();
     let config_path = state.join("caddy.json");
     std::fs::write(&config_path, serde_json::to_vec(&json).unwrap()).unwrap();
     let log_path = state.join("caddy-stderr.log");
@@ -178,13 +191,13 @@ fn start_caddy(
     command
         .args(["run", "--config"])
         .arg(&config_path)
-        .current_dir(&state)
+        .current_dir(state)
         .env_clear()
         .env("SYNTHETIC_SENTINEL", "SYNTHETIC_VALUE_MUST_NEVER_EXPAND")
-        .env("HOME", &state)
-        .env("USERPROFILE", &state)
-        .env("TEMP", &state)
-        .env("TMP", &state)
+        .env("HOME", state)
+        .env("USERPROFILE", state)
+        .env("TEMP", state)
+        .env("TMP", state)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(std::fs::File::create(&log_path).unwrap()));
@@ -356,4 +369,148 @@ async fn http01_real_caddy_reaches_ipv4_and_ipv6_controller_binds() {
         server.abort();
         let _ = server.await;
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN"]
+async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_headers() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    use crate::runtime::renderer::{
+        TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config_with_tls,
+    };
+    let binary = PathBuf::from(
+        std::env::var_os("RENTNERPROXY_TEST_CADDY_BIN").expect("set RENTNERPROXY_TEST_CADDY_BIN"),
+    );
+    let binary = binary.canonicalize().unwrap();
+    let workspace = SmokeWorkspace::new();
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let upstream_addr = upstream.local_addr().unwrap();
+    let echo = axum::Router::new().route(
+        "/",
+        axum::routing::get(|headers: axum::http::HeaderMap| async move {
+            headers
+                .get("x-real-ip")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned()
+        }),
+    );
+    let echo_task = tokio::spawn(async move {
+        axum::serve(upstream, echo).await.unwrap();
+    });
+    let domain = "forwarded.example";
+    let certificate = rcgen::generate_simple_self_signed(vec![domain.to_owned()]).unwrap();
+    let material = TlsMaterial {
+        fullchain_path: workspace.0.join("fullchain.pem"),
+        private_key_path: workspace.0.join("private-key.pem"),
+    };
+    std::fs::write(&material.fullchain_path, certificate.cert.pem()).unwrap();
+    std::fs::write(
+        &material.private_key_path,
+        certificate.signing_key.serialize_pem(),
+    )
+    .unwrap();
+    let trusted_root = reqwest::Certificate::from_pem(certificate.cert.pem().as_bytes()).unwrap();
+    let host_id = "018f4b4a-7d1f-7abc-8def-2123456789ab";
+    for (index, trusted) in [
+        Vec::new(),
+        vec!["127.0.0.1/32".to_owned(), "192.0.2.0/24".to_owned()],
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let listeners: Vec<_> = (0..3)
+            .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
+            .collect();
+        let addresses: Vec<_> = listeners
+            .iter()
+            .map(|listener| listener.local_addr().unwrap())
+            .collect();
+        let state = workspace.0.join(format!("forwarded-{index}"));
+        std::fs::create_dir(&state).unwrap();
+        let mut host = super::fixtures::host(
+            host_id,
+            &[domain],
+            "http",
+            "127.0.0.1",
+            upstream_addr.port(),
+        );
+        host.certificate_id = Some(host_id.to_owned());
+        let config = validate_proxy_config(request(vec![host])).unwrap();
+        let settings = RenderSettings {
+            http_port: addresses[0].port(),
+            probe_socket: None,
+            admin_socket: None,
+            state_dir: state.clone(),
+            controller_addr: upstream_addr,
+            trusted_proxy_cidrs: trusted,
+        };
+        let rendered = render_config_with_tls(
+            &config,
+            &settings,
+            &TlsRenderSettings {
+                https_port: addresses[2].port(),
+                public_https_port: addresses[2].port(),
+                controller_port: upstream_addr.port(),
+            },
+            &BTreeMap::from([(host_id.to_owned(), material.clone())]),
+            &UpstreamTlsRenderSettings {
+                system_ca_bundle: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
+                trusted_ca_paths: BTreeMap::new(),
+            },
+        )
+        .unwrap();
+        let mut json: Value = serde_json::from_str(&rendered).unwrap();
+        for (name, address) in [
+            ("rentnerproxy-http", addresses[0]),
+            ("rentnerproxy-probe", addresses[1]),
+            ("rentnerproxy-https", addresses[2]),
+        ] {
+            json["apps"]["http"]["servers"][name]["listen"] = json!([address.to_string()]);
+        }
+        let (_caddy, _, _) = start_rendered_caddy(&binary, &state, json, listeners);
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .add_root_certificate(trusted_root.clone())
+            .resolve(domain, addresses[2])
+            .timeout(Duration::from_secs(3))
+            .build()
+            .unwrap();
+        for (forwarded, trusted_expected) in [
+            (None, "127.0.0.1"),
+            (Some("203.0.113.7"), "203.0.113.7"),
+            (
+                Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
+                "203.0.113.7",
+            ),
+        ] {
+            for url in [
+                format!("http://127.0.0.1:{}/", addresses[0].port()),
+                format!("https://{domain}:{}/", addresses[2].port()),
+            ] {
+                let mut request = client
+                    .get(url)
+                    .header("Host", domain)
+                    .header("X-Real-IP", "198.51.100.99");
+                if let Some(forwarded) = forwarded {
+                    request = request.header("X-Forwarded-For", forwarded);
+                }
+                let response = request.send().await.unwrap();
+                assert_eq!(response.status(), 200);
+                let expected = if index == 0 {
+                    "127.0.0.1"
+                } else {
+                    trusted_expected
+                };
+                assert_eq!(
+                    response.text().await.unwrap(),
+                    expected,
+                    "trusted={index}, XFF={forwarded:?}"
+                );
+            }
+        }
+    }
+    echo_task.abort();
+    let _ = echo_task.await;
 }
