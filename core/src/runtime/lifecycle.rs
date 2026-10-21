@@ -9,8 +9,12 @@ use std::{
     sync::{Arc, atomic::Ordering},
     time::Duration,
 };
-use tokio::time::{sleep, timeout};
+use tokio::time::{Instant, sleep, timeout, timeout_at};
 use tracing::{info, warn};
+
+#[cfg(test)]
+#[path = "../../tests/private/runtime_shutdown.rs"]
+mod shutdown_tests;
 
 impl ProxyRuntime {
     pub(crate) async fn initialize(&self) {
@@ -275,23 +279,57 @@ impl ProxyRuntime {
         ready
     }
 
-    pub(crate) async fn shutdown(&self) {
+    pub(crate) fn begin_shutdown(&self) {
         self.stopping.store(true, Ordering::SeqCst);
-        self.docker_discovery.stop().await;
-        self.stop_ddns_scheduler().await;
+        self.ddns_automation.stop_accepting();
+        self.docker_discovery.stop_accepting();
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn shutdown(&self) {
+        self.shutdown_until(Instant::now() + crate::shutdown::SHUTDOWN_TIMEOUT)
+            .await;
+    }
+
+    pub(crate) async fn shutdown_until(&self, deadline: Instant) {
+        self.begin_shutdown();
+        // Background workers share a short phase, leaving the rest of the one
+        // signal-time deadline for Caddy, including its forced-reap reserve.
+        let workers_deadline = (Instant::now() + Duration::from_secs(3)).min(deadline);
+        tokio::join!(
+            self.docker_discovery.stop_until(workers_deadline),
+            self.stop_ddns_scheduler_until(workers_deadline),
+        );
         for slot in [&self.renewal_task, &self.recovery_task] {
-            if let Some(task) = slot.lock().await.take() {
+            let Ok(mut slot) = timeout_at(workers_deadline, slot.lock()).await else {
+                warn!(
+                    stage = "shutdown",
+                    "Background task slot exceeded shutdown deadline"
+                );
+                continue;
+            };
+            if let Some(task) = slot.take() {
+                drop(slot);
                 task.abort();
-                let _ = task.await;
+                let _ = timeout_at(workers_deadline, task).await;
             }
         }
-        let _guard = self.apply_lock.lock().await;
+        let lock_deadline = deadline
+            .checked_sub(Duration::from_secs(2))
+            .unwrap_or(deadline);
+        let _guard = timeout_at(lock_deadline, self.apply_lock.lock()).await;
+        if _guard.is_err() {
+            warn!(
+                stage = "shutdown",
+                "Apply drain deadline exceeded; forcing engine shutdown"
+            );
+        }
         if let Some(engine) = &self.engine
-            && engine.shutdown().await.is_err()
+            && engine.shutdown_until(deadline).await.is_err()
         {
             warn!(stage = "shutdown", "Caddy required forced termination");
         }
-        self.mark_unavailable().await;
+        let _ = timeout_at(deadline, self.mark_unavailable()).await;
     }
 
     pub(super) async fn start_engine(

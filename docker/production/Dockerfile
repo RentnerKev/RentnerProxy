@@ -218,4 +218,4 @@ EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=12 CMD ["bun", "/opt/rentnerproxy/web/docker/web/healthcheck.ts"]
-ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/rentnerproxy-production"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/rentnerproxy-production"]

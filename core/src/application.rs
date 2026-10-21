@@ -116,14 +116,19 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     runtime.start_ddns_scheduler().await;
     runtime.docker_discovery.start().await;
     let stopping_runtime = Arc::clone(&runtime);
-    let result = axum::serve(listener, app_with_state(state))
-        .with_graceful_shutdown(async move {
+    let (result, deadline) = crate::shutdown::http::serve_with_drain(
+        listener,
+        app_with_state(state),
+        async move {
             wait_for_shutdown().await;
-            stopping_runtime.ddns_automation.stop_accepting();
-            stopping_runtime.docker_discovery.stop_accepting();
-        })
-        .await;
-    runtime.shutdown().await;
+            let deadline = tokio::time::Instant::now() + crate::shutdown::SHUTDOWN_TIMEOUT;
+            stopping_runtime.begin_shutdown();
+            deadline
+        },
+        std::time::Duration::from_secs(2),
+    )
+    .await;
+    runtime.shutdown_until(deadline).await;
     result?;
     Ok(())
 }

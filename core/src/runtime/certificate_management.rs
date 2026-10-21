@@ -34,6 +34,9 @@ impl ProxyRuntime {
         id: &str,
         request: CertificateImportRequest,
     ) -> Result<CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         let runtime = Arc::clone(self);
         let id = id.to_owned();
         tokio::spawn(async move { runtime.import_certificate_inner(&id, request).await })
@@ -80,6 +83,9 @@ impl ProxyRuntime {
         id: &str,
         scheduled: bool,
     ) -> Result<Option<CertificateMetadata>, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         let Some(staged) = self
             .certificate_store
             .begin_candidate_activation(id, scheduled)

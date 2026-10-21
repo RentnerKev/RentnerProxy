@@ -24,17 +24,30 @@ impl Discovery {
         self.stopping.store(true, Ordering::SeqCst);
         self.wake.notify_one();
     }
+    #[cfg(test)]
     pub(crate) async fn stop(&self) {
+        self.stop_until(Instant::now() + Duration::from_secs(2))
+            .await;
+    }
+    pub(crate) async fn stop_until(&self, deadline: Instant) {
         self.stop_accepting();
-        if let Some(mut task) = self.task.lock().await.take() {
-            match tokio::time::timeout(Duration::from_secs(2), &mut task).await {
+        let Ok(mut slot) = tokio::time::timeout_at(deadline, self.task.lock()).await else {
+            tracing::warn!(
+                stage = "discovery_shutdown",
+                "Discovery task slot exceeded shutdown deadline"
+            );
+            return;
+        };
+        if let Some(mut task) = slot.take() {
+            drop(slot);
+            match tokio::time::timeout_at(deadline, &mut task).await {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => {
                     crate::runtime::task::report_join_failure("docker_discovery", &error)
                 }
                 Err(_) => {
                     task.abort();
-                    let _ = task.await;
+                    let _ = tokio::time::timeout_at(deadline, task).await;
                 }
             }
         }
