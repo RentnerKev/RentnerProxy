@@ -3,7 +3,11 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import type { ReactElement } from 'react'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import type { HostKind, HostTagState } from '@/lib/HostTags/Types/host-tags.types.ts'
+import type {
+    HostKind,
+    HostTagCatalog,
+    HostTagState,
+} from '@/lib/HostTags/Types/host-tags.types.ts'
 import { emptyHostTagState, HostTagDomainError, mutateHostTags } from '@/lib/HostTags/hostTags.ts'
 import { hostTagMutationSchema } from '@/features/Admin/HostTags/validation.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
@@ -12,7 +16,7 @@ import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
-const { act } = await import('react')
+const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { ToastProvider } = await import('@rentnerkev/toasts')
@@ -20,7 +24,7 @@ const infra = { id: '00000000-0000-4000-8000-000000000001', name: 'Infrastruktur
 const privateTag = { id: '00000000-0000-4000-8000-000000000002', name: 'Privat' }
 const hostId = '00000000-0000-4000-8000-000000000003'
 let states: Record<HostKind, HostTagState>
-const getCatalog = mock(async ({ data }: { data: HostKind }) => ({
+const getCatalog = mock(async ({ data }: { data: HostKind }): Promise<HostTagCatalog> => ({
     revision: states[data].revision,
     tags: states[data].tags,
 }))
@@ -45,8 +49,19 @@ const { default: HostTagManager } =
     await import('@/features/Admin/HostTags/Components/HostTagManager.tsx')
 const { default: HostTagsCell } =
     await import('@/features/Admin/HostTags/Components/HostTagsCell.tsx')
+const { default: useHostListInput } =
+    await import('@/features/Admin/HostTags/Hooks/useHostListInput.ts')
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
+let listInput: ReturnType<typeof useHostListInput>
+
+function HostListInputProbe() {
+    const logic = useHostListInput()
+    useEffect(() => {
+        listInput = logic
+    }, [logic])
+    return <output>{logic.query.search}</output>
+}
 
 async function render(element: ReactElement) {
     const container = document.createElement('div')
@@ -120,6 +135,32 @@ afterEach(async () => {
 })
 
 describe('localized accessible host tags', () => {
+    test('bounds pasted search text and keeps the last valid query when table state is invalid', async () => {
+        await render(<HostListInputProbe />)
+        await act(async () => {
+            listInput.onStateChange({
+                ...listInput.initialState,
+                globalFilter: 'x'.repeat(300),
+            })
+        })
+        expect(listInput.query.search).toBe('x'.repeat(256))
+        const lastQuery = listInput.query
+        await act(async () => {
+            listInput.onStateChange({
+                ...listInput.initialState,
+                columnFilters: [{ id: 'destination', value: 'x'.repeat(4097) }],
+            })
+            listInput.onStateChange({
+                ...listInput.initialState,
+                pagination: { pageIndex: 0, pageSize: 101 },
+            })
+        })
+        expect(listInput.query).toEqual(lastQuery)
+        await act(async () => {
+            listInput.onStateChange({ ...listInput.initialState, globalFilter: 'infra' })
+        })
+        expect(listInput.query.search).toBe('infra')
+    })
     test('creates and renames a tag, validates duplicates, and confirms deletion without removing hosts', async () => {
         await render(<HostTagManager kind="proxy" />)
         await click(button('Tags verwalten'))
@@ -214,6 +255,36 @@ describe('localized accessible host tags', () => {
         ).toBeNull()
         expect(getCatalog).not.toHaveBeenCalled()
         expect(mutate).not.toHaveBeenCalled()
+    })
+    test('keeps Save disabled while a cached catalog refetches and submits its latest revision', async () => {
+        await render(
+            <HostTagsCell
+                kind="proxy"
+                hostId={hostId}
+                hostLabel="app.example.com"
+                tags={[infra]}
+                canManage
+            />,
+        )
+        client.setQueryData(['admin', 'proxy-hosts', 'tags'], {
+            revision: 0,
+            tags: [infra],
+        })
+        const { promise: pendingCatalog, resolve: resolveCatalog } =
+            Promise.withResolvers<HostTagCatalog>()
+        getCatalog.mockImplementationOnce(async () => pendingCatalog)
+        await click(button('Tags für app.example.com bearbeiten'))
+        await waitFor(() => getCatalog.mock.calls.length > 0)
+        expect(button('Änderungen speichern').disabled).toBe(true)
+        expect(mutate).not.toHaveBeenCalled()
+        await act(async () => {
+            resolveCatalog({ revision: states.proxy.revision, tags: states.proxy.tags })
+        })
+        await waitFor(() => button('Änderungen speichern').disabled === false)
+        await click(button('Änderungen speichern'))
+        await waitFor(() => mutate.mock.calls.length === 1)
+        expect(mutate.mock.calls[0]?.[0].data).toMatchObject({ expectedRevision: 1 })
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
     test('rejects a concurrent edit and closes the stale assignment rather than overwriting it', async () => {
         await render(

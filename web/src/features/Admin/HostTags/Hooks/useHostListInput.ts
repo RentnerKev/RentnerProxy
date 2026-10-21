@@ -7,12 +7,14 @@ export default function useHostListInput() {
     const { language } = useTranslationStore()
     const [query, setQuery] = useState(() => hostListQuerySchema.parse({}))
     const handleStateChange = useCallback((snapshot: ClientTableState) => {
-        const next = hostListQuerySchema.parse({
-            search: String(snapshot.globalFilter ?? ''),
+        const parsed = hostListQuerySchema.safeParse({
+            search: String(snapshot.globalFilter ?? '').slice(0, 256),
             filters: snapshot.columnFilters,
             sorting: snapshot.sorting,
             ...snapshot.pagination,
         })
+        if (!parsed.success) return
+        const next = parsed.data
         setQuery((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
     }, [])
     return {

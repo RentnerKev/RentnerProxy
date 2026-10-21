@@ -49,7 +49,7 @@ export default function useHostTagAssignmentLogic(props: HostTagsCellProps) {
             open,
             selected,
             pending: mutation.isPending,
-            ready: revision !== null && !query.isError && !query.isPending,
+            ready: revision !== null && !query.isError && !query.isPending && !query.isFetching,
         },
         handler: {
             edit: () => {
