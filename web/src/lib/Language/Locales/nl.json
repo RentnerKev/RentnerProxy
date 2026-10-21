@@ -796,7 +796,8 @@
                 "created": "Gebruiker aangemaakt en uitnodiging verstuurd.",
                 "updated": "Gebruiker bijgewerkt.",
                 "disabled": "Gebruiker uitgeschakeld en sessies ingetrokken.",
-                "enabled": "Gebruiker ingeschakeld."
+                "enabled": "Gebruiker ingeschakeld.",
+                "invitationRestored": "Uitnodiging hersteld. Nodig deze gebruiker opnieuw uit om de activering te voltooien."
             },
             "states": {
                 "unavailableTitle": "Gebruikers niet beschikbaar",

@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm'
+import { and, asc, eq, ne, sql } from 'drizzle-orm'
 
 import { ACTIVE_OWNER_ADVISORY_LOCK_ID } from '@/config/auth.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -415,14 +415,11 @@ export async function enableUserService(userId: string): Promise<UserSummary> {
 
             const updatedRows = await transaction
                 .update(users)
-                .set({ status: 'active', updatedAt: new Date() })
-                .where(
-                    and(
-                        eq(users.id, user.id),
-                        eq(users.status, 'disabled'),
-                        isNotNull(users.passwordHash),
-                    ),
-                )
+                .set({
+                    status: sql`(case when ${users.passwordHash} is null then 'pending' else 'active' end)::"rentnerproxy"."user_status"`,
+                    updatedAt: new Date(),
+                })
+                .where(and(eq(users.id, user.id), eq(users.status, 'disabled')))
                 .returning({
                     createdAt: users.createdAt,
                     displayName: users.displayName,
@@ -437,7 +434,7 @@ export async function enableUserService(userId: string): Promise<UserSummary> {
             if (!updatedUser) {
                 throw new AuthDomainError(
                     'invalid_input',
-                    'Account activation must be completed first.',
+                    'Account status changed before it could be enabled.',
                 )
             }
 

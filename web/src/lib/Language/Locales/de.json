@@ -818,7 +818,8 @@
                 "created": "Benutzer erstellt und Einladung gesendet.",
                 "updated": "Benutzer aktualisiert.",
                 "disabled": "Benutzer deaktiviert und Sitzungen widerrufen.",
-                "enabled": "Benutzer erfolgreich aktiviert."
+                "enabled": "Benutzer erfolgreich aktiviert.",
+                "invitationRestored": "Einladung wieder freigegeben. Lade den Benutzer erneut ein."
             },
             "states": {
                 "unavailableTitle": "Benutzer nicht verfügbar",

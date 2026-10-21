@@ -818,7 +818,8 @@
                 "created": "Usuario creado e invitación enviada.",
                 "updated": "Usuario actualizado.",
                 "disabled": "Usuario desactivado y sesiones revocadas.",
-                "enabled": "Usuario activado correctamente."
+                "enabled": "Usuario activado correctamente.",
+                "invitationRestored": "Invitación restaurada. Invita de nuevo al usuario para completar la activación."
             },
             "states": {
                 "unavailableTitle": "Usuarios no disponibles",

@@ -815,7 +815,8 @@
                 "created": "User created and invitation sent.",
                 "updated": "User updated.",
                 "disabled": "User disabled and sessions revoked.",
-                "enabled": "User enabled successfully."
+                "enabled": "User enabled successfully.",
+                "invitationRestored": "Invitation restored. Invite this user again to complete activation."
             },
             "states": {
                 "unavailableTitle": "Users unavailable",

@@ -815,7 +815,8 @@
                 "created": "Użytkownik został utworzony, a zaproszenie wysłane.",
                 "updated": "Użytkownik został zaktualizowany.",
                 "disabled": "Użytkownik został wyłączony, a jego sesje unieważnione.",
-                "enabled": "Użytkownik został włączony."
+                "enabled": "Użytkownik został włączony.",
+                "invitationRestored": "Zaproszenie przywrócone. Zaproś użytkownika ponownie, aby dokończyć aktywację."
             },
             "states": {
                 "unavailableTitle": "Użytkownicy są niedostępni",

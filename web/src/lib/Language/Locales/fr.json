@@ -818,7 +818,8 @@
                 "created": "Utilisateur créé et invitation envoyée.",
                 "updated": "Utilisateur mis à jour.",
                 "disabled": "Utilisateur désactivé et sessions révoquées.",
-                "enabled": "Utilisateur activé avec succès."
+                "enabled": "Utilisateur activé avec succès.",
+                "invitationRestored": "Invitation rétablie. Invitez à nouveau cet utilisateur pour terminer son activation."
             },
             "states": {
                 "unavailableTitle": "Utilisateurs indisponibles",

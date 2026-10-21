@@ -63,8 +63,14 @@ export const enableUserHandler = createServerFn({ method: 'POST' })
     .handler(async ({ data }): Promise<AuthActionResult> => {
         try {
             await requirePermissionService(PERMISSIONS.USERS_ENABLE)
-            await enableUserService(data.userId)
-            return { success: true, message: 'admin.users.messages.enabled' }
+            const user = await enableUserService(data.userId)
+            return {
+                success: true,
+                message:
+                    user.status === 'pending'
+                        ? 'admin.users.messages.invitationRestored'
+                        : 'admin.users.messages.enabled',
+            }
         } catch (error) {
             return localizedActionFailure(error, 'admin.users.errors.enableFailed')
         }
