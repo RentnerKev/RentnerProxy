@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import type { CertificateManagementPageProps } from '../../Types/certificate-management.types.ts'
@@ -48,7 +48,8 @@ export default function ServerCertificates(props: CertificateManagementPageProps
                 action={state.isError ? pageAction : undefined}
             />
             {state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.certificates.states.unavailableTitle')}
                     description={t('admin.certificates.states.unavailableDescription')}
                     action={

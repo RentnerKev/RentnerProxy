@@ -8,6 +8,7 @@ import ThemeModeSwitch from '@/shared/Theme/index.tsx'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import CertificateJobProgressObserver from '@/features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver.tsx'
 import type { AuthenticatedRouteLayoutProps } from './Types/authenticated-route-layout.types.ts'
+import PageAlertsProvider from '@/shared/PageAlerts/PageAlertsProvider.tsx'
 
 import useAuthenticatedLayoutLogic from './Hooks/useAuthenticatedLayoutLogic.ts'
 
@@ -15,7 +16,7 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
     const { state, handler } = useAuthenticatedLayoutLogic(user)
 
     return (
-        <>
+        <PageAlertsProvider key={user.id}>
             <CertificateJobProgressObserver permissions={user.permissions} />
             <InputProvider locale={state.language} messages={state.inputMessages}>
                 <SelectProvider
@@ -51,6 +52,6 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
             >
                 {null}
             </ToastProvider>
-        </>
+        </PageAlertsProvider>
     )
 }

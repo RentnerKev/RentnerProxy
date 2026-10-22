@@ -9,6 +9,7 @@ import type { CrowdSecMode } from '@/config/Types/crowdsec-config.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import type { CrowdSecPageProps } from './Types/crowdsec.types.ts'
 import useCrowdSecLogic from './Hooks/useCrowdSecLogic.ts'
@@ -84,7 +85,8 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                 description={t('admin.crowdSec.page.description')}
             />
             {state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.crowdSec.statesPage.unavailableTitle')}
                     description={t('admin.crowdSec.statesPage.unavailableDescription')}
                     action={

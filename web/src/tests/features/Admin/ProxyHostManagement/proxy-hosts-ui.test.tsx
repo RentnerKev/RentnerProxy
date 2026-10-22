@@ -7,7 +7,7 @@ import type { Root } from 'react-dom/client'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { PERMISSIONS, RUNTIME_SUPPORT_REPORT_PERMISSIONS } from '@/config/permissions.config.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
@@ -35,6 +35,8 @@ disableMotionAnimations()
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { default: withTestPageAlerts, openPageAlerts } =
+    await import('@/tests/Helpers/withTestPageAlerts.tsx')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
@@ -350,7 +352,7 @@ async function render(element: ReactElement): Promise<HTMLElement> {
                         errorCopied: 'Copied',
                     }}
                 >
-                    {element}
+                    {withTestPageAlerts(element)}
                 </ToastProvider>
             </TooltipProvider>,
         )
@@ -1139,6 +1141,39 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Disable')
     })
 
+    test('moves page load failures into the navbar and clears them after retry', async () => {
+        getProxyHostsHandlerMock.mockRejectedValueOnce(new Error('private controller diagnostics'))
+        const container = await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(() => document.querySelector('button[data-severity="error"]') !== null)
+        expect(container.textContent).not.toContain('Proxy hosts are unavailable')
+        const details = await openPageAlerts()
+        expect(details.textContent).toContain(
+            'The saved proxy hosts could not be loaded. Try again.',
+        )
+        expect(document.body.textContent).not.toContain('private controller diagnostics')
+        await click(getButton('Try again'))
+        await waitFor(() => getRows().length === 2)
+        expect(document.querySelector('button[data-severity]')).toBeNull()
+    })
+
+    test('keeps configuration and support download as adjacent explained icon actions', async () => {
+        const container = await renderPage(RUNTIME_SUPPORT_REPORT_PERMISSIONS)
+        await waitFor(() => getRows().length === 2)
+        const config = getButton('Caddy config')
+        const support = getButton('Download support report')
+        expect(config.textContent).toBe('')
+        expect(support.textContent).toBe('')
+        expect(config.parentElement).toBe(support.parentElement)
+        expect(container.textContent).not.toContain('Includes only versions, status and counts')
+        await act(async () => {
+            config.focus()
+            await new Promise((resolve) => setTimeout(resolve, 100))
+        })
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+            'Adjust shared HTTP settings',
+        )
+    })
+
     test('hides synchronized runtime status and its apply action', async () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 2)
@@ -1162,7 +1197,7 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.body.textContent).not.toContain('Proxy runtime unavailable.')
     })
 
-    test('keeps cached runtime status visible during a refresh', async () => {
+    test('keeps cached runtime status available in the navbar during a refresh', async () => {
         await render(
             withTestLanguage(
                 <ProxyRuntimeStatusPanel
@@ -1182,6 +1217,10 @@ describe('ProxyHost permissions and row actions', () => {
                 />,
             ),
         )
+        expect(document.querySelector('button[data-severity]')?.getAttribute('data-severity')).toBe(
+            'warning',
+        )
+        await openPageAlerts()
         expect(document.body.textContent).toContain('Saved changes are waiting to be applied.')
         expect(document.body.textContent).not.toContain('Proxy runtime unavailable.')
     })
@@ -1208,6 +1247,10 @@ describe('ProxyHost permissions and row actions', () => {
                 />,
             ),
         )
+        expect(document.querySelector('button[data-severity]')?.getAttribute('data-severity')).toBe(
+            'error',
+        )
+        await openPageAlerts()
         expect(document.body.textContent).toContain('Proxy runtime unavailable.')
         expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
         await click(getButton('Try again'))
@@ -1233,6 +1276,7 @@ describe('ProxyHost permissions and row actions', () => {
                 />,
             ),
         )
+        await openPageAlerts()
         expect(document.body.textContent).toContain('Saved changes are waiting to be applied.')
         expect(getButton('Apply changes')).toBeDefined()
         await click(getButton('Apply changes'))

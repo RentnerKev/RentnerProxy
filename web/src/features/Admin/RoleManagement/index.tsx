@@ -1,6 +1,6 @@
 import useRoleManagementLogic from './Hooks/useRoleManagementLogic.ts'
 import type { RoleManagementPageProps } from './Types/role-management-component-props.types.ts'
-import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import RoleFormModal from './Components/RoleFormModal/index.tsx'
@@ -20,7 +20,8 @@ export default function RoleManagementPage(props: RoleManagementPageProps) {
             />
 
             {state.isError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.roles.states.unavailableTitle')}
                     description={t('admin.roles.states.unavailableDescription')}
                     action={

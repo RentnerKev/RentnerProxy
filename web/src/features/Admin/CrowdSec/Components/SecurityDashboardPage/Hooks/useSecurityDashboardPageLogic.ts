@@ -10,7 +10,12 @@ export default function useSecurityDashboardPageLogic() {
         refetchInterval: 10_000,
     })
     return {
-        state: { configuration: query.data, isError: query.isError },
+        state: {
+            configuration: query.data,
+            // Cold retries reset query status to pending before the failed load has recovered.
+            isError: query.isError || (query.data === undefined && query.errorUpdatedAt > 0),
+            isRetrying: query.isFetching,
+        },
         handler: { handleRetry: () => void query.refetch() },
     }
 }

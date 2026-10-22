@@ -3,6 +3,7 @@ import { Activity, RefreshCw } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import useCrowdSecDashboardLogic from './Hooks/useCrowdSecDashboardLogic.ts'
 import CrowdSecBansTable from '../CrowdSecBansTable/index.tsx'
 
@@ -109,12 +110,11 @@ export default function CrowdSecDashboardPanel({ configuration }: CrowdSecDashbo
                     </p>
                 ) : !state.snapshot ? (
                     state.isError ? (
-                        <p
-                            className="mt-6 rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted"
-                            role="alert"
-                        >
-                            {t('admin.crowdSec.dashboard.unavailable')}
-                        </p>
+                        <PageAlert
+                            severity="error"
+                            title={t('admin.crowdSec.page.title')}
+                            description={t('admin.crowdSec.dashboard.unavailable')}
+                        />
                     ) : (
                         <output className="mt-6 block rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted">
                             {t('admin.crowdSec.dashboard.loading')}
@@ -123,14 +123,18 @@ export default function CrowdSecDashboardPanel({ configuration }: CrowdSecDashbo
                 ) : (
                     <>
                         {state.snapshot.demo ? (
-                            <output className="mt-5 block rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-bold text-warning-text">
-                                {t('admin.crowdSec.dashboard.demoNotice')}
-                            </output>
+                            <PageAlert
+                                severity="warning"
+                                title={t('admin.crowdSec.page.title')}
+                                description={t('admin.crowdSec.dashboard.demoNotice')}
+                            />
                         ) : null}
                         {state.isError ? (
-                            <p className="mt-5 text-xs text-warning-text" role="alert">
-                                {t('admin.crowdSec.dashboard.stale')}
-                            </p>
+                            <PageAlert
+                                severity="warning"
+                                title={t('admin.crowdSec.page.title')}
+                                description={t('admin.crowdSec.dashboard.stale')}
+                            />
                         ) : null}
                         <dl className="mt-6 grid gap-3 sm:grid-cols-3">
                             <Metric

@@ -197,6 +197,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             locked,
             available,
             isLoading: statusQuery.isPending && canView,
+            isError: statusQuery.isError,
             snapshot,
             settings,
             rows,

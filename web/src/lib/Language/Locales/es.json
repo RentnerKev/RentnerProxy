@@ -1,4 +1,14 @@
 {
+    "pageAlerts": {
+        "title": "Avisos de la página",
+        "error_one": "1 aviso en esta página, con errores",
+        "error_other": "{{count}} avisos en esta página, con errores",
+        "error_many": "{{count}} avisos en esta página, con errores",
+        "warning_one": "1 advertencia en esta página",
+        "warning_other": "{{count}} advertencias en esta página",
+        "warning_many": "{{count}} advertencias en esta página",
+        "openDetails": "Abre los detalles y las acciones disponibles."
+    },
     "updates": {
         "checkFailedIndicator": "Error al comprobar actualizaciones — abrir detalles",
         "platform": "Plataforma de imagen",

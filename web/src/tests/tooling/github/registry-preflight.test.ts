@@ -14,7 +14,7 @@ const input: RegistryPreflightInput = {
     username: 'synthetic-user',
     password: 'synthetic-password',
 }
-const missing = (codes = ['MANIFEST_UNKNOWN']) =>
+const missing = (codes: readonly string[] = ['MANIFEST_UNKNOWN']) =>
     Response.json({ errors: codes.map((code) => ({ code })) }, { status: 404 })
 
 function registry(responses: Array<Response | Error>) {
@@ -57,13 +57,14 @@ describe('immutable GHCR preflight', () => {
         }
     })
 
-    test.each([['MANIFEST_UNKNOWN'], ['NAME_UNKNOWN'], ['MANIFEST_UNKNOWN', 'NAME_UNKNOWN']])(
-        'accepts only confirmed missing codes %j',
-        async (...codes) => {
-            const { fetcher } = registry([missing(codes)])
-            expect(await preflightVersionTags(input, fetcher)).toEqual({ identicalTags: [] })
-        },
-    )
+    test.each([
+        { codes: ['MANIFEST_UNKNOWN'] },
+        { codes: ['NAME_UNKNOWN'] },
+        { codes: ['MANIFEST_UNKNOWN', 'NAME_UNKNOWN'] },
+    ])('accepts only confirmed missing codes %j', async ({ codes }) => {
+        const { fetcher } = registry([missing(codes)])
+        expect(await preflightVersionTags(input, fetcher)).toEqual({ identicalTags: [] })
+    })
 
     test('checks every tag before returning identical tags', async () => {
         const { fetcher, calls } = registry([

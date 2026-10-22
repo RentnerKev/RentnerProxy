@@ -1,4 +1,12 @@
 {
+    "pageAlerts": {
+        "title": "Page alerts",
+        "error_one": "1 alert on this page, including errors",
+        "error_other": "{{count}} alerts on this page, including errors",
+        "warning_one": "1 warning on this page",
+        "warning_other": "{{count}} warnings on this page",
+        "openDetails": "Open for details and available actions."
+    },
     "updates": {
         "checkFailedIndicator": "Update check failed — open details",
         "platform": "Image platform",

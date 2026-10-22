@@ -1,7 +1,6 @@
 import useUserManagementLogic from './Hooks/useUserManagementLogic.ts'
 import type { UserManagementPageProps } from './Types/user-management-component-props.types.ts'
-import FormMessage from '@/shared/Forms/FormMessage.tsx'
-import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import UserFormModal from './Components/UserFormModal/index.tsx'
@@ -22,22 +21,25 @@ export default function UserManagementPage(props: UserManagementPageProps) {
             />
 
             {state.isRolesError && state.canCreate ? (
-                <div className="mb-4 flex flex-wrap items-center gap-3">
-                    <FormMessage tone="error">
-                        {t('admin.users.messages.rolesUnavailable')}
-                    </FormMessage>
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        onClick={handler.retryRoles}
-                    >
-                        {t('admin.users.actions.retryRoles')}
-                    </button>
-                </div>
+                <PageAlert
+                    severity="error"
+                    title={t('admin.roles.page.title')}
+                    description={t('admin.users.messages.rolesUnavailable')}
+                    action={
+                        <button
+                            type="button"
+                            className={buttonClassName('secondary')}
+                            onClick={handler.retryRoles}
+                        >
+                            {t('admin.users.actions.retryRoles')}
+                        </button>
+                    }
+                />
             ) : null}
 
             {state.isUsersError ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('admin.users.states.unavailableTitle')}
                     description={t('admin.users.states.unavailableDescription')}
                     action={

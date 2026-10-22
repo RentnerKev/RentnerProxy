@@ -1,5 +1,6 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import FoundationStatus from './Components/FoundationStatus/index.tsx'
 import CrowdSecOverview from './Components/CrowdSecOverview/index.tsx'
@@ -28,7 +29,8 @@ export default function FoundationStatusPage({
                     description={t('foundation.loading.description')}
                 />
             ) : state.isError || !state.data ? (
-                <ContentState
+                <PageAlert
+                    severity="error"
                     title={t('foundation.error.title')}
                     description={t('foundation.error.description')}
                     action={

@@ -3,6 +3,7 @@ import { Settings2 } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
+import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import useSecurityDashboardPageLogic from './Hooks/useSecurityDashboardPageLogic.ts'
 import CrowdSecDashboardPanel from '../CrowdSecDashboardPanel/index.tsx'
@@ -26,33 +27,32 @@ export default function SecurityDashboardPage() {
                 }
             />
             <ForwardAuthSummaryPanel />
-            {!state.configuration ? (
-                <ContentState
-                    title={t(
-                        state.isError
-                            ? 'admin.crowdSec.statesPage.unavailableTitle'
-                            : 'admin.crowdSec.statesPage.loadingTitle',
-                    )}
-                    description={t(
-                        state.isError
-                            ? 'admin.crowdSec.statesPage.unavailableDescription'
-                            : 'admin.crowdSec.statesPage.loadingDescription',
-                    )}
+            {state.isError ? (
+                <PageAlert
+                    severity="error"
+                    title={t('admin.crowdSec.statesPage.unavailableTitle')}
+                    description={t('admin.crowdSec.statesPage.unavailableDescription')}
                     action={
-                        state.isError ? (
-                            <button
-                                type="button"
-                                className={buttonClassName('secondary')}
-                                onClick={handler.handleRetry}
-                            >
-                                {t('common.retry')}
-                            </button>
-                        ) : undefined
+                        <button
+                            type="button"
+                            className={buttonClassName('secondary')}
+                            onClick={handler.handleRetry}
+                            disabled={state.isRetrying}
+                        >
+                            {t('common.retry')}
+                        </button>
                     }
                 />
-            ) : (
+            ) : null}
+            {state.configuration ? (
                 <CrowdSecDashboardPanel configuration={state.configuration} />
-            )}
+            ) : !state.isError ? (
+                <ContentState
+                    busy
+                    title={t('admin.crowdSec.statesPage.loadingTitle')}
+                    description={t('admin.crowdSec.statesPage.loadingDescription')}
+                />
+            ) : null}
         </>
     )
 }
