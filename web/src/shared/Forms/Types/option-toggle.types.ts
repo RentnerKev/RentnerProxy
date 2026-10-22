@@ -2,8 +2,9 @@ import type { CheckboxInputProps } from '@rentnerkev/inputs'
 
 export interface OptionToggleProps extends Pick<
     CheckboxInputProps,
-    'name' | 'disabled' | 'onChange' | 'onBlur' | 'aria-label'
+    'name' | 'disabled' | 'onChange' | 'onBlur'
 > {
     readonly label: string
     readonly checked: boolean
+    readonly iconOnly?: boolean
 }

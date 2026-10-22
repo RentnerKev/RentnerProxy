@@ -16,8 +16,8 @@ export function HostBulkSelectionCell<
     const { t } = useTranslationStore()
     return selection ? (
         <OptionToggle
-            label=""
-            aria-label={t('admin.bulkHosts.selectHost', {
+            iconOnly
+            label={t('admin.bulkHosts.selectHost', {
                 name: row.original.domains[0] ?? row.id,
             })}
             checked={selection.ids.includes(row.id)}
