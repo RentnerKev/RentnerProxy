@@ -1,3 +1,5 @@
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import type { z } from 'zod'
 import type { hostTagStateSchema } from '../hostTags.ts'
 import type {
@@ -24,3 +26,28 @@ export interface HostPage<T> {
     readonly domains: string[]
     readonly tags: readonly HostTag[]
 }
+
+export type ProxyHostListEntry = Pick<
+    ProxyHostSummary,
+    | 'id'
+    | 'domains'
+    | 'tags'
+    | 'enabled'
+    | 'certificateId'
+    | 'createdAt'
+    | 'forwardHost'
+    | 'forwardScheme'
+    | 'forwardPort'
+>
+export type RedirectHostListEntry = Pick<
+    RedirectHostSummary,
+    | 'id'
+    | 'domains'
+    | 'tags'
+    | 'enabled'
+    | 'certificateId'
+    | 'createdAt'
+    | 'destination'
+    | 'statusCode'
+>
+export type HostListEntry = ProxyHostListEntry | RedirectHostListEntry

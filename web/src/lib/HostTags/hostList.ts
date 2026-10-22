@@ -1,17 +1,13 @@
-import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
-import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
-import type { HostListQuery, HostPage, HostTag } from './Types/host-tags.types.ts'
+import type { HostListQuery, HostPage, HostTag, HostListEntry } from './Types/host-tags.types.ts'
 
-type Host = ProxyHostSummary | RedirectHostSummary
-
-export function filterHostPage<T extends Host>(
+export function filterHostPage<T extends HostListEntry>(
     hosts: readonly T[],
     tags: readonly HostTag[],
     query: HostListQuery,
     statusLabels: { enabled: string; disabled: string },
 ): HostPage<T> {
     const lower = (value: string) => value.toLocaleLowerCase(query.locale)
-    const searchable = (host: Host) => [
+    const searchable = (host: HostListEntry) => [
         ...host.domains,
         ...(host.tags?.map((tag) => tag.name) ?? []),
         host.enabled ? 'enabled' : 'disabled',
@@ -55,7 +51,10 @@ export function filterHostPage<T extends Host>(
             }
         })
     })
-    const sortValue = (host: Host, id: HostListQuery['sorting'][number]['id']): string | number => {
+    const sortValue = (
+        host: HostListEntry,
+        id: HostListQuery['sorting'][number]['id'],
+    ): string | number => {
         switch (id) {
             case 'tags':
                 return (host.tags ?? [])

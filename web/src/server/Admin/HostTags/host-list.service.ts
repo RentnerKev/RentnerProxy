@@ -1,30 +1,43 @@
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import '@tanstack/react-start/server-only'
-import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
-import { filterHostPage } from '@/lib/HostTags/hostList.ts'
+
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { LANGUAGE_RESOURCE_LOADERS } from '@/lib/Language/resources.ts'
-import { getProxyHostsService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
-import { getRedirectHostsService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
-import { getHostTagCatalogService } from './host-tags.service.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { readProxyHostSummariesInTransaction } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
+import { readRedirectHostSummariesInTransaction } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
+import { readHostTags } from './host-tags.storage.server.ts'
+import { readProxyHostListBasis, readRedirectHostListBasis } from './host-list.storage.server.ts'
+import { createHostPageReader } from './host-page-reader.server.ts'
 
-export async function getProxyHostPageService(input: unknown) {
-    const query = hostListQuerySchema.parse(input)
-    // Host services enforce their view permission before any host or tag metadata is returned.
-    const hosts = await getProxyHostsService()
-    const catalog = await getHostTagCatalogService('proxy')
-    const messages = await LANGUAGE_RESOURCE_LOADERS[query.locale]()
-    return filterHostPage(hosts, catalog.tags, query, {
-        enabled: messages.admin.proxyHosts.status.enabled,
-        disabled: messages.admin.proxyHosts.status.disabled,
-    })
+const snapshot = {
+    authorize: requirePermissionService,
+    reauthorize: requirePermissionInTransaction,
+    transaction: <T>(run: (transaction: AuthTransaction) => Promise<T>) =>
+        getAuthDatabase().transaction(run, {
+            isolationLevel: 'repeatable read',
+            accessMode: 'read only',
+        }),
+    readTags: readHostTags,
 }
 
-export async function getRedirectHostPageService(input: unknown) {
-    const query = hostListQuerySchema.parse(input)
-    const hosts = await getRedirectHostsService()
-    const catalog = await getHostTagCatalogService('redirect')
-    const messages = await LANGUAGE_RESOURCE_LOADERS[query.locale]()
-    return filterHostPage(hosts, catalog.tags, query, {
-        enabled: messages.admin.redirectHosts.status.enabled,
-        disabled: messages.admin.redirectHosts.status.disabled,
-    })
-}
+export const getProxyHostPageService = createHostPageReader({
+    ...snapshot,
+    kind: 'proxy',
+    permission: PERMISSIONS.PROXY_HOSTS_VIEW,
+    readBasis: readProxyHostListBasis,
+    readSummaries: readProxyHostSummariesInTransaction,
+    labels: async (locale) => (await LANGUAGE_RESOURCE_LOADERS[locale]()).admin.proxyHosts.status,
+})
+
+export const getRedirectHostPageService = createHostPageReader({
+    ...snapshot,
+    kind: 'redirect',
+    permission: PERMISSIONS.REDIRECT_HOSTS_VIEW,
+    readBasis: readRedirectHostListBasis,
+    readSummaries: readRedirectHostSummariesInTransaction,
+    labels: async (locale) =>
+        (await LANGUAGE_RESOURCE_LOADERS[locale]()).admin.redirectHosts.status,
+})
