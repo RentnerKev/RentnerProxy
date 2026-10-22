@@ -62,7 +62,4 @@ export interface AuthRateLimitDependencies extends RateLimitDependencies {
 }
 
 export type RateLimitUnavailableReason =
-    | 'invalid_configuration'
-    | 'invalid_policy'
-    | 'invalid_response'
-    | 'request_failed'
+    'invalid_configuration' | 'invalid_policy' | 'invalid_response' | 'request_failed'

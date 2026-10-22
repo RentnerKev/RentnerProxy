@@ -82,13 +82,11 @@ describe('runtime static assets', () => {
         try {
             await symlink(join(outside, 'secret.txt'), join(root, 'assets', 'link.txt'))
         } catch (error) {
-            if (
-                !(
-                    error instanceof Error &&
-                    'code' in error &&
-                    ['EACCES', 'EPERM'].includes(String(error.code))
-                )
-            )
+            if (!(
+                error instanceof Error &&
+                'code' in error &&
+                ['EACCES', 'EPERM'].includes(String(error.code))
+            ))
                 throw error
         }
         const fetch = createStaticAssetFetch(root, () => new Response('fallback', { status: 404 }))

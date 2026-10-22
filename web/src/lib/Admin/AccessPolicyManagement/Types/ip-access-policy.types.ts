@@ -21,5 +21,4 @@ interface AccessPolicyIpRulesParseFailure {
 }
 
 export type AccessPolicyIpRulesParseResult =
-    | AccessPolicyIpRulesParseSuccess
-    | AccessPolicyIpRulesParseFailure
+    AccessPolicyIpRulesParseSuccess | AccessPolicyIpRulesParseFailure

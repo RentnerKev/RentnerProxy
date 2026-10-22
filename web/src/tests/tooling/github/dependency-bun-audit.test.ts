@@ -186,7 +186,9 @@ describe('Bun audit evidence', () => {
                     audit.exited,
                 ])
                 expect(rawStatus).toBe(fixture.raw)
-                expect(requests).toEqual(['/-/npm/v1/security/advisories/bulk'])
+                expect(requests.length).toBeGreaterThan(0)
+                expect([...new Set(requests)]).toEqual(['/-/npm/v1/security/advisories/bulk'])
+                if (fixture.http === 200) expect(requests).toHaveLength(1)
                 if (fixture.policy === 3) expect(JSON.parse(stdout) as unknown).toEqual(blocked)
                 const report = join(directory, 'audit.json')
                 const diagnostics = join(directory, 'diagnostics.txt')

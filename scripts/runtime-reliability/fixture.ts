@@ -44,16 +44,20 @@ async function importNpm(context: FixtureContext) {
         const migration = sqlite.query('insert into knex_migrations (name) values (?)')
         for (const name of NPM_216_MIGRATIONS) migration.run(name)
         sqlite
-            .query(`insert into proxy_host (id, domain_names, forward_scheme,
-            forward_host, forward_port) values (1, ?, 'http', ?, ?)`)
+            .query(
+                `insert into proxy_host (id, domain_names, forward_scheme,
+            forward_host, forward_port) values (1, ?, 'http', ?, ?)`,
+            )
             .run(
                 JSON.stringify(['npm-' + (command.iteration % 4) + '-' + domain]),
                 command.upstreamHost,
                 command.upstreamPort,
             )
         sqlite
-            .query(`insert into redirection_host (id, domain_names, forward_domain_name,
-            forward_scheme, forward_http_code, preserve_path) values (2, ?, ?, 'http', 302, 1)`)
+            .query(
+                `insert into redirection_host (id, domain_names, forward_domain_name,
+            forward_scheme, forward_http_code, preserve_path) values (2, ?, ?, 'http', 302, 1)`,
+            )
             .run(JSON.stringify(['npm-redirect-' + (command.iteration % 4) + '-' + domain]), domain)
     } finally {
         sqlite.close()

@@ -3,12 +3,7 @@ import type { ProxyRuntimeMutationStatus } from '../../../ProxyRuntime/Types/pro
 
 type CrowdSecHealth = 'disabled' | 'starting' | 'connected' | 'degraded'
 type CrowdSecManagedEngineState =
-    | 'stopped'
-    | 'starting'
-    | 'ready'
-    | 'restarting'
-    | 'degraded'
-    | 'unavailable'
+    'stopped' | 'starting' | 'ready' | 'restarting' | 'degraded' | 'unavailable'
 export type CrowdSecCommunityState = 'disabled' | 'starting' | 'connected' | 'degraded'
 export type CrowdSecConsoleState = 'not_enrolled' | 'pending' | 'connected' | 'degraded'
 

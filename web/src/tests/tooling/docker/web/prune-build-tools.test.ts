@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -27,6 +27,8 @@ describe('web runtime dependency pruning', () => {
             '@esbuild-kit/core-utils/dist/index.js',
             'esbuild/lib/main.js',
             'tsx/node_modules/esbuild/bin/esbuild',
+            'oxfmt/dist/index.js',
+            '@oxfmt/binding-linux-x64-gnu/oxfmt.linux-x64-gnu.node',
         ]
         const runtime = [
             '@tanstack/react-start/server.js',
@@ -34,8 +36,6 @@ describe('web runtime dependency pruning', () => {
             'i18next/index.js',
             'drizzle-orm/index.js',
             'maxmind/index.js',
-            'oxfmt/dist/index.js',
-            '@oxfmt/binding-linux-x64-gnu/oxfmt.linux-x64-gnu.node',
         ]
         try {
             await Promise.all(
@@ -59,37 +59,37 @@ describe('web runtime dependency pruning', () => {
         }
     })
 
-    test('formats HTML with only the retained production formatter packages after pruning', async () => {
-        // Keep resolution outside the checkout so installed development packages cannot mask pruning.
+    test('formats HTML natively after pruning without any production node_modules', async () => {
+        // Keep resolution outside the checkout so development dependencies cannot mask missing runtime tools.
         const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-runtime-formatter-'))
         try {
-            await Promise.all(
-                ['oxfmt', '@oxfmt', 'tinypool'].map((name) =>
-                    cp(
-                        join(repositoryRoot, 'node_modules', name),
-                        join(directory, 'node_modules', name),
-                        { recursive: true },
-                    ),
-                ),
-            )
+            await mkdir(join(directory, 'node_modules', 'oxfmt'), { recursive: true })
             expect(await prune(directory)).toBe(0)
+            await rm(join(directory, 'node_modules'), { recursive: true })
             const child = Bun.spawn(
                 [
                     process.execPath,
                     '--no-env-file',
-                    '-e',
-                    `import { strict as assert } from 'node:assert'
-                     import { format } from 'oxfmt'
-                     const source = '<style>h1{color:red}</style><span>one</span> <span>two</span>'
-                     const result = await format('default-site.html', source, {
-                         tabWidth: 4, printWidth: 100, htmlWhitespaceSensitivity: 'strict',
-                     })
-                     assert.deepEqual(result.errors, [])
-                     assert.ok(result.code.includes('color: red;'))
-                     assert.ok(result.code.includes('<span>one</span> <span>two</span>'))
-                     console.log('runtime-html-format-ok')`,
+                    'fmt',
+                    '--no-script',
+                    '--no-config',
+                    '--no-editorconfig',
+                    '--stdin-filepath=default-site.html',
+                    '--tab-width=4',
+                    '--print-width=100',
+                    '--html-whitespace-sensitivity=strict',
+                    '--threads=1',
                 ],
-                { cwd: directory, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
+                {
+                    cwd: directory,
+                    stdin: new Blob([
+                        '<style>h1{color:red}</style><span>one</span> <span>two</span>',
+                    ]),
+                    stdout: 'pipe',
+                    stderr: 'pipe',
+                    timeout: 5_000,
+                    killSignal: 'SIGKILL',
+                },
             )
             const [stdout, stderr, exitCode] = await Promise.all([
                 new Response(child.stdout).text(),
@@ -97,7 +97,8 @@ describe('web runtime dependency pruning', () => {
                 child.exited,
             ])
             expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: '' })
-            expect(stdout).toContain('runtime-html-format-ok')
+            expect(stdout).toContain('color: red;')
+            expect(stdout).toContain('<span>one</span> <span>two</span>')
         } finally {
             await rm(directory, { recursive: true, force: true })
         }

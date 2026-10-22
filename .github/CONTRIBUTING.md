@@ -19,7 +19,7 @@ Never include credentials, tokens, private configuration, personal data, or unre
 
 ## Development setup
 
-Install Bun 1.4.3, the Rust toolchain pinned by [`ci.yml`](workflows/ci.yml), PostgreSQL
+Install Bun 1.4.4, the Rust toolchain pinned by [`ci.yml`](workflows/ci.yml), PostgreSQL
 18 or newer, and Valkey. The controller requires Rust 1.88 or newer. Clone the repository, start
 PostgreSQL and Valkey separately, and prepare the web environment:
 
@@ -48,7 +48,7 @@ Caddy runtime.
 1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature
    before starting work; report vulnerabilities only through the [security policy](../SECURITY.md).
 2. Fork the repository and create a focused feature branch from `main`.
-3. Install Bun 1.4.3 and the Rust toolchain pinned by CI, then install dependencies with
+3. Install Bun 1.4.4 and the Rust toolchain pinned by CI, then install dependencies with
    `bun install --frozen-lockfile`.
 4. Make a small, self-contained change and add or update tests where appropriate. Proxy runtime
    changes must preserve the single Caddy JSON/Admin API data plane, version 7 snapshots,
@@ -103,7 +103,7 @@ the tooling.
 Contributions must follow the repository's coding standards:
 
 - TypeScript, TSX, and JavaScript use the project style defined in
-  [.oxfmtrc.json](../.oxfmtrc.json), [.oxlintrc.json](../.oxlintrc.json), and
+  [bunfig.toml](../bunfig.toml), [.oxlintrc.json](../.oxlintrc.json), and
   [.oxlintrc.type-aware.json](../.oxlintrc.type-aware.json): four-space indentation, single quotes,
   no semicolons, a 100-column formatting target, and the enabled correctness, suspicious-code,
   performance, React, accessibility, and type-aware Promise rules. Type checking uses Bun's
@@ -111,7 +111,7 @@ Contributions must follow the repository's coding standards:
   [tsconfig.scripts.json](../tsconfig.scripts.json), without a separate compiler dependency.
 - Rust follows the [Rust Style Guide](https://doc.rust-lang.org/style-guide/), enforced with
   `cargo fmt`, and the repository's Clippy gate with warnings denied.
-- Markdown and configuration files follow the checked-in Oxfmt configuration and existing
+- Markdown and configuration files follow the checked-in Bun formatter configuration and existing
   surrounding conventions. Update affected documentation in the same change as behavior.
 
 Run `bun run format:check` and `bun run lint`; CI also runs Rust formatting and Clippy.

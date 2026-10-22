@@ -89,12 +89,10 @@ async function fixture(): Promise<{ path: string; db: Database }> {
 }
 
 function proxy(db: Database, id: number, domain: string, extra = ''): void {
-    db.query(`insert into proxy_host (id, domain_names, forward_host, forward_port,
-        allow_websocket_upgrade, advanced_config) values (?, ?, 'backend.internal', 8080, 1, ?)`).run(
-        id,
-        JSON.stringify([domain]),
-        extra,
-    )
+    db.query(
+        `insert into proxy_host (id, domain_names, forward_host, forward_port,
+        allow_websocket_upgrade, advanced_config) values (?, ?, 'backend.internal', 8080, 1, ?)`,
+    ).run(id, JSON.stringify([domain]), extra)
 }
 
 describe('NPM v2.16 SQLite source and migration preview', () => {

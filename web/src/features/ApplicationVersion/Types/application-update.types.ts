@@ -1,11 +1,7 @@
 export type ReleaseChannel = 'alpha' | 'beta' | 'stable'
 
 export type UpdateImageStatus =
-    | 'verified'
-    | 'pending'
-    | 'unavailable'
-    | 'unsupported-platform'
-    | 'invalid'
+    'verified' | 'pending' | 'unavailable' | 'unsupported-platform' | 'invalid'
 
 export interface ApplicationUpdate {
     readonly version: string

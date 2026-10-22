@@ -31,7 +31,7 @@ export const DOCKER_DISCOVERY_COMPOSE_EXAMPLE = `services:
       - ./docker/discovery/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     networks: [discovery-control]
   example-app:
-    image: mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
+    image: mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
     user: "1000:1000"
     read_only: true
     cap_drop: [ALL]
@@ -64,7 +64,7 @@ export const DOCKER_DISCOVERY_NATIVE_EXAMPLE = `services:
       - ./docker/discovery/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     networks: [discovery-control]
   example-app:
-    image: mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
+    image: mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
     user: "1000:1000"
     read_only: true
     cap_drop: [ALL]

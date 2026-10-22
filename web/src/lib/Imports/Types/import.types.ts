@@ -1,12 +1,7 @@
 export type ImportStatus = 'ready' | 'partial' | 'manual' | 'conflict'
 
 export type ImportKind =
-    | 'proxy-host'
-    | 'redirect-host'
-    | 'access-policy'
-    | 'certificate'
-    | 'dead-host'
-    | 'stream'
+    'proxy-host' | 'redirect-host' | 'access-policy' | 'certificate' | 'dead-host' | 'stream'
 
 export interface ImportPreviewItem {
     readonly kind: ImportKind

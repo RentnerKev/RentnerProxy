@@ -25,8 +25,8 @@
         "dependencies:inspect": "bun --no-env-file node_modules/knip/bin/knip.js",
         "lint": "oxlint . && bun --no-env-file run lint:types",
         "lint:types": "oxlint --config .oxlintrc.type-aware.json .",
-        "format": "oxfmt . && cargo fmt --manifest-path core/Cargo.toml",
-        "format:check": "oxfmt --check . && cargo fmt --manifest-path core/Cargo.toml -- --check",
+        "format": "bun --no-env-file fmt . && cargo fmt --manifest-path core/Cargo.toml",
+        "format:check": "bun --no-env-file fmt --check . && cargo fmt --manifest-path core/Cargo.toml -- --check",
         "test": "bun --no-env-file run test:ts && bun --no-env-file run rust:test",
         "test:ts": "bun --no-env-file scripts/test-web.ts",
         "test:db": "bun --no-env-file scripts/test-web.ts --database",
@@ -59,7 +59,7 @@
         "@rentnerkev/calendar": "2.7.1",
         "@rentnerkev/inputs": "2.8.0",
         "@rentnerkev/picker": "2.3.0",
-        "@rentnerkev/select": "5.2.0",
+        "@rentnerkev/select": "5.3.0",
         "@rentnerkev/toasts": "3.7.0",
         "@rentnerkev/tooltips": "2.2.0",
         "@simplewebauthn/browser": "14.0.0",
@@ -74,14 +74,13 @@
         "country-flag-icons": "1.6.20",
         "drizzle-orm": "0.45.4",
         "fast-png": "8.0.0",
-        "i18next": "26.5.3",
+        "i18next": "26.5.5",
         "i18next-resources-to-backend": "1.2.3",
-        "lucide-react": "1.59.0",
+        "lucide-react": "1.61.0",
         "maxmind": "5.0.7",
-        "motion": "14.4.0",
-        "nodemailer": "10.1.7",
+        "motion": "14.6.0",
+        "nodemailer": "10.2.1",
         "otpauth": "9.5.2",
-        "oxfmt": "0.74.0",
         "react": "19.3.1",
         "react-dom": "19.3.1",
         "react-easy-crop": "6.2.4",
@@ -104,12 +103,12 @@
         "oxlint": "1.89.0",
         "oxlint-tsgolint": "7.0.2004",
         "tailwindcss": "4.3.3",
-        "vite": "8.3.4"
+        "vite": "8.3.5"
     },
     "overrides": {
         "@esbuild-kit/core-utils": {
             "esbuild": "0.28.2"
         }
     },
-    "packageManager": "bun@1.4.3"
+    "packageManager": "bun@1.4.4"
 }

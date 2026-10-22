@@ -7,8 +7,7 @@ export interface NotificationMailClient {
         readonly accepted?: readonly unknown[]
         readonly rejected?: readonly unknown[]
         readonly rejectedErrors?:
-            | readonly { readonly responseCode?: number | undefined }[]
-            | undefined
+            readonly { readonly responseCode?: number | undefined }[] | undefined
     }>
     close(): void
 }

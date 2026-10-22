@@ -4,6 +4,4 @@ export interface MigrationOptions {
 }
 
 export type MigrationFailurePhase =
-    | 'database connection'
-    | 'schema migration'
-    | 'authorization registry'
+    'database connection' | 'schema migration' | 'authorization registry'
