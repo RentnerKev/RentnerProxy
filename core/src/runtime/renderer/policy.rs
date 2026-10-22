@@ -12,9 +12,9 @@ use super::{
     RenderError, UpstreamTlsRenderSettings,
     model::{
         Authentication, BasicAuthHash, EmptyVars, Handler, HashCache, HeaderOps, Headers,
-        HttpBasicAuth, HttpBasicAuthAccount, LogAppend, MatcherSet, ProxyResponseHandler,
-        ProxyResponseMatcher, ProxyRewrite, RemoteIpMatcher, RequestBody, Route, StaticResponse,
-        UpstreamTls,
+        HttpBasicAuth, HttpBasicAuthAccount, IpRangeMatcher, LogAppend, MatcherSet,
+        ProxyResponseHandler, ProxyResponseMatcher, ProxyRewrite, RequestBody, Route,
+        StaticResponse, UpstreamTls,
     },
     proxy::{rendered_ranges, reverse_proxy, upstream_dial},
 };
@@ -409,7 +409,7 @@ fn ip_allowed_matcher(domains: &[String], rules: &IpRules) -> Option<MatcherSet>
 fn ip_matcher(domains: &[String], ranges: &[String]) -> MatcherSet {
     let mut matcher = MatcherSet {
         host: (!domains.is_empty()).then(|| domains.to_vec()),
-        remote_ip: Some(RemoteIpMatcher {
+        client_ip: Some(IpRangeMatcher {
             ranges: rendered_ranges(ranges),
         }),
         ..MatcherSet::default()
@@ -441,14 +441,14 @@ fn append_not(matcher: &mut MatcherSet, excluded: MatcherSet) {
 
 fn mapped_ipv4_exclusion(mapped_ipv4_ranges: Vec<String>) -> MatcherSet {
     let mut matcher = MatcherSet {
-        remote_ip: Some(RemoteIpMatcher {
+        client_ip: Some(IpRangeMatcher {
             ranges: vec![MAPPED_IPV4_RANGE.to_owned()],
         }),
         ..MatcherSet::default()
     };
     if !mapped_ipv4_ranges.is_empty() {
         let allowed = MatcherSet {
-            remote_ip: Some(RemoteIpMatcher {
+            client_ip: Some(IpRangeMatcher {
                 ranges: mapped_ipv4_ranges,
             }),
             ..MatcherSet::default()

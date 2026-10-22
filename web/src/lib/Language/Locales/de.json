@@ -1821,7 +1821,7 @@
                 "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung.",
                 "ipRules": {
                     "title": "IP-Zugriffsregeln",
-                    "description": "Verwende nur die Socket-Peer-Adresse. X-Forwarded-For wird ignoriert; hinter einem Proxy wird die Proxy-Adresse geprüft.",
+                    "description": "Prüft die Client-IP. X-Forwarded-For wird nur von konfigurierten, vertrauenswürdigen Proxys übernommen; andernfalls zählt die direkte Verbindungsadresse.",
                     "configure": "IP-Zugriff konfigurieren",
                     "configureHint": "Deaktiviert lässt den IP-Anbieter aus. Als Standard wird Ablehnen empfohlen.",
                     "defaultAction": "Standardaktion",

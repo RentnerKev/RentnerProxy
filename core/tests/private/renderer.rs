@@ -724,7 +724,7 @@ fn force_https_basic_auth_can_pass_only_through_trusted_termination() {
 }
 
 #[test]
-fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
+fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_clients() {
     let mut configuration = config();
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
         id: "0198d98a-0000-7000-8000-000000000001".into(),
@@ -749,24 +749,24 @@ fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
         .unwrap();
     assert_eq!(routes[1]["handle"][0]["status_code"], 403);
     assert_eq!(
-        routes[1]["match"][0]["remote_ip"]["ranges"],
+        routes[1]["match"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
     );
     assert_eq!(routes[2]["handle"][1]["handler"], "reverse_proxy");
     assert_eq!(
-        routes[2]["match"][0]["remote_ip"]["ranges"],
+        routes[2]["match"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.0/24", "::ffff:192.0.2.0/120"])
     );
     assert_eq!(
-        routes[2]["match"][0]["not"][0]["remote_ip"]["ranges"],
+        routes[2]["match"][0]["not"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
     );
     assert_eq!(routes[3]["handle"][0]["status_code"], 403);
 }
 
-fn matcher_matches_remote_ip(matcher: &Value, address: IpAddr) -> bool {
-    let remote_matches = matcher
-        .get("remote_ip")
+fn matcher_matches_client_ip(matcher: &Value, address: IpAddr) -> bool {
+    let client_matches = matcher
+        .get("client_ip")
         .and_then(|remote| remote.get("ranges"))
         .is_none_or(|ranges| {
             ranges.as_array().unwrap().iter().any(|range| {
@@ -784,13 +784,13 @@ fn matcher_matches_remote_ip(matcher: &Value, address: IpAddr) -> bool {
         .is_none_or(|excluded| {
             !excluded
                 .iter()
-                .any(|nested| matcher_matches_remote_ip(nested, address))
+                .any(|nested| matcher_matches_client_ip(nested, address))
         });
-    remote_matches && not_matches
+    client_matches && not_matches
 }
 
 #[test]
-fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
+fn ipv6_matchers_exclude_unlisted_mapped_clients_and_append_deny() {
     let mut configuration = config();
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
         id: "0198d98a-0000-7000-8000-000000000001".into(),
@@ -822,21 +822,21 @@ fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
 
     assert_eq!(allow_matcher["not"].as_array().unwrap().len(), 2);
     assert_eq!(
-        allow_matcher["not"][0]["remote_ip"]["ranges"],
+        allow_matcher["not"][0]["client_ip"]["ranges"],
         serde_json::json!(["::ffff:0:0/96"])
     );
     assert_eq!(
         allow_matcher["not"][0]["not"],
         serde_json::json!([{
-            "remote_ip": { "ranges": ["::ffff:192.0.2.0/120"] }
+            "client_ip": { "ranges": ["::ffff:192.0.2.0/120"] }
         }])
     );
-    assert!(matcher_matches_remote_ip(allow_matcher, mapped_allowed));
-    assert!(!matcher_matches_remote_ip(allow_matcher, mapped_unlisted));
-    assert!(matcher_matches_remote_ip(allow_matcher, allowed_ipv6));
-    assert!(!matcher_matches_remote_ip(allow_matcher, denied_ipv6));
-    assert!(matcher_matches_remote_ip(deny_matcher, denied_ipv6));
-    assert!(!matcher_matches_remote_ip(deny_matcher, mapped_unlisted));
+    assert!(matcher_matches_client_ip(allow_matcher, mapped_allowed));
+    assert!(!matcher_matches_client_ip(allow_matcher, mapped_unlisted));
+    assert!(matcher_matches_client_ip(allow_matcher, allowed_ipv6));
+    assert!(!matcher_matches_client_ip(allow_matcher, denied_ipv6));
+    assert!(matcher_matches_client_ip(deny_matcher, denied_ipv6));
+    assert!(!matcher_matches_client_ip(deny_matcher, mapped_unlisted));
 }
 
 #[test]
@@ -876,7 +876,7 @@ fn combined_any_uses_ip_without_auth_then_basic_auth_as_fallback() {
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
     );
-    assert!(routes[2]["match"][0]["remote_ip"].is_null());
+    assert!(routes[2]["match"][0]["client_ip"].is_null());
 }
 
 #[test]
@@ -1116,6 +1116,7 @@ fn host_source_preview_preserves_trusted_termination_routes() {
 
     let http_routes = json["http"]["routes"].as_array().unwrap();
     assert_eq!(http_routes.len(), 2);
+    assert!(http_routes[0]["match"][0]["client_ip"].is_null());
     assert_eq!(
         http_routes[0]["match"][0]["remote_ip"]["ranges"],
         serde_json::json!(["192.0.2.10/32", "::ffff:192.0.2.10/128"])

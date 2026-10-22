@@ -1823,7 +1823,7 @@
                 "warningDescription": "Hasta que estén disponibles los proveedores necesarios, este modo rechaza todas las solicitudes. Revisa la ejecución antes de asignarlo.",
                 "ipRules": {
                     "title": "Reglas de acceso IP",
-                    "description": "Usa solo la dirección del par del socket. X-Forwarded-For se ignora; detrás de un proxy se comprueba la dirección del proxy.",
+                    "description": "Comprueba la IP del cliente. X-Forwarded-For solo se utiliza desde proxies de confianza configurados; en los demás casos, se comprueba la dirección de la conexión directa.",
                     "configure": "Configurar acceso IP",
                     "configureHint": "Déjalo desactivado para mantener el proveedor IP deshabilitado. Se recomienda denegar por defecto.",
                     "defaultAction": "Acción predeterminada",

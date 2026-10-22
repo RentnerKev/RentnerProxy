@@ -112,7 +112,9 @@ pub(super) struct MatcherSet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) path: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) remote_ip: Option<RemoteIpMatcher>,
+    pub(super) remote_ip: Option<IpRangeMatcher>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) client_ip: Option<IpRangeMatcher>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) vars: Option<BTreeMap<String, Vec<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,7 +122,7 @@ pub(super) struct MatcherSet {
 }
 
 #[derive(Serialize)]
-pub(super) struct RemoteIpMatcher {
+pub(super) struct IpRangeMatcher {
     pub(super) ranges: Vec<String>,
 }
 

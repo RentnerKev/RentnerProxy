@@ -9,7 +9,7 @@ use crate::models::{
 
 use super::{
     MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError, RenderSettings, UpstreamTlsRenderSettings,
-    model::{Handler, MatcherSet, RemoteIpMatcher, Route, StaticResponse, Subroute},
+    model::{Handler, IpRangeMatcher, MatcherSet, Route, StaticResponse, Subroute},
     policy::{
         combined_all_routes, combined_any_routes, denied_host_route, gateway_route, ip_only_routes,
         proxy_route,
@@ -242,7 +242,7 @@ fn redirect_to_https_route(domains: &[String], public_https_port: u16) -> Route 
 fn trusted_forwarded_matcher(domains: &[String], trusted_proxy_cidrs: &[String]) -> MatcherSet {
     MatcherSet {
         host: Some(domains.to_vec()),
-        remote_ip: Some(RemoteIpMatcher {
+        remote_ip: Some(IpRangeMatcher {
             ranges: rendered_ranges(trusted_proxy_cidrs),
         }),
         vars: Some(BTreeMap::from([(

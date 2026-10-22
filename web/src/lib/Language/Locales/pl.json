@@ -1841,7 +1841,7 @@
                 "warningDescription": "Dopóki wymagani dostawcy nie będą dostępni, zastosowanie tego trybu spowoduje odrzucenie wszystkich żądań. Przed przypisaniem go do aktywnego hosta sprawdź środowisko uruchomieniowe.",
                 "ipRules": {
                     "title": "Reguły dostępu IP",
-                    "description": "Używany jest wyłącznie adres partnera połączenia z gniazda. X-Forwarded-For jest ignorowany; za proxy oceniany jest adres samego proxy.",
+                    "description": "Sprawdza adres IP klienta. X-Forwarded-For jest używany tylko dla skonfigurowanych zaufanych proxy; w pozostałych przypadkach sprawdzany jest adres bezpośredniego połączenia.",
                     "configure": "Skonfiguruj dostęp IP",
                     "configureHint": "Wyłącz tę opcję, aby dostawca IP pozostał nieaktywny. Jako działanie domyślne zalecana jest odmowa.",
                     "defaultAction": "Działanie domyślne",

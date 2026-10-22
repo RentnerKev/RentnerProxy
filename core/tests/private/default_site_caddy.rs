@@ -379,12 +379,15 @@ async fn real_caddy_x_real_ip_uses_effective_client_without_trusting_forged_head
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN"]
-async fn real_caddy_ip_policies_use_socket_peer_even_with_a_trusted_forwarded_client() {
+async fn real_caddy_ip_policies_use_effective_clients_and_reject_spoofed_forwarded_headers() {
     verify_real_caddy_client_addresses(true).await;
 }
 
-async fn verify_real_caddy_client_addresses(peer_policy: bool) {
-    use crate::models::{AccessPolicy, AccessPolicyMode, IpDefaultAction, IpRules};
+async fn verify_real_caddy_client_addresses(ip_policy: bool) {
+    use crate::models::{
+        AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, BasicAuthAccount,
+        IpDefaultAction, IpRules,
+    };
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     use crate::runtime::renderer::{
         TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config_with_tls,
@@ -430,33 +433,200 @@ async fn verify_real_caddy_client_addresses(peer_policy: bool) {
     let trusted_root = reqwest::Certificate::from_pem(certificate.cert.pem().as_bytes()).unwrap();
     let host_id = "018f4b4a-7d1f-7abc-8def-2123456789ab";
     let trusted = || vec!["127.0.0.1/32".to_owned(), "192.0.2.0/24".to_owned()];
-    let scenarios = if peer_policy {
-        [
-            (vec!["127.0.0.1/32".to_owned()], Vec::new(), 200_u16),
-            (vec!["198.51.100.66/32".to_owned()], Vec::new(), 403),
-            (
-                vec!["127.0.0.1/32".to_owned()],
-                vec!["127.0.0.1/32".to_owned()],
-                403,
-            ),
-        ]
-        .into_iter()
-        .map(|(allow, deny, status)| {
-            (
-                trusted(),
-                Some(IpRules {
-                    default_action: IpDefaultAction::Deny,
-                    allow,
-                    deny,
-                }),
-                status,
-            )
-        })
-        .collect::<Vec<_>>()
-    } else {
-        vec![(Vec::new(), None, 200), (trusted(), None, 200)]
+    struct ClientCase {
+        forwarded: Option<&'static str>,
+        authenticated: bool,
+        status: u16,
+        client_ip: &'static str,
+    }
+    struct Scenario {
+        name: &'static str,
+        trusted: Vec<String>,
+        policy: Option<AccessPolicy>,
+        cases: Vec<ClientCase>,
+    }
+    let case = |forwarded, authenticated, status, client_ip| ClientCase {
+        forwarded,
+        authenticated,
+        status,
+        client_ip,
     };
-    for (index, (trusted, ip_rules, expected_status)) in scenarios.into_iter().enumerate() {
+    let policy = |default_action,
+                  allow: &[&str],
+                  deny: &[&str],
+                  combination: Option<AccessPolicyCombination>| {
+        Some(AccessPolicy {
+            id: host_id.to_owned(),
+            mode: if combination.is_some() {
+                AccessPolicyMode::Combined
+            } else {
+                AccessPolicyMode::IpRestricted
+            },
+            combination,
+            basic_auth: combination.map(|_| BasicAuth {
+                accounts: vec![BasicAuthAccount {
+                    username: "admin".to_owned(),
+                    password_hash: "$argon2id$v=19$m=47104,t=1,p=1$9BnddYjm21weKEjnXdXxPLN3XGAfjqgTp+9xRuie7a4$p6SWsQ6S8czLMzeQ/Z4DKIPXPq+/ZFiX1dIraapovO8".to_owned(),
+                }],
+            }),
+            forward_auth: None,
+            ip_rules: Some(IpRules {
+                default_action,
+                allow: allow.iter().map(|value| (*value).to_owned()).collect(),
+                deny: deny.iter().map(|value| (*value).to_owned()).collect(),
+            }),
+        })
+    };
+    let scenarios = if ip_policy {
+        vec![
+            Scenario {
+                name: "untrusted headers cannot allow a blocked peer",
+                trusted: Vec::new(),
+                policy: policy(IpDefaultAction::Deny, &["203.0.113.0/24"], &[], None),
+                cases: vec![
+                    case(Some("203.0.113.7"), false, 403, ""),
+                    case(None, false, 403, ""),
+                ],
+            },
+            Scenario {
+                name: "configured trust does not trust other peers",
+                trusted: vec!["192.0.2.0/24".to_owned()],
+                policy: policy(IpDefaultAction::Deny, &["203.0.113.0/24"], &[], None),
+                cases: vec![case(Some("203.0.113.7"), false, 403, "")],
+            },
+            Scenario {
+                name: "direct clients still use the connection address",
+                trusted: Vec::new(),
+                policy: policy(IpDefaultAction::Deny, &["127.0.0.1/32"], &[], None),
+                cases: vec![
+                    case(Some("198.51.100.66"), false, 200, "127.0.0.1"),
+                    case(None, false, 200, "127.0.0.1"),
+                ],
+            },
+            Scenario {
+                name: "trusted clients allow and deny independently of their proxy",
+                trusted: trusted(),
+                policy: policy(
+                    IpDefaultAction::Deny,
+                    &["203.0.113.0/24"],
+                    &["127.0.0.1/32"],
+                    None,
+                ),
+                cases: vec![
+                    case(Some("203.0.113.7"), false, 200, "203.0.113.7"),
+                    case(Some("::ffff:203.0.113.7"), false, 200, "::ffff:203.0.113.7"),
+                    case(
+                        Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
+                        false,
+                        200,
+                        "203.0.113.7",
+                    ),
+                    case(
+                        Some("203.0.113.7, 198.51.100.66, 192.0.2.10"),
+                        false,
+                        403,
+                        "",
+                    ),
+                    case(Some("198.51.100.66"), false, 403, ""),
+                    case(None, false, 403, ""),
+                    case(Some("not-an-address"), false, 403, ""),
+                ],
+            },
+            Scenario {
+                name: "default allow still denies the effective client",
+                trusted: trusted(),
+                policy: policy(IpDefaultAction::Allow, &[], &["203.0.113.0/24"], None),
+                cases: vec![
+                    case(Some("198.51.100.66"), false, 200, "198.51.100.66"),
+                    case(Some("203.0.113.7"), false, 403, ""),
+                    case(Some("::ffff:203.0.113.7"), false, 403, ""),
+                ],
+            },
+            Scenario {
+                name: "mixed IPv6 and IPv4 rules preserve mapped address exclusions",
+                trusted: trusted(),
+                policy: policy(
+                    IpDefaultAction::Deny,
+                    &["203.0.113.0/24", "::/0"],
+                    &["2001:db8:bad::/48"],
+                    None,
+                ),
+                cases: vec![
+                    case(Some("::ffff:203.0.113.7"), false, 200, "::ffff:203.0.113.7"),
+                    case(Some("::ffff:198.51.100.66"), false, 403, ""),
+                    case(Some("2001:db8::7"), false, 200, "2001:db8::7"),
+                    case(Some("2001:db8:bad::7"), false, 403, ""),
+                ],
+            },
+            Scenario {
+                name: "combined all requires the client IP and credentials",
+                trusted: trusted(),
+                policy: policy(
+                    IpDefaultAction::Deny,
+                    &["203.0.113.0/24"],
+                    &["203.0.113.128/25"],
+                    Some(AccessPolicyCombination::All),
+                ),
+                cases: vec![
+                    case(Some("203.0.113.7"), false, 401, ""),
+                    case(Some("203.0.113.7"), true, 200, "203.0.113.7"),
+                    case(Some("198.51.100.66"), true, 403, ""),
+                    case(Some("203.0.113.200"), true, 403, ""),
+                ],
+            },
+            Scenario {
+                name: "combined any keeps credentials as a fallback for blocked clients",
+                trusted: trusted(),
+                policy: policy(
+                    IpDefaultAction::Deny,
+                    &["203.0.113.0/24"],
+                    &["203.0.113.128/25"],
+                    Some(AccessPolicyCombination::Any),
+                ),
+                cases: vec![
+                    case(Some("203.0.113.7"), false, 200, "203.0.113.7"),
+                    case(Some("198.51.100.66"), false, 401, ""),
+                    case(Some("198.51.100.66"), true, 200, "198.51.100.66"),
+                    case(Some("203.0.113.200"), false, 401, ""),
+                    case(Some("203.0.113.200"), true, 200, "203.0.113.200"),
+                ],
+            },
+        ]
+    } else {
+        vec![
+            Scenario {
+                name: "untrusted forwarded headers do not change the upstream client",
+                trusted: Vec::new(),
+                policy: None,
+                cases: vec![
+                    case(None, false, 200, "127.0.0.1"),
+                    case(Some("203.0.113.7"), false, 200, "127.0.0.1"),
+                    case(
+                        Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
+                        false,
+                        200,
+                        "127.0.0.1",
+                    ),
+                ],
+            },
+            Scenario {
+                name: "trusted forwarded clients are passed to the upstream",
+                trusted: trusted(),
+                policy: None,
+                cases: vec![
+                    case(None, false, 200, "127.0.0.1"),
+                    case(Some("203.0.113.7"), false, 200, "203.0.113.7"),
+                    case(
+                        Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
+                        false,
+                        200,
+                        "203.0.113.7",
+                    ),
+                ],
+            },
+        ]
+    };
+    for (index, scenario) in scenarios.into_iter().enumerate() {
         let listeners: Vec<_> = (0..3)
             .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
             .collect();
@@ -474,22 +644,16 @@ async fn verify_real_caddy_client_addresses(peer_policy: bool) {
             upstream_addr.port(),
         );
         host.certificate_id = Some(host_id.to_owned());
-        host.access_policy = ip_rules.map(|rules| AccessPolicy {
-            id: host_id.to_owned(),
-            mode: AccessPolicyMode::IpRestricted,
-            combination: None,
-            basic_auth: None,
-            forward_auth: None,
-            ip_rules: Some(rules),
-        });
-        let config = validate_proxy_config(request(vec![host])).unwrap();
+        host.access_policy = scenario.policy;
+        let config = validate_proxy_config(request(vec![host]))
+            .unwrap_or_else(|error| panic!("invalid fixture {}: {error:?}", scenario.name));
         let settings = RenderSettings {
             http_port: addresses[0].port(),
             probe_socket: None,
             admin_socket: None,
             state_dir: state.clone(),
             controller_addr: upstream_addr,
-            trusted_proxy_cidrs: trusted,
+            trusted_proxy_cidrs: scenario.trusted,
         };
         let rendered = render_config_with_tls(
             &config,
@@ -522,38 +686,39 @@ async fn verify_real_caddy_client_addresses(peer_policy: bool) {
             .timeout(Duration::from_secs(3))
             .build()
             .unwrap();
-        let forwarded_cases = if peer_policy {
-            vec![(Some("198.51.100.66"), "198.51.100.66")]
-        } else {
-            vec![
-                (None, "127.0.0.1"),
-                (Some("203.0.113.7"), "203.0.113.7"),
+        for case in scenario.cases {
+            for (url, forwarded_proto) in [
+                (format!("http://127.0.0.1:{}/", addresses[0].port()), None),
                 (
-                    Some("198.51.100.66, 203.0.113.7, 192.0.2.10"),
-                    "203.0.113.7",
+                    format!("http://127.0.0.1:{}/", addresses[0].port()),
+                    Some("https"),
                 ),
-            ]
-        };
-        for (forwarded, trusted_expected) in forwarded_cases {
-            for url in [
-                format!("http://127.0.0.1:{}/", addresses[0].port()),
-                format!("https://{domain}:{}/", addresses[2].port()),
+                (format!("https://{domain}:{}/", addresses[2].port()), None),
             ] {
                 let mut request = client
                     .get(url)
                     .header("Host", domain)
                     .header("X-Real-IP", "198.51.100.99");
-                if let Some(forwarded) = forwarded {
+                if let Some(forwarded) = case.forwarded {
                     request = request.header("X-Forwarded-For", forwarded);
+                }
+                if let Some(proto) = forwarded_proto {
+                    request = request.header("X-Forwarded-Proto", proto);
+                }
+                if case.authenticated {
+                    request = request.basic_auth("admin", Some("fixture-password"));
                 }
                 let before = upstream_requests.load(std::sync::atomic::Ordering::Relaxed);
                 let response = request.send().await.unwrap();
                 assert_eq!(
                     response.status(),
-                    expected_status,
-                    "scenario={index}, peer_policy={peer_policy}"
+                    case.status,
+                    "{}, XFF={:?}, XFP={forwarded_proto:?}, authenticated={}",
+                    scenario.name,
+                    case.forwarded,
+                    case.authenticated,
                 );
-                if expected_status == 403 {
+                if case.status != 200 {
                     assert_eq!(
                         upstream_requests.load(std::sync::atomic::Ordering::Relaxed),
                         before,
@@ -561,15 +726,12 @@ async fn verify_real_caddy_client_addresses(peer_policy: bool) {
                     );
                     continue;
                 }
-                let expected = if !peer_policy && index == 0 {
-                    "127.0.0.1"
-                } else {
-                    trusted_expected
-                };
                 assert_eq!(
                     response.text().await.unwrap(),
-                    expected,
-                    "trusted={index}, XFF={forwarded:?}"
+                    case.client_ip,
+                    "{}, XFF={:?}, XFP={forwarded_proto:?}",
+                    scenario.name,
+                    case.forwarded,
                 );
             }
         }

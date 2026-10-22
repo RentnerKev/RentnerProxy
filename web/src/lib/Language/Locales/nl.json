@@ -1802,7 +1802,7 @@
                 "warningDescription": "Totdat de vereiste providers beschikbaar zijn, weigert deze modus na toepassing elk verzoek. Controleer de actieve configuratie voordat je deze aan een actieve host toewijst.",
                 "ipRules": {
                     "title": "IP-toegangsregels",
-                    "description": "Gebruik alleen het adres van de socketpeer. X-Forwarded-For wordt genegeerd; achter een proxy wordt het proxyadres beoordeeld.",
+                    "description": "Controleert het IP-adres van de client. X-Forwarded-For wordt alleen gebruikt van ingestelde vertrouwde proxies; anders wordt het adres van de directe verbinding gecontroleerd.",
                     "configure": "IP-toegang instellen",
                     "configureHint": "Laat dit uitgeschakeld om de IP-provider uitgeschakeld te houden. Weigeren wordt als standaard aanbevolen.",
                     "defaultAction": "Standaardactie",

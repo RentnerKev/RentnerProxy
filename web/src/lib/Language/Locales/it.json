@@ -1831,7 +1831,7 @@
                 "warningDescription": "Finché i provider necessari non saranno disponibili, l’applicazione di questa modalità nega tutte le richieste. Controlla il runtime prima di assegnarla a un host attivo.",
                 "ipRules": {
                     "title": "Regole di accesso IP",
-                    "description": "Usa solo l’indirizzo del peer socket. X-Forwarded-For viene ignorato; dietro un proxy viene valutato l’indirizzo del proxy.",
+                    "description": "Verifica l’IP del client. X-Forwarded-For viene usato solo dai proxy attendibili configurati; altrimenti viene verificato l’indirizzo della connessione diretta.",
                     "configure": "Configura accesso IP",
                     "configureHint": "Lascia questa opzione disattivata per mantenere disattivato il provider IP. Si consiglia Nega come azione predefinita.",
                     "defaultAction": "Azione predefinita",

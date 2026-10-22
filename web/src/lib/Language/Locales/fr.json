@@ -1823,7 +1823,7 @@
                 "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer.",
                 "ipRules": {
                     "title": "Règles d’accès IP",
-                    "description": "Utilisez uniquement l’adresse du pair de socket. X-Forwarded-For est ignoré ; derrière un proxy, l’adresse du proxy est évaluée.",
+                    "description": "Vérifie l’IP du client. X-Forwarded-For est utilisé uniquement depuis les proxys de confiance configurés ; sinon, l’adresse de la connexion directe est vérifiée.",
                     "configure": "Configurer l’accès IP",
                     "configureHint": "Laissez cette option désactivée pour garder le fournisseur IP inactif. Refuser est recommandé par défaut.",
                     "defaultAction": "Action par défaut",

@@ -1839,7 +1839,7 @@
                 "warningDescription": "Até os fornecedores necessários estarem disponíveis, a aplicação deste modo nega todos os pedidos. Reveja o ambiente de execução antes de o atribuir a um host ativo.",
                 "ipRules": {
                     "title": "Regras de acesso por IP",
-                    "description": "Use apenas o endereço do par de ligação. X-Forwarded-For é ignorado; atrás de um proxy, é avaliado o endereço do próprio proxy.",
+                    "description": "Verifica o IP do cliente. X-Forwarded-For só é utilizado a partir de proxies de confiança configurados; caso contrário, é verificado o endereço da ligação direta.",
                     "configure": "Configurar acesso por IP",
                     "configureHint": "Deixe esta opção desativada para manter o fornecedor de IP desativado. Recomenda-se Negar como predefinição.",
                     "defaultAction": "Ação predefinida",
