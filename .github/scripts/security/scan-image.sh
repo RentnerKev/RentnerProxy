@@ -7,7 +7,7 @@ trap 'exit 1' ERR
 mkdir -p "$REPORT_DIRECTORY"
 container=''
 cleanup() {
-    if [[ -n "$container" ]]; then docker rm -f "$container" >/dev/null || true; fi
+    if [[ -n "$container" ]]; then docker rm -f --volumes "$container" >/dev/null || true; fi
     rm -f "$REPORT_DIRECTORY/runtime.tar"
 }
 trap cleanup EXIT
