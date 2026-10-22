@@ -7,6 +7,7 @@ import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.t
 type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,
     | 'responseCompression'
+    | 'browserCache'
     | 'clientMaxBodySizeBytes'
     | 'proxyConnectTimeoutSeconds'
     | 'proxyReadTimeoutSeconds'

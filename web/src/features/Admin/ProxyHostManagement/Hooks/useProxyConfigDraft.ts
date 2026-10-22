@@ -46,7 +46,8 @@ export default function useProxyConfigDraft<T extends ProxyConfigEditorSubmissio
             ...Object.keys(draft.settings),
         ] as (keyof ProxyHttpSettings)[])
         for (const key of keys) {
-            if (draft.settings[key] === draft.baseline[key]) continue
+            if (JSON.stringify(draft.settings[key]) === JSON.stringify(draft.baseline[key]))
+                continue
             if (draft.settings[key] === undefined) delete merged[key]
             else Object.assign(merged, { [key]: draft.settings[key] })
         }
@@ -67,9 +68,11 @@ export default function useProxyConfigDraft<T extends ProxyConfigEditorSubmissio
         ] as (keyof ProxyHttpSettings)[])
         const overlaps = [...keys].some(
             (key) =>
-                draft.settings[key] !== draft.baseline[key] &&
-                reviewedLatest.settings[key] !== draft.baseline[key] &&
-                reviewedLatest.settings[key] !== draft.settings[key],
+                JSON.stringify(draft.settings[key]) !== JSON.stringify(draft.baseline[key]) &&
+                JSON.stringify(reviewedLatest.settings[key]) !==
+                    JSON.stringify(draft.baseline[key]) &&
+                JSON.stringify(reviewedLatest.settings[key]) !==
+                    JSON.stringify(draft.settings[key]),
         )
         if (overlaps) setConflictConfirmationOpen(true)
         else acceptDraft()

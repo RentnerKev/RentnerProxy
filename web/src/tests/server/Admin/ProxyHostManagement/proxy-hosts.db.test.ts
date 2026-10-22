@@ -2241,3 +2241,94 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
         },
     )
 })
+
+describe('browser-cache host settings with PostgreSQL', () => {
+    integrationTest(
+        'requires APPLY and round-trips form/editor state with audit and conflict protection',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const browserCache = {
+                enabled: true,
+                rules: [{ path: '/assets/', maxAgeSeconds: 3600, immutable: true }],
+            }
+            const restrictedRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_CREATE,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+            ])
+            const restricted = await createTestUser([restrictedRole.key])
+            const deniedCreate = await captureError(
+                runAsUser(restricted.id, () =>
+                    createProxyHostService({ ...proxyHostInput('cache-denied'), browserCache }),
+                ),
+            )
+            expect(deniedCreate).toBeInstanceOf(AuthDomainError)
+            const controller = startFakeController(false)
+            try {
+                const created = await runAsUser(owner.id, () =>
+                    createProxyHostService({ ...proxyHostInput('browser-cache'), browserCache }),
+                )
+                const listed = await runAsUser(owner.id, getProxyHostsService)
+                expect(listed.find((host) => host.id === created.id)?.browserCache).toEqual(
+                    browserCache,
+                )
+                const initial = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                expect(initial.settings.browserCache).toEqual(browserCache)
+                const deniedUpdate = await captureError(
+                    runAsUser(restricted.id, () =>
+                        updateProxyHostService({
+                            ...proxyHostInput('cache-denied-update'),
+                            proxyHostId: created.id,
+                            browserCache: { ...browserCache, enabled: false },
+                        }),
+                    ),
+                )
+                expect(deniedUpdate).toBeInstanceOf(AuthDomainError)
+                expect(
+                    (await runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id)))
+                        .baseRevision,
+                ).toBe(initial.baseRevision)
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...proxyHostInput('browser-cache'),
+                        proxyHostId: created.id,
+                        browserCache: { ...browserCache, enabled: false },
+                    }),
+                )
+                const updated = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                expect(updated.settings.browserCache?.enabled).toBe(false)
+                expect(updated.baseRevision).not.toBe(initial.baseRevision)
+                const stale = await captureError(
+                    runAsUser(owner.id, () =>
+                        saveProxyHostConfigEditorService({
+                            proxyHostId: created.id,
+                            baseRevision: initial.baseRevision,
+                            settings: { browserCache },
+                        }),
+                    ),
+                )
+                expect(stale).toMatchObject({ code: 'configuration_conflict' })
+                const events = await getAuthDatabase()
+                    .select({ action: auditEvents.action, metadata: auditEvents.metadata })
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, created.id))
+                expect(
+                    events.some(
+                        (event) =>
+                            event.action === 'update' &&
+                            (
+                                event.metadata as { changedFields?: string[] }
+                            )?.changedFields?.includes('browserCache'),
+                    ),
+                ).toBe(true)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+})

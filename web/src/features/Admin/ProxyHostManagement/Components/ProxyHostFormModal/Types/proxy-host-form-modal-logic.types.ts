@@ -9,6 +9,7 @@ export type UseProxyHostFormLogicParams = Pick<
     ProxyHostFormModalProps,
     | 'initialGuideOpen'
     | 'canConfigureCompression'
+    | 'canConfigureBrowserCache'
     | 'canEnable'
     | 'canDisable'
     | 'canAssignCertificates'

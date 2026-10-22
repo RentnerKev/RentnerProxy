@@ -41,6 +41,35 @@ describe('Caddy structured runtime settings', () => {
         expect(result.trustedCas).toEqual([])
         expect(JSON.stringify(result)).not.toContain('advancedConfig')
     })
+    test('keeps browser-cache rules in desired state and revision while preserving global defaults', () => {
+        const browserCache = {
+            enabled: true,
+            rules: [{ path: '/assets/', maxAgeSeconds: 3600, immutable: true }],
+        }
+        const baseline = createProxyRuntimeSnapshot([host()])
+        const snapshot = createProxyRuntimeSnapshot([host({ httpSettings: { browserCache } })])
+        expect(snapshot.proxyHosts[0]?.httpSettings).toEqual({ browserCache })
+        expect(snapshot.httpSettings).toEqual({})
+        expect(() => createProxyRuntimeSnapshot([host()], { browserCache })).toThrow()
+        expect(snapshot.revision).not.toBe(baseline.revision)
+        expect(
+            createProxyRuntimeSnapshot([host({ httpSettings: { browserCache } })], {
+                responseCompression: 'auto',
+            }).revision,
+        ).toBe('sha256:95068eb53f67332e62375d660d73f93a3051def7dd3dfe30d51ad4dabc8ed5c8')
+        expect(
+            createProxyRuntimeSnapshot([
+                host({
+                    httpSettings: {
+                        browserCache: {
+                            enabled: true,
+                            rules: [{ immutable: true, maxAgeSeconds: 3600, path: '/assets/' }],
+                        },
+                    },
+                }),
+            ]).revision,
+        ).toBe(snapshot.revision)
+    })
     test('keeps deterministic output across input ordering', () => {
         const first = createProxyRuntimeSnapshot(
             [host({ domains: ['z.demo.test', 'demo.test'] })],

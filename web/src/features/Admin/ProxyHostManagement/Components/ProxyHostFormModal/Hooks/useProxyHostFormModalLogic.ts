@@ -41,6 +41,7 @@ import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHos
 export default function useProxyHostFormModalLogic({
     initialGuideOpen = false,
     canConfigureCompression = false,
+    canConfigureBrowserCache = false,
     canEnable,
     canDisable,
     canAssignCertificates = false,
@@ -109,14 +110,10 @@ export default function useProxyHostFormModalLogic({
     >({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
-            if (!canConfigureCompression) delete data.responseCompression
-            const submittedData = canAssignPolicies
-                ? data
-                : (() => {
-                      const preserved = { ...data }
-                      delete preserved.accessPolicyId
-                      return preserved
-                  })()
+            const submittedData = { ...data }
+            if (!canAssignPolicies) delete submittedData.accessPolicyId
+            if (!canConfigureBrowserCache) delete submittedData.browserCache
+            if (!canConfigureCompression) delete submittedData.responseCompression
             const request = requestNewCertificate
                 ? (() => {
                       const parsed = certificateRequest.getRequestInput({

@@ -94,6 +94,7 @@ function normalizeStoredHostSettings(input: unknown): ProxyHttpSettings {
     const parsed = proxyHttpSettingsSchema.parse(input)
     return normalizeProxyHostHttpSettings({
         responseCompression: parsed.responseCompression,
+        browserCache: parsed.browserCache,
         clientMaxBodySizeBytes: parsed.clientMaxBodySizeBytes,
         proxyConnectTimeoutSeconds: parsed.proxyConnectTimeoutSeconds,
         proxyReadTimeoutSeconds: parsed.proxyReadTimeoutSeconds,

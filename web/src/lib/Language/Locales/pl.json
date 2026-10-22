@@ -1615,6 +1615,17 @@
                 "resultHelp": "Zapis przechowuje konfigurację. Certyfikat w kolejce lub podczas wystawiania nie jest gotowy. Poczekaj na zastosowanie i sprawdź runtime; zastosowanie nie dowodzi dostępności DNS ani usługi.",
                 "failureHelp": "Popraw oznaczone pola przed zapisem. Sprawdź błędy certyfikatów i ponów po naprawie. Zastosuj oczekujące zmiany, jeśli masz uprawnienia; przywróć niedostępny runtime i ponów.",
                 "certificateUnavailable": "Szczegóły niedostępne"
+            },
+            "browserCache": {
+                "title": "Pamięć przeglądarki dla plików publicznych",
+                "help": "Uzupełnia tylko brakujące zasady pamięci podręcznej. Dokładny plik lub publiczny katalog zakończony /; do 20 reguł i 31 536 000 sekund. Zachowuje istniejące nagłówki. Tylko udane GET/HEAD dla typów zasobów statycznych. Pomija chronione hosty, cookies, dane logowania, parametry, żądania warunkowe i zakresy. Reguły nie mogą się nakładać.",
+                "enable": "Włącz reguły pamięci przeglądarki",
+                "path": "Publiczny plik lub katalog/",
+                "age": "Ważność w sekundach",
+                "immutable": "Ten zasób jest wersjonowany (immutable)",
+                "remove": "Usuń regułę",
+                "add": "Dodaj regułę",
+                "invalid": "Podaj unikalne publiczne ścieżki i ważność od 1 do 31 536 000 sekund. Aktywne reguły nie mogą być puste. HTML, API, uwierzytelnianie i symbole wieloznaczne są niedozwolone. Reguły nie mogą się nakładać."
             }
         },
         "redirectHosts": {

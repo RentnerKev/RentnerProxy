@@ -1599,6 +1599,17 @@
                 "resultHelp": "Guardar almacena la configuración. Un certificado en cola o en emisión no está listo. Espera su aplicación y comprueba el estado del runtime; la configuración aplicada no prueba acceso por DNS ni al servicio.",
                 "failureHelp": "Corrige los campos indicados antes de guardar. Revisa los errores de certificados fallidos y reintenta tras corregirlos. Aplica cambios pendientes si tienes permiso; restaura el runtime no disponible y reintenta.",
                 "certificateUnavailable": "Detalles no disponibles"
+            },
+            "browserCache": {
+                "title": "Caché del navegador para archivos públicos",
+                "help": "Solo completa una política de caché ausente. Archivo exacto o directorio público terminado en /; máximo 20 reglas y 31.536.000 segundos. Conserva las cabeceras existentes. Solo GET/HEAD correctos con tipos de recursos estáticos. Omite hosts protegidos, cookies, credenciales, parámetros, solicitudes condicionales y rangos. Las reglas no deben solaparse.",
+                "enable": "Activar las reglas de caché del navegador",
+                "path": "Archivo público o directorio/",
+                "age": "Duración en segundos",
+                "immutable": "Este recurso tiene versión (immutable)",
+                "remove": "Eliminar regla",
+                "add": "Añadir regla",
+                "invalid": "Indique rutas públicas únicas y una duración de 1 a 31.536.000 segundos. Las reglas activas no pueden estar vacías. No se permiten HTML, API, autenticación ni comodines. Las reglas no deben solaparse."
             }
         },
         "redirectHosts": {

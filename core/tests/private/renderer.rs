@@ -1246,3 +1246,166 @@ fn response_compression_inherits_overrides_and_resets_without_changing_caddy_def
         }
     }
 }
+
+#[test]
+fn browser_cache_is_opt_in_response_aware_and_conservative() {
+    let mut configuration = config();
+    let original = render_config(Some(&configuration), &settings()).unwrap();
+    configuration.proxy_hosts[0].http_settings.browser_cache =
+        Some(crate::models::BrowserCacheSettings {
+            enabled: false,
+            rules: vec![crate::models::BrowserCacheRule {
+                path: "/assets/".to_owned(),
+                max_age_seconds: 3600,
+                immutable: true,
+            }],
+        });
+    assert!(original == render_config(Some(&configuration), &settings()).unwrap());
+    configuration.proxy_hosts[0]
+        .http_settings
+        .browser_cache
+        .as_mut()
+        .unwrap()
+        .enabled = true;
+    let value: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let cache = &value["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][0]["routes"]
+        [0];
+    assert_eq!(cache["match"][0]["path"], serde_json::json!(["/assets/*"]));
+    assert_eq!(
+        cache["match"][0]["method"],
+        serde_json::json!(["GET", "HEAD"])
+    );
+    assert_eq!(
+        cache["match"][0]["expression"],
+        "{http.request.uri.query} == ''"
+    );
+    for header in [
+        "Cookie",
+        "Remote-User",
+        "Remote-Email",
+        "Remote-Name",
+        "Remote-Groups",
+        "X-Auth-Request-User",
+        "X-Auth-Request-Email",
+        "X-Auth-Request-Groups",
+        "X-Auth-Request-Preferred-Username",
+        "X-Forwarded-User",
+        "X-Forwarded-Email",
+        "X-User",
+        "X-Email",
+        "X-Authentik-Username",
+        "X-Authentik-Email",
+        "X-Authentik-Name",
+        "X-Authentik-Groups",
+        "X-Authentik-Uid",
+        "Authorization",
+        "Proxy-Authorization",
+        "Range",
+        "If-Range",
+        "If-Match",
+        "If-None-Match",
+        "If-Modified-Since",
+        "If-Unmodified-Since",
+        "Cache-Control",
+        "Pragma",
+    ] {
+        assert!(
+            cache["match"][0]["header"]
+                .as_object()
+                .unwrap()
+                .contains_key(header)
+        );
+        assert_eq!(cache["match"][0]["header"][header], serde_json::Value::Null);
+    }
+    let response = &cache["handle"][0]["response"];
+    assert_eq!(response["deferred"], true);
+    assert_eq!(
+        response["set"]["Cache-Control"],
+        serde_json::json!(["public, max-age=3600, immutable"])
+    );
+    assert_eq!(response["require"]["status_code"], serde_json::json!([200]));
+    for header in [
+        "Cache-Control",
+        "Set-Cookie",
+        "Pragma",
+        "Expires",
+        "Vary",
+        "Content-Range",
+    ] {
+        assert!(
+            response["require"]["headers"]
+                .as_object()
+                .unwrap()
+                .contains_key(header)
+        );
+        assert_eq!(
+            response["require"]["headers"][header],
+            serde_json::Value::Null
+        );
+    }
+    assert!(
+        !response["require"]["headers"]["Content-Type"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value.as_str().unwrap().contains("html")
+                || value.as_str().unwrap().contains("json"))
+    );
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "018f4b4a-7d1f-7abc-8def-0123456789ab".to_owned(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        forward_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Allow,
+            allow: vec![],
+            deny: vec![],
+        }),
+    });
+    let protected = render_config(Some(&configuration), &settings()).unwrap();
+    assert!(!protected.contains("max-age=3600"));
+    let policy = configuration.proxy_hosts[0].access_policy.as_mut().unwrap();
+    policy.mode = AccessPolicyMode::Public;
+    policy.ip_rules = None;
+    assert!(
+        render_config(Some(&configuration), &settings())
+            .unwrap()
+            .contains("max-age=3600")
+    );
+}
+
+#[test]
+fn compression_wraps_browser_cache_headers_before_the_proxy() {
+    let mut configuration = config();
+    configuration.http_settings.response_compression =
+        Some(crate::models::ResponseCompression::Auto);
+    configuration.proxy_hosts[0].http_settings.browser_cache =
+        Some(crate::models::BrowserCacheSettings {
+            enabled: true,
+            rules: vec![crate::models::BrowserCacheRule {
+                path: "/assets/".to_owned(),
+                max_age_seconds: 3600,
+                immutable: true,
+            }],
+        });
+    let value: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let handlers = value["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"]
+        .as_array()
+        .unwrap();
+    let encode = handlers
+        .iter()
+        .position(|handler| handler["handler"] == "encode")
+        .unwrap();
+    let cache = handlers
+        .iter()
+        .position(|handler| handler["handler"] == "subroute")
+        .unwrap();
+    let proxy = handlers
+        .iter()
+        .position(|handler| handler["handler"] == "reverse_proxy")
+        .unwrap();
+    assert!(encode < cache && cache < proxy);
+}

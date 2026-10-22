@@ -79,6 +79,7 @@ pub(super) fn proxy_route(
             prefer: vec!["zstd".to_owned(), "gzip".to_owned()],
         }));
     }
+    handle.extend(super::browser_cache::handlers(host));
     let upstream = upstream_dial(&host.forward_host, host.forward_port);
     let mut proxy = reverse_proxy(
         &upstream,

@@ -108,6 +108,12 @@ pub(super) struct Route {
 #[derive(Default, Serialize)]
 pub(super) struct MatcherSet {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) expression: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) method: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) header: Option<BTreeMap<String, Option<Vec<String>>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) host: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) path: Option<Vec<String>>,
@@ -203,6 +209,8 @@ pub(super) struct Headers {
 
 #[derive(Serialize)]
 pub(super) struct ResponseHeaders {
+    #[serde(rename = "require", skip_serializing_if = "Option::is_none")]
+    pub(super) matcher: Option<ResponseHeaderMatcher>,
     pub(super) set: BTreeMap<String, Vec<String>>,
     pub(super) deferred: bool,
 }
@@ -382,4 +390,10 @@ pub(super) struct TlsMatcher {
 #[derive(Serialize)]
 pub(super) struct CertificateSelection {
     pub(super) any_tag: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ResponseHeaderMatcher {
+    pub(super) status_code: Vec<u16>,
+    pub(super) headers: BTreeMap<String, Option<Vec<String>>>,
 }

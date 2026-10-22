@@ -1,3 +1,4 @@
+import BrowserCacheFields from '@/features/Admin/ProxyHostManagement/Components/BrowserCacheFields/index.tsx'
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
@@ -2834,5 +2835,59 @@ describe('integrated proxy host setup guide', () => {
             document.querySelector('input[name="domains[0]"]')?.getAttribute('aria-invalid'),
         ).toBe('true')
         expect(document.body.textContent).toContain('Fix highlighted fields before saving')
+    })
+})
+
+function BrowserCacheHarness() {
+    const [value, setValue] = useState<ProxyHttpSettings['browserCache']>({
+        enabled: false,
+        rules: [],
+    })
+    return <BrowserCacheFields value={value} onChange={setValue} disabled={false} />
+}
+
+describe('browser-cache rule controls', () => {
+    test('keeps rule editing accessible and reports invalid or overlapping scopes', async () => {
+        await render(<BrowserCacheHarness />)
+        await click(getButton('Add rule'))
+        expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+            'unique public asset paths',
+        )
+        const path = document.querySelector<HTMLInputElement>(
+            'input[placeholder="/assets/app.a1b2.js"]',
+        )!
+        expect(document.querySelector('label[for="' + path.id + '"]')?.textContent).toBe(
+            'Public file path or directory/',
+        )
+        await setControlValue(path, '/assets/')
+        expect(document.querySelector('[role="alert"]')).toBeNull()
+        await click(getButton('Add rule'))
+        const inputs = document.querySelectorAll<HTMLInputElement>(
+            'input[placeholder="/assets/app.a1b2.js"]',
+        )
+        await setControlValue(inputs[1]!, '/assets/app.123.js')
+        expect(document.querySelector('[role="alert"]')?.textContent).toContain('must not overlap')
+        await click(getLastButton('Remove rule'))
+        expect(document.querySelector('[role="alert"]')).toBeNull()
+        expect(document.querySelector('input[placeholder="/assets/app.a1b2.js"]')).toBe(path)
+    })
+    test('disables controls for read-only settings', async () => {
+        await render(
+            <BrowserCacheFields
+                value={{
+                    enabled: true,
+                    rules: [{ path: '/assets/', maxAgeSeconds: 60, immutable: true }],
+                }}
+                onChange={() => {
+                    throw new Error('read-only settings changed')
+                }}
+                disabled
+            />,
+        )
+        expect(document.querySelector('fieldset')?.disabled).toBe(true)
+        expect(getButton('Add rule').disabled).toBe(true)
+        expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(
+            true,
+        )
     })
 })

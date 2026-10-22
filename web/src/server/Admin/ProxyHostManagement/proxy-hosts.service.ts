@@ -141,6 +141,7 @@ export async function readProxyHostSummariesInTransaction(
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
             responseCompression: httpSettings.get(summary.id)?.responseCompression ?? null,
+            browserCache: httpSettings.get(summary.id)?.browserCache,
             certificateJob: latestJobs.get(summary.id) ?? null,
             ...(owner && owner.state !== 'detached' ? { discovery: { state: owner.state } } : {}),
         })

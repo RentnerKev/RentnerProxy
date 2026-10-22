@@ -166,6 +166,8 @@ pub(crate) struct ProxyHttpSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) response_compression: Option<ResponseCompression>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) browser_cache: Option<BrowserCacheSettings>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) client_max_body_size_bytes: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) proxy_connect_timeout_seconds: Option<u32>,
@@ -184,6 +186,20 @@ pub(crate) struct ProxyHttpSettings {
 pub(crate) enum ResponseCompression {
     Auto,
     Off,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BrowserCacheSettings {
+    pub(crate) enabled: bool,
+    pub(crate) rules: Vec<BrowserCacheRule>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BrowserCacheRule {
+    pub(crate) path: String,
+    pub(crate) max_age_seconds: u32,
+    pub(crate) immutable: bool,
 }
 
 impl ProxyHttpSettings {

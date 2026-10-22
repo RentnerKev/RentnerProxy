@@ -12,6 +12,7 @@ export type ProxyHostEditorFormValues = z.input<typeof proxyHostFormSchema>
 type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
 
 export interface ProxyHostFormModalProps {
+    readonly canConfigureBrowserCache?: boolean
     readonly initialGuideOpen?: boolean
     readonly canConfigureCompression?: boolean
     readonly canEnable: boolean

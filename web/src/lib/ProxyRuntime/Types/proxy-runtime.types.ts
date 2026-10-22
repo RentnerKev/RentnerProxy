@@ -1,7 +1,17 @@
 export type ProxyRuntimeMutationStatus = 'applied' | 'pending'
 
+export interface BrowserCacheSettings {
+    readonly enabled: boolean
+    readonly rules: {
+        readonly path: string
+        readonly maxAgeSeconds: number
+        readonly immutable: boolean
+    }[]
+}
+
 export interface ProxyHttpSettings {
     readonly responseCompression?: 'auto' | 'off'
+    readonly browserCache?: BrowserCacheSettings
     readonly clientMaxBodySizeBytes?: number
     readonly proxyConnectTimeoutSeconds?: number
     readonly proxyReadTimeoutSeconds?: number

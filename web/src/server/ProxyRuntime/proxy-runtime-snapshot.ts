@@ -348,6 +348,8 @@ export function createProxyRuntimeSnapshot(
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
+    if (httpSettings.browserCache !== undefined)
+        throw new ProxyRuntimeSnapshotError('Browser-cache settings are host-scoped.')
     const normalizedSettings = normalizeProxyHttpSettings(httpSettings)
     const referencedCaIds = new Set(
         proxyHosts.flatMap((host) =>

@@ -149,6 +149,7 @@ fn custom_payload() -> Vec<u8> {
         access_policy: None,
     }];
     let http_settings = ProxyHttpSettings {
+        browser_cache: None,
         client_max_body_size_bytes: Some(10_485_760),
         proxy_connect_timeout_seconds: Some(15),
         proxy_read_timeout_seconds: Some(300),

@@ -67,7 +67,8 @@ pub(crate) fn validate_proxy_config(
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
-    if !has_valid_http_settings(&request.http_settings)
+    if request.http_settings.browser_cache.is_some()
+        || !has_valid_http_settings(&request.http_settings)
         || !has_valid_default_site(&request.default_site)
     {
         return Err(ProxyValidationError::ValidationFailed);
@@ -444,7 +445,68 @@ fn is_ip_address(value: &str) -> bool {
 }
 
 fn has_valid_http_settings(settings: &ProxyHttpSettings) -> bool {
-    option_in_range(settings.client_max_body_size_bytes, 1_024, 1_073_741_824)
+    settings.browser_cache.as_ref().is_none_or(|cache| {
+        cache.rules.len() <= 20
+            && (!cache.enabled || !cache.rules.is_empty())
+            && cache.rules.iter().all(|rule| {
+                let path = &rule.path;
+                let extensions = [
+                    "css", "js", "mjs", "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico",
+                    "woff", "woff2", "ttf", "otf",
+                ];
+                let directory = path.ends_with('/');
+                let reserved = [
+                    "api", "auth", "admin", "login", "logout", "oauth", "session",
+                ];
+                path.len() <= 512
+                    && path.len() >= 2
+                    && path.starts_with('/')
+                    && !path.contains("..")
+                    && !reserved.contains(
+                        &path[1..]
+                            .split('/')
+                            .next()
+                            .unwrap_or_default()
+                            .to_ascii_lowercase()
+                            .as_str(),
+                    )
+                    && path[1..].trim_end_matches('/').split('/').all(|part| {
+                        !part.is_empty()
+                            && part.bytes().all(|b| {
+                                b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.')
+                            })
+                    })
+                    && (if directory {
+                        !path.contains('.') && !path.contains("//")
+                    } else {
+                        path[1..]
+                            .rsplit_once('/')
+                            .is_none_or(|(directory, _)| !directory.contains('.'))
+                            && path.rsplit_once('.').is_some_and(|(stem, extension)| {
+                                !stem.rsplit('/').next().unwrap_or_default().is_empty()
+                                    && extensions.contains(&extension)
+                            })
+                    })
+                    && (1..=31_536_000).contains(&rule.max_age_seconds)
+            })
+            && cache
+                .rules
+                .iter()
+                .map(|rule| rule.path.to_ascii_lowercase())
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == cache.rules.len()
+            && !cache.rules.iter().enumerate().any(|(index, rule)| {
+                cache.rules.iter().enumerate().any(|(other_index, other)| {
+                    index != other_index
+                        && rule.path.ends_with('/')
+                        && other
+                            .path
+                            .to_ascii_lowercase()
+                            .starts_with(&rule.path.to_ascii_lowercase())
+                })
+            })
+    }) && option_in_range(settings.client_max_body_size_bytes, 1_024, 1_073_741_824)
         && option_in_range(settings.proxy_connect_timeout_seconds, 1, 60)
         && option_in_range(settings.proxy_read_timeout_seconds, 1, 3_600)
         && option_in_range(settings.proxy_send_timeout_seconds, 1, 3_600)
