@@ -124,8 +124,19 @@ async fn acme_retry_retains_renewal_material_and_cannot_replace_pending_candidat
     let (attempt, saved) = store.begin_acme_retry(ID).await.unwrap();
     assert_eq!(attempt.operation, CertificateOperation::Renewing);
     assert_eq!(
-        attempt.current_operation.unwrap().kind,
+        attempt.current_operation.as_ref().unwrap().kind,
         OperationKind::Renew
+    );
+    assert!(matches!(
+        store.begin_renewal(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    let after_conflict = store.get(ID).await.unwrap();
+    assert_eq!(after_conflict.operation, attempt.operation);
+    assert_eq!(after_conflict.attempt_count, attempt.attempt_count);
+    assert_eq!(
+        after_conflict.current_operation.unwrap().id,
+        attempt.current_operation.as_ref().unwrap().id
     );
     assert_eq!(attempt.fingerprint, original.fingerprint);
     let staged = store

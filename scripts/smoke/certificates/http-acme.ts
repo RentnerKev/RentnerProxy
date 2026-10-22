@@ -324,12 +324,10 @@ export async function verifyCertificateHttpAcme(context: CertificateHttpAcmeCont
         409,
     )
     context.passed('manual retry respects the persisted HTTP renewal backoff across restart')
+    const failedRenewOperationId = context.certificateOperation(
+        afterFailedRenew.currentOperation,
+    ).id
     await context.expireRetryFixture(context.acmeId)
-    const successfulRenew = await context.controllerRequest(
-        '/internal/v1/certificates/' + context.acmeId + '/renew',
-        { method: 'POST', body: '{}' },
-    )
-    assert.equal(successfulRenew.status, 202)
     await context.waitFor(
         async () => {
             const metadata = context.jsonObject(
@@ -337,9 +335,18 @@ export async function verifyCertificateHttpAcme(context: CertificateHttpAcmeCont
                     await context.controllerRequest('/internal/v1/certificates/' + context.acmeId)
                 ).json(),
             )
-            return metadata.operation === 'idle'
+            const operation = context.certificateOperation(metadata.currentOperation)
+            return (
+                metadata.status === 'valid' &&
+                metadata.operation === 'idle' &&
+                typeof metadata.fingerprint === 'string' &&
+                metadata.fingerprint !== issuedFingerprint &&
+                operation.id !== failedRenewOperationId &&
+                operation.kind === 'renew' &&
+                operation.stage === 'applied'
+            )
         },
-        'successful ACME renewal',
+        'automatic ACME renewal retry after restart',
         90_000,
     )
     const afterRenew = context.jsonObject(
@@ -368,7 +375,7 @@ export async function verifyCertificateHttpAcme(context: CertificateHttpAcmeCont
     ])
     assert.match(renewedTraffic, /certificate-smoke-backend/u)
     context.passed(
-        'ACME renewal reuses the persisted account and installs new certificate material after recovery',
+        'automatic ACME retry reuses the persisted account and installs new certificate material after recovery',
     )
     const renewalOperationId = context.certificateOperation(afterRenew.currentOperation).id
     assert.notEqual(renewalOperationId, issueOperationId)
