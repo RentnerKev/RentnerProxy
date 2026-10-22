@@ -1607,7 +1607,8 @@
                 "immutable": "Diese Datei ist versioniert (immutable)",
                 "remove": "Regel entfernen",
                 "add": "Regel hinzufügen",
-                "invalid": "Bitte eindeutige öffentliche Asset-Pfade oder Verzeichnisse und eine Gültigkeit von 1 bis 31.536.000 Sekunden angeben. Aktive Regeln dürfen nicht leer sein. HTML-, API- und Auth-Pfade sowie Platzhalter sind nicht erlaubt. Regeln dürfen sich nicht überschneiden."
+                "invalid": "Bitte eindeutige öffentliche Asset-Pfade oder Verzeichnisse und eine Gültigkeit von 1 bis 31.536.000 Sekunden angeben. Aktive Regeln dürfen nicht leer sein. HTML-, API- und Auth-Pfade sowie Platzhalter sind nicht erlaubt. Regeln dürfen sich nicht überschneiden.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

@@ -1625,7 +1625,8 @@
                 "immutable": "Ten zasób jest wersjonowany (immutable)",
                 "remove": "Usuń regułę",
                 "add": "Dodaj regułę",
-                "invalid": "Podaj unikalne publiczne ścieżki i ważność od 1 do 31 536 000 sekund. Aktywne reguły nie mogą być puste. HTML, API, uwierzytelnianie i symbole wieloznaczne są niedozwolone. Reguły nie mogą się nakładać."
+                "invalid": "Podaj unikalne publiczne ścieżki i ważność od 1 do 31 536 000 sekund. Aktywne reguły nie mogą być puste. HTML, API, uwierzytelnianie i symbole wieloznaczne są niedozwolone. Reguły nie mogą się nakładać.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

@@ -1588,7 +1588,8 @@
                 "immutable": "Dit bestand heeft een versie (immutable)",
                 "remove": "Regel verwijderen",
                 "add": "Regel toevoegen",
-                "invalid": "Voer unieke openbare paden en een geldigheid van 1 tot 31.536.000 seconden in. Actieve regels mogen niet leeg zijn. HTML, API, authenticatie en jokertekens zijn niet toegestaan. Regels mogen niet overlappen."
+                "invalid": "Voer unieke openbare paden en een geldigheid van 1 tot 31.536.000 seconden in. Actieve regels mogen niet leeg zijn. HTML, API, authenticatie en jokertekens zijn niet toegestaan. Regels mogen niet overlappen.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

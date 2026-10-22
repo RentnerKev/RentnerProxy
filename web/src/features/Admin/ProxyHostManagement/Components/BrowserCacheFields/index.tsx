@@ -46,7 +46,7 @@ export default function BrowserCacheFields(props: BrowserCacheFieldsProps) {
                         id={id + '-path-' + index}
                         value={rule.path}
                         maxLength={512}
-                        placeholder="/assets/app.a1b2.js"
+                        placeholder={t('admin.proxyHosts.browserCache.pathPlaceholder')}
                         onChange={(event) =>
                             handler.updateRule(index, { path: event.target.value })
                         }

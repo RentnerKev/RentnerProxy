@@ -1623,7 +1623,8 @@
                 "immutable": "Este recurso tem versão (immutable)",
                 "remove": "Remover regra",
                 "add": "Adicionar regra",
-                "invalid": "Indique caminhos públicos únicos e uma validade de 1 a 31.536.000 segundos. As regras ativas não podem estar vazias. HTML, API, autenticação e caracteres universais não são permitidos. As regras não podem sobrepor-se."
+                "invalid": "Indique caminhos públicos únicos e uma validade de 1 a 31.536.000 segundos. As regras ativas não podem estar vazias. HTML, API, autenticação e caracteres universais não são permitidos. As regras não podem sobrepor-se.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

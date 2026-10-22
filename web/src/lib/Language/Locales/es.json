@@ -1609,7 +1609,8 @@
                 "immutable": "Este recurso tiene versión (immutable)",
                 "remove": "Eliminar regla",
                 "add": "Añadir regla",
-                "invalid": "Indique rutas públicas únicas y una duración de 1 a 31.536.000 segundos. Las reglas activas no pueden estar vacías. No se permiten HTML, API, autenticación ni comodines. Las reglas no deben solaparse."
+                "invalid": "Indique rutas públicas únicas y una duración de 1 a 31.536.000 segundos. Las reglas activas no pueden estar vacías. No se permiten HTML, API, autenticación ni comodines. Las reglas no deben solaparse.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

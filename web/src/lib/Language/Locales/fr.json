@@ -1609,7 +1609,8 @@
                 "immutable": "Ce fichier est versionné (immutable)",
                 "remove": "Supprimer la règle",
                 "add": "Ajouter une règle",
-                "invalid": "Indiquez des chemins publics uniques et une durée de 1 à 31 536 000 secondes. Les règles actives ne peuvent pas être vides. HTML, API, authentification et jokers interdits. Les règles ne doivent pas se chevaucher."
+                "invalid": "Indiquez des chemins publics uniques et une durée de 1 à 31 536 000 secondes. Les règles actives ne peuvent pas être vides. HTML, API, authentification et jokers interdits. Les règles ne doivent pas se chevaucher.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {

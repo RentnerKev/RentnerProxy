@@ -1607,7 +1607,8 @@
                 "immutable": "This asset is versioned (immutable)",
                 "remove": "Remove rule",
                 "add": "Add rule",
-                "invalid": "Enter unique public asset paths or directories and freshness from 1 to 31,536,000 seconds. Enabled rules cannot be empty. HTML, API, auth paths and wildcards are not allowed. Rules must not overlap."
+                "invalid": "Enter unique public asset paths or directories and freshness from 1 to 31,536,000 seconds. Enabled rules cannot be empty. HTML, API, auth paths and wildcards are not allowed. Rules must not overlap.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
             }
         },
         "redirectHosts": {
