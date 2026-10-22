@@ -51,13 +51,14 @@ function mapTrustedCaDatabaseError(error: unknown): TrustedCaDomainError | null 
 async function getTrustedCaForUpdate(
     transaction: AuthTransaction,
     trustedCaId: string,
+    lock = true,
 ): Promise<TrustedCaRow> {
-    const [trustedCa] = await transaction
+    const query = transaction
         .select()
         .from(trustedCas)
         .where(eq(trustedCas.id, trustedCaId))
         .limit(1)
-        .for('update')
+    const [trustedCa] = await (lock ? query.for('update') : query)
     if (!trustedCa) throw new TrustedCaDomainError('trusted_ca_not_found')
     return trustedCa
 }
@@ -253,7 +254,8 @@ export async function deleteTrustedCaService(
 export async function validateTrustedCaAssignmentInTransaction(
     transaction: AuthTransaction,
     trustedCaId: string | null,
+    lock = true,
 ): Promise<void> {
     if (trustedCaId === null) return
-    await getTrustedCaForUpdate(transaction, trustedCaId)
+    await getTrustedCaForUpdate(transaction, trustedCaId, lock)
 }

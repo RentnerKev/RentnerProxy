@@ -97,6 +97,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 />
             ) : (
                 <ProxyHostsTable
+                    bulkPermissions={props.permissions}
                     remote={state.remote}
                     proxyHosts={state.proxyHosts}
                     loading={state.isLoading}

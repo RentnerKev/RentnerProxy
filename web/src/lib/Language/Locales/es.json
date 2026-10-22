@@ -3091,6 +3091,50 @@
             "color": "Color",
             "colorSaturation": "Saturación",
             "colorBrightness": "Brillo"
+        },
+        "bulkHosts": {
+            "selection": "Selección",
+            "selectHost": "Seleccionar {{name}}",
+            "selected": "{{count}} de {{limit}} hosts seleccionados entre páginas",
+            "selectPage": "Añadir esta página",
+            "clear": "Vaciar selección",
+            "open": "Acciones masivas",
+            "description": "{{count}} hosts seleccionados explícitamente. Cambiar los filtros vacía la selección. Revisa la vista previa antes de aplicar los cambios.",
+            "action": "Acción",
+            "none": "Sin asignación",
+            "preview": "Vista previa",
+            "previewAgain": "Actualizar vista previa",
+            "apply": "Aplicar vista previa",
+            "results": "Resultados",
+            "host": "Host",
+            "outcome": "Resultado",
+            "error": "La solicitud ha fallado. Actualiza la vista previa e inténtalo de nuevo.",
+            "retryHint": "Los cambios se guardan por host. Actualiza la vista previa para reintentar los hosts fallidos u omitidos; los hosts sin cambios se conservan.",
+            "actions": {
+                "enable": "Activar",
+                "disable": "Desactivar",
+                "addTags": "Añadir etiquetas",
+                "removeTags": "Quitar etiquetas",
+                "accessPolicy": "Asignar política de acceso",
+                "certificate": "Asignar certificado"
+            },
+            "status": {
+                "ready": "Se modificará",
+                "applied": "Guardado",
+                "unchanged": "Sin cambios",
+                "skipped": "Omitido",
+                "failed": "Fallido"
+            },
+            "reasons": {
+                "permission": "Falta el permiso requerido.",
+                "missing": "El host ya no existe.",
+                "discovery": "Gestionado por el descubrimiento Docker. Desvincúlalo antes de cambiar campos gestionados.",
+                "unsupported": "Esta acción no es compatible con este tipo de host.",
+                "conflict": "Ha cambiado desde la vista previa. Actualízala.",
+                "invalid": "La asignación no es válida o es incompatible con este host.",
+                "unavailable": "Un servicio necesario no está disponible. Actualiza la vista previa para reintentar.",
+                "timeout": "Se alcanzó el límite de tiempo del lote. Actualiza la vista previa para reintentar."
+            }
         }
     },
     "permissions": {

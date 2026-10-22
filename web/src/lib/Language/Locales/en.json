@@ -3089,6 +3089,50 @@
             "color": "Color",
             "colorSaturation": "Saturation",
             "colorBrightness": "Brightness"
+        },
+        "bulkHosts": {
+            "selection": "Selection",
+            "selectHost": "Select {{name}}",
+            "selected": "{{count}} of {{limit}} hosts selected across pages",
+            "selectPage": "Add this page",
+            "clear": "Clear selection",
+            "open": "Bulk actions",
+            "description": "{{count}} explicitly selected hosts. Changing filters clears the selection. Review the preview before applying changes.",
+            "action": "Action",
+            "none": "No assignment",
+            "preview": "Preview changes",
+            "previewAgain": "Preview again",
+            "apply": "Apply preview",
+            "results": "Results",
+            "host": "Host",
+            "outcome": "Outcome",
+            "error": "The request failed. Refresh the preview and try again.",
+            "retryHint": "Changes are saved per host. Preview again to retry failed or skipped hosts; unchanged hosts are left as they are.",
+            "actions": {
+                "enable": "Enable",
+                "disable": "Disable",
+                "addTags": "Add tags",
+                "removeTags": "Remove tags",
+                "accessPolicy": "Assign access policy",
+                "certificate": "Assign certificate"
+            },
+            "status": {
+                "ready": "Will change",
+                "applied": "Saved",
+                "unchanged": "Unchanged",
+                "skipped": "Skipped",
+                "failed": "Failed"
+            },
+            "reasons": {
+                "permission": "Required permission is missing.",
+                "missing": "Host no longer exists.",
+                "discovery": "Managed by Docker discovery. Detach it before changing managed fields.",
+                "unsupported": "This action is not supported for this host type.",
+                "conflict": "Changed since preview. Preview again.",
+                "invalid": "The assignment is invalid or incompatible with this host.",
+                "unavailable": "A required service is unavailable. Preview again to retry.",
+                "timeout": "Batch time limit reached. Preview again to retry."
+            }
         }
     },
     "permissions": {

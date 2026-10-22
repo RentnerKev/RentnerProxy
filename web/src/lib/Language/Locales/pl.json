@@ -3119,6 +3119,50 @@
             "color": "Kolor",
             "colorSaturation": "Nasycenie",
             "colorBrightness": "Jasność"
+        },
+        "bulkHosts": {
+            "selection": "Wybór",
+            "selectHost": "Wybierz {{name}}",
+            "selected": "Wybrano {{count}} z {{limit}} hostów na wszystkich stronach",
+            "selectPage": "Dodaj tę stronę",
+            "clear": "Wyczyść wybór",
+            "open": "Działania zbiorcze",
+            "description": "Liczba jawnie wybranych hostów: {{count}}. Zmiana filtrów czyści wybór. Sprawdź podgląd przed zastosowaniem zmian.",
+            "action": "Działanie",
+            "none": "Brak przypisania",
+            "preview": "Podgląd zmian",
+            "previewAgain": "Odśwież podgląd",
+            "apply": "Zastosuj podgląd",
+            "results": "Wyniki",
+            "host": "Host",
+            "outcome": "Wynik",
+            "error": "Żądanie nie powiodło się. Odśwież podgląd i spróbuj ponownie.",
+            "retryHint": "Zmiany są zapisywane dla każdego hosta. Odśwież podgląd, aby ponowić nieudane lub pominięte hosty; niezmienione hosty pozostają bez zmian.",
+            "actions": {
+                "enable": "Włącz",
+                "disable": "Wyłącz",
+                "addTags": "Dodaj tagi",
+                "removeTags": "Usuń tagi",
+                "accessPolicy": "Przypisz politykę dostępu",
+                "certificate": "Przypisz certyfikat"
+            },
+            "status": {
+                "ready": "Zostanie zmieniony",
+                "applied": "Zapisano",
+                "unchanged": "Bez zmian",
+                "skipped": "Pominięto",
+                "failed": "Błąd"
+            },
+            "reasons": {
+                "permission": "Brak wymaganego uprawnienia.",
+                "missing": "Host już nie istnieje.",
+                "discovery": "Zarządzany przez wykrywanie Docker. Odłącz go przed zmianą zarządzanych pól.",
+                "unsupported": "To działanie nie jest obsługiwane dla tego typu hosta.",
+                "conflict": "Zmieniono od czasu podglądu. Odśwież podgląd.",
+                "invalid": "Przypisanie jest nieprawidłowe lub niezgodne z tym hostem.",
+                "unavailable": "Wymagana usługa jest niedostępna. Odśwież podgląd, aby ponowić.",
+                "timeout": "Osiągnięto limit czasu partii. Odśwież podgląd, aby ponowić."
+            }
         }
     },
     "permissions": {

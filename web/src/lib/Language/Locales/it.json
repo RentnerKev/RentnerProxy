@@ -3104,6 +3104,50 @@
             "color": "Colore",
             "colorSaturation": "Saturazione",
             "colorBrightness": "Luminosità"
+        },
+        "bulkHosts": {
+            "selection": "Selezione",
+            "selectHost": "Seleziona {{name}}",
+            "selected": "{{count}} di {{limit}} host selezionati tra le pagine",
+            "selectPage": "Aggiungi questa pagina",
+            "clear": "Svuota selezione",
+            "open": "Azioni collettive",
+            "description": "{{count}} host selezionati esplicitamente. Cambiare i filtri svuota la selezione. Controlla l’anteprima prima di applicare le modifiche.",
+            "action": "Azione",
+            "none": "Nessuna assegnazione",
+            "preview": "Anteprima modifiche",
+            "previewAgain": "Aggiorna anteprima",
+            "apply": "Applica anteprima",
+            "results": "Risultati",
+            "host": "Host",
+            "outcome": "Esito",
+            "error": "La richiesta non è riuscita. Aggiorna l’anteprima e riprova.",
+            "retryHint": "Le modifiche vengono salvate per host. Aggiorna l’anteprima per riprovare gli host non riusciti o ignorati; quelli invariati vengono conservati.",
+            "actions": {
+                "enable": "Attiva",
+                "disable": "Disattiva",
+                "addTags": "Aggiungi tag",
+                "removeTags": "Rimuovi tag",
+                "accessPolicy": "Assegna criterio di accesso",
+                "certificate": "Assegna certificato"
+            },
+            "status": {
+                "ready": "Verrà modificato",
+                "applied": "Salvato",
+                "unchanged": "Invariato",
+                "skipped": "Ignorato",
+                "failed": "Non riuscito"
+            },
+            "reasons": {
+                "permission": "Manca l’autorizzazione richiesta.",
+                "missing": "L’host non esiste più.",
+                "discovery": "Gestito dal rilevamento Docker. Scollegalo prima di modificare i campi gestiti.",
+                "unsupported": "Questa azione non è supportata per questo tipo di host.",
+                "conflict": "Modificato dall’anteprima. Aggiornala.",
+                "invalid": "L’assegnazione non è valida o è incompatibile con questo host.",
+                "unavailable": "Un servizio necessario non è disponibile. Aggiorna l’anteprima per riprovare.",
+                "timeout": "Raggiunto il limite di tempo del batch. Aggiorna l’anteprima per riprovare."
+            }
         }
     },
     "permissions": {

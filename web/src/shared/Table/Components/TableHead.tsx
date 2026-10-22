@@ -36,7 +36,7 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                             key={header.id}
                                             scope="col"
                                             aria-sort={ariaSort}
-                                            className={`h-12 border-b border-border px-4 py-0 align-middle font-bold ${header.column.id === 'actions' ? 'sticky right-0 bg-surface-subtle text-right' : 'text-left'}`}
+                                            className={`h-12 border-b border-border py-0 align-middle font-bold ${header.column.id === 'selection' ? 'w-px px-3 whitespace-nowrap' : 'px-4'} ${header.column.id === 'actions' ? 'sticky right-0 bg-surface-subtle text-right' : 'text-left'}`}
                                         >
                                             {header.isPlaceholder ? null : canSort ? (
                                                 <button
@@ -61,6 +61,10 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                                         )}
                                                     </span>
                                                 </button>
+                                            ) : header.column.id === 'selection' ? (
+                                                <span className="sr-only">
+                                                    <table.FlexRender header={header} />
+                                                </span>
                                             ) : (
                                                 <table.FlexRender header={header} />
                                             )}

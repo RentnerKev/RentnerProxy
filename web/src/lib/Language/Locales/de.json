@@ -3089,6 +3089,50 @@
             "color": "Farbe",
             "colorSaturation": "Sättigung",
             "colorBrightness": "Helligkeit"
+        },
+        "bulkHosts": {
+            "selection": "Auswahl",
+            "selectHost": "{{name}} auswählen",
+            "selected": "{{count}} von {{limit}} Hosts seitenübergreifend ausgewählt",
+            "selectPage": "Diese Seite hinzufügen",
+            "clear": "Auswahl leeren",
+            "open": "Sammelaktionen",
+            "description": "{{count}} ausdrücklich ausgewählte Hosts. Ein Filterwechsel leert die Auswahl. Prüfe die Vorschau vor dem Anwenden.",
+            "action": "Aktion",
+            "none": "Keine Zuweisung",
+            "preview": "Änderungen vorschauen",
+            "previewAgain": "Erneut vorschauen",
+            "apply": "Vorschau anwenden",
+            "results": "Ergebnisse",
+            "host": "Host",
+            "outcome": "Ergebnis",
+            "error": "Die Anfrage ist fehlgeschlagen. Erstelle eine neue Vorschau und versuche es erneut.",
+            "retryHint": "Änderungen werden pro Host gespeichert. Erstelle eine neue Vorschau für fehlgeschlagene oder übersprungene Hosts; unveränderte Hosts bleiben erhalten.",
+            "actions": {
+                "enable": "Aktivieren",
+                "disable": "Deaktivieren",
+                "addTags": "Tags hinzufügen",
+                "removeTags": "Tags entfernen",
+                "accessPolicy": "Zugriffsrichtlinie zuweisen",
+                "certificate": "Zertifikat zuweisen"
+            },
+            "status": {
+                "ready": "Wird geändert",
+                "applied": "Gespeichert",
+                "unchanged": "Unverändert",
+                "skipped": "Übersprungen",
+                "failed": "Fehlgeschlagen"
+            },
+            "reasons": {
+                "permission": "Die erforderliche Berechtigung fehlt.",
+                "missing": "Der Host existiert nicht mehr.",
+                "discovery": "Durch Docker-Discovery verwaltet. Vor Änderungen an verwalteten Feldern zuerst abkoppeln.",
+                "unsupported": "Diese Aktion wird für diesen Hosttyp nicht unterstützt.",
+                "conflict": "Seit der Vorschau geändert. Erstelle eine neue Vorschau.",
+                "invalid": "Die Zuweisung ist ungültig oder mit diesem Host nicht kompatibel.",
+                "unavailable": "Ein benötigter Dienst ist nicht erreichbar. Erstelle eine neue Vorschau zum Wiederholen.",
+                "timeout": "Das Zeitlimit des Batches wurde erreicht. Erstelle eine neue Vorschau zum Wiederholen."
+            }
         }
     },
     "permissions": {

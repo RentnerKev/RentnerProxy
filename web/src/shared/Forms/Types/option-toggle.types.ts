@@ -6,4 +6,5 @@ export interface OptionToggleProps extends Pick<
 > {
     readonly label: string
     readonly checked: boolean
+    readonly iconOnly?: boolean
 }
