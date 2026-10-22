@@ -14,6 +14,7 @@
         ".github/scripts/deploy/pr-preview.ts",
         "docker/web/{bootstrap-secrets,healthcheck,package-migrations,request-context,serve,static-assets,validate-backup}.ts",
         "web/src/server/WebSockets/realtimeWebSocket.ts",
+        "web/src/tests/server/Auth/Access/Fixtures/sessions-maintenance.fixture.ts",
         "vite.config.ts",
         "drizzle.config.ts"
     ],
