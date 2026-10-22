@@ -10,15 +10,11 @@ import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { checkFoundationHealthService } from '@/server/Foundation/health.service.ts'
 import { getPublicOrigin } from '@/server/env.server.ts'
 import { getApplicationRevision } from './applicationChanges.ts'
-import { getProxyHostsService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
 import { getCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
-import { getProxyRuntimeStatusService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
-import { getRedirectHostsService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
-import { getAccessPoliciesService } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
 import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
 import { getDiscoveryOverviewService } from '@/server/Admin/DockerDiscovery/discovery-management.service.ts'
-import { getHostTagCatalogService } from '@/server/Admin/HostTags/host-tags.service.ts'
+import { getProxyLiveRevisionService } from './proxy-live-revision.server.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -46,15 +42,7 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 break
             }
             case 'proxy-hosts':
-                data = {
-                    revision: revisionOf(
-                        await Promise.all([
-                            getProxyHostsService(),
-                            getProxyRuntimeStatusService(),
-                            getHostTagCatalogService('proxy'),
-                        ]),
-                    ),
-                }
+                data = await getProxyLiveRevisionService('proxy-hosts')
                 break
             case 'certificates':
                 data = { revision: revisionOf(await getCertificatesService()) }
@@ -69,25 +57,10 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 data = { revision: revisionOf(await getDiscoveryOverviewService()) }
                 break
             case 'redirect-hosts':
-                data = {
-                    revision: revisionOf(
-                        await Promise.all([
-                            getRedirectHostsService(),
-                            getHostTagCatalogService('redirect'),
-                            getProxyRuntimeStatusService(PERMISSIONS.REDIRECT_HOSTS_VIEW),
-                        ]),
-                    ),
-                }
+                data = await getProxyLiveRevisionService('redirect-hosts')
                 break
             case 'access-policies':
-                data = {
-                    revision: revisionOf(
-                        await Promise.all([
-                            getAccessPoliciesService(),
-                            getProxyRuntimeStatusService(PERMISSIONS.ACCESS_POLICIES_VIEW),
-                        ]),
-                    ),
-                }
+                data = await getProxyLiveRevisionService('access-policies')
                 break
             case 'access-logs': {
                 const query = proxyAccessLogsQuerySchema.safeParse(input)

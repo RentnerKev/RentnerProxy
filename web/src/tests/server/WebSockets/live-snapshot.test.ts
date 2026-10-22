@@ -12,6 +12,10 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         let permissionChecks = 0
         mock.module('./server/env.server.ts', () => ({ getPublicOrigin: () => 'https://proxy.example' }))
         mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'revision' }))
+        let digestReads = 0
+        let runtimeReads = 0
+        mock.module('./server/Auth/Core/database.server.ts', () => ({ getAuthDatabase: () => ({ execute: async () => { digestReads++; return [{ digest: 'a'.repeat(64) }] } }) }))
+        mock.module('./server/Controller/proxy.server.ts', () => ({ getProxyRuntimeStatus: async () => { runtimeReads++; return { available: true, running: true, activeRevision: 'active', lastApplyAt: null } } }))
         mock.module('./server/Auth/Access/authorization.service.ts', () => ({
             requirePermissionService: async () => {
                 permissionChecks++
@@ -22,7 +26,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         mock.module('./server/Foundation/health.service.ts', () => ({ checkFoundationHealthService: async () => { reads++; return { database: { state: 'connected' } } } }))
         mock.module('./server/Admin/ProxyAccessLogs/proxy-access-logs.service.ts', () => ({ getProxyAccessLogsService: async (query) => { reads++; return { query, entries: [] } } }))
         mock.module('./server/Audit/audit-reader.service.ts', () => ({ listAuditEventsService: async () => { reads++; return { events: [] } } }))
-        mock.module('./server/Admin/ProxyHostManagement/proxy-hosts.service.ts', () => ({ getProxyHostsService: async () => [] }))
+        mock.module('./server/Admin/ProxyHostManagement/proxy-hosts.service.ts', () => ({ getProxyHostsService: async () => { throw new Error('Bulk proxy read forbidden') } }))
         mock.module('./server/Admin/CertificateManagement/certificates.service.ts', () => ({ getCertificatesService: async () => [] }))
         mock.module('./server/Admin/DnsConnections/dns-connections.service.ts', () => ({ getDnsConnectionsService: async () => {
             const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
@@ -36,10 +40,10 @@ test('live snapshots enforce canonical origin, query limits and current permissi
             const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
             await requirePermissionService('docker_discovery.view'); reads++; return { endpoint: 'http://restricted-docker:2375', candidates: [] }
         } }))
-        mock.module('./server/Admin/RedirectHostManagement/redirect-hosts.service.ts', () => ({ getRedirectHostsService: async () => [] }))
-        mock.module('./server/Admin/HostTags/host-tags.service.ts', () => ({ getHostTagCatalogService: async () => ({ revision: 0, tags: [] }) }))
-        mock.module('./server/Admin/AccessPolicyManagement/access-policies.service.ts', () => ({ getAccessPoliciesService: async () => [] }))
-        mock.module('./server/ProxyRuntime/proxy-runtime.service.ts', () => ({ getProxyRuntimeStatusService: async () => ({ state: 'synced' }) }))
+        mock.module('./server/Admin/RedirectHostManagement/redirect-hosts.service.ts', () => ({ getRedirectHostsService: async () => { throw new Error('Bulk redirect read forbidden') } }))
+        mock.module('./server/Admin/HostTags/host-tags.service.ts', () => ({ getHostTagCatalogService: async () => { throw new Error('Bulk tags read forbidden') } }))
+        mock.module('./server/Admin/AccessPolicyManagement/access-policies.service.ts', () => ({ getAccessPoliciesService: async () => { throw new Error('Bulk policy read forbidden') } }))
+        mock.module('./server/ProxyRuntime/proxy-runtime.service.ts', () => ({ getProxyRuntimeStatusService: async () => { throw new Error('Full runtime snapshot forbidden') } }))
         const { getLiveSnapshotResponse } = await import('./server/WebSockets/realtimeSnapshots.service.ts')
         async function read(topic, query = '{}', origin = 'https://proxy.example') {
             const url = new URL('https://proxy.example/api/live-snapshot')
@@ -67,7 +71,11 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         const dns = await dnsResponse.json()
         const ddns = await ddnsResponse.json()
         const discovery = await discoveryResponse.json()
+        const proxy = await (await read('proxy-hosts')).json()
+        const redirect = await (await read('redirect-hosts')).json()
+        const policy = await (await read('access-policies')).json()
         authorized = false
+        for (const topic of ['proxy-hosts', 'redirect-hosts', 'access-policies']) statuses.push((await read(topic)).status)
         statuses.push((await read('foundation')).status)
         statuses.push((await read('app-events')).status)
         statuses.push((await read('dns-connections')).status)
@@ -79,20 +87,30 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         }
         authorizationError = new Error('internal failure')
         statuses.push((await read('foundation')).status)
-        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control') }))
+        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, digestReads, runtimeReads, proxy, redirect, policy, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control') }))
     `
     const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const result = JSON.parse(stdout)
     expect(result.statuses).toEqual([
-        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 403, 401, 403, 503, 503,
+        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 403, 403, 403, 403, 401,
+        403, 503, 503,
     ])
     expect(result.rejectedReads).toBe(0)
     expect(result.reads).toBe(4)
-    expect(result.permissionChecks).toBe(14)
+    expect(result.permissionChecks).toBe(20)
+    expect(result.digestReads).toBe(3)
+    expect(result.runtimeReads).toBe(3)
     expect(result.cacheControl).toBe('private, no-store')
     expect(Object.keys(result.application).toSorted()).toEqual(['revision', 'userVersion'])
     expect(result.application.userVersion).toMatch(/^[a-f0-9]{64}$/)
-    for (const snapshot of [result.dns, result.ddns, result.discovery]) {
+    for (const snapshot of [
+        result.dns,
+        result.ddns,
+        result.discovery,
+        result.proxy,
+        result.redirect,
+        result.policy,
+    ]) {
         expect(Object.keys(snapshot)).toEqual(['revision'])
         expect(snapshot.revision).toMatch(/^[a-f0-9]{64}$/)
     }
