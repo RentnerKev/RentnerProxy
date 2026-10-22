@@ -604,5 +604,7 @@ test('keeps the translated protocol as an extra proxy-client search term', async
 })
 
 function visibleHostRow() {
-    return document.querySelector('tbody')?.textContent?.includes('app.example.com') === true
+    return [...document.querySelectorAll('tbody a')].some(
+        (link) => link.textContent?.trim() === 'app.example.com',
+    )
 }
