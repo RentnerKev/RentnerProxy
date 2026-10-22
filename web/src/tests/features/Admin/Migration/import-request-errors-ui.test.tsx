@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
+import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.types.ts'
 
 import { INPUT_PROVIDER_PROPS } from '@/config/input.config.ts'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
@@ -62,6 +63,69 @@ async function render(kind: 'migration' | 'npmImport'): Promise<HTMLElement> {
     return container
 }
 
+const previewFixture: ImportPreview = {
+    fingerprint: 'source & hash',
+    planFingerprint: 'plan + hash',
+    sourceSchema: 'fixture',
+    items: [
+        {
+            kind: 'proxy-host',
+            sourceId: 1,
+            label: 'Newest import',
+            domains: ['edge.example.com'],
+            status: 'ready',
+            reasons: [],
+        },
+    ],
+    counts: { ready: 1, partial: 0, manual: 0, conflict: 0 },
+}
+
+function resultFixture(runId: string, failed = 0): ImportResult {
+    return {
+        runId,
+        status: 'completed',
+        fingerprint: previewFixture.fingerprint,
+        sourceSchema: 'fixture',
+        items: [{ ...previewFixture.items[0]!, label: runId, outcome: 'imported' }],
+        imported: 1,
+        skipped: 0,
+        failed,
+        runtimeStatus: 'applied',
+    }
+}
+
+async function selectFile(container: HTMLElement, size: number): Promise<void> {
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
+    const file = new File(['fixture'], 'config.db')
+    Object.defineProperty(file, 'size', { value: size })
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] })
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
+}
+
+async function selectSource(container: HTMLElement, label: string): Promise<void> {
+    const source = container.querySelector<HTMLElement>('[role="combobox"]')!
+    await act(async () => {
+        source.focus()
+        source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+        await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (entry) => entry.textContent?.trim() === label,
+    )!
+    await act(async () => {
+        option.focus()
+        option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+        await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+}
+
+async function clickApply(container: HTMLElement): Promise<void> {
+    const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (candidate) => candidate.textContent?.trim() === 'Confirm import',
+    )!
+    await act(async () => button.click())
+}
+
 async function clickPreview(container: HTMLElement): Promise<void> {
     const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
         (candidate) => candidate.textContent?.trim() === 'Analyze and preview',
@@ -71,6 +135,81 @@ async function clickPreview(container: HTMLElement): Promise<void> {
 
 for (const kind of ['migration', 'npmImport'] as const) {
     describe(`${kind} import request feedback`, () => {
+        test('keeps request identity, fingerprints, newest-first history capped at twenty, and toast policy', async () => {
+            const history = Array.from({ length: 20 }, (_, index) =>
+                resultFixture(`older-${index}`),
+            )
+            fetchMock.mockResolvedValueOnce(Response.json(history))
+            const container = await render(kind)
+            const endpoint = kind === 'migration' ? '/api/migration' : '/api/npm-import'
+            expect(fetchMock.mock.calls[0]).toEqual([endpoint, { credentials: 'same-origin' }])
+            fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
+            await clickPreview(container)
+            const previewCall = fetchMock.mock.calls.at(-1)!
+            const previewUrl = new URL(String(previewCall[0]), 'http://localhost')
+            expect(previewUrl.pathname).toBe(endpoint)
+            expect([...previewUrl.searchParams]).toEqual(
+                kind === 'migration'
+                    ? [
+                          ['mode', 'preview'],
+                          ['source', 'rentnerproxy'],
+                      ]
+                    : [['mode', 'preview']],
+            )
+            expect(previewCall[1]).toMatchObject({
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    'X-RentnerProxy-Import': kind === 'migration' ? 'rentnerproxy' : 'sqlite',
+                },
+            })
+            expect(previewCall[1]?.body).toBeInstanceOf(File)
+            fetchMock.mockResolvedValueOnce(Response.json(resultFixture('newest')))
+            await clickApply(container)
+            const applyCall = fetchMock.mock.calls.at(-1)!
+            const query = new URL(String(applyCall[0]), 'http://localhost').searchParams
+            expect(query.get('mode')).toBe('apply')
+            expect(query.get('fingerprint')).toBe(previewFixture.fingerprint)
+            expect(query.get('plan')).toBe(previewFixture.planFingerprint)
+            expect(query.get('source')).toBe(kind === 'migration' ? 'rentnerproxy' : null)
+            expect(applyCall[1]?.body).toBe(previewCall[1]?.body)
+            const historySection = [...container.querySelectorAll('section')].find(
+                (section) => section.querySelector('h2')?.textContent === 'Recent imports',
+            )!
+            expect(historySection.querySelectorAll(':scope > ul > li')).toHaveLength(20)
+            expect(historySection.querySelector(':scope > ul > li')?.textContent).toContain(
+                'newest',
+            )
+            expect(historySection.textContent).not.toContain('older-19')
+            expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('newest')
+            expect(
+                container.querySelector('section[aria-labelledby="npm-preview-title"]'),
+            ).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-success') !== null).toBe(
+                kind === 'migration',
+            )
+            await selectFile(container, 1)
+            expect(container.querySelector('[aria-live="polite"]')).toBeNull()
+            expect(historySection.textContent).toContain('newest')
+        })
+
+        test('discarding a preview requires another preview before apply', async () => {
+            const container = await render(kind)
+            fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
+            await clickPreview(container)
+            const discard = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+                (button) => button.textContent?.trim() === 'Cancel',
+            )!
+            await act(async () => discard.click())
+            expect(
+                container.querySelector('section[aria-labelledby="npm-preview-title"]'),
+            ).toBeNull()
+            expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(
+                1,
+            )
+        })
+
         test('explains rejected fetch without claiming rollback or printing an error key', async () => {
             const container = await render(kind)
             fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
@@ -103,6 +242,17 @@ for (const kind of ['migration', 'npmImport'] as const) {
             expect(container.querySelector('[role="alert"]')?.textContent).toContain('changed')
             expect(container.querySelector('[role="alert"]')?.textContent).toContain('Analyze')
             expect(container.textContent).not.toContain(uncertainty)
+        })
+
+        test('preserves the NPM-only backend error namespace', async () => {
+            const container = await render(kind)
+            fetchMock.mockResolvedValueOnce(
+                Response.json({ error: 'nothing_to_import' }, { status: 409 }),
+            )
+            await clickPreview(container)
+            expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+                kind === 'npmImport' ? 'Nothing remains eligible to import' : uncertainty,
+            )
         })
 
         test('maps unknown backend errors to the uncertainty explanation', async () => {
@@ -170,3 +320,55 @@ for (const kind of ['migration', 'npmImport'] as const) {
         })
     })
 }
+
+for (const [kind, source, label, limit] of [
+    ['npmImport', null, null, 32],
+    ['migration', 'rentnerproxy', null, 4],
+    ['migration', 'npm', 'Nginx Proxy Manager', 32],
+    ['migration', 'zoraxy', 'Zoraxy', 32],
+] as const) {
+    test(`${kind}/${source ?? 'sqlite'} allows exactly ${limit} MiB and rejects the next byte locally`, async () => {
+        const container = await render(kind)
+        if (label) await selectSource(container, label)
+        await selectFile(container, limit * 1024 * 1024)
+        fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
+        await clickPreview(container)
+        const post = fetchMock.mock.calls.at(-1)!
+        expect(post[1]?.method).toBe('POST')
+        expect(post[1]?.headers).toMatchObject({ 'X-RentnerProxy-Import': source ?? 'sqlite' })
+        expect(new URL(String(post[0]), 'http://localhost').searchParams.get('source')).toBe(source)
+        const count = fetchMock.mock.calls.length
+        await selectFile(container, limit * 1024 * 1024 + 1)
+        await clickPreview(container)
+        expect(fetchMock.mock.calls).toHaveLength(count)
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain('exceeds the')
+        expect(document.querySelector('.rentnerproxy-toast-error') !== null).toBe(
+            kind === 'migration',
+        )
+    })
+}
+
+test('migration keeps warning feedback for partial apply and independent export errors', async () => {
+    const container = await render('migration')
+    fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
+    await clickPreview(container)
+    fetchMock.mockResolvedValueOnce(Response.json(resultFixture('partial', 1)))
+    await clickApply(container)
+    expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain('1 failed')
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }))
+    const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (candidate) => candidate.textContent?.trim() === 'Download configuration JSON',
+    )!
+    await act(async () => button.click())
+    expect(fetchMock.mock.calls.at(-1)).toEqual([
+        '/api/migration/export',
+        { credentials: 'same-origin' },
+    ])
+    expect(
+        container.querySelector('section[aria-labelledby="migration-export-title"] [role="alert"]'),
+    ).not.toBeNull()
+    expect(
+        container.querySelector('section[aria-labelledby="migration-source-title"] [role="alert"]'),
+    ).toBeNull()
+    expect(container.textContent).toContain('partial')
+})
