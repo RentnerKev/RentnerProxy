@@ -325,8 +325,9 @@ export async function updateProxyHostInTransaction(
     }
 
     const httpSettings = { ...(await readProxyHostHttpSettings(transaction, proxyHost.id)) }
+    const previousCompression = httpSettings.responseCompression ?? null
     if (parsedInput.responseCompression !== undefined) {
-        if (parsedInput.responseCompression !== (httpSettings.responseCompression ?? null))
+        if (parsedInput.responseCompression !== previousCompression)
             await requirePermissionInTransaction(
                 transaction,
                 actorId,
@@ -359,7 +360,8 @@ export async function updateProxyHostInTransaction(
                 'domains',
                 'upstream',
                 'tls',
-                ...(parsedInput.responseCompression === undefined
+                ...(parsedInput.responseCompression === undefined ||
+                parsedInput.responseCompression === previousCompression
                     ? []
                     : ['responseCompression' as const]),
                 ...(parsedInput.tagIds ? ['tags' as const] : []),

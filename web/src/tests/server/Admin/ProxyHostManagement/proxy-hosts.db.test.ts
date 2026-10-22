@@ -2086,6 +2086,34 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
                 PERMISSIONS.PROXY_HOSTS_VIEW,
             ])
             const restricted = await createTestUser([role.key])
+            const assertUnchangedCompressionAudit = async (responseCompression: 'auto' | null) => {
+                const previousAudits = await getAuthDatabase()
+                    .select({ id: auditEvents.id })
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, created.id))
+                const previousIds = new Set(previousAudits.map((event) => event.id))
+                const unchanged = await runAsUser(restricted.id, () =>
+                    updateProxyHostService({
+                        ...input,
+                        proxyHostId: created.id,
+                        responseCompression,
+                    }),
+                )
+                expect(unchanged.responseCompression).toBe(responseCompression)
+                const nextAudits = await getAuthDatabase()
+                    .select()
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, created.id))
+                const updates = nextAudits.filter(
+                    (event) =>
+                        !previousIds.has(event.id) &&
+                        event.action === 'update' &&
+                        event.result === 'success',
+                )
+                expect(updates).toHaveLength(1)
+                expect(updates[0]?.metadata.changedFields).not.toContain('responseCompression')
+            }
+            await assertUnchangedCompressionAudit('auto')
             expect(
                 await captureError(
                     runAsUser(restricted.id, () =>
@@ -2138,6 +2166,7 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
                 }),
             )
             expect(reset.responseCompression).toBeNull()
+            await assertUnchangedCompressionAudit(null)
             expect(
                 (await runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id)))
                     .settings,
