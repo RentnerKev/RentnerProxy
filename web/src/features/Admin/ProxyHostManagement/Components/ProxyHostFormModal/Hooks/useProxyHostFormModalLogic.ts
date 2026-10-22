@@ -54,16 +54,16 @@ export default function useProxyHostFormModalLogic({
     const [guideOpen, setGuideOpen] = useState(initialGuideOpen)
     const [guideStep, setGuideStep] = useState(0)
     const guideHeading = useRef<HTMLHeadingElement>(null)
-    const previousGuideStepRef = useRef(guideStep)
+    const previousGuideStateRef = useRef({ open: false, step: guideStep })
     useEffect(() => {
-        if (previousGuideStepRef.current !== guideStep) {
-            previousGuideStepRef.current = guideStep
-            guideHeading.current?.focus()
-        }
-    }, [guideStep])
-    useEffect(() => {
-        if (guideOpen) guideHeading.current?.focus()
-    }, [guideOpen])
+        const formElement = document.getElementById(formId)
+        formElement?.closest('[role="dialog"]')?.scrollTo({ top: 0 })
+        const previous = previousGuideStateRef.current
+        previousGuideStateRef.current = { open: guideOpen, step: guideStep }
+        if (!guideOpen || (previous.open && previous.step === guideStep)) return
+        guideHeading.current?.focus({ preventScroll: true })
+        formElement?.parentElement?.scrollTo({ top: 0 })
+    }, [formId, guideOpen, guideStep])
     const handleToggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
     const handleNextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
     const handlePreviousGuideStep = useCallback(
