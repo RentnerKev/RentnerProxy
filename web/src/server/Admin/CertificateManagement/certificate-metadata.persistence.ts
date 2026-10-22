@@ -11,13 +11,14 @@ import { CertificateDomainError } from './certificates.errors.ts'
 export async function getCertificateRow(
     transaction: AuthTransaction,
     certificateId: string,
+    lock = true,
 ): Promise<CertificateRow> {
-    const [row] = await transaction
+    const query = transaction
         .select()
         .from(certificates)
         .where(eq(certificates.id, certificateId))
         .limit(1)
-        .for('update')
+    const [row] = await (lock ? query.for('update') : query)
     if (!row) throw new CertificateDomainError('certificate_not_found')
     return row
 }

@@ -1,4 +1,14 @@
 import { randomUUID } from 'node:crypto'
+import { bulkHostServices } from '@/server/Admin/HostBulkActions/bulk-hosts.storage.server.ts'
+import type {
+    BulkHostAction,
+    BulkHostResult,
+} from '@/lib/HostBulkActions/Types/bulk-hosts.types.ts'
+import {
+    getHostTagCatalogService,
+    mutateHostTagService,
+} from '@/server/Admin/HostTags/host-tags.service.ts'
+import { readHostTags, writeHostTags } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { createServerEntry } from '@tanstack/react-start/server-entry'
@@ -1598,6 +1608,238 @@ describe('RedirectHost management with PostgreSQL', () => {
                 ).toMatchObject({ certificateId: null, enabled: false })
             } finally {
                 controller.server.stop(true)
+            }
+        },
+    )
+})
+
+function bulkApplyInput(
+    preview: BulkHostResult,
+    action: BulkHostAction,
+    kind: 'proxy' | 'redirect' = 'proxy',
+) {
+    return {
+        kind,
+        action,
+        hosts: preview.rows.flatMap((row) =>
+            row.status === 'ready' && row.version ? [{ id: row.id, version: row.version }] : [],
+        ),
+    }
+}
+
+describe('bulk host actions with PostgreSQL and the controller contract', () => {
+    integrationTest.each([false, true])(
+        'saves a bounded batch once, preserves desired state on controller failure=%s, and safely retries',
+        async (failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const first = await insertRawProxyHost(proxyHostInput('bulk-first'))
+            const second = await insertRawProxyHost(proxyHostInput('bulk-second'))
+            const controller = startFakeController(failApply)
+            const action: BulkHostAction = { type: 'disable' }
+            try {
+                const preview = await runAsUser(owner.id, () =>
+                    bulkHostServices.preview({
+                        kind: 'proxy',
+                        hostIds: [first, second, randomUUID()],
+                        action,
+                    }),
+                )
+                expect(preview.rows.map((row) => row.status)).toEqual(['ready', 'ready', 'skipped'])
+                expect(controller.applyRevisions).toHaveLength(0)
+                const input = bulkApplyInput(preview, action)
+                const result = await runAsUser(owner.id, () => bulkHostServices.apply(input))
+                expect(result.rows.map((row) => row.status)).toEqual(['applied', 'applied'])
+                expect(result.runtimeStatus).toBe(failApply ? 'pending' : 'applied')
+                expect(controller.applyRevisions).toHaveLength(1)
+                const persisted = await getAuthDatabase()
+                    .select({ enabled: proxyHosts.enabled })
+                    .from(proxyHosts)
+                    .where(inArray(proxyHosts.id, [first, second]))
+                expect(persisted.map((row) => row.enabled)).toEqual([false, false])
+                const repeated = await runAsUser(owner.id, () => bulkHostServices.apply(input))
+                expect(repeated.rows.map((row) => row.status)).toEqual(['unchanged', 'unchanged'])
+                expect(controller.applyRevisions).toHaveLength(1)
+                const audits = await getAuthDatabase()
+                    .select({ metadata: auditEvents.metadata })
+                    .from(auditEvents)
+                    .where(inArray(auditEvents.targetId, [first, second]))
+                expect(audits).toHaveLength(2)
+                expect(JSON.stringify(audits)).not.toContain(TEST_DOMAIN_SUFFIX)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest(
+        'a concurrent normal host edit invalidates only the affected preview row',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const firstInput = proxyHostInput('bulk-concurrent-first')
+            const first = await insertRawProxyHost(firstInput)
+            const second = await insertRawProxyHost(proxyHostInput('bulk-concurrent-second'))
+            const controller = startFakeController(false)
+            const action: BulkHostAction = { type: 'disable' }
+            try {
+                const preview = await runAsUser(owner.id, () =>
+                    bulkHostServices.preview({ kind: 'proxy', hostIds: [first, second], action }),
+                )
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...firstInput,
+                        proxyHostId: first,
+                        forwardPort: 9090,
+                    }),
+                )
+                const result = await runAsUser(owner.id, () =>
+                    bulkHostServices.apply(bulkApplyInput(preview, action)),
+                )
+                expect(result.rows[0]).toMatchObject({ status: 'skipped', reason: 'conflict' })
+                expect(result.rows[1]?.status).toBe('applied')
+                const [persisted] = await getAuthDatabase()
+                    .select({ enabled: proxyHosts.enabled, port: proxyHosts.forwardPort })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, first))
+                expect(persisted).toEqual({ enabled: true, port: 9090 })
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest(
+        'rechecks certificate coverage without writing metadata during preview',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const firstInput = proxyHostInput('bulk-certificate-first')
+            const first = await insertRawProxyHost(firstInput)
+            const second = await insertRawProxyHost(proxyHostInput('bulk-certificate-second'))
+            const certificateId = await insertValidCertificate(firstInput.domains)
+            const controller = startFakeController(false, {
+                certificate: { id: certificateId, domains: firstInput.domains },
+            })
+            const action: BulkHostAction = { type: 'certificate', certificateId }
+            try {
+                const before = await getAuthDatabase()
+                    .select()
+                    .from(certificates)
+                    .where(eq(certificates.id, certificateId))
+                const preview = await runAsUser(owner.id, () =>
+                    bulkHostServices.preview({ kind: 'proxy', hostIds: [first, second], action }),
+                )
+                expect(preview.rows[0]?.status).toBe('ready')
+                expect(preview.rows[1]).toMatchObject({ status: 'skipped', reason: 'invalid' })
+                expect(
+                    await getAuthDatabase()
+                        .select()
+                        .from(certificates)
+                        .where(eq(certificates.id, certificateId)),
+                ).toEqual(before)
+                const result = await runAsUser(owner.id, () =>
+                    bulkHostServices.apply(bulkApplyInput(preview, action)),
+                )
+                expect(result.rows[0]?.status).toBe('applied')
+                const persisted = await getAuthDatabase()
+                    .select({ id: proxyHosts.id, certificateId: proxyHosts.certificateId })
+                    .from(proxyHosts)
+                    .where(inArray(proxyHosts.id, [first, second]))
+                expect(persisted.find((row) => row.id === first)?.certificateId).toBe(certificateId)
+                expect(persisted.find((row) => row.id === second)?.certificateId).toBeNull()
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest(
+        'persists all tag assignments, preserves existing tags, and performs no runtime reload',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const first = await insertRawProxyHost(proxyHostInput('bulk-tags-first'))
+            const second = await insertRawProxyHost(proxyHostInput('bulk-tags-second'))
+            const original = await getAuthDatabase().transaction((transaction) =>
+                readHostTags(transaction, 'proxy'),
+            )
+            const controller = startFakeController(false)
+            try {
+                const catalog = await runAsUser(owner.id, () => getHostTagCatalogService('proxy'))
+                const created = await runAsUser(owner.id, () =>
+                    mutateHostTagService({
+                        kind: 'proxy',
+                        action: 'create',
+                        name: 'Bulk fixture ' + randomUUID(),
+                        expectedRevision: catalog.revision,
+                    }),
+                )
+                const tagId = created.tags.find(
+                    (tag) => !catalog.tags.some((old) => old.id === tag.id),
+                )!.id
+                const action: BulkHostAction = { type: 'addTags', tagIds: [tagId] }
+                const preview = await runAsUser(owner.id, () =>
+                    bulkHostServices.preview({ kind: 'proxy', hostIds: [first, second], action }),
+                )
+                const result = await runAsUser(owner.id, () =>
+                    bulkHostServices.apply(bulkApplyInput(preview, action)),
+                )
+                expect(result.rows.every((row) => row.status === 'applied')).toBe(true)
+                const tags = await getAuthDatabase().transaction((transaction) =>
+                    readHostTags(transaction, 'proxy'),
+                )
+                expect(tags.assignments[first]).toEqual([tagId])
+                expect(tags.assignments[second]).toEqual([tagId])
+                expect(controller.applyRevisions).toHaveLength(0)
+            } finally {
+                await controller.server.stop(true)
+                await getAuthDatabase().transaction(async (transaction) => {
+                    await lockProxyRuntimeSettings(transaction)
+                    await writeHostTags(transaction, 'proxy', original)
+                })
+            }
+        },
+    )
+
+    integrationTest(
+        'rejects action permissions for forged selections and supports redirect-only roles',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const role = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.REDIRECT_HOSTS_VIEW,
+                PERMISSIONS.REDIRECT_HOSTS_DISABLE,
+            ])
+            const manager = await createTestUser([role.key])
+            const viewerRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+            ])
+            const viewer = await createTestUser([viewerRole.key])
+            const first = await insertRawProxyHost(proxyHostInput('bulk-authorization'))
+            const action: BulkHostAction = { type: 'disable' }
+            const denied = await runAsUser(viewer.id, () =>
+                bulkHostServices.preview({ kind: 'proxy', hostIds: [first], action }),
+            )
+            expect(denied.rows[0]?.reason).toBe('permission')
+            const controller = startFakeController(false)
+            try {
+                const redirect = await runAsUser(owner.id, () =>
+                    createRedirectHostService(redirectHostInput('bulk-redirect')),
+                )
+                controller.applyRevisions.length = 0
+                const preview = await runAsUser(manager.id, () =>
+                    bulkHostServices.preview({ kind: 'redirect', hostIds: [redirect.id], action }),
+                )
+                const result = await runAsUser(manager.id, () =>
+                    bulkHostServices.apply(bulkApplyInput(preview, action, 'redirect')),
+                )
+                expect(result.rows[0]?.status).toBe('applied')
+                expect(controller.applyRevisions).toHaveLength(1)
+                const [persisted] = await getAuthDatabase()
+                    .select({ enabled: redirectHosts.enabled })
+                    .from(redirectHosts)
+                    .where(eq(redirectHosts.id, redirect.id))
+                expect(persisted?.enabled).toBe(false)
+            } finally {
+                await controller.server.stop(true)
             }
         },
     )

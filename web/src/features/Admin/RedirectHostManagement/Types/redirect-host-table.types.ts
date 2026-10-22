@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 export interface RedirectHostsTableProps {
+    readonly bulkPermissions?: readonly PermissionKey[]
     readonly remote?: HostTableRemote
     readonly redirectHosts: ReadonlyArray<RedirectHostSummary>
     readonly loading: boolean

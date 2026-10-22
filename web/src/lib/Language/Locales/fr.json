@@ -3091,6 +3091,50 @@
             "color": "Couleur",
             "colorSaturation": "Saturation",
             "colorBrightness": "Luminosité"
+        },
+        "bulkHosts": {
+            "selection": "Sélection",
+            "selectHost": "Sélectionner {{name}}",
+            "selected": "{{count}} hôtes sélectionnés sur {{limit}}, toutes pages confondues",
+            "selectPage": "Ajouter cette page",
+            "clear": "Vider la sélection",
+            "open": "Actions groupées",
+            "description": "{{count}} hôtes explicitement sélectionnés. Changer les filtres vide la sélection. Vérifiez l’aperçu avant d’appliquer les modifications.",
+            "action": "Action",
+            "none": "Aucune affectation",
+            "preview": "Aperçu des modifications",
+            "previewAgain": "Actualiser l’aperçu",
+            "apply": "Appliquer l’aperçu",
+            "results": "Résultats",
+            "host": "Hôte",
+            "outcome": "Résultat",
+            "error": "La requête a échoué. Actualisez l’aperçu et réessayez.",
+            "retryHint": "Les modifications sont enregistrées par hôte. Actualisez l’aperçu pour réessayer les hôtes en échec ou ignorés ; les hôtes inchangés sont conservés.",
+            "actions": {
+                "enable": "Activer",
+                "disable": "Désactiver",
+                "addTags": "Ajouter des étiquettes",
+                "removeTags": "Retirer des étiquettes",
+                "accessPolicy": "Affecter une politique d’accès",
+                "certificate": "Affecter un certificat"
+            },
+            "status": {
+                "ready": "Sera modifié",
+                "applied": "Enregistré",
+                "unchanged": "Inchangé",
+                "skipped": "Ignoré",
+                "failed": "Échec"
+            },
+            "reasons": {
+                "permission": "L’autorisation requise est manquante.",
+                "missing": "L’hôte n’existe plus.",
+                "discovery": "Géré par la découverte Docker. Détachez-le avant de modifier les champs gérés.",
+                "unsupported": "Cette action n’est pas prise en charge pour ce type d’hôte.",
+                "conflict": "Modifié depuis l’aperçu. Actualisez-le.",
+                "invalid": "L’affectation est invalide ou incompatible avec cet hôte.",
+                "unavailable": "Un service requis est indisponible. Actualisez l’aperçu pour réessayer.",
+                "timeout": "La limite de temps du lot est atteinte. Actualisez l’aperçu pour réessayer."
+            }
         }
     },
     "permissions": {

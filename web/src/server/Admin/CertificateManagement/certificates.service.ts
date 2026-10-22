@@ -677,13 +677,16 @@ export async function validateCertificateAssignmentInTransaction(
     certificateId: string | null,
     forceHttps: boolean,
     domains: readonly string[],
+    persistMetadata = true,
 ): Promise<void> {
     if (!certificateId) {
         if (forceHttps) throw new CertificateDomainError('invalid_input')
         return
     }
-    await getCertificateRow(transaction, certificateId)
+    const certificate = await getCertificateRow(transaction, certificateId, persistMetadata)
     const metadata = await getControllerCertificate(certificateId)
+    if (certificate.source !== metadata.source || certificate.environment !== metadata.environment)
+        throw new CertificateDomainError('controller_unavailable')
     if (
         metadata.status !== 'valid' ||
         !metadata.issuedAt ||
@@ -695,7 +698,7 @@ export async function validateCertificateAssignmentInTransaction(
     }
     if (!certificateCoversDomains(metadata.domains, domains))
         throw new CertificateDomainError('domain_mismatch')
-    await persistControllerMetadata(transaction, metadata)
+    if (persistMetadata) await persistControllerMetadata(transaction, metadata)
 }
 
 export async function searchCertificatesService(

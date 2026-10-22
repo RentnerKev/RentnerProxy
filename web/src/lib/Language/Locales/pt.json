@@ -3117,6 +3117,50 @@
             "color": "Cor",
             "colorSaturation": "Saturação",
             "colorBrightness": "Brilho"
+        },
+        "bulkHosts": {
+            "selection": "Seleção",
+            "selectHost": "Selecionar {{name}}",
+            "selected": "{{count}} de {{limit}} hosts selecionados entre páginas",
+            "selectPage": "Adicionar esta página",
+            "clear": "Limpar seleção",
+            "open": "Ações em massa",
+            "description": "{{count}} hosts selecionados explicitamente. Alterar os filtros limpa a seleção. Verifique a prévia antes de aplicar as alterações.",
+            "action": "Ação",
+            "none": "Sem atribuição",
+            "preview": "Prévia das alterações",
+            "previewAgain": "Atualizar prévia",
+            "apply": "Aplicar prévia",
+            "results": "Resultados",
+            "host": "Host",
+            "outcome": "Resultado",
+            "error": "A solicitação falhou. Atualize a prévia e tente novamente.",
+            "retryHint": "As alterações são salvas por host. Atualize a prévia para tentar novamente os hosts com falha ou ignorados; os hosts sem alterações são preservados.",
+            "actions": {
+                "enable": "Ativar",
+                "disable": "Desativar",
+                "addTags": "Adicionar etiquetas",
+                "removeTags": "Remover etiquetas",
+                "accessPolicy": "Atribuir política de acesso",
+                "certificate": "Atribuir certificado"
+            },
+            "status": {
+                "ready": "Será alterado",
+                "applied": "Salvo",
+                "unchanged": "Sem alterações",
+                "skipped": "Ignorado",
+                "failed": "Falhou"
+            },
+            "reasons": {
+                "permission": "Falta a permissão necessária.",
+                "missing": "O host não existe mais.",
+                "discovery": "Gerenciado pela descoberta Docker. Desvincule-o antes de alterar os campos gerenciados.",
+                "unsupported": "Esta ação não é compatível com este tipo de host.",
+                "conflict": "Alterado desde a prévia. Atualize a prévia.",
+                "invalid": "A atribuição é inválida ou incompatível com este host.",
+                "unavailable": "Um serviço necessário está indisponível. Atualize a prévia para tentar novamente.",
+                "timeout": "O limite de tempo do lote foi atingido. Atualize a prévia para tentar novamente."
+            }
         }
     },
     "permissions": {

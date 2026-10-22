@@ -3070,6 +3070,50 @@
             "color": "Kleur",
             "colorSaturation": "Verzadiging",
             "colorBrightness": "Helderheid"
+        },
+        "bulkHosts": {
+            "selection": "Selectie",
+            "selectHost": "{{name}} selecteren",
+            "selected": "{{count}} van {{limit}} hosts geselecteerd over alle pagina’s",
+            "selectPage": "Deze pagina toevoegen",
+            "clear": "Selectie wissen",
+            "open": "Bulkacties",
+            "description": "{{count}} expliciet geselecteerde hosts. Een filterwijziging wist de selectie. Controleer het voorbeeld voordat je wijzigingen toepast.",
+            "action": "Actie",
+            "none": "Geen toewijzing",
+            "preview": "Wijzigingen bekijken",
+            "previewAgain": "Voorbeeld vernieuwen",
+            "apply": "Voorbeeld toepassen",
+            "results": "Resultaten",
+            "host": "Host",
+            "outcome": "Resultaat",
+            "error": "Het verzoek is mislukt. Vernieuw het voorbeeld en probeer het opnieuw.",
+            "retryHint": "Wijzigingen worden per host opgeslagen. Vernieuw het voorbeeld om mislukte of overgeslagen hosts opnieuw te proberen; ongewijzigde hosts blijven behouden.",
+            "actions": {
+                "enable": "Inschakelen",
+                "disable": "Uitschakelen",
+                "addTags": "Tags toevoegen",
+                "removeTags": "Tags verwijderen",
+                "accessPolicy": "Toegangsbeleid toewijzen",
+                "certificate": "Certificaat toewijzen"
+            },
+            "status": {
+                "ready": "Wordt gewijzigd",
+                "applied": "Opgeslagen",
+                "unchanged": "Ongewijzigd",
+                "skipped": "Overgeslagen",
+                "failed": "Mislukt"
+            },
+            "reasons": {
+                "permission": "De vereiste machtiging ontbreekt.",
+                "missing": "De host bestaat niet meer.",
+                "discovery": "Beheerd door Docker-detectie. Koppel deze los voordat je beheerde velden wijzigt.",
+                "unsupported": "Deze actie wordt niet ondersteund voor dit hosttype.",
+                "conflict": "Gewijzigd sinds het voorbeeld. Vernieuw het voorbeeld.",
+                "invalid": "De toewijzing is ongeldig of niet compatibel met deze host.",
+                "unavailable": "Een vereiste dienst is niet beschikbaar. Vernieuw het voorbeeld om opnieuw te proberen.",
+                "timeout": "De tijdslimiet van de batch is bereikt. Vernieuw het voorbeeld om opnieuw te proberen."
+            }
         }
     },
     "permissions": {

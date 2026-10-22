@@ -57,6 +57,7 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                 />
             ) : (
                 <RedirectHostsTable
+                    bulkPermissions={props.permissions}
                     remote={state.remote}
                     redirectHosts={state.redirectHosts}
                     loading={state.isLoading}
