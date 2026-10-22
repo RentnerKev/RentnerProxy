@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 
 import { createHash } from 'node:crypto'
-import { and, eq, gt, lte, ne } from 'drizzle-orm'
+import { and, eq, gt, lte, ne, sql } from 'drizzle-orm'
 
 import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
 import { SESSION_DURATION_MS, SESSION_LAST_SEEN_INTERVAL_MS } from '@/config/auth.config.ts'
@@ -60,6 +60,23 @@ export async function requirePasswordAuthenticationInTransaction(
     }
 }
 
+export async function pruneExpiredSessionsInTransaction(
+    transaction: AuthTransaction,
+    now: Date,
+): Promise<void> {
+    await transaction.execute(sql`
+        with expired as (
+            select ${sessions.id} from ${sessions}
+            where ${sessions.expiresAt} <= ${now}
+            order by ${sessions.expiresAt}, ${sessions.id}
+            limit 100
+            for update skip locked
+        )
+        delete from ${sessions} using expired
+        where ${sessions.id} = expired.id and ${sessions.expiresAt} <= ${now}
+    `)
+}
+
 export async function createSessionInTransaction(
     transaction: AuthTransaction,
     userId: string,
@@ -103,6 +120,7 @@ export async function createSessionInTransaction(
         throw new AuthDomainError('user_not_active', 'User is not active.')
     }
 
+    await pruneExpiredSessionsInTransaction(transaction, now)
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: userId,
         actorKind: 'user',
@@ -140,6 +158,7 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
                 expiresAt: sessions.expiresAt,
                 id: sessions.id,
                 reauthenticatedAt: sessions.reauthenticatedAt,
+                lastSeenAt: sessions.lastSeenAt,
                 userId: sessions.userId,
             })
             .from(sessions)
@@ -164,10 +183,11 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
             return null
         }
 
-        await transaction
-            .update(sessions)
-            .set({ lastSeenAt: now })
-            .where(and(eq(sessions.id, session.id), lte(sessions.lastSeenAt, touchCutoff)))
+        if (session.lastSeenAt.getTime() <= touchCutoff.getTime())
+            await transaction
+                .update(sessions)
+                .set({ lastSeenAt: now })
+                .where(and(eq(sessions.id, session.id), lte(sessions.lastSeenAt, touchCutoff)))
 
         return {
             id: session.id,
