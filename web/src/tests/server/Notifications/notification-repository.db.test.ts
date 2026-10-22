@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { NOTIFICATION_SETTINGS_KEY, NOTIFICATION_STATE_KEY } from '@/config/notifications.config.ts'
 import { systemSettings } from '@/db/schema.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -84,6 +84,14 @@ async function readRuntime() {
     return getAuthDatabase().transaction(readNotificationRuntime, { accessMode: 'read only' })
 }
 
+async function runtimeVersion() {
+    const [row] = await getAuthDatabase()
+        .select({ xmin: sql<string>`xmin::text` })
+        .from(systemSettings)
+        .where(eq(systemSettings.key, NOTIFICATION_STATE_KEY))
+    return row?.xmin
+}
+
 async function mutateRuntime(change: (runtime: NotificationRuntime) => void) {
     await getAuthDatabase().transaction(async (transaction) => {
         await lockNotificationConfiguration(transaction)
@@ -152,6 +160,46 @@ afterEach(async () => {
 })
 
 describe('notification repository PostgreSQL durability and concurrency', () => {
+    integrationTest(
+        'empty polls and unknown acknowledgements preserve the stored row and collector lease',
+        async () => {
+            const beforeClaim = await runtimeVersion()
+            const collection = await claimNotificationCollection()
+            expect(collection).not.toBeNull()
+            const leasedVersion = await runtimeVersion()
+            expect(leasedVersion).not.toBe(beforeClaim)
+            const leased = await readRuntime()
+            expect(await claimNextNotificationDelivery()).toBeNull()
+            expect(await runtimeVersion()).toBe(leasedVersion)
+            await acknowledgeNotificationDelivery(randomUUID(), { success: true })
+            expect(await runtimeVersion()).toBe(leasedVersion)
+            expect(await readRuntime()).toEqual(leased)
+        },
+    )
+
+    integrationTest.each(['poll', 'acknowledgement'] as const)(
+        '%s still persists expired-delivery reconciliation without claiming a delivery',
+        async (operation) => {
+            await seedFailure()
+            expect(await claimNextNotificationDelivery()).not.toBeNull()
+            await mutateRuntime((runtime) => {
+                runtime.engine.deliveries[0]!.leaseExpiresAt = Date.now() - 1
+            })
+            const expiredVersion = await runtimeVersion()
+            if (operation === 'poll') expect(await claimNextNotificationDelivery()).toBeNull()
+            else await acknowledgeNotificationDelivery(randomUUID(), { success: true })
+            expect(await runtimeVersion()).not.toBe(expiredVersion)
+            const persisted = await readRuntime()
+            expect(persisted.engine.deliveries[0]).toMatchObject({
+                status: 'pending',
+                attempts: 1,
+                leaseToken: null,
+                leaseExpiresAt: null,
+            })
+            expect(persisted.engine.deliveries[0]!.nextAttemptAt).toBeGreaterThan(Date.now())
+        },
+    )
+
     integrationTest('row locks admit exactly one concurrent collector lease', async () => {
         const claims = await Promise.all(
             Array.from({ length: 8 }, () => claimNotificationCollection()),
