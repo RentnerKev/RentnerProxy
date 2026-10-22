@@ -196,20 +196,28 @@ test('read-only users have no bulk selection controls', async () => {
 })
 test('selection is explicit across pages, filter changes clear it permanently, and page selection is bounded', async () => {
     await render(table([host(firstId, 'one.example.test')]))
+    expect(document.querySelector('output')).toBeNull()
+    expect(document.body.textContent).not.toContain('Diese Seite hinzufügen')
     const firstCheckbox = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    expect(firstCheckbox.getAttribute('aria-label')).toBe('one.example.test auswählen')
+    expect(firstCheckbox.closest('td')?.textContent?.trim()).toBe('')
     await act(async () => firstCheckbox.focus())
     await click(firstCheckbox)
     expect(document.activeElement).toBe(firstCheckbox)
     expect(document.querySelector('output')?.textContent).toContain('1 von 50')
+    await click(firstCheckbox)
+    expect(document.querySelector('output')).toBeNull()
+    expect(document.body.textContent).not.toContain('Diese Seite hinzufügen')
+    await click(firstCheckbox)
     await render(table([host(secondId, 'two.example.test')]))
     expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false)
     expect(document.querySelector('output')?.textContent).toContain('1 von 50')
     await click(button('Diese Seite hinzufügen'))
     expect(document.querySelector('output')?.textContent).toContain('2 von 50')
     await render(table([host(secondId, 'two.example.test')], 'changed'))
-    expect(document.querySelector('output')?.textContent).toContain('0 von 50')
+    expect(document.querySelector('output')).toBeNull()
     await render(table([host(firstId, 'one.example.test')]))
-    expect(document.querySelector('output')?.textContent).toContain('0 von 50')
+    expect(document.querySelector('output')).toBeNull()
     await render(
         table(
             Array.from({ length: 60 }, (_, index) =>
@@ -220,9 +228,13 @@ test('selection is explicit across pages, filter changes clear it permanently, a
             ),
         ),
     )
+    await click(document.querySelector('input[type="checkbox"]')!)
     await click(button('Diese Seite hinzufügen'))
     expect(document.querySelector('output')?.textContent).toContain('50 von 50')
     expect(document.querySelectorAll('input[type="checkbox"]:checked')).toHaveLength(50)
+    await click(button('Auswahl leeren'))
+    expect(document.querySelector('output')).toBeNull()
+    expect(document.querySelectorAll('input[type="checkbox"]:checked')).toHaveLength(0)
 })
 test('requires a preview, sends only ready hosts, and keeps skipped rows and pending runtime visible', async () => {
     await render(

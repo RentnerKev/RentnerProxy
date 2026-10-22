@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react'
+import { CheckboxInput } from '@rentnerkev/inputs'
 import type { CellContext } from '@tanstack/react-table'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { BulkHostSelectionContextValue } from '../Types/bulk-hosts-ui.types.ts'
 import { BULK_HOST_LIMITS } from '@/config/bulk-hosts.config.ts'
-import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export const HostBulkSelectionContext = createContext<BulkHostSelectionContextValue | null>(null)
@@ -15,8 +15,11 @@ export function HostBulkSelectionCell<
     const selection = useContext(HostBulkSelectionContext)
     const { t } = useTranslationStore()
     return selection ? (
-        <OptionToggle
-            label={t('admin.bulkHosts.selectHost', { name: row.original.domains[0] ?? row.id })}
+        <CheckboxInput
+            aria-label={t('admin.bulkHosts.selectHost', {
+                name: row.original.domains[0] ?? row.id,
+            })}
+            className="size-4 cursor-pointer accent-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
             checked={selection.ids.includes(row.id)}
             disabled={
                 selection.disabled ||

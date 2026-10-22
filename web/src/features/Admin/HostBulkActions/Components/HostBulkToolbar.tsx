@@ -6,6 +6,8 @@ import type { BulkHostToolbarProps } from '../Types/bulk-hosts-ui.types.ts'
 
 export default function HostBulkToolbar(props: BulkHostToolbarProps) {
     const { t } = useTranslationStore()
+    if (!props.ids.length) return null
+
     return (
         <>
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-3">
