@@ -3,6 +3,7 @@ export type MaintenanceProcessOptions = Readonly<{
     timeoutMs: number
     input?: Uint8Array
     env?: NodeJS.ProcessEnv
+    outputFile?: { file: FileHandle; maximumBytes: number }
 }>
 
 export type MaintenanceProcessResult = Readonly<{
@@ -12,4 +13,6 @@ export type MaintenanceProcessResult = Readonly<{
     stopped: boolean
     stdout: Uint8Array
     stderr: string
+    artifact?: { bytes: number; sha256: string }
 }>
+import type { FileHandle } from 'node:fs/promises'

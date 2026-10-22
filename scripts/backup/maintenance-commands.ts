@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { open, rm, type FileHandle } from 'node:fs/promises'
 import { runMaintenanceProcess } from './maintenance-process.ts'
 import type { MaintenanceCommandOptions } from './Types/maintenance-commands.types.ts'
 
@@ -82,6 +83,7 @@ export function createMaintenanceCommands(options: MaintenanceCommandOptions) {
         operation: string,
         timeoutMs: number,
         input?: Uint8Array,
+        outputFile?: { file: FileHandle; maximumBytes: number },
     ) {
         if (!restartSafe)
             throw new Error(
@@ -100,6 +102,7 @@ export function createMaintenanceCommands(options: MaintenanceCommandOptions) {
                 cwd: options.cwd,
                 timeoutMs,
                 ...(input === undefined ? {} : { input }),
+                ...(outputFile ? { outputFile } : {}),
             })
         } catch {
             // Spawn/transport failures use the same sanitized operation contract.
@@ -122,11 +125,7 @@ export function createMaintenanceCommands(options: MaintenanceCommandOptions) {
             const cleanupMessage = cleanupFailed
                 ? ' Maintenance cleanup unresolved; automatic appliance startup is blocked.'
                 : ''
-            if (
-                options.operation !== 'restore' ||
-                input === undefined ||
-                operation !== 'restore PostgreSQL'
-            )
+            if (options.operation !== 'restore' || operation !== 'restore PostgreSQL')
                 throw new Error(prefix + (cleanupFailed ? '.' + cleanupMessage : ''))
             const phase = /RESTORE_PHASE=(initialize|archive|render|assemble|execute)/u.exec(
                 result?.stderr ?? '',
@@ -150,7 +149,7 @@ export function createMaintenanceCommands(options: MaintenanceCommandOptions) {
                     cleanupMessage,
             )
         }
-        return result.stdout
+        return result
     }
 
     return {
@@ -161,12 +160,30 @@ export function createMaintenanceCommands(options: MaintenanceCommandOptions) {
                 )
         },
         async text(args: readonly string[], operation: string, timeoutMs = 120_000) {
-            return Buffer.from(await run(args, operation, timeoutMs))
+            return Buffer.from((await run(args, operation, timeoutMs)).stdout)
                 .toString('utf8')
                 .trim()
         },
-        bytes(args: readonly string[], operation: string, timeoutMs = 300_000) {
-            return run(args, operation, timeoutMs)
+        async bytes(args: readonly string[], operation: string, timeoutMs = 300_000) {
+            return (await run(args, operation, timeoutMs)).stdout
+        },
+        async file(args: readonly string[], path: string, operation: string, timeoutMs = 300_000) {
+            const file = await open(path, 'wx', 0o600)
+            let success = false
+            try {
+                await file.chmod(0o600)
+                const result = await run(args, operation, timeoutMs, undefined, {
+                    file,
+                    maximumBytes: 8 * 1024 ** 3,
+                })
+                if (!result.artifact) throw new Error('missing backup artifact result')
+                await file.sync()
+                success = true
+                return result.artifact
+            } finally {
+                await file.close()
+                if (!success) await rm(path, { force: true })
+            }
         },
         async input(
             args: readonly string[],

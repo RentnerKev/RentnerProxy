@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
@@ -79,7 +80,7 @@ if (command.includes('config --format=json')) {
     if (scenario === 'early-failure') process.exit(1)
     process.stdout.write('A'.repeat(43) + '=\\n')
 } else if (command.includes('pg_dump')) {
-    process.stdout.write('fixture-dump')
+    process.stdout.write(scenario === 'large-dump' ? Buffer.alloc(6 * 1024 ** 2, 97) : 'fixture-dump')
 } else if (command.includes('--entrypoint tar')) {
     process.stdout.write(readFileSync(directory + '/archive.tar'))
 } else {
@@ -119,16 +120,17 @@ if (command.includes('config --format=json')) {
         ])
         const calls = (await readFile(join(directory, 'calls'), 'utf8')).trim().split('\n')
         const backups = await readdir(output)
-        await Promise.all(
+        const metadataFiles = await Promise.all(
             backups.map(async (name) => {
                 const metadata = JSON.parse(
                     await readFile(join(output, name, 'metadata.json'), 'utf8'),
                 )
                 expect(metadata.format).toBe('rentnerproxy-production-backup')
                 expect(metadata.version).toBe(4)
+                return metadata
             }),
         )
-        return { exit, stdout, stderr, calls, backups }
+        return { exit, stdout, stderr, calls, backups, metadataFiles }
     } finally {
         await rm(directory, { recursive: true, force: true })
     }
@@ -137,6 +139,16 @@ if (command.includes('config --format=json')) {
 describe.skipIf(process.platform === 'win32')(
     'production backup CLI with isolated Docker fixtures',
     () => {
+        test('publishes the exact incremental size and hash for a multi-MiB dump', async () => {
+            const result = await backup('large-dump')
+            expect(result.exit).toBe(0)
+            expect(result.metadataFiles[0].postgres.bytes).toBe(6 * 1024 ** 2)
+            expect(result.metadataFiles[0].postgres.sha256).toBe(
+                createHash('sha256')
+                    .update(Buffer.alloc(6 * 1024 ** 2, 97))
+                    .digest('hex'),
+            )
+        })
         test('waits for real readiness after restarting an originally running appliance', async () => {
             const result = await backup('warming')
             expect(result.exit).toBe(0)

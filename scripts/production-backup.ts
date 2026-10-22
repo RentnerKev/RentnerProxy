@@ -7,22 +7,12 @@ import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import {
     crowdSecArchiveExclusions,
     parseBackupMetadata,
-    validateStateArchive,
+    validateStateArchiveFile,
 } from './backup/format.ts'
 import { deploymentSchema } from './backup/validation.ts'
 import type { BackupMetadata } from './backup/Types/format.types.ts'
-import { createHash, randomUUID } from 'node:crypto'
-import {
-    chmod,
-    mkdir,
-    mkdtemp,
-    open,
-    readFile,
-    rename,
-    rm,
-    stat,
-    writeFile,
-} from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { chmod, mkdir, mkdtemp, open, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -57,18 +47,22 @@ function runCommand(
     return commands.text(argumentsList, operation, options.timeoutMs)
 }
 
-function runCommandBytes(
+function runCommandFile(
     argumentsList: string[],
+    path: string,
     operation: string,
     options: CommandOptions = {},
-): Promise<Uint8Array> {
-    return commands.bytes(argumentsList, operation, options.timeoutMs)
+): Promise<{ bytes: number; sha256: string }> {
+    return commands.file(argumentsList, path, operation, options.timeoutMs)
 }
 
-async function sha256(path: string): Promise<string> {
-    return createHash('sha256')
-        .update(await readFile(path))
-        .digest('hex')
+async function validateArchive(path: string, kind: 'controller' | 'crowdsec'): Promise<void> {
+    const file = await open(path, 'r')
+    try {
+        await validateStateArchiveFile(file, kind)
+    } finally {
+        await file.close()
+    }
 }
 
 async function backup(): Promise<void> {
@@ -155,7 +149,7 @@ async function backup(): Promise<void> {
             )
         }
 
-        const appEncryptionKey = await runCommandBytes(
+        const appEncryptionKey = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -172,10 +166,9 @@ async function backup(): Promise<void> {
                     bootstrapScript +
                     ' export-app-key >&2; cat /backup/app-encryption-key',
             ],
+            appEncryptionKeyPath,
             'export application encryption key',
         )
-        await writeFile(appEncryptionKeyPath, appEncryptionKey, { mode: 0o600 })
-        await chmod(appEncryptionKeyPath, 0o600)
 
         const dumpCommand =
             'set -Eeuo pipefail; ' +
@@ -188,7 +181,7 @@ async function backup(): Promise<void> {
             databaseUser +
             ' --dbname=' +
             database
-        const dump = await runCommandBytes(
+        const dump = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -201,13 +194,12 @@ async function backup(): Promise<void> {
                 '-c',
                 dumpCommand,
             ],
+            dumpPath,
             'create PostgreSQL dump',
             { timeoutMs: 360_000 },
         )
-        await Bun.write(dumpPath, dump)
-        await chmod(dumpPath, 0o600)
 
-        const stateArchiveBytes = await runCommandBytes(
+        const stateArchive = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -225,14 +217,13 @@ async function backup(): Promise<void> {
                 ...stateArchiveExclusions.map((entry) => '--exclude=' + entry),
                 '.',
             ],
+            stateArchivePath,
             'archive controller state',
             { timeoutMs: 180_000 },
         )
-        validateStateArchive(stateArchiveBytes, 'controller')
-        await writeFile(stateArchivePath, stateArchiveBytes, { mode: 0o600 })
-        await chmod(stateArchivePath, 0o600)
+        await validateArchive(stateArchivePath, 'controller')
 
-        const crowdSecBytes = await runCommandBytes(
+        const crowdSec = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -248,39 +239,36 @@ async function backup(): Promise<void> {
                 ...crowdSecArchiveExclusions.map((entry) => '--exclude=' + entry),
                 '.',
             ],
+            crowdSecArchivePath,
             'archive managed CrowdSec state',
             { timeoutMs: 180_000 },
         )
-        validateStateArchive(crowdSecBytes, 'crowdsec')
-        await writeFile(crowdSecArchivePath, crowdSecBytes, { mode: 0o600 })
-        await chmod(crowdSecArchivePath, 0o600)
-        const stateArchive = await stat(stateArchivePath)
-        const appEncryptionKeyFile = await stat(appEncryptionKeyPath)
+        await validateArchive(crowdSecArchivePath, 'crowdsec')
         const metadata: BackupMetadata = {
             applicationEncryptionKey: {
-                bytes: appEncryptionKeyFile.size,
+                bytes: appEncryptionKey.bytes,
                 file: 'app-encryption-key',
-                sha256: await sha256(appEncryptionKeyPath),
+                sha256: appEncryptionKey.sha256,
             },
             controllerState: {
                 archive: stateArchiveName,
-                bytes: stateArchive.size,
-                sha256: await sha256(stateArchivePath),
+                bytes: stateArchive.bytes,
+                sha256: stateArchive.sha256,
             },
             crowdSecState: {
                 archive: 'crowdsec-state.tar',
-                bytes: crowdSecBytes.byteLength,
-                sha256: await sha256(crowdSecArchivePath),
+                bytes: crowdSec.bytes,
+                sha256: crowdSec.sha256,
             },
             deployment,
             source,
             createdAt: new Date().toISOString(),
             format: 'rentnerproxy-production-backup',
             postgres: {
-                bytes: dump.byteLength,
+                bytes: dump.bytes,
                 database,
                 dump: 'postgres.dump',
-                sha256: await sha256(dumpPath),
+                sha256: dump.sha256,
                 user: databaseUser,
             },
             redis: 'excluded',

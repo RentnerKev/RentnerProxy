@@ -3,6 +3,8 @@ import type {
     MaintenanceProcessOptions,
     MaintenanceProcessResult,
 } from './Types/maintenance-process.types.ts'
+import { createHash } from 'node:crypto'
+import { writeFileChunk } from './artifact-file.ts'
 
 export async function runMaintenanceProcess(
     args: readonly string[],
@@ -24,6 +26,8 @@ export async function runMaintenanceProcess(
     const output = child.stdout.getReader()
     const errors = child.stderr.getReader()
     const chunks: Uint8Array[] = []
+    const hash = createHash('sha256')
+    let written = 0
     let diagnostic = Buffer.alloc(0)
     let timedOut = false
     let failed = false
@@ -38,7 +42,16 @@ export async function runMaintenanceProcess(
         while (true) {
             const next = await output.read()
             if (next.done) return
-            chunks.push(next.value)
+            if (options.outputFile) {
+                if (written + next.value.length > options.outputFile.maximumBytes)
+                    throw new Error('backup artifact is too large')
+                for (let offset = 0; offset < next.value.length; offset += 65_536) {
+                    const chunk = next.value.subarray(offset, offset + 65_536)
+                    await writeFileChunk(options.outputFile.file, chunk)
+                    hash.update(chunk)
+                    written += chunk.length
+                }
+            } else chunks.push(next.value)
         }
     })()
     const stderr = (async () => {
@@ -116,5 +129,8 @@ export async function runMaintenanceProcess(
         stopped,
         stdout: Buffer.concat(chunks),
         stderr: diagnostic.toString('utf8'),
+        ...(options.outputFile && !failed
+            ? { artifact: { bytes: written, sha256: hash.digest('hex') } }
+            : {}),
     }
 }

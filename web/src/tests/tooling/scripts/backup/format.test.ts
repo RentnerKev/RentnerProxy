@@ -1,13 +1,18 @@
+// oxlint-disable no-await-in-loop -- Differential cases reuse one fixture path sequentially.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
 import {
     assertDeploymentCompatible,
     parseBackupMetadata,
-    validateControllerEncryption,
-    validateStateArchive,
+    validateControllerEncryption as validateEncryptionBytes,
+    validateStateArchive as validateArchiveBytes,
+    validateControllerEncryptionFile,
+    validateStateArchiveFile,
     verifyBackupArtifact,
 } from '../../../../../../scripts/backup/format.ts'
 import type {
@@ -18,6 +23,18 @@ import type {
 const sha256 = (data: Uint8Array | string) => createHash('sha256').update(data).digest('hex')
 const fixedSha = 'a'.repeat(64)
 const emptyBytes = new Uint8Array([1, 2, 3])
+const archiveCases: Array<{ input: Uint8Array; kind: 'controller' | 'crowdsec' }> = []
+const encryptionCases: Array<Parameters<typeof validateEncryptionBytes>> = []
+
+function validateStateArchive(input: Uint8Array, kind: 'controller' | 'crowdsec') {
+    archiveCases.push({ input, kind })
+    return validateArchiveBytes(input, kind)
+}
+
+function validateControllerEncryption(...args: Parameters<typeof validateEncryptionBytes>) {
+    encryptionCases.push(args)
+    return validateEncryptionBytes(...args)
+}
 
 function v3Metadata() {
     return {
@@ -419,6 +436,26 @@ describe('controller state archive validation', () => {
         )
         expectArchiveError(new Uint8Array(1024), 'controller', /empty state archive/u)
     })
+
+    it('rejects dangling, repeated or oversized GNU long names and nonempty directories', () => {
+        const long = { name: '././@LongLink', type: 'L', bytes: utf8('state/config\0') }
+        expectArchiveError(archive([long]), 'controller', /invalid state archive trailer/u)
+        expectArchiveError(
+            archive([long, long, { name: 'short' }]),
+            'controller',
+            /invalid long state archive path/u,
+        )
+        expectArchiveError(
+            archive([{ ...long, bytes: new Uint8Array(4098) }, { name: 'short' }]),
+            'controller',
+            /invalid long state archive path/u,
+        )
+        expectArchiveError(
+            archive([{ name: 'directory', type: '5', bytes: utf8('unexpected') }]),
+            'controller',
+            /invalid state archive directory/u,
+        )
+    })
 })
 
 describe('CrowdSec state archive validation', () => {
@@ -563,4 +600,76 @@ describe('encrypted controller certificate state', () => {
             /decrypt failed/u,
         )
     })
+})
+
+it('matches file TAR acceptance, errors, index and encryption contracts across every byte fixture', async () => {
+    const parent = resolve(import.meta.dir, '../../../../../../tmp')
+    await mkdir(parent, { recursive: true })
+    const fixtureDirectory = await mkdtemp(join(parent, 'file-tar-parity-'))
+    const path = join(fixtureDirectory, 'archive.tar')
+    try {
+        for (const { input, kind } of archiveCases) {
+            let expected: StateArchiveEntry[] | undefined
+            let message: string | undefined
+            try {
+                expected = validateArchiveBytes(input, kind)
+            } catch (error) {
+                message = (error as Error).message
+            }
+            await writeFile(path, input)
+            const file = await open(path, 'r')
+            try {
+                if (message) await assert.rejects(validateStateArchiveFile(file, kind), { message })
+                else {
+                    const index = await validateStateArchiveFile(file, kind)
+                    assert.deepEqual(
+                        index.map(({ name, directory, size }) => ({ name, directory, size })),
+                        expected!.map(({ name, directory, bytes }) => ({
+                            name,
+                            directory,
+                            size: bytes.length,
+                        })),
+                    )
+                }
+            } finally {
+                await file.close()
+            }
+        }
+        for (const [entries, decrypt] of encryptionCases) {
+            const records = entries.flatMap((entry) =>
+                entry.name.length > 100
+                    ? [
+                          { name: '././@LongLink', type: 'L', bytes: utf8(entry.name + '\0') },
+                          {
+                              name: 'short-name',
+                              type: entry.directory ? '5' : '0',
+                              bytes: entry.bytes,
+                          },
+                      ]
+                    : [{ name: entry.name, type: entry.directory ? '5' : '0', bytes: entry.bytes }],
+            )
+            await writeFile(path, archive(records))
+            const file = await open(path, 'r')
+            try {
+                let message: string | undefined
+                try {
+                    validateEncryptionBytes(entries, decrypt)
+                } catch (error) {
+                    message = (error as Error).message
+                }
+                const index = await validateStateArchiveFile(file, 'controller')
+                if (message)
+                    await assert.rejects(validateControllerEncryptionFile(file, index, decrypt), {
+                        message,
+                    })
+                else await validateControllerEncryptionFile(file, index, decrypt)
+            } finally {
+                await file.close()
+            }
+        }
+        assert.ok(archiveCases.length > 20)
+        assert.ok(encryptionCases.length >= 6)
+    } finally {
+        await rm(fixtureDirectory, { recursive: true, force: true })
+    }
 })

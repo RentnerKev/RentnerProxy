@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { createCipheriv, createDecipheriv } from 'node:crypto'
-import { validateControllerEncryption } from '../../../../../../scripts/backup/format.ts'
+import {
+    validateControllerEncryption,
+    validateControllerEncryptionFile,
+} from '../../../../../../scripts/backup/format.ts'
+import { mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import type { StateArchiveEntry } from '../../../../../../scripts/backup/Types/format.types.ts'
 
 const connectionId = '01924df0-1111-7111-8111-111111111111'
@@ -52,6 +57,47 @@ function decrypt(ciphertext: Uint8Array, nonce: Uint8Array, context: string): vo
 }
 
 describe('Cloudflare connection backup compatibility', () => {
+    test('file metadata retains connection AAD, rejects swapped ciphertext and invalid registries', async () => {
+        const parent = resolve(import.meta.dir, '../../../../../../tmp')
+        await mkdir(parent, { recursive: true })
+        const directory = await mkdtemp(join(parent, 'dns-file-'))
+        const swapped = connection()
+        swapped.metadata.id = secondConnectionId
+        try {
+            for (const [document, valid] of [
+                [{ version: 1, connections: [connection(), connection(secondConnectionId)] }, true],
+                [{ version: 1, connections: [swapped] }, false],
+                [{ version: 2, connections: [] }, false],
+            ] as const) {
+                const bytes = Buffer.from(JSON.stringify(document))
+                const path = join(directory, 'registry')
+                // oxlint-disable-next-line no-await-in-loop -- Reuse one fixture path.
+                await writeFile(path, bytes)
+                // oxlint-disable-next-line no-await-in-loop
+                const file = await open(path, 'r')
+                try {
+                    const index = [
+                        {
+                            name: 'dns-connections.json',
+                            directory: false,
+                            bodyOffset: 0,
+                            size: bytes.length,
+                        },
+                    ]
+                    const result = validateControllerEncryptionFile(file, index, decrypt)
+                    // oxlint-disable-next-line no-await-in-loop
+                    if (valid) await result
+                    // oxlint-disable-next-line no-await-in-loop
+                    else await expect(result).rejects.toThrow()
+                } finally {
+                    // oxlint-disable-next-line no-await-in-loop
+                    await file.close()
+                }
+            }
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    })
     test('accepts pre-feature backups without a connection registry', () => {
         let calls = 0
         validateControllerEncryption([], () => {
