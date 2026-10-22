@@ -8,5 +8,20 @@ export function useNpmImportLogic(): NpmImportLogicResult {
         importHeader: 'sqlite',
         maxFileBytes: 32 * 1024 * 1024,
     })
-    return { state, handler }
+    return {
+        state: {
+            file: state.file,
+            preview: state.preview,
+            result: state.result,
+            history: state.history,
+            busy: state.busy,
+            error: state.error,
+        },
+        handler: {
+            selectFile: handler.selectFile,
+            discardPreview: handler.discardPreview,
+            previewSource: handler.previewSource,
+            applySource: handler.applySource,
+        },
+    }
 }

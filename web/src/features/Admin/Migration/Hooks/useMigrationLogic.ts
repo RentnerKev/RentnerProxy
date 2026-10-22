@@ -72,7 +72,23 @@ export function useMigrationLogic(): MigrationLogicResult {
     }
 
     return {
-        state: { ...state, source, exporting },
-        handler: { ...handler, selectSource, downloadExport },
+        state: {
+            file: state.file,
+            preview: state.preview,
+            result: state.result,
+            history: state.history,
+            busy: state.busy,
+            error: state.error,
+            source,
+            exporting,
+        },
+        handler: {
+            selectFile: handler.selectFile,
+            discardPreview: handler.discardPreview,
+            previewSource: handler.previewSource,
+            applySource: handler.applySource,
+            selectSource,
+            downloadExport,
+        },
     }
 }
