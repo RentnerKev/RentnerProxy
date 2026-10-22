@@ -37,6 +37,7 @@ jobs:
         name: Release
         needs: classify
         permissions:
+            actions: read
             contents: write
             issues: read
             packages: write
