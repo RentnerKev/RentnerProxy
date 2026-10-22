@@ -1,3 +1,4 @@
+import { matchesHostSearch } from '@/lib/HostTags/hostList.ts'
 import type { RedirectHostsTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
@@ -20,12 +21,7 @@ const globalFilter =
         if (!search) return true
         const host = row.original
         const status = host.enabled ? 'enabled' : 'disabled'
-        return [
-            ...host.domains,
-            host.destination,
-            String(host.statusCode),
-            t('admin.redirectHosts.status.' + status),
-        ].some((value) => value.toLocaleLowerCase(locale).includes(search))
+        return matchesHostSearch(host, search, locale, t('admin.redirectHosts.status.' + status))
     }
 export default function useRedirectHostsTableLogic(
     props: RedirectHostsTableProps,

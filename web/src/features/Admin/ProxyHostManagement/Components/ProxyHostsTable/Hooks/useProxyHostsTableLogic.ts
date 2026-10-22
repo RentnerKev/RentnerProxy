@@ -1,3 +1,4 @@
+import { matchesHostSearch } from '@/lib/HostTags/hostList.ts'
 import type { Translate } from '../Types/proxy-hosts-table-logic.types.ts'
 import type { ProxyHostsTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
@@ -18,23 +19,14 @@ const createProxyHostGlobalFilter =
     (t: Translate, locale: string): FilterFn<ClientTableFeatures, ProxyHostSummary> =>
     (row, _columnId, filterValue) => {
         const search = String(filterValue).trim().toLocaleLowerCase(locale)
+        if (!search) return true
         const host = row.original
 
-        if (!search) {
-            return true
-        }
-
         const status = host.enabled ? 'enabled' : 'disabled'
-
-        return [
-            ...host.domains,
-            host.forwardScheme,
-            t('admin.proxyHosts.scheme.' + host.forwardScheme),
-            host.forwardHost,
-            String(host.forwardPort),
+        return matchesHostSearch(host, search, locale, t('admin.proxyHosts.status.' + status), [
             status,
-            t('admin.proxyHosts.status.' + status),
-        ].some((value) => value.toLocaleLowerCase(locale).includes(search))
+            t('admin.proxyHosts.scheme.' + host.forwardScheme),
+        ])
     }
 
 export default function useProxyHostsTableLogic(

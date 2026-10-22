@@ -11,7 +11,7 @@ import type {
 } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { emptyHostTagState, HostTagDomainError, mutateHostTags } from '@/lib/HostTags/hostTags.ts'
 import { hostTagMutationSchema } from '@/features/Admin/HostTags/validation.ts'
-import withTestLanguage, { bootstraps } from '@/tests/Helpers/withTestLanguage.tsx'
+import withTestLanguage, { bootstraps, catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import { AuthenticatedLanguageProvider } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
@@ -71,9 +71,34 @@ function HostListInputProbe() {
     return <output>{logic.query.search}</output>
 }
 
-function HostTableRefreshProbe({ kind }: { readonly kind: HostKind }) {
+function HostTableRefreshProbe({
+    kind,
+    remote = false,
+    translatedProtocol = false,
+}: {
+    readonly kind: HostKind
+    readonly remote?: boolean
+    readonly translatedProtocol?: boolean
+}) {
     const [version, setVersion] = useState(0)
-    const [bootstrap, setBootstrap] = useState(() => structuredClone(bootstraps.de))
+    const [bootstrap, setBootstrap] = useState(() => {
+        const next = structuredClone(bootstraps.de)
+        if (translatedProtocol)
+            next.resources.de!.translation = {
+                ...catalogs.de,
+                admin: {
+                    ...catalogs.de.admin,
+                    proxyHosts: {
+                        ...catalogs.de.admin.proxyHosts,
+                        scheme: {
+                            ...catalogs.de.admin.proxyHosts.scheme,
+                            http: 'Klartextprotokoll',
+                        },
+                    },
+                },
+            }
+        return next
+    })
     useEffect(() => {
         refreshHostTable = () => {
             setVersion((current) => current + 1)
@@ -85,6 +110,22 @@ function HostTableRefreshProbe({ kind }: { readonly kind: HostKind }) {
     }, [])
     const onAction = () => setVersion(version)
     const common = {
+        ...(remote
+            ? {
+                  remote: {
+                      rowCount: 1,
+                      domains: ['app.example.com'],
+                      tags: [infra],
+                      initialState: {
+                          globalFilter: '',
+                          columnFilters: [],
+                          sorting: [],
+                          pagination: { pageIndex: 0, pageSize: 10 },
+                      },
+                      onStateChange: () => undefined,
+                  },
+              }
+            : {}),
         loading: false,
         canUpdate: true,
         canDelete: false,
@@ -514,3 +555,54 @@ describe('localized accessible host tags', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
 })
+
+test.each(['proxy', 'redirect'] as const)(
+    'keeps %s standalone search and localized status matching',
+    async (kind) => {
+        await render(<HostTableRefreshProbe kind={kind} />)
+        const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
+        await input('  APP.EXAMPLE.COM  ', search)
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 350))
+        })
+        expect(visibleHostRow()).toBeTrue()
+        await input('does-not-match', search)
+        await waitFor(() => !visibleHostRow())
+        await input('AKTIVIERT', search)
+        await waitFor(visibleHostRow)
+        // Client global search historically excludes tag names; server search includes them.
+        await input('INFRASTRUKTUR', search)
+        await waitFor(() => !visibleHostRow())
+    },
+)
+
+test.each(['proxy', 'redirect'] as const)(
+    'does not filter the delivered %s remote page again',
+    async (kind) => {
+        await render(<HostTableRefreshProbe kind={kind} remote />)
+        await input(
+            'does-not-match',
+            document.querySelector<HTMLInputElement>('input[type="search"]')!,
+        )
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 350))
+        })
+        expect(document.querySelector('tbody')?.textContent).toContain('app.example.com')
+    },
+)
+
+test('keeps the translated protocol as an extra proxy-client search term', async () => {
+    await render(<HostTableRefreshProbe kind="proxy" translatedProtocol />)
+    await input(
+        'KLARTEXTPROTOKOLL',
+        document.querySelector<HTMLInputElement>('input[type="search"]')!,
+    )
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 350))
+    })
+    expect(document.querySelector('tbody')?.textContent).toContain('app.example.com')
+})
+
+function visibleHostRow() {
+    return document.querySelector('tbody')?.textContent?.includes('app.example.com') === true
+}
