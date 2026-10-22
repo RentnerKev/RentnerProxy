@@ -12,13 +12,11 @@ import { lt, sql } from 'drizzle-orm'
 import { certificateEventCursor, certificateEventReceipts } from '@/db/schema.ts'
 import type { CertificateEventMetadata } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { appendAuditEventsInTransactionService } from '@/server/Audit/audit.service.ts'
-import {
-    getControllerCertificateEvents,
-    getControllerCertificates,
-} from '@/server/Controller/certificates.server.ts'
+import { getControllerCertificateEvents } from '@/server/Controller/certificates.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
-import { persistControllerCertificatesMetadataInTransaction } from './certificates.service.ts'
+import { persistControllerCertificatesMetadataInTransaction } from './certificate-metadata.persistence.ts'
+import { getCertificateMetadataSnapshot } from './certificate-metadata-snapshot.server.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 
 const CERTIFICATE_EVENT_SYNC_LOCK_ID = 7_421_910
@@ -95,7 +93,7 @@ async function fetchEventsAndMetadata(
         after = page.nextCursor
     }
 
-    const metadata = await getControllerCertificates()
+    const { metadata } = await getCertificateMetadataSnapshot()
     return { expectedCursor, nextCursor, resetRequired, events, metadata }
 }
 
