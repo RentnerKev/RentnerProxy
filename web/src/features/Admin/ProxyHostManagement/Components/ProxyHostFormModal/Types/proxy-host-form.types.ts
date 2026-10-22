@@ -119,7 +119,7 @@ export type ProxyHostFormModalFooterProps = Pick<
 
 export type ProxyHostSetupGuideProps = Pick<
     ProxyHostFormModalHandler,
-    'handleToggleGuide' | 'handleNextGuideStep' | 'handlePreviousGuideStep'
+    'handleNextGuideStep' | 'handlePreviousGuideStep'
 > & {
     readonly guide: ProxyHostSetupGuideState
     readonly guideHeading: RefObject<HTMLHeadingElement | null>

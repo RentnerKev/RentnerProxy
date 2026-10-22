@@ -1,3 +1,5 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import { Info } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -22,11 +24,41 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                 size="lg"
                 closeDisabled={state.isPending || state.disableConfirmationOpen}
                 footer={
-                    <ProxyHostFormModalFooter
-                        {...state}
-                        form={form}
-                        onOpenChange={props.onOpenChange}
-                    />
+                    <>
+                        <div className="mr-auto shrink-0">
+                            <CustomTooltip
+                                collisionPadding={10}
+                                content={t(
+                                    state.guide.open
+                                        ? 'admin.proxyHosts.guide.skip'
+                                        : 'admin.proxyHosts.guide.open',
+                                )}
+                            >
+                                <button
+                                    type="button"
+                                    className="inline-flex size-12 cursor-pointer items-center justify-center rounded-xl border border-transparent text-muted transition-colors hover:border-accent-border hover:bg-accent-muted hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label={t(
+                                        state.guide.open
+                                            ? 'admin.proxyHosts.guide.skip'
+                                            : 'admin.proxyHosts.guide.open',
+                                    )}
+                                    aria-expanded={state.guide.open}
+                                    aria-controls={
+                                        state.guide.open ? `${state.formId}-guide` : undefined
+                                    }
+                                    disabled={state.isPending}
+                                    onClick={handler.handleToggleGuide}
+                                >
+                                    <Info aria-hidden="true" className="size-5" strokeWidth={1.8} />
+                                </button>
+                            </CustomTooltip>
+                        </div>
+                        <ProxyHostFormModalFooter
+                            {...state}
+                            form={form}
+                            onOpenChange={props.onOpenChange}
+                        />
+                    </>
                 }
             >
                 <form
@@ -39,7 +71,6 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         guide={state.guide}
                         guideHeading={refs.guideHeading}
                         formId={state.formId}
-                        handleToggleGuide={handler.handleToggleGuide}
                         handleNextGuideStep={handler.handleNextGuideStep}
                         handlePreviousGuideStep={handler.handlePreviousGuideStep}
                     />

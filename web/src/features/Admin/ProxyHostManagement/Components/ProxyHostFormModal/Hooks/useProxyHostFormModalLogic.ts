@@ -61,6 +61,9 @@ export default function useProxyHostFormModalLogic({
             guideHeading.current?.focus()
         }
     }, [guideStep])
+    useEffect(() => {
+        if (guideOpen) guideHeading.current?.focus()
+    }, [guideOpen])
     const handleToggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
     const handleNextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
     const handlePreviousGuideStep = useCallback(

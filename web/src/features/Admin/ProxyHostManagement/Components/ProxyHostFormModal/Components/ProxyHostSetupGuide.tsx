@@ -5,25 +5,16 @@ export default function ProxyHostSetupGuide({
     guide,
     guideHeading,
     formId,
-    handleToggleGuide,
     handleNextGuideStep,
     handlePreviousGuideStep,
 }: ProxyHostSetupGuideProps) {
     const { t } = useTranslationStore()
+    if (!guide.open) return null
     return (
         <section
             className="grid gap-3 rounded-xl border border-accent-border bg-surface-raised p-4 shell:col-span-full"
             aria-label={t('admin.proxyHosts.guide.title')}
         >
-            <button
-                type="button"
-                className="flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
-                aria-expanded={guide.open}
-                aria-controls={`${formId}-guide`}
-                onClick={handleToggleGuide}
-            >
-                {t(guide.open ? 'admin.proxyHosts.guide.skip' : 'admin.proxyHosts.guide.open')}
-            </button>
             {guide.open ? (
                 <div id={`${formId}-guide`} className="grid gap-3 text-sm text-ink-soft">
                     <h3
