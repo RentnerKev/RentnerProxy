@@ -119,6 +119,13 @@ function utf8(value: string): Uint8Array {
     return Buffer.from(value, 'utf8')
 }
 
+function longRecords(name: string, type = '0'): TarRecord[] {
+    return [
+        { name: '././@LongLink', type: 'L', bytes: utf8(name + '\0') },
+        { name: 'short-name', type },
+    ]
+}
+
 function expectArchiveError(
     input: Uint8Array,
     kind: 'controller' | 'crowdsec',
@@ -327,6 +334,57 @@ describe('controller state archive validation', () => {
             'controller',
             /conflicting state archive paths/u,
         )
+    })
+
+    it('allows implicit directories, later explicit directories and distinct path prefixes', () => {
+        const entries = validateStateArchive(
+            archive([
+                { name: './state//./child' },
+                { name: 'state', type: '5' },
+                { name: '.', type: '5' },
+                { name: 'prefix' },
+                { name: 'prefix-other/child' },
+            ]),
+            'controller',
+        )
+        assert.deepEqual(
+            entries.map((entry) => entry.name),
+            ['state/child', 'state', '', 'prefix', 'prefix-other/child'],
+        )
+        expectArchiveError(
+            archive([{ name: 'state/config' }, { name: './state//config', type: '5' }]),
+            'controller',
+            /duplicate or invalid state archive entry/u,
+        )
+    })
+
+    it('checks deep GNU paths at the 4096-character limit in either conflict order', () => {
+        const child = 'd/'.repeat(2047) + 'xy'
+        const parent = child.slice(0, child.lastIndexOf('/'))
+        assert.equal(child.length, 4096)
+        assert.equal(
+            validateStateArchive(
+                archive([...longRecords(child), ...longRecords(parent, '5')]),
+                'controller',
+            ).length,
+            2,
+        )
+        for (const records of [
+            [...longRecords(parent), ...longRecords(child)],
+            [...longRecords(child), ...longRecords(parent)],
+        ]) {
+            expectArchiveError(archive(records), 'controller', /conflicting state archive paths/u)
+        }
+    })
+
+    it('validates many independent paths with the complete name index', () => {
+        const records = Array.from({ length: 20_000 }, (_, index) => ({
+            name: 'independent-' + index + '/state',
+        }))
+        const entries = validateStateArchive(archive(records), 'controller')
+        assert.equal(entries.length, records.length)
+        assert.equal(entries[0]!.name, records[0]!.name)
+        assert.equal(entries.at(-1)!.name, records.at(-1)!.name)
     })
 
     it('rejects truncation, invalid header checksums and nonzero data after EOF', () => {

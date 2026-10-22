@@ -88,6 +88,15 @@ function safeName(value: string): string {
     return parts.join('/')
 }
 
+function validateArchivePathConflicts(names: ReadonlyMap<string, boolean>): void {
+    for (const name of names.keys()) {
+        for (let slash = name.indexOf('/'); slash !== -1; slash = name.indexOf('/', slash + 1)) {
+            if (names.get(name.slice(0, slash)) === false)
+                throw new Error('conflicting state archive paths')
+        }
+    }
+}
+
 export function validateStateArchive(
     archive: Uint8Array,
     kind: 'controller' | 'crowdsec',
@@ -108,6 +117,7 @@ export function validateStateArchive(
             )
                 throw new Error('invalid state archive trailer')
             if (entries.length === 0) throw new Error('empty state archive')
+            validateArchivePathConflicts(names)
             if (kind === 'crowdsec' && names.has('data/crowdsec.db')) {
                 for (const name of [
                     'credentials/local_api_credentials.yaml',
@@ -157,14 +167,6 @@ export function validateStateArchive(
         longName = null
         if ((!name && !directory) || names.has(name))
             throw new Error('duplicate or invalid state archive entry')
-        const parts = name.split('/')
-        for (let index = 1; index < parts.length; index += 1) {
-            if (names.get(parts.slice(0, index).join('/')) === false)
-                throw new Error('conflicting state archive paths')
-        }
-        if (!directory && [...names.keys()].some((entry) => entry.startsWith(name + '/'))) {
-            throw new Error('conflicting state archive paths')
-        }
         if (
             kind === 'crowdsec' &&
             !(directory
