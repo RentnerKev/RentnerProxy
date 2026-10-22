@@ -1214,7 +1214,13 @@ fn response_compression_inherits_overrides_and_resets_without_changing_caddy_def
         ),
         (None, Some(ResponseCompression::Auto), true),
     ] {
-        let mut host = config().proxy_hosts.remove(0);
+        let mut host = host(
+            "018f4b4a-7d1f-7abc-8def-0123456789ab",
+            &["a.example"],
+            "http",
+            "127.0.0.1",
+            9000,
+        );
         host.http_settings.response_compression = local;
         let defaults = ProxyHttpSettings {
             response_compression: global,
