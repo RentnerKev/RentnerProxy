@@ -44,7 +44,6 @@ import {
     deleteProxyHostService,
     disableProxyHostService,
     enableProxyHostService,
-    getProxyHostsService,
     updateProxyHostService,
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
@@ -120,15 +119,6 @@ export const applyProxyConfigurationHandler = createServerFn({ method: 'POST' })
         }
     },
 )
-
-export const getProxyHostsHandler = createServerFn({ method: 'GET' }).handler(async () => {
-    try {
-        await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-        return await getProxyHostsService()
-    } catch (error) {
-        throwLocalizedQueryError(error, 'admin.proxyHosts.errors.loadFailed')
-    }
-})
 
 export const createProxyHostHandler = createServerFn({ method: 'POST' })
     .validator(createProxyHostInputSchema)

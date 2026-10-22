@@ -40,7 +40,7 @@ const { default: withTestPageAlerts, openPageAlerts } =
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
-const getProxyHostsHandlerMock = mock(async (): Promise<ProxyHostSummary[]> => [])
+const loadProxyHostPageFixture = mock(async (): Promise<ProxyHostSummary[]> => [])
 const getProxyRuntimeStatusHandlerMock = mock(async (): Promise<ProxyRuntimeSyncStatus> => ({
     available: true,
     running: true,
@@ -170,9 +170,8 @@ mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
     disableProxyHostHandler: disableProxyHostHandlerMock,
     enableProxyHostHandler: enableProxyHostHandlerMock,
     getProxyRuntimeStatusHandler: getProxyRuntimeStatusHandlerMock,
-    getProxyHostsHandler: getProxyHostsHandlerMock,
     getProxyHostPageHandler: async ({ data }: { data: unknown }) =>
-        filterHostPage(await getProxyHostsHandlerMock(), [], hostListQuerySchema.parse(data), {
+        filterHostPage(await loadProxyHostPageFixture(), [], hostListQuerySchema.parse(data), {
             enabled: 'Enabled',
             disabled: 'Disabled',
         }),
@@ -542,7 +541,7 @@ beforeEach(() => {
         message: 'admin.proxyHosts.config.reset',
         runtimeStatus: 'applied',
     })
-    getProxyHostsHandlerMock.mockReset()
+    loadProxyHostPageFixture.mockReset()
     getProxyRuntimeStatusHandlerMock.mockReset()
     applyProxyConfigurationHandlerMock.mockReset()
     createProxyHostHandlerMock.mockReset()
@@ -573,7 +572,7 @@ beforeEach(() => {
         message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
     })
     getCertificateJobProgressHandlerMock.mockReset().mockResolvedValue([])
-    getProxyHostsHandlerMock.mockResolvedValue([enabledHost, disabledHost])
+    loadProxyHostPageFixture.mockResolvedValue([enabledHost, disabledHost])
     getProxyRuntimeStatusHandlerMock.mockResolvedValue({
         available: true,
         running: true,
@@ -909,7 +908,7 @@ describe('ProxyHost management table', () => {
         expect(trigger.getAttribute('aria-expanded')).toBe('true')
     })
     test('keeps tag assignment accessible for discovered hosts without editing routing', async () => {
-        getProxyHostsHandlerMock.mockResolvedValue([
+        loadProxyHostPageFixture.mockResolvedValue([
             {
                 ...enabledHost,
                 discovery: { state: 'managed' },
@@ -949,7 +948,7 @@ describe('ProxyHost management table', () => {
     })
 
     test('does not leave certificate job stages in the host status column', async () => {
-        getProxyHostsHandlerMock.mockResolvedValueOnce([
+        loadProxyHostPageFixture.mockResolvedValueOnce([
             {
                 ...enabledHost,
                 certificateJob: certificateJobFixture({
@@ -974,7 +973,7 @@ describe('ProxyHost management table', () => {
             forwardScheme: index % 2 === 0 ? 'http' : 'https',
             id: `018f2f52-7c1b-7cc0-9f3c-6a9952c5${String(index).padStart(3, '0')}`,
         }))
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
@@ -1004,7 +1003,7 @@ describe('ProxyHost management table', () => {
                       : `host-${index}.example.com`,
             ],
         }))
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         await click(getButton('Filters'))
@@ -1056,7 +1055,7 @@ describe('ProxyHost management table', () => {
                 id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54032',
             },
         ]
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 3)
 
@@ -1081,7 +1080,7 @@ describe('ProxyHost management table', () => {
     })
     test('shows loading, empty, and filtered-empty states', async () => {
         let resolveHosts: ((hosts: ProxyHostSummary[]) => void) | undefined
-        getProxyHostsHandlerMock.mockImplementationOnce(
+        loadProxyHostPageFixture.mockImplementationOnce(
             () =>
                 new Promise((resolve) => {
                     resolveHosts = resolve
@@ -1096,7 +1095,7 @@ describe('ProxyHost management table', () => {
         resolveHosts?.([])
         await waitFor(() => document.body.textContent?.includes('No proxy hosts yet') ?? false)
 
-        getProxyHostsHandlerMock.mockResolvedValueOnce([enabledHost])
+        loadProxyHostPageFixture.mockResolvedValueOnce([enabledHost])
         await act(async () => activeRoot?.unmount())
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 1)
@@ -1142,7 +1141,7 @@ describe('ProxyHost permissions and row actions', () => {
     })
 
     test('moves page load failures into the navbar and clears them after retry', async () => {
-        getProxyHostsHandlerMock.mockRejectedValueOnce(new Error('private controller diagnostics'))
+        loadProxyHostPageFixture.mockRejectedValueOnce(new Error('private controller diagnostics'))
         const container = await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => document.querySelector('button[data-severity="error"]') !== null)
         expect(container.textContent).not.toContain('Proxy hosts are unavailable')
@@ -1406,7 +1405,7 @@ describe('ProxyHost form modal', () => {
     ])(
         'cannot duplicate a protected source without its assignment permissions: %j',
         async (protection) => {
-            getProxyHostsHandlerMock.mockResolvedValue([{ ...enabledHost, ...protection }])
+            loadProxyHostPageFixture.mockResolvedValue([{ ...enabledHost, ...protection }])
             await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
             await waitFor(() => getRows().length === 1)
             await openMenu(getButton('Open actions for app.example.com'))
@@ -1441,7 +1440,7 @@ describe('ProxyHost form modal', () => {
             { ...assignableCertificate, domains: ['*.example.com'] },
         ])
         getAssignableAccessPoliciesHandlerMock.mockResolvedValue([policy])
-        getProxyHostsHandlerMock.mockResolvedValue([source])
+        loadProxyHostPageFixture.mockResolvedValue([source])
         await renderPage([
             PERMISSIONS.PROXY_HOSTS_VIEW,
             PERMISSIONS.PROXY_HOSTS_CREATE,
@@ -2163,7 +2162,7 @@ describe('Caddy proxy host configuration editor', () => {
             upstreamTlsServerName: 'backend-with-a-long-name.internal.example',
             trustedCaId: assignableTrustedCa.id,
         }
-        getProxyHostsHandlerMock.mockResolvedValueOnce([secureHost, disabledHost])
+        loadProxyHostPageFixture.mockResolvedValueOnce([secureHost, disabledHost])
 
         const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
         expect(dialog.textContent).toContain(secureHost.domains[0]!)
@@ -2598,7 +2597,7 @@ describe('integrated proxy host setup guide', () => {
     )
 
     test('opens automatically for the first host and can be skipped and reopened', async () => {
-        getProxyHostsHandlerMock.mockResolvedValue([])
+        loadProxyHostPageFixture.mockResolvedValue([])
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
         await waitFor(() => !getButton('Add proxy host').disabled)
         await click(getButton('Add proxy host'))

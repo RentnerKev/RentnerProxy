@@ -53,7 +53,6 @@ mock.module('@/features/Admin/RedirectHostManagement/middleware.ts', () => ({
     createRedirectHostHandler: createHost,
     updateRedirectHostHandler: updateHost,
     getAssignableRedirectCertificatesHandler: async () => [certificate],
-    getRedirectHostsHandler: async () => [],
     getRedirectHostPageHandler: async () => ({ hosts: [], total: 0, domains: [], tags: [] }),
     getRedirectRuntimeStatusHandler: async () => ({
         available: true,

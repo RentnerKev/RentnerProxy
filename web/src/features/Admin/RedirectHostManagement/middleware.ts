@@ -18,7 +18,6 @@ import {
     deleteRedirectHostService,
     disableRedirectHostService,
     enableRedirectHostService,
-    getRedirectHostsService,
     updateRedirectHostService,
 } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import {
@@ -58,15 +57,6 @@ function redirectHostActionSuccess(
         runtimeStatus,
     }
 }
-
-export const getRedirectHostsHandler = createServerFn({ method: 'GET' }).handler(async () => {
-    try {
-        await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
-        return await getRedirectHostsService()
-    } catch (error) {
-        throwLocalizedQueryError(error, 'admin.redirectHosts.errors.loadFailed')
-    }
-})
 
 export const getRedirectHostPageHandler = createServerFn({ method: 'GET' })
     .validator(hostListQuerySchema)
