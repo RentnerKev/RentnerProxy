@@ -805,7 +805,7 @@ fn response_compression_real_caddy_smoke() {
     .canonicalize()
     .unwrap();
     let workspace = SmokeWorkspace::new();
-    let payload = "Compression must preserve every byte. Ã¤Ã¶Ã¼ÃŸ\n"
+    let payload = "Compression must preserve every byte. äöüß\n"
         .repeat(100)
         .into_bytes();
     let upstream = TcpListener::bind("127.0.0.1:0").unwrap();

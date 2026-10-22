@@ -1009,13 +1009,9 @@ describe('ProxyHost management table', () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         await click(getButton('Filters'))
-        await click(
-            getButton(
-                'Filter domainsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦',
-            ),
-        )
+        await click(getButton('Filter domains…'))
         const domainSearch = document.querySelector<HTMLInputElement>(
-            'input[placeholder="Filter domainsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦"]',
+            'input[placeholder="Filter domains…"]',
         )!
         await waitFor(() => document.activeElement === domainSearch)
         await setControlValue(domainSearch, 'selected')
@@ -1681,7 +1677,7 @@ describe('ProxyHost form modal', () => {
         const checkbox = document.querySelector<HTMLInputElement>('input[name="enabled"]')!
         expect(checkbox.disabled).toBeTrue()
         expect(document.body.textContent).toContain(
-            'You do not have permission to change this proxy hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s saved status.',
+            'You do not have permission to change this proxy host’s saved status.',
         )
     })
     test('keeps modal open and blocks invalid submission with inline validation', async () => {
@@ -2292,12 +2288,8 @@ describe('Caddy proxy host configuration editor', () => {
         const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
         expect(dialog.textContent).toContain(secureHost.domains[0]!)
         expect(dialog.textContent).toContain('https://[2001:db8::10]:443')
-        expect(dialog.textContent).toContain(
-            'HTTPS ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· HTTP redirects enabled',
-        )
-        expect(dialog.textContent).toContain(
-            'HTTPS ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· verified with custom CA',
-        )
+        expect(dialog.textContent).toContain('HTTPS · HTTP redirects enabled')
+        expect(dialog.textContent).toContain('HTTPS · verified with custom CA')
         expect(dialog.textContent).toContain('backend-with-a-long-name.internal.example')
         expect(dialog.querySelector('[data-config-state="active"]')?.textContent).toContain(
             'Active config loaded',
@@ -2424,19 +2416,11 @@ describe('Caddy proxy host configuration editor', () => {
 
         await click(getButton('Restore defaults'))
         await waitFor(
-            () =>
-                document.body.textContent?.includes(
-                    'Restore this hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s defaults?',
-                ) ?? false,
+            () => document.body.textContent?.includes('Restore this host’s defaults?') ?? false,
         )
         expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
         await click(getLastButton('Cancel'))
-        await waitFor(
-            () =>
-                !document.body.textContent?.includes(
-                    'Restore this hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s defaults?',
-                ),
-        )
+        await waitFor(() => !document.body.textContent?.includes('Restore this host’s defaults?'))
         expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
 
         await click(getButton('Restore defaults'))
@@ -2669,23 +2653,17 @@ describe('integrated proxy host setup guide', () => {
         await act(async () => getButton('Next step').focus())
         await click(getButton('Next step'))
         expect(document.activeElement?.tagName).toBe('H3')
-        expect(document.activeElement?.textContent).toContain(
-            '2/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Destination service',
-        )
+        expect(document.activeElement?.textContent).toContain('2/3 · Destination service')
         await act(async () => getButton('Next step').focus())
         await click(getButton('Next step'))
         expect(getButton('Next step').disabled).toBe(true)
-        expect(document.activeElement?.textContent).toContain(
-            '3/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Public HTTPS',
-        )
+        expect(document.activeElement?.textContent).toContain('3/3 · Public HTTPS')
         await act(async () => getButton('Previous step').focus())
         await click(getButton('Previous step'))
         await act(async () => getButton('Previous step').focus())
         await click(getButton('Previous step'))
         expect(getButton('Previous step').disabled).toBe(true)
-        expect(document.activeElement?.textContent).toContain(
-            '1/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Public domains',
-        )
+        expect(document.activeElement?.textContent).toContain('1/3 · Public domains')
         expect(document.querySelector('input[name="domains[0]"]')).toBe(domain)
         expect(domain.value).toBe('keyboard.example.com')
         expect(createProxyHostHandlerMock).not.toHaveBeenCalled()

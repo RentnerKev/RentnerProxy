@@ -226,7 +226,7 @@ export default function ProxyHostFormFields({
                                         value: certificate.id,
                                         label:
                                             certificate.name +
-                                            ' Ã‚Â· ' +
+                                            ' · ' +
                                             certificate.domains.join(', '),
                                     })),
                                 ]}
@@ -294,7 +294,7 @@ export default function ProxyHostFormFields({
                                     },
                                     ...assignableAccessPolicies.map((policy) => ({
                                         value: policy.id,
-                                        label: `${policy.name} Ã‚Â· ${t(`admin.accessPolicies.mode.${policy.mode}`)}`,
+                                        label: `${policy.name} · ${t(`admin.accessPolicies.mode.${policy.mode}`)}`,
                                     })),
                                 ]}
                                 onValueChange={(value) => field.handleChange(value || null)}

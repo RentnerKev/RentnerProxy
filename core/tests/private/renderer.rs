@@ -1228,9 +1228,9 @@ fn response_compression_inherits_overrides_and_resets_without_changing_caddy_def
         let encoder = handlers.iter().position(|v| v["handler"] == "encode");
         assert_eq!(encoder.is_some(), encoded);
         if let Some(index) = encoder {
-            assert_eq!(
-                handlers[index],
-                serde_json::json!({"handler": "encode", "encodings": {"zstd": {}, "gzip": {}}, "prefer": ["zstd", "gzip"]})
+            assert!(
+                handlers[index]
+                    == serde_json::json!({"handler": "encode", "encodings": {"zstd": {}, "gzip": {}}, "prefer": ["zstd", "gzip"]})
             );
             let proxy = handlers
                 .iter()
