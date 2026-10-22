@@ -28,3 +28,21 @@ describe('Caddy structured host settings', () => {
         ).toBeFalse()
     })
 })
+
+describe('response compression settings', () => {
+    test('preserves explicit automatic and upstream-only overrides and an empty inheritance reset', () => {
+        expect(normalizeProxyHostHttpSettings({ responseCompression: 'auto' })).toEqual({
+            responseCompression: 'auto',
+        })
+        expect(normalizeProxyHostHttpSettings({ responseCompression: 'off' })).toEqual({
+            responseCompression: 'off',
+        })
+        expect(normalizeProxyHostHttpSettings({})).toEqual({})
+    })
+    test('rejects arbitrary encoder names, null, and a persisted inherit sentinel', () => {
+        for (const responseCompression of ['gzip', 'zstd', 'inherit', '', null, true, 1, {}])
+            expect(
+                proxyHostHttpSettingsSchema.safeParse({ responseCompression }).success,
+            ).toBeFalse()
+    })
+})

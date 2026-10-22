@@ -643,3 +643,31 @@ fn revision_includes_redirects_and_global_settings() {
     );
     assert!(validate_proxy_config(request).is_ok());
 }
+
+#[test]
+fn response_compression_is_strict_additive_and_part_of_configuration_revisions() {
+    use crate::models::ResponseCompression;
+    let mut payload = request(vec![host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["compression.example"],
+        "http",
+        "127.0.0.1",
+        9000,
+    )]);
+    let initial = payload.revision.clone();
+    payload.http_settings.response_compression = Some(ResponseCompression::Auto);
+    assert!(validate_proxy_config(payload.clone()).is_err());
+    payload.revision = revision_for_configuration(&payload.proxy_hosts, &payload.http_settings);
+    assert_ne!(initial, payload.revision);
+    assert!(validate_proxy_config(payload.clone()).is_ok());
+    let global = payload.revision.clone();
+    payload.proxy_hosts[0].http_settings.response_compression = Some(ResponseCompression::Off);
+    payload.revision = revision_for_configuration(&payload.proxy_hosts, &payload.http_settings);
+    assert_ne!(global, payload.revision);
+    assert!(validate_proxy_config(payload.clone()).is_ok());
+    let mut json = serde_json::to_value(&payload).unwrap();
+    for invalid in ["inherit", "gzip", "zstd", "arbitrary"] {
+        json["httpSettings"]["responseCompression"] = serde_json::json!(invalid);
+        assert!(serde_json::from_value::<crate::models::ProxyConfigRequest>(json.clone()).is_err());
+    }
+}

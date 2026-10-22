@@ -1424,6 +1424,15 @@
                 "title": "Caddy-configuratie",
                 "description": "Bekijk de actieve configuratie en pas HTTP-instellingen veilig aan.",
                 "settings": "HTTP-instellingen",
+                "compression": {
+                    "title": "Responscompressie",
+                    "inherit": "Globale standaard overnemen",
+                    "auto": "Automatisch (Zstd/Gzip)",
+                    "off": "Alleen upstream",
+                    "default": "Standaard (alleen upstream)",
+                    "hint": "Extra compressie voor geschikte antwoorden. Reeds gecomprimeerde antwoorden blijven behouden.",
+                    "effective": "Globale instelling: {{mode}}."
+                },
                 "fieldClientMaxBodySizeBytes": "Maximale verzoekinhoud",
                 "fieldProxyConnectTimeoutSeconds": "Verbindingstime-out voor upstream",
                 "fieldProxyReadTimeoutSeconds": "Antwoordtime-out voor upstream",

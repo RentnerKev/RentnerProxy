@@ -1194,3 +1194,49 @@ fn access_logging_is_runtime_group_private_bounded_and_excludes_probe() {
     );
     assert!(json["apps"]["http"]["servers"]["rentnerproxy-probe"]["logs"].is_null());
 }
+
+#[test]
+fn response_compression_inherits_overrides_and_resets_without_changing_caddy_defaults() {
+    use crate::{models::ResponseCompression, runtime::renderer::render_host_config_for_runtime};
+    for (global, local, encoded) in [
+        (None, None, false),
+        (Some(ResponseCompression::Off), None, false),
+        (Some(ResponseCompression::Auto), None, true),
+        (
+            Some(ResponseCompression::Auto),
+            Some(ResponseCompression::Off),
+            false,
+        ),
+        (
+            Some(ResponseCompression::Off),
+            Some(ResponseCompression::Auto),
+            true,
+        ),
+        (None, Some(ResponseCompression::Auto), true),
+    ] {
+        let mut host = config().proxy_hosts.remove(0);
+        host.http_settings.response_compression = local;
+        let defaults = ProxyHttpSettings {
+            response_compression: global,
+            ..Default::default()
+        };
+        let source: Value = serde_json::from_str(
+            &render_host_config_for_runtime(&host, &defaults, 443, None, &[]).unwrap(),
+        )
+        .unwrap();
+        let handlers = source["http"]["handle"].as_array().unwrap();
+        let encoder = handlers.iter().position(|v| v["handler"] == "encode");
+        assert_eq!(encoder.is_some(), encoded);
+        if let Some(index) = encoder {
+            assert_eq!(
+                handlers[index],
+                serde_json::json!({"handler": "encode", "encodings": {"zstd": {}, "gzip": {}}, "prefer": ["zstd", "gzip"]})
+            );
+            let proxy = handlers
+                .iter()
+                .position(|v| v["handler"] == "reverse_proxy")
+                .unwrap();
+            assert!(index < proxy);
+        }
+    }
+}

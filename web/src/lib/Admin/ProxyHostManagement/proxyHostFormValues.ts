@@ -11,6 +11,7 @@ export function getProxyHostFormValues(
     const source = mode === 'create' ? undefined : proxyHost
     return {
         ...(source?.tags ? { tagIds: source.tags.map((tag) => tag.id) } : {}),
+        responseCompression: source?.responseCompression ?? null,
         domains: mode === 'edit' && source ? [...source.domains] : [''],
         forwardScheme: source?.forwardScheme ?? 'http',
         forwardHost: source?.forwardHost ?? '',

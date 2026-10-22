@@ -147,11 +147,13 @@ const resetProxyHostConfigEditorHandlerMock = mock(
 const getProxyConfigEditorHandlerMock = mock(
     async (): Promise<ProxyConfigEditorData> => globalEditorFixture,
 )
-const saveProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
-    success: true,
-    message: 'admin.proxyHosts.config.saved',
-    runtimeStatus: 'applied',
-}))
+const saveProxyConfigEditorHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.config.saved',
+        runtimeStatus: 'applied',
+    }),
+)
 const resetProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
     success: true,
     message: 'admin.proxyHosts.config.reset',
@@ -1007,9 +1009,13 @@ describe('ProxyHost management table', () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         await click(getButton('Filters'))
-        await click(getButton('Filter domains…'))
+        await click(
+            getButton(
+                'Filter domainsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦',
+            ),
+        )
         const domainSearch = document.querySelector<HTMLInputElement>(
-            'input[placeholder="Filter domains…"]',
+            'input[placeholder="Filter domainsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦"]',
         )!
         await waitFor(() => document.activeElement === domainSearch)
         await setControlValue(domainSearch, 'selected')
@@ -1284,6 +1290,7 @@ describe('ProxyHost permissions and row actions', () => {
 })
 
 function FormHarness({
+    canConfigureCompression = false,
     initialGuideOpen = false,
     canDisable = true,
     canEnable = true,
@@ -1293,6 +1300,7 @@ function FormHarness({
     mode,
     proxyHost,
 }: {
+    canConfigureCompression?: boolean
     initialGuideOpen?: boolean
     canDisable?: boolean
     canEnable?: boolean
@@ -1305,6 +1313,7 @@ function FormHarness({
     const [open, setOpen] = useState(true)
     return (
         <ProxyHostFormModal
+            canConfigureCompression={canConfigureCompression}
             open={open}
             initialGuideOpen={initialGuideOpen}
             mode={mode}
@@ -1672,7 +1681,7 @@ describe('ProxyHost form modal', () => {
         const checkbox = document.querySelector<HTMLInputElement>('input[name="enabled"]')!
         expect(checkbox.disabled).toBeTrue()
         expect(document.body.textContent).toContain(
-            'You do not have permission to change this proxy host’s saved status.',
+            'You do not have permission to change this proxy hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s saved status.',
         )
     })
     test('keeps modal open and blocks invalid submission with inline validation', async () => {
@@ -1839,6 +1848,33 @@ describe('ProxyHost confirmation and mutation flows', () => {
         },
     )
 })
+
+for (const canConfigureCompression of [true, false]) {
+    test(`host creation compression respects apply permission: ${canConfigureCompression}`, async () => {
+        await render(
+            withQueryClient(
+                <FormHarness mode="create" canConfigureCompression={canConfigureCompression} />,
+            ),
+        )
+        const control = getButton('Response compression')
+        expect(control.disabled).toBe(!canConfigureCompression)
+        if (canConfigureCompression)
+            await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'compression.example.com')
+        await blurControl(domain)
+        const upstream = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+        await setControlValue(upstream, 'backend.internal')
+        await blurControl(upstream)
+        await click(getButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        const submitted = createProxyHostHandlerMock.mock.calls[0]?.[0] as {
+            data: { responseCompression?: string }
+        }
+        if (canConfigureCompression) expect(submitted.data.responseCompression).toBe('auto')
+        else expect(submitted.data).not.toHaveProperty('responseCompression')
+    })
+}
 
 test('assigns a usable certificate and enables HTTPS redirect', async () => {
     getAssignableCertificatesHandlerMock.mockResolvedValueOnce([assignableCertificate])
@@ -2055,6 +2091,21 @@ describe('Caddy global proxy configuration editor', () => {
         await waitFor(() => document.querySelectorAll('input[type="number"]').length === 6)
     }
 
+    test('saves the global automatic compression default', async () => {
+        await openEditor()
+        await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyConfigEditorHandlerMock.mock.calls[0]).toEqual([
+            {
+                data: {
+                    baseRevision: editorBaseRevision,
+                    settings: { proxyReadTimeoutSeconds: 90, responseCompression: 'auto' },
+                },
+            },
+        ])
+    })
+
     test('shows only settings and active config with formatted syntax colors', async () => {
         await openEditor()
         expect(document.body.textContent).not.toContain('Generated defaults')
@@ -2150,6 +2201,33 @@ describe('Caddy proxy host configuration editor', () => {
         })
     }
 
+    test('saves an upstream-only override and removes it when inheriting again', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            settings: { responseCompression: 'off' },
+            inheritedSettings: { responseCompression: 'auto' },
+        })
+        const dialog = await openHostConfig()
+        expect(
+            dialog
+                .querySelector('[data-setting="responseCompression"]')
+                ?.getAttribute('data-setting-source'),
+        ).toBe('override')
+        await chooseSelectOption('Response compression', 'Inherit global default')
+        expect(dialog.textContent).toContain('Global setting: Automatic (Zstd/Gzip).')
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock.mock.calls[0]).toEqual([
+            {
+                data: {
+                    proxyHostId: editorFixture.proxyHostId,
+                    baseRevision: editorBaseRevision,
+                    settings: {},
+                },
+            },
+        ])
+    })
+
     test('labels inherited and overridden values and updates the effective value', async () => {
         const dialog = await openHostConfig()
         const inherited = dialog.querySelector(
@@ -2214,8 +2292,12 @@ describe('Caddy proxy host configuration editor', () => {
         const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
         expect(dialog.textContent).toContain(secureHost.domains[0]!)
         expect(dialog.textContent).toContain('https://[2001:db8::10]:443')
-        expect(dialog.textContent).toContain('HTTPS · HTTP redirects enabled')
-        expect(dialog.textContent).toContain('HTTPS · verified with custom CA')
+        expect(dialog.textContent).toContain(
+            'HTTPS ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· HTTP redirects enabled',
+        )
+        expect(dialog.textContent).toContain(
+            'HTTPS ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· verified with custom CA',
+        )
         expect(dialog.textContent).toContain('backend-with-a-long-name.internal.example')
         expect(dialog.querySelector('[data-config-state="active"]')?.textContent).toContain(
             'Active config loaded',
@@ -2342,11 +2424,19 @@ describe('Caddy proxy host configuration editor', () => {
 
         await click(getButton('Restore defaults'))
         await waitFor(
-            () => document.body.textContent?.includes('Restore this host’s defaults?') ?? false,
+            () =>
+                document.body.textContent?.includes(
+                    'Restore this hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s defaults?',
+                ) ?? false,
         )
         expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
         await click(getLastButton('Cancel'))
-        await waitFor(() => !document.body.textContent?.includes('Restore this host’s defaults?'))
+        await waitFor(
+            () =>
+                !document.body.textContent?.includes(
+                    'Restore this hostÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s defaults?',
+                ),
+        )
         expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
 
         await click(getButton('Restore defaults'))
@@ -2422,6 +2512,30 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
                 document.body.textContent?.includes('Keep my draft and use this revision') ?? false,
         )
     }
+    test('merges a compression draft using the explicitly reviewed configuration revision', async () => {
+        saveMock.mockResolvedValueOnce(conflict)
+        const dialog = await openEditor()
+        await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        await click(getButton('Save'))
+        await waitFor(() => getButton('Save').disabled)
+        latest({ proxyReadTimeoutSeconds: 90, proxySendTimeoutSeconds: 180 })
+        await review()
+        expect(dialog.querySelector('table')?.textContent).toContain('Automatic (Zstd/Gzip)')
+        await click(getButton('Keep my draft and use this revision'))
+        await click(getButton('Save'))
+        await waitFor(() => saveMock.mock.calls.length === 2)
+        const expected = {
+            baseRevision: latestRevision,
+            settings: {
+                responseCompression: 'auto',
+                proxyReadTimeoutSeconds: 90,
+                proxySendTimeoutSeconds: 180,
+            },
+        }
+        expect(saveMock.mock.calls[1]?.[0]).toEqual({
+            data: scope === 'host' ? { proxyHostId: enabledHost.id, ...expected } : expected,
+        })
+    })
     test('requires explicit review and separate save, merges only local edits and rejects a second race', async () => {
         const dialog = await startConflict()
         expect(getMock).toHaveBeenCalledTimes(1)
@@ -2555,17 +2669,23 @@ describe('integrated proxy host setup guide', () => {
         await act(async () => getButton('Next step').focus())
         await click(getButton('Next step'))
         expect(document.activeElement?.tagName).toBe('H3')
-        expect(document.activeElement?.textContent).toContain('2/3 · Destination service')
+        expect(document.activeElement?.textContent).toContain(
+            '2/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Destination service',
+        )
         await act(async () => getButton('Next step').focus())
         await click(getButton('Next step'))
         expect(getButton('Next step').disabled).toBe(true)
-        expect(document.activeElement?.textContent).toContain('3/3 · Public HTTPS')
+        expect(document.activeElement?.textContent).toContain(
+            '3/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Public HTTPS',
+        )
         await act(async () => getButton('Previous step').focus())
         await click(getButton('Previous step'))
         await act(async () => getButton('Previous step').focus())
         await click(getButton('Previous step'))
         expect(getButton('Previous step').disabled).toBe(true)
-        expect(document.activeElement?.textContent).toContain('1/3 · Public domains')
+        expect(document.activeElement?.textContent).toContain(
+            '1/3 ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Public domains',
+        )
         expect(document.querySelector('input[name="domains[0]"]')).toBe(domain)
         expect(domain.value).toBe('keyboard.example.com')
         expect(createProxyHostHandlerMock).not.toHaveBeenCalled()

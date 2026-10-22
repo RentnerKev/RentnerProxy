@@ -38,9 +38,13 @@ describe('HTTP settings JSONB persistence', () => {
                     .where(eq(systemSettings.key, PROXY_RUNTIME_SETTINGS_KEY))
                 await lockProxyRuntimeSettings(transaction)
                 expect(await readProxyHttpSettings(transaction)).toEqual({})
-                await writeProxyHttpSettings(transaction, { proxyReadTimeoutSeconds: 120 })
+                await writeProxyHttpSettings(transaction, {
+                    proxyReadTimeoutSeconds: 120,
+                    responseCompression: 'auto',
+                })
                 expect(await readProxyHttpSettings(transaction)).toEqual({
                     proxyReadTimeoutSeconds: 120,
+                    responseCompression: 'auto',
                 })
                 const rows = await transaction.execute<{ kind: string }>(sql`
                 SELECT jsonb_typeof(value) AS kind FROM rentnerproxy.system_settings
@@ -60,7 +64,7 @@ describe('HTTP settings JSONB persistence', () => {
                 await lockProxyRuntimeSettings(transaction)
                 const legacy = JSON.stringify({
                     version: 1,
-                    httpSettings: { proxyReadTimeoutSeconds: 90 },
+                    httpSettings: { proxyReadTimeoutSeconds: 90, responseCompression: 'off' },
                 })
                 await transaction.execute(sql`
                 UPDATE rentnerproxy.system_settings SET value = to_jsonb(${legacy}::text)
@@ -68,10 +72,15 @@ describe('HTTP settings JSONB persistence', () => {
             `)
                 expect(await readProxyHttpSettings(transaction)).toEqual({
                     proxyReadTimeoutSeconds: 90,
+                    responseCompression: 'off',
                 })
-                await writeProxyHttpSettings(transaction, { proxyReadTimeoutSeconds: 120 })
+                await writeProxyHttpSettings(transaction, {
+                    proxyReadTimeoutSeconds: 120,
+                    responseCompression: 'auto',
+                })
                 expect(await readProxyHttpSettings(transaction)).toEqual({
                     proxyReadTimeoutSeconds: 120,
+                    responseCompression: 'auto',
                 })
             })
         },
@@ -80,13 +89,20 @@ describe('HTTP settings JSONB persistence', () => {
     integrationTest('round-trips host inserts, updates, bulk reads and reset', async () => {
         await rolledBack(async (transaction) => {
             const hostId = crypto.randomUUID()
-            await writeProxyHostHttpSettings(transaction, hostId, { proxyReadTimeoutSeconds: 90 })
+            await writeProxyHostHttpSettings(transaction, hostId, {
+                proxyReadTimeoutSeconds: 90,
+                responseCompression: 'off',
+            })
             expect(await readProxyHostHttpSettings(transaction, hostId)).toEqual({
                 proxyReadTimeoutSeconds: 90,
+                responseCompression: 'off',
             })
-            await writeProxyHostHttpSettings(transaction, hostId, { proxyReadTimeoutSeconds: 120 })
+            await writeProxyHostHttpSettings(transaction, hostId, {
+                proxyReadTimeoutSeconds: 120,
+                responseCompression: 'auto',
+            })
             expect((await readProxyHostHttpSettingsMap(transaction, [hostId])).get(hostId)).toEqual(
-                { proxyReadTimeoutSeconds: 120 },
+                { proxyReadTimeoutSeconds: 120, responseCompression: 'auto' },
             )
             await writeProxyHostHttpSettings(transaction, hostId, {})
             expect(await readProxyHostHttpSettings(transaction, hostId)).toEqual({})

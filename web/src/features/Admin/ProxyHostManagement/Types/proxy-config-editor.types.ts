@@ -42,7 +42,10 @@ export interface ProxyConfigEditorHandlers {
     readonly reset: () => void
     readonly save: () => void
     readonly setActiveTab: (tab: ProxyConfigEditorTab) => void
-    readonly setSetting: (key: keyof ProxyHttpSettings, value: number | undefined) => void
+    readonly setSetting: <K extends keyof ProxyHttpSettings>(
+        key: K,
+        value: ProxyHttpSettings[K],
+    ) => void
     readonly setResetConfirmationOpen: (open: boolean) => void
 }
 

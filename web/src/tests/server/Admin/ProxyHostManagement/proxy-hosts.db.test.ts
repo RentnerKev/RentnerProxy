@@ -2058,6 +2058,103 @@ describe('runtime reconcile after PostgreSQL mutations', () => {
 
 describe('Caddy structured proxy host configuration with PostgreSQL', () => {
     integrationTest(
+        'compression persists through create, list, partial update and inherit reset with apply authorization',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('compression')
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService({ ...input, responseCompression: 'auto' }),
+            )
+            expect(created.responseCompression).toBe('auto')
+            expect(
+                (await runAsUser(owner.id, getProxyHostsService)).find(
+                    (host) => host.id === created.id,
+                )?.responseCompression,
+            ).toBe('auto')
+            const basis = await runAsUser(owner.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            expect(basis.settings.responseCompression).toBe('auto')
+            const partial = await runAsUser(owner.id, () =>
+                updateProxyHostService({ ...input, proxyHostId: created.id }),
+            )
+            expect(partial.responseCompression).toBe('auto')
+            const role = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_CREATE,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+            ])
+            const restricted = await createTestUser([role.key])
+            expect(
+                await captureError(
+                    runAsUser(restricted.id, () =>
+                        updateProxyHostService({
+                            ...input,
+                            proxyHostId: created.id,
+                            responseCompression: 'off',
+                        }),
+                    ),
+                ),
+            ).toBeInstanceOf(AuthDomainError)
+            expect(
+                await captureError(
+                    runAsUser(restricted.id, () =>
+                        createProxyHostService({
+                            ...proxyHostInput('compression-denied'),
+                            responseCompression: 'auto',
+                        }),
+                    ),
+                ),
+            ).toBeInstanceOf(AuthDomainError)
+            expect(
+                (await runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id)))
+                    .settings.responseCompression,
+            ).toBe('auto')
+            const off = await runAsUser(owner.id, () =>
+                updateProxyHostService({
+                    ...input,
+                    proxyHostId: created.id,
+                    responseCompression: 'off',
+                }),
+            )
+            expect(off.responseCompression).toBe('off')
+            expect(
+                await captureError(
+                    runAsUser(owner.id, () =>
+                        saveProxyHostConfigEditorService({
+                            proxyHostId: created.id,
+                            baseRevision: basis.baseRevision,
+                            settings: {},
+                        }),
+                    ),
+                ),
+            ).toBeInstanceOf(Error)
+            const reset = await runAsUser(owner.id, () =>
+                updateProxyHostService({
+                    ...input,
+                    proxyHostId: created.id,
+                    responseCompression: null,
+                }),
+            )
+            expect(reset.responseCompression).toBeNull()
+            expect(
+                (await runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id)))
+                    .settings,
+            ).toEqual({})
+            const audits = await getAuthDatabase()
+                .select()
+                .from(auditEvents)
+                .where(eq(auditEvents.targetId, created.id))
+            expect(
+                audits.some((event) =>
+                    event.metadata.changedFields?.includes('responseCompression'),
+                ),
+            ).toBeTrue()
+        },
+    )
+
+    integrationTest(
         'persists supported numeric settings without an active legacy field',
         async () => {
             const owner = await createTestUser([SYSTEM_ROLES.OWNER])

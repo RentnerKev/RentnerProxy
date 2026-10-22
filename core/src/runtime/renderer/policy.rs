@@ -4,14 +4,14 @@ use ipnet::{IpNet, Ipv6Net};
 
 use crate::models::{
     AccessPolicy, AccessPolicyMode, BasicAuth, ForwardAuth, IpDefaultAction, IpRules, ProxyHost,
-    ProxyHttpSettings,
+    ProxyHttpSettings, ResponseCompression,
 };
 use crate::proxy::parse_forward_auth_endpoint;
 
 use super::{
     RenderError, UpstreamTlsRenderSettings,
     model::{
-        Authentication, BasicAuthHash, EmptyVars, Handler, HashCache, HeaderOps, Headers,
+        Authentication, BasicAuthHash, EmptyVars, Encode, Handler, HashCache, HeaderOps, Headers,
         HttpBasicAuth, HttpBasicAuthAccount, IpRangeMatcher, LogAppend, MatcherSet,
         ProxyResponseHandler, ProxyResponseMatcher, ProxyRewrite, RequestBody, Route,
         StaticResponse, UpstreamTls,
@@ -63,6 +63,20 @@ pub(super) fn proxy_route(
     {
         handle.push(Handler::RequestBody(RequestBody {
             max_size: u64::from(max_size),
+        }));
+    }
+    if host
+        .http_settings
+        .response_compression
+        .or(defaults.response_compression)
+        == Some(ResponseCompression::Auto)
+    {
+        handle.push(Handler::Encode(Encode {
+            encodings: BTreeMap::from([
+                ("zstd".to_owned(), EmptyVars {}),
+                ("gzip".to_owned(), EmptyVars {}),
+            ]),
+            prefer: vec!["zstd".to_owned(), "gzip".to_owned()],
         }));
     }
     let upstream = upstream_dial(&host.forward_host, host.forward_port);

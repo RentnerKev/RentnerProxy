@@ -16,7 +16,10 @@ export default function useProxyConfigDraft<T extends ProxyConfigEditorSubmissio
     const [isConflictConfirmationOpen, setConflictConfirmationOpen] = useState(false)
     const settings = draft?.settings ?? data?.settings ?? {}
     const baseRevision = draft?.baseRevision ?? data?.baseRevision ?? null
-    const updateSetting = (key: keyof ProxyHttpSettings, value: number | undefined) => {
+    const updateSetting = <K extends keyof ProxyHttpSettings>(
+        key: K,
+        value: ProxyHttpSettings[K],
+    ) => {
         if (!data || baseRevision === null || hasConflict) return
         const next = { ...settings }
         if (value === undefined) delete next[key]
@@ -45,7 +48,7 @@ export default function useProxyConfigDraft<T extends ProxyConfigEditorSubmissio
         for (const key of keys) {
             if (draft.settings[key] === draft.baseline[key]) continue
             if (draft.settings[key] === undefined) delete merged[key]
-            else merged[key] = draft.settings[key]
+            else Object.assign(merged, { [key]: draft.settings[key] })
         }
         setDraft({
             settings: merged,

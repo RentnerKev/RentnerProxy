@@ -13,6 +13,7 @@ type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form
 
 export interface ProxyHostFormModalProps {
     readonly initialGuideOpen?: boolean
+    readonly canConfigureCompression?: boolean
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
@@ -39,6 +40,7 @@ interface ProxyHostSetupGuideState {
 }
 
 export interface ProxyHostFormModalState {
+    readonly canConfigureCompression: boolean
     readonly guide: ProxyHostSetupGuideState
     readonly canAssignCertificates: boolean
     readonly canRequestCertificate: boolean
@@ -82,6 +84,7 @@ export interface ProxyHostFormModalHandler {
 
 export type ProxyHostFormFieldsProps = Pick<
     ProxyHostFormModalState,
+    | 'canConfigureCompression'
     | 'canChangeEnabled'
     | 'canAssignCertificates'
     | 'canRequestCertificate'

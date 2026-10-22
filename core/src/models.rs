@@ -164,6 +164,8 @@ impl DefaultSite {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct ProxyHttpSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) response_compression: Option<ResponseCompression>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) client_max_body_size_bytes: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) proxy_connect_timeout_seconds: Option<u32>,
@@ -175,6 +177,13 @@ pub(crate) struct ProxyHttpSettings {
     pub(crate) send_timeout_seconds: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) keepalive_timeout_seconds: Option<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ResponseCompression {
+    Auto,
+    Off,
 }
 
 impl ProxyHttpSettings {

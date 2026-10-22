@@ -4,6 +4,7 @@ import { PROXY_HTTP_SETTINGS } from '@/config/proxy-http.config.ts'
 import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export const proxyHttpSettingsSchema = z.strictObject({
+    responseCompression: z.enum(['auto', 'off']).optional(),
     clientMaxBodySizeBytes: z.number().int().min(1_024).max(1_073_741_824).optional(),
     proxyConnectTimeoutSeconds: z.number().int().min(1).max(60).optional(),
     proxyReadTimeoutSeconds: z.number().int().min(1).max(3_600).optional(),
@@ -28,23 +29,33 @@ export const proxyConfigEditorResetSchema = proxyConfigEditorSaveSchema.omit({
 
 export function normalizeProxyHttpSettings(input: unknown): ProxyHttpSettings {
     const settings = proxyHttpSettingsSchema.parse(input)
-    return Object.fromEntries(
-        PROXY_HTTP_SETTINGS.flatMap(({ key }) => {
-            const value = settings[key]
-            return value === undefined ? [] : [[key, value]]
-        }),
-    )
+    return {
+        ...(settings.responseCompression === undefined
+            ? {}
+            : { responseCompression: settings.responseCompression }),
+        ...Object.fromEntries(
+            PROXY_HTTP_SETTINGS.flatMap(({ key }) => {
+                const value = settings[key]
+                return value === undefined ? [] : [[key, value]]
+            }),
+        ),
+    }
 }
 
 export function normalizeProxyHostHttpSettings(input: unknown): ProxyHttpSettings {
     const settings = proxyHostHttpSettingsSchema.parse(input)
-    return Object.fromEntries(
-        PROXY_HTTP_SETTINGS.flatMap(({ key }) => {
-            if (key === 'sendTimeoutSeconds' || key === 'keepaliveTimeoutSeconds') return []
-            const value = settings[key]
-            return value === undefined ? [] : [[key, value]]
-        }),
-    )
+    return {
+        ...(settings.responseCompression === undefined
+            ? {}
+            : { responseCompression: settings.responseCompression }),
+        ...Object.fromEntries(
+            PROXY_HTTP_SETTINGS.flatMap(({ key }) => {
+                if (key === 'sendTimeoutSeconds' || key === 'keepaliveTimeoutSeconds') return []
+                const value = settings[key]
+                return value === undefined ? [] : [[key, value]]
+            }),
+        ),
+    }
 }
 
 export const proxyHostConfigEditorIdSchema = z.strictObject({

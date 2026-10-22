@@ -24,6 +24,7 @@ describe('proxy host form drafts', () => {
         const original = structuredClone(source)
         const draft = getProxyHostFormValues('duplicate', source)
         expect(draft).toEqual({
+            responseCompression: null,
             domains: [''],
             forwardScheme: 'https',
             forwardHost: source.forwardHost,

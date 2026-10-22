@@ -1443,6 +1443,15 @@
                 "title": "Caddy-Konfiguration",
                 "description": "Aktive Konfiguration ansehen und HTTP-Einstellungen sicher anpassen.",
                 "settings": "HTTP-Einstellungen",
+                "compression": {
+                    "title": "Antwortkomprimierung",
+                    "inherit": "Globalen Standard erben",
+                    "auto": "Automatisch (Zstd/Gzip)",
+                    "off": "Nur Upstream",
+                    "default": "Standard (nur Upstream)",
+                    "hint": "Zusätzliche Komprimierung für geeignete Antworten. Bereits komprimierte Antworten bleiben erhalten.",
+                    "effective": "Global aktiv: {{mode}}."
+                },
                 "fieldClientMaxBodySizeBytes": "Maximale Anfragedatenmenge",
                 "fieldProxyConnectTimeoutSeconds": "Timeout für Upstream-Verbindung",
                 "fieldProxyReadTimeoutSeconds": "Timeout für Upstream-Antwort",

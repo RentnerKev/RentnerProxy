@@ -94,6 +94,7 @@ export const AUDIT_CHANGED_FIELDS = [
     'upstream',
     'tls',
     'headers',
+    'responseCompression',
     'certificate',
     'trustedCa',
     'accessPolicy',
