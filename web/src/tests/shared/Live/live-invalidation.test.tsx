@@ -43,14 +43,16 @@ const originalSocket = globalThis.WebSocket
 let root: Root
 let queryClient: QueryClient
 let fetches: number
+let rootFetches: number
 
 function Probe() {
     useLiveInvalidation({
         topic: 'proxy-hosts',
         query: {},
         enabled: true,
-        queryKeys: [['live-invalidation', 'target']],
+        queryKeys: [['live-invalidation']],
     })
+    useQuery({ queryKey: ['live-invalidation'], queryFn: async () => ++rootFetches })
     useQuery({
         queryKey: ['live-invalidation', 'target'],
         queryFn: async () => ++fetches,
@@ -61,7 +63,7 @@ function Probe() {
 async function flush() {
     await act(async () => {
         await Promise.resolve()
-        await Promise.resolve()
+        await new Promise((resolve) => setTimeout(resolve, 0))
     })
 }
 
@@ -74,6 +76,7 @@ beforeEach(() => {
     globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket
     FakeSocket.instances = []
     fetches = 0
+    rootFetches = 0
     queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: 0 } },
     })
@@ -98,18 +101,22 @@ test('invalidates polled queries once for each new live revision', async () => {
     const socket = FakeSocket.instances[0]!
     await flush()
     expect(fetches).toBe(1)
+    expect(rootFetches).toBe(1)
 
     await act(async () => socket.deliver({ revision: 'r1' }))
     await flush()
     expect(fetches).toBe(2)
+    expect(rootFetches).toBe(2)
 
     await act(async () => socket.deliver({ revision: 'r1' }))
     await flush()
     expect(fetches).toBe(2)
+    expect(rootFetches).toBe(2)
 
     await act(async () => socket.deliver({ revision: 'r2' }))
     await flush()
     expect(fetches).toBe(3)
+    expect(rootFetches).toBe(3)
 })
 
 test('reconnect retries the current snapshot even when its server revision is unchanged', async () => {
@@ -124,6 +131,7 @@ test('reconnect retries the current snapshot even when its server revision is un
     await act(async () => FakeSocket.instances[0]!.deliver({ revision: 'same-revision' }))
     await flush()
     expect(fetches).toBe(2)
+    expect(rootFetches).toBe(2)
     await act(async () => FakeSocket.instances[0]!.close())
     await flush()
     await act(async () => {
@@ -133,4 +141,5 @@ test('reconnect retries the current snapshot even when its server revision is un
     await act(async () => FakeSocket.instances[1]!.deliver({ revision: 'same-revision' }))
     await flush()
     expect(fetches).toBe(3)
+    expect(rootFetches).toBe(3)
 })

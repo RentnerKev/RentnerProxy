@@ -1,6 +1,5 @@
 import { invalidateTrustedCaManagementCache } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
 import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
-import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -33,7 +32,6 @@ export default function useTrustedCaManagementLogic({
         await Promise.all([
             invalidateTrustedCaManagementCache(queryClient),
             invalidateProxyHostManagementCache(queryClient),
-            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
         ])
     }, [queryClient])
     const deleteMutation = useMutation({

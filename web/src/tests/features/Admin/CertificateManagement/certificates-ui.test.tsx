@@ -1,3 +1,4 @@
+import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { generateKeyPairSync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
@@ -20,7 +21,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 
-const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
@@ -1195,3 +1196,60 @@ describe('trusted CA management UI', () => {
         })
     }
 })
+
+test.each(['certificate', 'trusted-ca'] as const)(
+    'refetches active host roots and runtime queries once after %s deletion',
+    async (kind) => {
+        const isCertificate = kind === 'certificate'
+        if (isCertificate)
+            getCertificatesHandlerMock.mockResolvedValueOnce([
+                { ...certificate, assignedHostCount: 0 },
+            ])
+        await renderPage(
+            isCertificate
+                ? [PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_DELETE]
+                : [PERMISSIONS.TRUSTED_CAS_VIEW, PERMISSIONS.TRUSTED_CAS_DELETE],
+        )
+        await waitFor(
+            () =>
+                document.body.textContent?.includes(
+                    isCertificate ? 'Public edge' : 'HomeLab Root CA',
+                ) === true,
+        )
+        const keys = isCertificate
+            ? [
+                  proxyHostManagementQueryKeys.all,
+                  proxyHostManagementQueryKeys.runtimeStatus,
+                  redirectHostManagementQueryKeys.all,
+                  redirectHostManagementQueryKeys.runtimeStatus,
+              ]
+            : [proxyHostManagementQueryKeys.all, proxyHostManagementQueryKeys.runtimeStatus]
+        const counts = keys.map(() => 0)
+        const subscriptions = keys.map((queryKey, index) =>
+            new QueryObserver(activeQueryClient!, {
+                queryKey,
+                initialData: 0,
+                staleTime: Infinity,
+                queryFn: async () => ++counts[index]!,
+            }).subscribe(() => undefined),
+        )
+        try {
+            await openMenu(
+                button(isCertificate ? 'Open certificate actions' : 'Actions for HomeLab Root CA'),
+            )
+            await click(
+                [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                    (item) =>
+                        item.textContent?.trim() ===
+                        (isCertificate ? 'Delete' : 'Delete trusted CA'),
+                )!,
+            )
+            await waitFor(() => document.querySelector('[role=dialog]') !== null)
+            await click(lastButton(isCertificate ? 'Delete' : 'Delete trusted CA'))
+            await waitForToast('success')
+            expect(counts).toEqual(keys.map(() => 1))
+        } finally {
+            subscriptions.forEach((unsubscribe) => unsubscribe())
+        }
+    },
+)

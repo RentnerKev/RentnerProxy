@@ -32,7 +32,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 
-const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestPageAlerts, openPageAlerts } =
@@ -1523,6 +1523,18 @@ describe('ProxyHost form modal', () => {
         )
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!)
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
+        const fetches = [0, 0]
+        const subscriptions = [
+            proxyHostManagementQueryKeys.all,
+            proxyHostManagementQueryKeys.runtimeStatus,
+        ].map((queryKey, index) =>
+            new QueryObserver(activeQueryClient!, {
+                queryKey,
+                initialData: 0,
+                staleTime: Infinity,
+                queryFn: async () => ++fetches[index]!,
+            }).subscribe(() => undefined),
+        )
         const invalidate = spyOn(activeQueryClient!, 'invalidateQueries')
         expect(getButton('Create proxy host').disabled).toBeFalse()
 
@@ -1546,13 +1558,15 @@ describe('ProxyHost form modal', () => {
         expect(invalidate).toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.all,
         })
-        expect(invalidate).toHaveBeenCalledWith({
+        expect(invalidate).not.toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.runtimeStatus,
         })
         await waitForToast('success', 'Proxy host created successfully.')
         expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'Proxy host created successfully.',
         )
+        expect(fetches).toEqual([1, 1])
+        subscriptions.forEach((unsubscribe) => unsubscribe())
         invalidate.mockRestore()
     })
 
@@ -1727,6 +1741,39 @@ describe('ProxyHost form modal', () => {
 })
 
 describe('ProxyHost confirmation and mutation flows', () => {
+    test.each(['Delete', 'Disable', 'Enable'] as const)(
+        'refetches active host root, page and runtime queries once after %s',
+        async (action) => {
+            await renderPage(allManagementPermissions)
+            await waitFor(() => getRows().length === 2)
+            let rootFetches = 0
+            const observer = new QueryObserver(activeQueryClient!, {
+                queryKey: proxyHostManagementQueryKeys.all,
+                initialData: 0,
+                staleTime: Infinity,
+                queryFn: async () => ++rootFetches,
+            })
+            const unsubscribe = observer.subscribe(() => undefined)
+            const pageFetches = loadProxyHostPageFixture.mock.calls.length
+            const runtimeFetches = getProxyRuntimeStatusHandlerMock.mock.calls.length
+            try {
+                await openMenu(
+                    getButton(
+                        `Open actions for ${action === 'Enable' ? 'disabled.example.com' : 'app.example.com'}`,
+                    ),
+                )
+                await click(getMenuItem(action))
+                if (action !== 'Enable') await click(getButton(`${action} proxy host`))
+                await waitForToast('success')
+                expect(rootFetches).toBe(1)
+                expect(loadProxyHostPageFixture).toHaveBeenCalledTimes(pageFetches + 1)
+                expect(getProxyRuntimeStatusHandlerMock).toHaveBeenCalledTimes(runtimeFetches + 1)
+            } finally {
+                unsubscribe()
+            }
+        },
+    )
+
     test('cancels and confirms delete without exposing transport diagnostics', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)

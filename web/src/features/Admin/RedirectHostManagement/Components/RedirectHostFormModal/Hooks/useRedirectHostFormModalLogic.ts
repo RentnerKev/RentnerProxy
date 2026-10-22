@@ -64,9 +64,6 @@ export default function useRedirectHostFormModalLogic({
                 queryClient.invalidateQueries({
                     queryKey: ['admin', 'redirect-hosts'],
                 }),
-                queryClient.invalidateQueries({
-                    queryKey: ['admin', 'redirect-hosts', 'runtime-status'],
-                }),
             ])
             if (result.runtimeStatus === 'pending')
                 toast.warning(t('admin.redirectHosts.runtime.savedPending'), {

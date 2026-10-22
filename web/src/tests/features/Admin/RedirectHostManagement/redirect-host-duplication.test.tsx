@@ -1,3 +1,4 @@
+import { redirectHostManagementQueryKeys } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import { afterEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
@@ -19,7 +20,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const createHost = mock(async (_input: unknown): Promise<RedirectHostActionResult> => ({
     success: true,
@@ -65,7 +66,10 @@ mock.module('@/features/Admin/RedirectHostManagement/middleware.ts', () => ({
     applyRedirectConfigurationHandler: async () => ({ success: true }),
     deleteRedirectHostHandler: async () => ({ success: true }),
     disableRedirectHostHandler: async () => ({ success: true }),
-    enableRedirectHostHandler: async () => ({ success: true }),
+    enableRedirectHostHandler: async () => ({
+        success: true,
+        message: 'admin.redirectHosts.messages.enabled',
+    }),
 }))
 mock.module('@/features/Admin/HostTags/middleware.ts', () => ({
     getHostTagCatalogHandler: async () => ({ revision: 0, tags: [] }),
@@ -368,4 +372,39 @@ describe('Redirect Host duplicate draft', () => {
         expect(createHost).not.toHaveBeenCalled()
         expect(updateHost).not.toHaveBeenCalled()
     })
+})
+
+test('refetches active redirect root and runtime once after enable', async () => {
+    await render(
+        <Harness
+            permissions={[PERMISSIONS.REDIRECT_HOSTS_VIEW, PERMISSIONS.REDIRECT_HOSTS_ENABLE]}
+        />,
+    )
+    let rootFetches = 0
+    let runtimeFetches = 0
+    const observer = new QueryObserver(client!, {
+        queryKey: redirectHostManagementQueryKeys.all,
+        initialData: 0,
+        staleTime: Infinity,
+        queryFn: async () => ++rootFetches,
+    })
+    const unsubscribe = observer.subscribe(() => undefined)
+    const stop = client!.getQueryCache().subscribe((event) => {
+        if (
+            event.type === 'updated' &&
+            event.action.type === 'fetch' &&
+            JSON.stringify(event.query.queryKey) ===
+                JSON.stringify(redirectHostManagementQueryKeys.runtimeStatus)
+        )
+            runtimeFetches++
+    })
+    try {
+        await run(() => management?.handler.enable(host))
+        await waitFor(() => rootFetches === 1 && client!.isFetching() === 0)
+        expect(runtimeFetches).toBe(1)
+        expect(rootFetches).toBe(1)
+    } finally {
+        unsubscribe()
+        stop()
+    }
 })

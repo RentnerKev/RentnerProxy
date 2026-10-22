@@ -50,10 +50,7 @@ export default function useAccessPolicyManagementLogic({
         topic: 'access-policies',
         query: {},
         enabled: canView,
-        queryKeys: [
-            accessPolicyManagementQueryKeys.all,
-            accessPolicyManagementQueryKeys.runtimeStatus,
-        ],
+        queryKeys: [accessPolicyManagementQueryKeys.all],
     })
     const invalidate = useCallback(async () => {
         await Promise.all([

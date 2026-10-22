@@ -69,14 +69,13 @@ export default function useProxyHostManagementLogic({
         topic: 'proxy-hosts',
         query: {},
         enabled: canView,
-        queryKeys: [proxyHostManagementQueryKeys.all, proxyHostManagementQueryKeys.runtimeStatus],
+        queryKeys: [proxyHostManagementQueryKeys.all],
     })
     const invalidateProxyHostQueries = useCallback(async () => {
         await Promise.all([
             queryClient.invalidateQueries({
                 queryKey: proxyHostManagementQueryKeys.all,
             }),
-            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
             invalidateAccessPoliciesCache(queryClient),
         ])
     }, [queryClient])

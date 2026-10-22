@@ -1,9 +1,7 @@
 import type { CertificateManagementLogicResult } from '../../../Types/certificate-management.types.ts'
 import { invalidateCertificateManagementCache } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
-import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { invalidateRedirectHostManagementCache } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
-import { invalidateRedirectHostManagementRuntimeStatusCache } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -57,9 +55,7 @@ export default function useServerCertificatesLogic({
         await Promise.all([
             invalidateCertificateManagementCache(queryClient),
             invalidateProxyHostManagementCache(queryClient),
-            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
             invalidateRedirectHostManagementCache(queryClient),
-            invalidateRedirectHostManagementRuntimeStatusCache(queryClient),
         ])
     }, [queryClient])
     const handleActionResult = useCallback(
