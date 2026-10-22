@@ -1,6 +1,7 @@
 import type { RedirectHostMutationSummary, RedirectHostRow } from './Types/redirect-hosts.types.ts'
 import '@tanstack/react-start/server-only'
-import { attachHostTagsService } from '@/server/Admin/HostTags/host-tags.service.ts'
+import { tagsForHost } from '@/lib/HostTags/hostTags.ts'
+import { readHostTags } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
@@ -160,9 +161,12 @@ function parseRedirectHostId(redirectHostId: string): string {
     return parsed.data.redirectHostId
 }
 
-export async function getRedirectHostsService(): Promise<Array<RedirectHostSummary>> {
-    await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
-    const rows = await getAuthDatabase()
+export async function readRedirectHostSummariesInTransaction(
+    transaction: AuthTransaction,
+    ids?: readonly string[],
+): Promise<Array<RedirectHostSummary>> {
+    if (ids?.length === 0) return []
+    const rows = await transaction
         .select({
             createdAt: redirectHosts.createdAt,
             destination: redirectHosts.destination,
@@ -176,6 +180,7 @@ export async function getRedirectHostsService(): Promise<Array<RedirectHostSumma
         })
         .from(redirectHosts)
         .leftJoin(hostDomains, eq(hostDomains.redirectHostId, redirectHosts.id))
+        .where(ids ? inArray(redirectHosts.id, [...ids]) : undefined)
         .orderBy(asc(redirectHosts.id), asc(hostDomains.domain))
     const summaries = new Map<string, RedirectHostSummary>()
 
@@ -203,9 +208,25 @@ export async function getRedirectHostsService(): Promise<Array<RedirectHostSumma
         )
     }
 
-    return attachHostTagsService(
-        'redirect',
-        [...summaries.values()].map((summary) => toRedirectHostSummary(summary, summary.domains)),
+    return [...summaries.values()].map((summary) => toRedirectHostSummary(summary, summary.domains))
+}
+
+export async function getRedirectHostsService(): Promise<Array<RedirectHostSummary>> {
+    const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+    return getAuthDatabase().transaction(
+        async (transaction) => {
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.REDIRECT_HOSTS_VIEW,
+            )
+            const state = await readHostTags(transaction, 'redirect')
+            const hosts = await readRedirectHostSummariesInTransaction(transaction)
+            return hosts.map((host) =>
+                Object.assign({}, host, { tags: tagsForHost(state, host.id) }),
+            )
+        },
+        { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
 }
 

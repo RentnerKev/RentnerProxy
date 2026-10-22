@@ -85,7 +85,7 @@ export async function readSubscriptionSnapshot(
     }
     responseAbort.cleanup()
     if (!response.ok) {
-        await response.body?.cancel().catch(() => undefined)
+        void response.body?.cancel().catch(() => undefined)
         return { kind: 'failure', status: response.status }
     }
     const bodyAbort = abortable<unknown>(signal, () => {
@@ -93,12 +93,12 @@ export async function readSubscriptionSnapshot(
     })
     try {
         const data = await Promise.race([
-            readBoundedJson(response, maxPayloadBytes),
+            readBoundedJson(response, maxPayloadBytes, signal),
             bodyAbort.promise,
         ])
         return { kind: 'success', data }
     } catch {
-        await response.body?.cancel().catch(() => undefined)
+        void response.body?.cancel().catch(() => undefined)
         return { kind: 'failure', status: signal.aborted ? 503 : 413 }
     } finally {
         bodyAbort.cleanup()

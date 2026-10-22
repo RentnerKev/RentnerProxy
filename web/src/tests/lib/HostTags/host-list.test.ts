@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
-import { filterHostPage } from '@/lib/HostTags/hostList.ts'
+import { filterHostPage, matchesHostSearch } from '@/lib/HostTags/hostList.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 
@@ -136,4 +136,30 @@ describe('server host list filtering and pagination', () => {
             filterHostPage([redirect], tags, { ...query, search: 'internal' }, labels).total,
         ).toBe(0)
     })
+})
+
+test('keeps extra protocol terms out of server search and matches normalized shared fields', () => {
+    const host = hosts[0]!
+    expect(matchesHostSearch(host, '', 'de', labels.enabled)).toBeTrue()
+    expect(matchesHostSearch(host, 'upstream.internal', 'de', labels.enabled)).toBeTrue()
+    expect(matchesHostSearch(host, '8080', 'de', labels.enabled)).toBeTrue()
+    expect(
+        matchesHostSearch(host, 'klartextprotokoll', 'de', labels.enabled, ['Klartextprotokoll']),
+    ).toBeTrue()
+    expect(
+        filterHostPage(
+            [host],
+            tags,
+            hostListQuerySchema.parse({ locale: 'de', search: 'KLARTEXTPROTOKOLL' }),
+            labels,
+        ).total,
+    ).toBe(0)
+    expect(
+        filterHostPage(
+            [host],
+            tags,
+            hostListQuerySchema.parse({ locale: 'de', search: 'BÜRO' }),
+            labels,
+        ).total,
+    ).toBe(1)
 })

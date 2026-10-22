@@ -54,18 +54,10 @@ export default function useRedirectHostManagementLogic({
         topic: 'redirect-hosts',
         query: {},
         enabled: canView,
-        queryKeys: [
-            redirectHostManagementQueryKeys.all,
-            redirectHostManagementQueryKeys.runtimeStatus,
-        ],
+        queryKeys: [redirectHostManagementQueryKeys.all],
     })
     const invalidate = useCallback(async () => {
-        await Promise.all([
-            queryClient.invalidateQueries({
-                queryKey: redirectHostManagementQueryKeys.all,
-            }),
-            invalidateRedirectHostManagementRuntimeStatusCache(queryClient),
-        ])
+        await queryClient.invalidateQueries({ queryKey: redirectHostManagementQueryKeys.all })
     }, [queryClient])
     const applyMutation = useMutation({
         mutationFn: () => applyRedirectConfigurationHandler(),

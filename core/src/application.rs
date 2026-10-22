@@ -1,4 +1,9 @@
-use std::{error::Error, process::ExitCode, sync::Arc};
+use std::{
+    error::Error,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
+    process::ExitCode,
+    sync::Arc,
+};
 
 use crate::{
     config::Config,
@@ -12,6 +17,21 @@ use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
 const CONTROLLER_LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
 
+#[cfg(test)]
+#[path = "../tests/private/application.rs"]
+mod tests;
+
+fn controller_connect_addr(listen_addr: SocketAddr) -> SocketAddr {
+    if listen_addr.ip().is_unspecified() {
+        match listen_addr {
+            SocketAddr::V4(address) => SocketAddr::from((Ipv4Addr::LOCALHOST, address.port())),
+            SocketAddr::V6(address) => SocketAddr::from((Ipv6Addr::LOCALHOST, address.port())),
+        }
+    } else {
+        listen_addr
+    }
+}
+
 pub async fn healthcheck(endpoint: &str) -> ExitCode {
     let path = match endpoint {
         "health" => "/health",
@@ -23,18 +43,7 @@ pub async fn healthcheck(endpoint: &str) -> ExitCode {
     let Ok(listen_addr) = configured_addr.parse::<std::net::SocketAddr>() else {
         return ExitCode::FAILURE;
     };
-    let target_addr = if listen_addr.ip().is_unspecified() {
-        match listen_addr {
-            std::net::SocketAddr::V4(address) => {
-                std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, address.port()))
-            }
-            std::net::SocketAddr::V6(address) => {
-                std::net::SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, address.port()))
-            }
-        }
-    } else {
-        listen_addr
-    };
+    let target_addr = controller_connect_addr(listen_addr);
 
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
@@ -90,7 +99,7 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     settings.public_https_port = config.proxy_public_https_port;
     settings.trusted_proxy_cidrs = config.proxy_trusted_proxy_cidrs;
     settings.system_ca_bundle = config.system_ca_bundle;
-    settings.controller_port = local_addr.port();
+    settings.controller_addr = controller_connect_addr(local_addr);
     settings.crowdsec_control_dir = "/run/rentnerproxy/crowdsec".into();
     settings.crowdsec_state_dir = "/var/lib/rentnerproxy/crowdsec".into();
     let engine = config.caddy_bin.map(|binary| {
@@ -107,14 +116,19 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     runtime.start_ddns_scheduler().await;
     runtime.docker_discovery.start().await;
     let stopping_runtime = Arc::clone(&runtime);
-    let result = axum::serve(listener, app_with_state(state))
-        .with_graceful_shutdown(async move {
+    let (result, deadline) = crate::shutdown::http::serve_with_drain(
+        listener,
+        app_with_state(state),
+        async move {
             wait_for_shutdown().await;
-            stopping_runtime.ddns_automation.stop_accepting();
-            stopping_runtime.docker_discovery.stop_accepting();
-        })
-        .await;
-    runtime.shutdown().await;
+            let deadline = tokio::time::Instant::now() + crate::shutdown::SHUTDOWN_TIMEOUT;
+            stopping_runtime.begin_shutdown();
+            deadline
+        },
+        std::time::Duration::from_secs(2),
+    )
+    .await;
+    runtime.shutdown_until(deadline).await;
     result?;
     Ok(())
 }

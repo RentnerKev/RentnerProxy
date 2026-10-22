@@ -137,7 +137,13 @@ export function ddnsObservations(snapshot: DdnsSnapshot, nowMs: number): Notific
     if (!configuration?.settings.enabled || snapshot.restorePaused) return []
     const enabled = new Set(
         configuration.settings.targets
-            .filter((target) => target.enabled)
+            .filter(
+                (target) =>
+                    target.enabled &&
+                    (target.recordType === 'A'
+                        ? configuration.settings.ipv4
+                        : configuration.settings.ipv6),
+            )
             .map((target) => target.id),
     )
     const observations: NotificationObservation[] = []

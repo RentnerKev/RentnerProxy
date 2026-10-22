@@ -1,7 +1,7 @@
 import type { ControllerRequestOptions } from './Types/transport.types.ts'
-// oxlint-disable no-await-in-loop -- Bounded response chunks must be read and cancelled in order.
 import '@tanstack/react-start/server-only'
 import { z } from 'zod'
+import { readBoundedStream } from '@/lib/Http/readBoundedStream.ts'
 
 import {
     getControllerBaseUrl,
@@ -14,30 +14,13 @@ const MAX_RESPONSE_BYTES = 4_096
 async function readBoundedJson(
     response: Response,
     responseLimit = MAX_RESPONSE_BYTES,
+    signal?: AbortSignal,
 ): Promise<unknown> {
-    const reader = response.body?.getReader()
-    if (!reader) return null
-    const chunks: Uint8Array[] = []
-    let length = 0
-
-    try {
-        for (;;) {
-            const chunk = await reader.read()
-            if (chunk.done) break
-            length += chunk.value.byteLength
-
-            if (length > responseLimit) {
-                await reader.cancel()
-                return null
-            }
-
-            chunks.push(chunk.value)
-        }
-
-        return JSON.parse(Buffer.concat(chunks, length).toString('utf8')) as unknown
-    } finally {
-        reader.releaseLock()
-    }
+    if (!response.body) return null
+    const bytes = await readBoundedStream(response.body, responseLimit, signal)
+    return JSON.parse(
+        Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'),
+    ) as unknown
 }
 
 export async function controllerRequest(
@@ -121,7 +104,7 @@ export async function controllerRequest(
             (!response.ok && !options.acceptErrorResponse && !options.acceptNonOkJson) ||
             !response.headers.get('content-type')?.includes('application/json')
         ) {
-            await response.body?.cancel()
+            void response.body?.cancel().catch(() => undefined)
             if (response.status === 404 && options.allowNotFound) return null
             console.warn('[controller] request unavailable', {
                 path: safePath,
@@ -130,7 +113,7 @@ export async function controllerRequest(
             return null
         }
 
-        const payload = await readBoundedJson(response, options.responseLimit)
+        const payload = await readBoundedJson(response, options.responseLimit, requestAbort.signal)
         if (response.ok) return payload
         if (options.acceptNonOkJson) return payload
 

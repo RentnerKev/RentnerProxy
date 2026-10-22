@@ -16,34 +16,6 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    rescan-scope:
-        name: Select deployed image assessment scope
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        outputs:
-            rescan: ${{ steps.scope.outputs.rescan }}
-        steps:
-            - name: Check out tested PR merge
-              if: github.event_name == 'pull_request'
-              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-              with:
-                  persist-credentials: false
-                  fetch-depth: 2
-            - name: Select scanner integration changes
-              id: scope
-              env:
-                  EVENT_NAME: ${{ github.event_name }}
-              run: |
-                  rescan=false
-                  if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
-                      rescan=true
-                  elif [[ "$EVENT_NAME" == pull_request ]]; then
-                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security .github/workflows/dependency-security.yml; then
-                          rescan=true
-                      fi
-                  fi
-                  printf 'rescan=%s\n' "$rescan" >> "$GITHUB_OUTPUT"
-
     locked-source:
         name: Own dependency audit
         runs-on: ubuntu-latest
@@ -120,8 +92,9 @@ jobs:
 
     deployed-dev:
         name: Deployed dev dependency audit
-        needs: rescan-scope
-        if: needs.rescan-scope.outputs.rescan == 'true'
+        # PRs assess their own locked source and OCI candidate. Published dev
+        # is independently monitored even when its revision differs from main.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         runs-on: ubuntu-latest
         timeout-minutes: 45
         steps:

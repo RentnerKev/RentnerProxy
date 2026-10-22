@@ -11,6 +11,7 @@ export interface AuthenticationTestQuery extends Promise<Array<AuthenticationTes
 }
 
 export interface AuthenticationTestDatabase {
+    execute(statement: SQL): Promise<void>
     delete(table: unknown): { where(condition: SQL): AuthenticationTestQuery }
     insert(table: unknown): {
         values(value: AuthenticationTestRow | AuthenticationTestRow[]): {

@@ -828,7 +828,8 @@
                 "created": "Utilisateur créé et invitation envoyée.",
                 "updated": "Utilisateur mis à jour.",
                 "disabled": "Utilisateur désactivé et sessions révoquées.",
-                "enabled": "Utilisateur activé avec succès."
+                "enabled": "Utilisateur activé avec succès.",
+                "invitationRestored": "Invitation rétablie. Invitez à nouveau cet utilisateur pour terminer son activation."
             },
             "states": {
                 "unavailableTitle": "Utilisateurs indisponibles",
@@ -1475,10 +1476,24 @@
                 "resetting": "Rétablissement…",
                 "saved": "Paramètres HTTP enregistrés et appliqués.",
                 "reset": "Valeurs par défaut rétablies.",
+                "conflict": {
+                    "title": "Conflit de configuration",
+                    "description": "La configuration enregistrée a changé. Votre brouillon est conservé. Vérifiez les réglages actuels avant de sauvegarder.",
+                    "reviewLatest": "Examiner la configuration actuelle",
+                    "savedValues": "Valeurs actuellement enregistrées",
+                    "draftValues": "Votre brouillon",
+                    "defaultValue": "Hérité/par défaut",
+                    "keepDescription": "Seuls vos réglages modifiés sont réappliqués. Les autres réglages actuels sont conservés. Enregistrez séparément après vérification.",
+                    "keepDraft": "Conserver mon brouillon et utiliser cette version",
+                    "useSaved": "Utiliser les réglages actuels enregistrés",
+                    "overwriteTitle": "Remplacer les valeurs enregistrées en conflit ?",
+                    "overwriteDescription": "Certains réglages ont changé dans les deux versions. Conserver votre brouillon remplace ces valeurs enregistrées par vos modifications. Les autres réglages actuels sont conservés. Rien n’est enregistré avant Enregistrer et appliquer.",
+                    "overwriteConfirm": "Conserver mes valeurs modifiées"
+                },
                 "errors": {
                     "loadFailed": "Impossible de charger la configuration.",
                     "saveFailed": "Impossible d’enregistrer les paramètres HTTP.",
-                    "configuration_conflict": "La configuration enregistrée a changé. Rechargez avant d’enregistrer. Votre brouillon est conservé.",
+                    "configuration_conflict": "La configuration enregistrée a changé. Votre brouillon est conservé. Vérifiez les réglages actuels avant de sauvegarder.",
                     "runtime_unavailable": "Le contrôleur est indisponible. Les paramètres enregistrés pourront être appliqués plus tard.",
                     "invalidSettings": "Les paramètres HTTP sont invalides. Seuls les champs et valeurs indiqués sont autorisés.",
                     "host_not_found": "Cet hôte proxy n’existe plus. Fermez l’éditeur et rechargez la liste des hôtes.",
@@ -1808,7 +1823,7 @@
                 "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer.",
                 "ipRules": {
                     "title": "Règles d’accès IP",
-                    "description": "Utilisez uniquement l’adresse du pair de socket. X-Forwarded-For est ignoré ; derrière un proxy, l’adresse du proxy est évaluée.",
+                    "description": "Vérifie l’IP du client. X-Forwarded-For est utilisé uniquement depuis les proxys de confiance configurés ; sinon, l’adresse de la connexion directe est vérifiée.",
                     "configure": "Configurer l’accès IP",
                     "configureHint": "Laissez cette option désactivée pour garder le fournisseur IP inactif. Refuser est recommandé par défaut.",
                     "defaultAction": "Action par défaut",

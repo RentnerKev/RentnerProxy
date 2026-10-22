@@ -29,6 +29,140 @@ fn issue_request() -> CertificateIssueRequest {
 }
 
 #[tokio::test]
+async fn initial_acme_retry_after_restart_preserves_issue_and_checks_retry_deadlines() {
+    let directory = state_dir();
+    std::fs::create_dir_all(&directory).unwrap();
+    let store = CertificateStore::new(directory.clone());
+    store.initialize().await.unwrap();
+    let mut request = issue_request();
+    request.contact_email = Some("certificates@example.com".to_owned());
+    let first = store.begin_issue(ID, request.clone(), false).await.unwrap();
+    store.finish_failed(ID, CertificateError::AcmeFailed).await;
+    drop(store);
+
+    let store = CertificateStore::new(directory);
+    store.initialize().await.unwrap();
+    assert_eq!(
+        store.get(ID).await.unwrap().status,
+        CertificateStatus::Failed
+    );
+    assert!(matches!(
+        store.begin_acme_retry(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    store
+        .index
+        .lock()
+        .await
+        .certificates
+        .get_mut(ID)
+        .unwrap()
+        .next_attempt_at = Some("2000-01-01T00:00:00Z".to_owned());
+    store
+        .defer_acme_account_retry(
+            CertificateEnvironment::Staging,
+            OffsetDateTime::now_utc() + time::Duration::hours(1),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        store.begin_acme_retry(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    store.index.lock().await.acme_retry_until.clear();
+    let (attempt, saved) = store.begin_acme_retry(ID).await.unwrap();
+    assert_eq!(attempt.operation, CertificateOperation::Issuing);
+    assert_eq!(attempt.attempt_count, 2);
+    let operation = attempt.current_operation.unwrap();
+    assert_eq!(operation.kind, OperationKind::Issue);
+    assert_ne!(operation.id, first.current_operation.unwrap().id);
+    assert_eq!(saved.domains, request.domains);
+    assert_eq!(saved.environment, request.environment);
+    assert_eq!(saved.contact_email, request.contact_email);
+    assert_eq!(saved.challenge_type, request.challenge_type);
+    assert!(matches!(
+        store.begin_acme_retry(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    store.finish_failed(ID, CertificateError::AcmeFailed).await;
+    assert!(store.get(ID).await.unwrap().next_attempt_at.is_some());
+}
+
+#[tokio::test]
+async fn acme_retry_retains_renewal_material_and_cannot_replace_pending_candidate() {
+    let directory = state_dir();
+    std::fs::create_dir_all(&directory).unwrap();
+    let store = CertificateStore::new(directory);
+    store.initialize().await.unwrap();
+    let request = issue_request();
+    store.begin_issue(ID, request.clone(), false).await.unwrap();
+    let leaf = rcgen::generate_simple_self_signed(request.domains.clone()).unwrap();
+    let staged = store
+        .stage_acme(
+            ID,
+            &request,
+            leaf.cert.pem(),
+            leaf.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    let original = store.commit_staged(&staged).await.unwrap();
+    assert!(matches!(
+        store.begin_acme_retry(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    store.begin_renewal(ID).await.unwrap();
+    store.finish_failed(ID, CertificateError::AcmeFailed).await;
+    store
+        .index
+        .lock()
+        .await
+        .certificates
+        .get_mut(ID)
+        .unwrap()
+        .next_attempt_at = Some("2000-01-01T00:00:00Z".to_owned());
+    let (attempt, saved) = store.begin_acme_retry(ID).await.unwrap();
+    assert_eq!(attempt.operation, CertificateOperation::Renewing);
+    assert_eq!(
+        attempt.current_operation.as_ref().unwrap().kind,
+        OperationKind::Renew
+    );
+    assert!(matches!(
+        store.begin_renewal(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    let after_conflict = store.get(ID).await.unwrap();
+    assert_eq!(after_conflict.operation, attempt.operation);
+    assert_eq!(after_conflict.attempt_count, attempt.attempt_count);
+    assert_eq!(
+        after_conflict.current_operation.unwrap().id,
+        attempt.current_operation.as_ref().unwrap().id
+    );
+    assert_eq!(attempt.fingerprint, original.fingerprint);
+    let staged = store
+        .stage_acme(
+            ID,
+            &saved,
+            leaf.cert.pem(),
+            leaf.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    store
+        .finish_candidate_failed(&staged, CertificateError::RuntimeApplyFailed)
+        .await;
+    assert!(matches!(
+        store.begin_acme_retry(ID).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    assert_eq!(
+        store.get(ID).await.unwrap().fingerprint,
+        original.fingerprint
+    );
+    assert_eq!(store.pending_candidate_ids().await.unwrap(), vec![ID]);
+}
+
+#[tokio::test]
 async fn readiness_distinguishes_uninitialized_from_ready_empty() {
     let directory = state_dir();
     std::fs::create_dir_all(&directory).unwrap();

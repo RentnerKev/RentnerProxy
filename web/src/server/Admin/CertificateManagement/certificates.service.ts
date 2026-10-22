@@ -1,5 +1,4 @@
 import type {
-    CertificateRow,
     DeleteCertificateResult,
     CertificateDeletionRuntime,
 } from './Types/certificates.types.ts'
@@ -15,7 +14,7 @@ import {
     quickSearchInputSchema,
 } from '@/lib/QuickSearch/quickSearchValidation.ts'
 
-import { and, asc, count, eq, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
@@ -56,15 +55,20 @@ import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
     deleteControllerCertificate,
     getControllerCertificate,
-    getControllerCertificates,
     importControllerCertificate,
     issueControllerCertificate,
     renewControllerCertificate,
 } from '@/server/Controller/certificates.server.ts'
-import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { CertificateDomainError } from './certificates.errors.ts'
+import {
+    getCertificateRow,
+    persistControllerMetadata,
+    persistControllerCertificatesMetadataInTransaction,
+} from './certificate-metadata.persistence.ts'
+import { getCertificateMetadataSnapshot } from './certificate-metadata-snapshot.server.ts'
+import type { CertificateMetadataSnapshot } from './Types/certificate-metadata.types.ts'
 import {
     appendAuditEventInTransactionService,
     appendAuditEventsInTransactionService,
@@ -104,212 +108,14 @@ function parseId(certificateId: string): string {
     return parseInput(certificateIdInputSchema, { certificateId }).certificateId.toLowerCase()
 }
 
-async function getCertificateRow(
-    transaction: AuthTransaction,
-    certificateId: string,
-): Promise<CertificateRow> {
-    const [row] = await transaction
-        .select()
-        .from(certificates)
-        .where(eq(certificates.id, certificateId))
-        .limit(1)
-        .for('update')
-    if (!row) throw new CertificateDomainError('certificate_not_found')
-    return row
-}
-
-async function persistControllerMetadata(
-    transaction: AuthTransaction,
-    metadata: ControllerCertificateMetadata,
-    guardControllerTimestamp = false,
-): Promise<void> {
-    const row = await getCertificateRow(transaction, metadata.id)
-    if (row.source !== metadata.source || row.environment !== metadata.environment) {
-        throw new CertificateDomainError('controller_unavailable')
-    }
-    const controllerUpdatedAt = new Date(metadata.updatedAt)
-    if (
-        guardControllerTimestamp &&
-        row.controllerUpdatedAt !== null &&
-        controllerUpdatedAt.getTime() <= row.controllerUpdatedAt.getTime()
-    )
-        return
-    const issuedAt = metadata.issuedAt ? new Date(metadata.issuedAt) : null
-    const expiresAt = metadata.expiresAt ? new Date(metadata.expiresAt) : null
-    const candidate =
-        metadata.candidate === undefined
-            ? row.candidate
-            : metadata.candidate
-              ? {
-                    ...metadata.candidate,
-                }
-              : null
-    const dnsCleanupPending = metadata.dnsCleanupPending ?? row.dnsCleanupPending
-    const currentOperation =
-        metadata.currentOperation === undefined
-            ? row.currentOperation
-            : metadata.currentOperation
-              ? { ...metadata.currentOperation }
-              : null
-    const challengeType =
-        metadata.challengeType === undefined ? row.challengeType : metadata.challengeType
-    const lastActivatedAt =
-        metadata.lastActivatedAt === undefined
-            ? row.lastActivatedAt
-            : metadata.lastActivatedAt === null
-              ? null
-              : new Date(metadata.lastActivatedAt)
-    const lastErrorAt =
-        metadata.lastErrorAt === undefined
-            ? row.lastErrorAt
-            : metadata.lastErrorAt === null
-              ? null
-              : new Date(metadata.lastErrorAt)
-    const nextAttemptAt =
-        metadata.nextAttemptAt === undefined
-            ? row.nextAttemptAt
-            : metadata.nextAttemptAt === null
-              ? null
-              : new Date(metadata.nextAttemptAt)
-    const attemptCount =
-        metadata.attemptCount === undefined ? row.attemptCount : metadata.attemptCount
-    const lastAttemptAt =
-        metadata.lastAttemptAt === undefined
-            ? row.lastAttemptAt
-            : metadata.lastAttemptAt === null
-              ? null
-              : new Date(metadata.lastAttemptAt)
-    const lastSuccessAt =
-        metadata.lastSuccessAt === undefined
-            ? row.lastSuccessAt
-            : metadata.lastSuccessAt === null
-              ? null
-              : new Date(metadata.lastSuccessAt)
-    const nextRenewalAt =
-        metadata.nextRenewalAt === undefined
-            ? row.nextRenewalAt
-            : metadata.nextRenewalAt === null
-              ? null
-              : new Date(metadata.nextRenewalAt)
-    const domains = [...new Set(metadata.domains)].toSorted()
-    const existingDomains = (
-        await transaction
-            .select({ domain: certificateDomains.domain })
-            .from(certificateDomains)
-            .where(eq(certificateDomains.certificateId, row.id))
-            .orderBy(asc(certificateDomains.domain))
-    ).map((entry) => entry.domain)
-    const domainsChanged = JSON.stringify(existingDomains) !== JSON.stringify(domains)
-    const changed =
-        row.status !== metadata.status ||
-        row.operation !== metadata.operation ||
-        row.fingerprint !== metadata.fingerprint ||
-        row.lastErrorCode !== metadata.lastErrorCode ||
-        row.issuer !== metadata.issuer ||
-        row.issuedAt?.getTime() !== issuedAt?.getTime() ||
-        row.expiresAt?.getTime() !== expiresAt?.getTime() ||
-        JSON.stringify(row.candidate) !== JSON.stringify(candidate) ||
-        JSON.stringify(row.currentOperation) !== JSON.stringify(currentOperation) ||
-        row.challengeType !== challengeType ||
-        row.dnsCleanupPending !== dnsCleanupPending ||
-        row.lastActivatedAt?.getTime() !== lastActivatedAt?.getTime() ||
-        row.lastErrorAt?.getTime() !== lastErrorAt?.getTime() ||
-        row.nextAttemptAt?.getTime() !== nextAttemptAt?.getTime() ||
-        row.attemptCount !== attemptCount ||
-        row.lastAttemptAt?.getTime() !== lastAttemptAt?.getTime() ||
-        row.lastSuccessAt?.getTime() !== lastSuccessAt?.getTime() ||
-        row.nextRenewalAt?.getTime() !== nextRenewalAt?.getTime() ||
-        row.controllerUpdatedAt?.getTime() !== controllerUpdatedAt.getTime() ||
-        domainsChanged
-    if (!changed) return
-    await transaction
-        .update(certificates)
-        .set({
-            status: metadata.status,
-            operation: metadata.operation,
-            issuedAt,
-            expiresAt,
-            issuer: metadata.issuer,
-            fingerprint: metadata.fingerprint,
-            candidate,
-            currentOperation,
-            challengeType,
-            dnsCleanupPending,
-            lastErrorCode: metadata.lastErrorCode,
-            lastActivatedAt,
-            lastErrorAt,
-            nextAttemptAt,
-            attemptCount,
-            lastAttemptAt,
-            lastSuccessAt,
-            nextRenewalAt,
-            controllerUpdatedAt,
-            updatedAt: new Date(),
-        })
-        .where(eq(certificates.id, row.id))
-    if (domainsChanged) {
-        await transaction
-            .delete(certificateDomains)
-            .where(eq(certificateDomains.certificateId, row.id))
-        if (domains.length > 0) {
-            await transaction.insert(certificateDomains).values(
-                domains.map((domain) => ({
-                    certificateId: row.id,
-                    domain,
-                })),
-            )
-        }
-    }
-}
-
-export async function persistControllerCertificatesMetadataInTransaction(
-    transaction: AuthTransaction,
-    metadata: readonly ControllerCertificateMetadata[],
-    markMissing = true,
-): Promise<void> {
-    if (markMissing) {
-        await transaction
-            .update(certificates)
-            .set({
-                status: 'failed',
-                operation: 'idle',
-                lastErrorCode: 'certificate_not_found',
-                lastErrorAt: new Date(),
-                updatedAt: new Date(),
-            })
-            .where(
-                metadata.length === 0
-                    ? eq(certificates.status, 'valid')
-                    : and(
-                          eq(certificates.status, 'valid'),
-                          notInArray(
-                              certificates.id,
-                              metadata.map((entry) => entry.id),
-                          ),
-                      ),
-            )
-    }
-    if (metadata.length === 0) return
-    const known = await transaction
-        .select({ id: certificates.id })
-        .from(certificates)
-        .where(
-            inArray(
-                certificates.id,
-                metadata.map((certificate) => certificate.id),
-            ),
-        )
-    const ids = new Set(known.map((row) => row.id))
-    for (const certificate of metadata) {
-        // oxlint-disable-next-line no-await-in-loop -- Ordered writes share one SQL transaction and runtime lock.
-        if (ids.has(certificate.id)) await persistControllerMetadata(transaction, certificate, true)
-    }
-}
-
-async function readCertificateSummaries(): Promise<CertificateSummary[]> {
+async function readCertificateSummaries(
+    actorId: string,
+    permission: PermissionKey,
+): Promise<CertificateSummary[]> {
     const database = getAuthDatabase()
     return database.transaction(
         async (transaction) => {
+            await requirePermissionInTransaction(transaction, actorId, permission)
             const rows = await transaction
                 .select()
                 .from(certificates)
@@ -394,23 +200,32 @@ async function synchronizeCertificateMetadata(
     actorId: string,
     permission: PermissionKey,
 ): Promise<void> {
-    let metadata: ControllerCertificateMetadata[]
+    let snapshot: CertificateMetadataSnapshot
     try {
-        metadata = await getControllerCertificates()
+        snapshot = await getCertificateMetadataSnapshot()
     } catch {
+        // Recheck each caller even when its shared controller request failed.
+        await getAuthDatabase().transaction((transaction) =>
+            requirePermissionInTransaction(transaction, actorId, permission),
+        )
         throw new CertificateDomainError('controller_unavailable')
     }
     await getAuthDatabase().transaction(async (transaction) => {
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actorId, permission)
-        await persistControllerCertificatesMetadataInTransaction(transaction, metadata)
+        await persistControllerCertificatesMetadataInTransaction(
+            transaction,
+            snapshot.metadata,
+            true,
+            snapshot.validBeforeRead,
+        )
     })
 }
 
 export async function getCertificatesService(): Promise<CertificateSummary[]> {
     const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_VIEW)
     await synchronizeCertificateMetadata(actor.id, PERMISSIONS.CERTIFICATES_VIEW)
-    return readCertificateSummaries()
+    return readCertificateSummaries(actor.id, PERMISSIONS.CERTIFICATES_VIEW)
 }
 
 export async function getAssignableCertificatesService(): Promise<CertificateSummary[]> {
@@ -425,7 +240,7 @@ export async function getAssignableCertificatesService(): Promise<CertificateSum
     if (!actor.permissions.includes(permission))
         throw new AuthDomainError('permission_denied', 'Permission is required.')
     await synchronizeCertificateMetadata(actor.id, permission)
-    return readCertificateSummaries()
+    return readCertificateSummaries(actor.id, permission)
 }
 
 async function createPendingCertificate(

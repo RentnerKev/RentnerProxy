@@ -826,7 +826,8 @@
                 "created": "Benutzer erstellt und Einladung gesendet.",
                 "updated": "Benutzer aktualisiert.",
                 "disabled": "Benutzer deaktiviert und Sitzungen widerrufen.",
-                "enabled": "Benutzer erfolgreich aktiviert."
+                "enabled": "Benutzer erfolgreich aktiviert.",
+                "invitationRestored": "Einladung wieder freigegeben. Lade den Benutzer erneut ein."
             },
             "states": {
                 "unavailableTitle": "Benutzer nicht verfügbar",
@@ -1473,10 +1474,24 @@
                 "resetting": "Wird wiederhergestellt…",
                 "saved": "HTTP-Einstellungen gespeichert und angewendet.",
                 "reset": "Generierte Defaults wiederhergestellt.",
+                "conflict": {
+                    "title": "Konfigurationskonflikt",
+                    "description": "Die gespeicherte Konfiguration wurde geändert. Dein Entwurf bleibt erhalten. Prüfe vor dem Speichern die aktuellen Einstellungen.",
+                    "reviewLatest": "Aktuelle Konfiguration prüfen",
+                    "savedValues": "Aktuell gespeicherte Werte",
+                    "draftValues": "Dein Entwurf",
+                    "defaultValue": "Geerbt/Standard",
+                    "keepDescription": "Nur deine bearbeiteten Einstellungen werden übernommen. Andere aktuelle Einstellungen bleiben erhalten. Speichere nach der Prüfung separat.",
+                    "keepDraft": "Entwurf behalten und diese Version verwenden",
+                    "useSaved": "Aktuell gespeicherte Einstellungen verwenden",
+                    "overwriteTitle": "Widersprüchliche gespeicherte Werte ersetzen?",
+                    "overwriteDescription": "Einige Einstellungen wurden in beiden Versionen geändert. Dein Entwurf ersetzt diese gespeicherten Werte durch deine Änderungen. Andere aktuelle Einstellungen bleiben erhalten. Gespeichert wird erst mit Speichern und anwenden.",
+                    "overwriteConfirm": "Meine bearbeiteten Werte behalten"
+                },
                 "errors": {
                     "loadFailed": "Die Konfiguration konnte nicht geladen werden.",
                     "saveFailed": "Die HTTP-Einstellungen konnten nicht gespeichert werden.",
-                    "configuration_conflict": "Die gespeicherte Konfiguration wurde zwischenzeitlich geändert. Lade sie vor dem Speichern neu. Dein Entwurf bleibt erhalten.",
+                    "configuration_conflict": "Die gespeicherte Konfiguration wurde geändert. Dein Entwurf bleibt erhalten. Prüfe vor dem Speichern die aktuellen Einstellungen.",
                     "runtime_unavailable": "Der Proxy-Controller ist nicht verfügbar. Gespeicherte Einstellungen können später angewendet werden.",
                     "invalidSettings": "Die HTTP-Einstellungen sind ungültig. Nur die aufgeführten Direktiven und Werte sind erlaubt.",
                     "host_not_found": "Dieser Proxy-Host existiert nicht mehr. Schließe den Editor und lade die Host-Liste neu.",
@@ -1806,7 +1821,7 @@
                 "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung.",
                 "ipRules": {
                     "title": "IP-Zugriffsregeln",
-                    "description": "Verwende nur die Socket-Peer-Adresse. X-Forwarded-For wird ignoriert; hinter einem Proxy wird die Proxy-Adresse geprüft.",
+                    "description": "Prüft die Client-IP. X-Forwarded-For wird nur von konfigurierten, vertrauenswürdigen Proxys übernommen; andernfalls zählt die direkte Verbindungsadresse.",
                     "configure": "IP-Zugriff konfigurieren",
                     "configureHint": "Deaktiviert lässt den IP-Anbieter aus. Als Standard wird Ablehnen empfohlen.",
                     "defaultAction": "Standardaktion",

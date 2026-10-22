@@ -1,28 +1,42 @@
-import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
-import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
-import type { HostListQuery, HostPage, HostTag } from './Types/host-tags.types.ts'
+import type { HostListQuery, HostPage, HostTag, HostListEntry } from './Types/host-tags.types.ts'
 
-type Host = ProxyHostSummary | RedirectHostSummary
+/** Matches normalized search text; callers supply their existing extra search terms. */
+export function matchesHostSearch(
+    host: HostListEntry,
+    search: string,
+    locale: string,
+    statusLabel: string,
+    additionalValues: readonly string[] = [],
+): boolean {
+    if (!search) return true
+    return [
+        ...host.domains,
+        statusLabel,
+        ...('forwardHost' in host
+            ? [host.forwardHost, host.forwardScheme, String(host.forwardPort)]
+            : [host.destination, String(host.statusCode)]),
+        ...additionalValues,
+    ].some((value) => value.toLocaleLowerCase(locale).includes(search))
+}
 
-export function filterHostPage<T extends Host>(
+export function filterHostPage<T extends HostListEntry>(
     hosts: readonly T[],
     tags: readonly HostTag[],
     query: HostListQuery,
     statusLabels: { enabled: string; disabled: string },
 ): HostPage<T> {
     const lower = (value: string) => value.toLocaleLowerCase(query.locale)
-    const searchable = (host: Host) => [
-        ...host.domains,
-        ...(host.tags?.map((tag) => tag.name) ?? []),
-        host.enabled ? 'enabled' : 'disabled',
-        host.enabled ? statusLabels.enabled : statusLabels.disabled,
-        ...('forwardHost' in host
-            ? [host.forwardHost, host.forwardScheme, String(host.forwardPort)]
-            : [host.destination, String(host.statusCode)]),
-    ]
     const search = lower(query.search.trim())
     const filtered = hosts.filter((host) => {
-        if (search && !searchable(host).some((value) => lower(value).includes(search))) return false
+        const status = host.enabled ? 'enabled' : 'disabled'
+        if (
+            search &&
+            !matchesHostSearch(host, search, query.locale, statusLabels[status], [
+                status,
+                ...(host.tags?.map((tag) => tag.name) ?? []),
+            ])
+        )
+            return false
         return query.filters.every((filter) => {
             if (filter.id === 'createdAt') {
                 const day = host.createdAt.toISOString().slice(0, 10)
@@ -55,7 +69,10 @@ export function filterHostPage<T extends Host>(
             }
         })
     })
-    const sortValue = (host: Host, id: HostListQuery['sorting'][number]['id']): string | number => {
+    const sortValue = (
+        host: HostListEntry,
+        id: HostListQuery['sorting'][number]['id'],
+    ): string | number => {
         switch (id) {
             case 'tags':
                 return (host.tags ?? [])

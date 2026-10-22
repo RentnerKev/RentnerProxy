@@ -67,6 +67,9 @@ impl ProxyRuntime {
         request: CertificateIssueRequest,
         challenges: ChallengeStore,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         if self
             .certificate_store
             .pending_candidate_ids()
@@ -79,6 +82,9 @@ impl ProxyRuntime {
         let permit = ACME_JOBS
             .try_acquire()
             .map_err(|_| CertificateError::OperationInProgress)?;
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         let metadata = self
             .certificate_store
             .begin_issue(&id, request.clone(), false)
@@ -96,6 +102,9 @@ impl ProxyRuntime {
         id: String,
         challenges: ChallengeStore,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         if let Some(metadata) = self.retry_certificate_candidate(&id, false).await? {
             return Ok(metadata);
         }
@@ -110,9 +119,11 @@ impl ProxyRuntime {
         id: String,
         challenges: ChallengeStore,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         let permit = ACME_JOBS
-            .acquire()
-            .await
+            .try_acquire()
             .map_err(|_| CertificateError::OperationInProgress)?;
         let certificate = self.certificate_store.get(&id).await?;
         if !self.certificate_store.renewal_is_allowed(&id).await
@@ -123,12 +134,35 @@ impl ProxyRuntime {
         self.renew_with_permit(id, challenges, permit).await
     }
 
+    pub(crate) async fn start_scheduled_acme_retry(
+        self: &Arc<Self>,
+        id: String,
+        challenges: ChallengeStore,
+    ) -> Result<super::CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
+        let permit = ACME_JOBS
+            .try_acquire()
+            .map_err(|_| CertificateError::OperationInProgress)?;
+        let (metadata, request) = self.certificate_store.begin_acme_retry(&id).await?;
+        let runtime = Arc::clone(self);
+        tokio::spawn(async move {
+            let _permit = permit;
+            runtime.issue_acme_inner(id, request, challenges).await;
+        });
+        Ok(metadata)
+    }
+
     async fn renew_with_permit(
         self: &Arc<Self>,
         id: String,
         challenges: ChallengeStore,
         permit: SemaphorePermit<'static>,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(CertificateError::OperationInProgress);
+        }
         let (metadata, request) = self.certificate_store.begin_renewal(&id).await?;
         let runtime = Arc::clone(self);
         tokio::spawn(async move {

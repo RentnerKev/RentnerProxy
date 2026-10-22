@@ -7,8 +7,8 @@ use super::validation::{
 };
 use super::{
     AcmeChallengeType, CertificateError, CertificateIssueRequest, CertificateMetadata,
-    CertificateOperation, CertificateSource, CertificateStatus, CertificateStore, OffsetDateTime,
-    OperationKind, StoredCertificate, StoredMetadata,
+    CertificateOperation, CertificateOperationStage, CertificateSource, CertificateStatus,
+    CertificateStore, OffsetDateTime, OperationKind, StoredCertificate, StoredMetadata,
 };
 use crate::proxy::is_canonical_uuid_v7;
 
@@ -200,6 +200,21 @@ impl CertificateStore {
         &self,
         id: &str,
     ) -> Result<(CertificateMetadata, CertificateIssueRequest), CertificateError> {
+        self.begin_stored_acme_attempt(id, false).await
+    }
+
+    pub(crate) async fn begin_acme_retry(
+        &self,
+        id: &str,
+    ) -> Result<(CertificateMetadata, CertificateIssueRequest), CertificateError> {
+        self.begin_stored_acme_attempt(id, true).await
+    }
+
+    async fn begin_stored_acme_attempt(
+        &self,
+        id: &str,
+        retry: bool,
+    ) -> Result<(CertificateMetadata, CertificateIssueRequest), CertificateError> {
         self.acquire_lease(id).await?;
         let now = match utc_now() {
             Ok(now) => now,
@@ -225,6 +240,26 @@ impl CertificateStore {
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
         }
+        let kind = if retry {
+            match current.metadata.current_operation.as_ref() {
+                Some(operation)
+                    if operation.stage == CertificateOperationStage::RetryScheduled
+                        && matches!(
+                            operation.kind,
+                            OperationKind::Issue | OperationKind::Renew
+                        ) =>
+                {
+                    operation.kind
+                }
+                _ => {
+                    drop(index);
+                    self.release_lease(id).await;
+                    return Err(CertificateError::OperationInProgress);
+                }
+            }
+        } else {
+            OperationKind::Renew
+        };
         if index.pending_candidates.contains_key(id) {
             drop(index);
             self.release_lease(id).await;
@@ -251,7 +286,7 @@ impl CertificateStore {
             return Err(CertificateError::InvalidCertificate);
         };
         let challenge_type = acme.challenge_type;
-        let operation = match operations::new_operation(OperationKind::Renew) {
+        let operation = match operations::new_operation(kind) {
             Ok(operation) => operation,
             Err(error) => {
                 drop(index);
@@ -261,7 +296,11 @@ impl CertificateStore {
         };
         let previous = current.clone();
         let mut attempted = previous.clone();
-        attempted.metadata.operation = CertificateOperation::Renewing;
+        attempted.metadata.operation = if kind == OperationKind::Issue {
+            CertificateOperation::Issuing
+        } else {
+            CertificateOperation::Renewing
+        };
         attempted.metadata.last_error_code = None;
         attempted.next_attempt_at = None;
         attempted.metadata.attempt_count = attempted.metadata.attempt_count.saturating_add(1);

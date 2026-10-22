@@ -1,24 +1,18 @@
 import type { CommandOptions } from './backup/Types/production-backup.types.ts'
+import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
+import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
+import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
+import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import {
     crowdSecArchiveExclusions,
     parseBackupMetadata,
-    validateStateArchive,
+    validateStateArchiveFile,
 } from './backup/format.ts'
 import { deploymentSchema } from './backup/validation.ts'
 import type { BackupMetadata } from './backup/Types/format.types.ts'
-import { createHash, randomUUID } from 'node:crypto'
-import {
-    chmod,
-    mkdir,
-    mkdtemp,
-    open,
-    readFile,
-    rename,
-    rm,
-    stat,
-    writeFile,
-} from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { chmod, mkdir, mkdtemp, open, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -31,100 +25,44 @@ const databaseUser = 'rentnerproxy'
 const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
+const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
+
+const commands = createMaintenanceCommands({ cwd: repositoryRoot, operation: 'backup' })
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
-    const index = argumentsList.indexOf(name)
-    if (index === -1) return undefined
-    const value = argumentsList[index + 1]
-    if (!value || value.startsWith('--')) throw new Error('invalid backup options')
-    return value
+    return commandOption(argumentsList, name, 'backup')
 }
 
 function composeProject(argumentsList: string[]): string | undefined {
-    const value =
-        optionValue(argumentsList, '--project') ?? process.env.COMPOSE_PROJECT_NAME?.trim()
-    if (value === undefined || value === '') return undefined
-    if (!/^[a-z0-9][a-z0-9_-]*$/u.test(value)) throw new Error('invalid Compose project name')
-    return value
+    return readComposeProject(argumentsList, process.env.COMPOSE_PROJECT_NAME, 'backup')
 }
 
-function composeCommand(project: string | undefined, composeFile: string): string[] {
-    const command = ['docker', 'compose']
-    if (project) command.push('--project-name', project)
-    command.push('--file', composeFile)
-    return command
-}
+const composeCommand = composeArguments
 
-async function runCommand(
+function runCommand(
     argumentsList: string[],
     operation: string,
     options: CommandOptions = {},
 ): Promise<string> {
-    const child = Bun.spawn({
-        cmd: argumentsList,
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), options.timeoutMs ?? 120_000)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return output.trim()
-    } catch {
-        throw new Error('production backup operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
+    return commands.text(argumentsList, operation, options.timeoutMs)
 }
 
-async function runCommandBytes(
+function runCommandFile(
     argumentsList: string[],
+    path: string,
     operation: string,
     options: CommandOptions = {},
-): Promise<Uint8Array> {
-    const child = Bun.spawn({
-        cmd: argumentsList,
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), options.timeoutMs ?? 300_000)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).arrayBuffer()
-            : Promise.resolve(new ArrayBuffer(0))
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return new Uint8Array(output)
-    } catch {
-        throw new Error('production backup operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
+): Promise<{ bytes: number; sha256: string }> {
+    return commands.file(argumentsList, path, operation, options.timeoutMs)
 }
 
-async function sha256(path: string): Promise<string> {
-    return createHash('sha256')
-        .update(await readFile(path))
-        .digest('hex')
+async function validateArchive(path: string, kind: 'controller' | 'crowdsec'): Promise<void> {
+    const file = await open(path, 'r')
+    try {
+        await validateStateArchiveFile(file, kind)
+    } finally {
+        await file.close()
+    }
 }
 
 async function backup(): Promise<void> {
@@ -196,6 +134,7 @@ async function backup(): Promise<void> {
     const crowdSecArchivePath = join(stagingPath, 'crowdsec-state.tar')
     await chmod(stagingPath, 0o700)
     let restartAppliance = false
+    let backupPublished = false
 
     try {
         restartAppliance =
@@ -210,7 +149,7 @@ async function backup(): Promise<void> {
             )
         }
 
-        const appEncryptionKey = await runCommandBytes(
+        const appEncryptionKey = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -227,13 +166,14 @@ async function backup(): Promise<void> {
                     bootstrapScript +
                     ' export-app-key >&2; cat /backup/app-encryption-key',
             ],
+            appEncryptionKeyPath,
             'export application encryption key',
         )
-        await writeFile(appEncryptionKeyPath, appEncryptionKey, { mode: 0o600 })
-        await chmod(appEncryptionKeyPath, 0o600)
 
         const dumpCommand =
-            'set -Eeuo pipefail; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
+            'set -Eeuo pipefail; ' +
+            postgresShutdownScript() +
+            '; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { stop_postgres; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
             databaseUser +
             ' --dbname=' +
             database +
@@ -241,7 +181,7 @@ async function backup(): Promise<void> {
             databaseUser +
             ' --dbname=' +
             database
-        const dump = await runCommandBytes(
+        const dump = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -254,13 +194,12 @@ async function backup(): Promise<void> {
                 '-c',
                 dumpCommand,
             ],
+            dumpPath,
             'create PostgreSQL dump',
             { timeoutMs: 360_000 },
         )
-        await Bun.write(dumpPath, dump)
-        await chmod(dumpPath, 0o600)
 
-        const stateArchiveBytes = await runCommandBytes(
+        const stateArchive = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -278,14 +217,13 @@ async function backup(): Promise<void> {
                 ...stateArchiveExclusions.map((entry) => '--exclude=' + entry),
                 '.',
             ],
+            stateArchivePath,
             'archive controller state',
             { timeoutMs: 180_000 },
         )
-        validateStateArchive(stateArchiveBytes, 'controller')
-        await writeFile(stateArchivePath, stateArchiveBytes, { mode: 0o600 })
-        await chmod(stateArchivePath, 0o600)
+        await validateArchive(stateArchivePath, 'controller')
 
-        const crowdSecBytes = await runCommandBytes(
+        const crowdSec = await runCommandFile(
             [
                 ...compose,
                 'run',
@@ -301,39 +239,36 @@ async function backup(): Promise<void> {
                 ...crowdSecArchiveExclusions.map((entry) => '--exclude=' + entry),
                 '.',
             ],
+            crowdSecArchivePath,
             'archive managed CrowdSec state',
             { timeoutMs: 180_000 },
         )
-        validateStateArchive(crowdSecBytes, 'crowdsec')
-        await writeFile(crowdSecArchivePath, crowdSecBytes, { mode: 0o600 })
-        await chmod(crowdSecArchivePath, 0o600)
-        const stateArchive = await stat(stateArchivePath)
-        const appEncryptionKeyFile = await stat(appEncryptionKeyPath)
+        await validateArchive(crowdSecArchivePath, 'crowdsec')
         const metadata: BackupMetadata = {
             applicationEncryptionKey: {
-                bytes: appEncryptionKeyFile.size,
+                bytes: appEncryptionKey.bytes,
                 file: 'app-encryption-key',
-                sha256: await sha256(appEncryptionKeyPath),
+                sha256: appEncryptionKey.sha256,
             },
             controllerState: {
                 archive: stateArchiveName,
-                bytes: stateArchive.size,
-                sha256: await sha256(stateArchivePath),
+                bytes: stateArchive.bytes,
+                sha256: stateArchive.sha256,
             },
             crowdSecState: {
                 archive: 'crowdsec-state.tar',
-                bytes: crowdSecBytes.byteLength,
-                sha256: await sha256(crowdSecArchivePath),
+                bytes: crowdSec.bytes,
+                sha256: crowdSec.sha256,
             },
             deployment,
             source,
             createdAt: new Date().toISOString(),
             format: 'rentnerproxy-production-backup',
             postgres: {
-                bytes: dump.byteLength,
+                bytes: dump.bytes,
                 database,
                 dump: 'postgres.dump',
-                sha256: await sha256(dumpPath),
+                sha256: dump.sha256,
                 user: databaseUser,
             },
             redis: 'excluded',
@@ -372,6 +307,7 @@ async function backup(): Promise<void> {
             }
         }
         await rename(stagingPath, finalPath)
+        backupPublished = true
         if (process.platform !== 'win32') {
             const directory = await open(outputRoot, 'r')
             try {
@@ -386,13 +322,32 @@ async function backup(): Promise<void> {
     } finally {
         if (restartAppliance) {
             try {
+                commands.assertRestartSafe()
                 await runCommand([...compose, 'start', applianceService], 'restart appliance', {
                     timeoutMs: 180_000,
                 })
+                await waitForApplianceReadiness((timeoutMs) =>
+                    runCommand(
+                        [
+                            ...compose,
+                            'exec',
+                            '--no-TTY',
+                            applianceService,
+                            'bun',
+                            healthcheckScript,
+                        ],
+                        'wait for appliance',
+                        { timeoutMs },
+                    ),
+                )
             } catch {
                 process.exitCode = 1
                 process.stderr.write(
-                    'Backup captured, but the RentnerProxy appliance could not be restarted automatically.\n',
+                    'RentnerProxy appliance could not be restarted or did not become ready automatically. ' +
+                        (backupPublished
+                            ? 'Completed backup retained: ' + finalPath
+                            : 'Backup did not complete.') +
+                        '\n',
                 )
             }
         }

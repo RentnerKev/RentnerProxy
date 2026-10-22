@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { proxyHosts, redirectHosts } from '@/db/schema.ts'
 import { hostKindSchema, hostTagMutationSchema } from '@/features/Admin/HostTags/validation.ts'
-import { HostTagDomainError, mutateHostTags, tagsForHost } from '@/lib/HostTags/hostTags.ts'
+import { HostTagDomainError, mutateHostTags } from '@/lib/HostTags/hostTags.ts'
 import type { HostKind } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
@@ -106,17 +106,3 @@ const services = createHostTagServices({
 
 export const getHostTagCatalogService = services.catalog
 export const mutateHostTagService = services.mutate
-
-export async function attachHostTagsService<T extends { readonly id: string }>(
-    kind: HostKind,
-    hosts: readonly T[],
-) {
-    const permission =
-        kind === 'proxy' ? PERMISSIONS.PROXY_HOSTS_VIEW : PERMISSIONS.REDIRECT_HOSTS_VIEW
-    await requirePermissionService(permission)
-    const state = await getAuthDatabase().transaction(
-        (transaction) => readHostTags(transaction, kind),
-        { accessMode: 'read only' },
-    )
-    return hosts.map((host) => ({ ...host, tags: tagsForHost(state, host.id) }))
-}

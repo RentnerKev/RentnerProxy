@@ -1,4 +1,4 @@
-use crate::runtime::engine::{CaddyProcess, EngineError, ShutdownBudget};
+use crate::runtime::engine::{CaddyProcess, EngineError, ProxyEngine, ShutdownBudget};
 use std::{
     path::PathBuf,
     process::Stdio,
@@ -91,6 +91,35 @@ fn budget(control: u64, drain: u64) -> ShutdownBudget {
         drain: Duration::from_millis(drain),
         reap: Duration::from_secs(1),
     }
+}
+
+#[tokio::test]
+async fn final_shutdown_bounds_a_held_child_slot_without_losing_child_ownership() {
+    let fixture = ShutdownFixture::new("exec sleep 60", Duration::ZERO, 200, false).await;
+    let slot = fixture.engine.child.lock().await;
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(50);
+    let result = tokio::time::timeout(
+        Duration::from_millis(500),
+        fixture.engine.shutdown_until(deadline),
+    )
+    .await
+    .unwrap();
+    assert_eq!(result, Err(EngineError::TimedOut));
+    assert!(
+        slot.is_some(),
+        "a contested child stays owned with kill_on_drop"
+    );
+    drop(slot);
+    fixture
+        .engine
+        .terminate_child_bounded(Duration::from_secs(1))
+        .await
+        .unwrap();
+    assert!(!fixture.engine.child_running().await);
+    assert_eq!(
+        fixture.engine.start_owned("{}", "unused").await,
+        Err(EngineError::Unavailable)
+    );
 }
 
 #[tokio::test]

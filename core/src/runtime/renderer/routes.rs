@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, net::SocketAddr};
 
 use serde::Serialize;
 
@@ -9,7 +9,7 @@ use crate::models::{
 
 use super::{
     MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError, RenderSettings, UpstreamTlsRenderSettings,
-    model::{Handler, MatcherSet, RemoteIpMatcher, Route, StaticResponse, Subroute},
+    model::{Handler, IpRangeMatcher, MatcherSet, Route, StaticResponse, Subroute},
     policy::{
         combined_all_routes, combined_any_routes, denied_host_route, gateway_route, ip_only_routes,
         proxy_route,
@@ -26,7 +26,7 @@ pub(super) fn http_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     crowdsec_enabled: bool,
 ) -> Result<Vec<Route>, RenderError> {
-    let mut routes = vec![challenge_route(settings.controller_port, "http")];
+    let mut routes = vec![challenge_route(settings.controller_addr, "http")];
     if crowdsec_enabled {
         routes.push(crowdsec_route());
     }
@@ -57,14 +57,14 @@ pub(super) fn crowdsec_route() -> Route {
     }
 }
 
-pub(super) fn challenge_route(controller_port: u16, forwarded_proto: &str) -> Route {
+pub(super) fn challenge_route(controller_addr: SocketAddr, forwarded_proto: &str) -> Route {
     Route {
         matchers: vec![MatcherSet::path(vec![
             "/.well-known/acme-challenge/*".to_owned(),
         ])],
         handle: vec![Handler::ReverseProxy(Box::new(
             reverse_proxy(
-                &format!("127.0.0.1:{controller_port}"),
+                &controller_addr.to_string(),
                 None,
                 None,
                 None,
@@ -242,7 +242,7 @@ fn redirect_to_https_route(domains: &[String], public_https_port: u16) -> Route 
 fn trusted_forwarded_matcher(domains: &[String], trusted_proxy_cidrs: &[String]) -> MatcherSet {
     MatcherSet {
         host: Some(domains.to_vec()),
-        remote_ip: Some(RemoteIpMatcher {
+        remote_ip: Some(IpRangeMatcher {
             ranges: rendered_ranges(trusted_proxy_cidrs),
         }),
         vars: Some(BTreeMap::from([(

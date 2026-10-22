@@ -827,7 +827,8 @@
                 "created": "Użytkownik został utworzony, a zaproszenie wysłane.",
                 "updated": "Użytkownik został zaktualizowany.",
                 "disabled": "Użytkownik został wyłączony, a jego sesje unieważnione.",
-                "enabled": "Użytkownik został włączony."
+                "enabled": "Użytkownik został włączony.",
+                "invitationRestored": "Zaproszenie przywrócone. Zaproś użytkownika ponownie, aby dokończyć aktywację."
             },
             "states": {
                 "unavailableTitle": "Użytkownicy są niedostępni",
@@ -1491,10 +1492,24 @@
                 "resetting": "Przywracanie…",
                 "saved": "Ustawienia HTTP zostały zapisane i zastosowane.",
                 "reset": "Przywrócono wygenerowane wartości domyślne.",
+                "conflict": {
+                    "title": "Konflikt konfiguracji",
+                    "description": "Zapisana konfiguracja uległa zmianie. Twój szkic został zachowany. Przejrzyj aktualne ustawienia przed zapisaniem.",
+                    "reviewLatest": "Przejrzyj aktualną konfigurację",
+                    "savedValues": "Aktualnie zapisane wartości",
+                    "draftValues": "Twój szkic",
+                    "defaultValue": "Dziedziczone/domyślne",
+                    "keepDescription": "Ponownie stosowane są tylko edytowane ustawienia. Pozostałe aktualne ustawienia zostają zachowane. Po przeglądzie zapisz je osobno.",
+                    "keepDraft": "Zachowaj mój szkic i użyj tej wersji",
+                    "useSaved": "Użyj aktualnie zapisanych ustawień",
+                    "overwriteTitle": "Zastąpić sprzeczne zapisane wartości?",
+                    "overwriteDescription": "Niektóre ustawienia zmieniono w obu wersjach. Zachowanie szkicu zastępuje te zapisane wartości Twoimi zmianami. Pozostałe aktualne ustawienia zostają zachowane. Nic nie zostanie zapisane przed wybraniem Zapisz i zastosuj.",
+                    "overwriteConfirm": "Zachowaj moje edytowane wartości"
+                },
                 "errors": {
                     "loadFailed": "Nie udało się wczytać konfiguracji.",
                     "saveFailed": "Nie udało się zapisać ustawień HTTP.",
-                    "configuration_conflict": "Zapisana konfiguracja zmieniła się, gdy ten edytor był otwarty. Wczytaj ją ponownie przed zapisaniem; wersja robocza została zachowana.",
+                    "configuration_conflict": "Zapisana konfiguracja uległa zmianie. Twój szkic został zachowany. Przejrzyj aktualne ustawienia przed zapisaniem.",
                     "runtime_unavailable": "Kontroler proxy jest niedostępny. Zapisane ustawienia można zastosować później.",
                     "invalidSettings": "Te ustawienia HTTP są nieprawidłowe. Akceptowane są tylko wymienione pola i wartości.",
                     "host_not_found": "Ten host proxy już nie istnieje. Zamknij edytor i wczytaj ponownie listę hostów.",
@@ -1826,7 +1841,7 @@
                 "warningDescription": "Dopóki wymagani dostawcy nie będą dostępni, zastosowanie tego trybu spowoduje odrzucenie wszystkich żądań. Przed przypisaniem go do aktywnego hosta sprawdź środowisko uruchomieniowe.",
                 "ipRules": {
                     "title": "Reguły dostępu IP",
-                    "description": "Używany jest wyłącznie adres partnera połączenia z gniazda. X-Forwarded-For jest ignorowany; za proxy oceniany jest adres samego proxy.",
+                    "description": "Sprawdza adres IP klienta. X-Forwarded-For jest używany tylko dla skonfigurowanych zaufanych proxy; w pozostałych przypadkach sprawdzany jest adres bezpośredniego połączenia.",
                     "configure": "Skonfiguruj dostęp IP",
                     "configureHint": "Wyłącz tę opcję, aby dostawca IP pozostał nieaktywny. Jako działanie domyślne zalecana jest odmowa.",
                     "defaultAction": "Działanie domyślne",

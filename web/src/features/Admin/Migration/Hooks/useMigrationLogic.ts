@@ -1,79 +1,50 @@
 import type { MigrationLogicResult } from '../Types/migration.types.ts'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from '@rentnerkev/toasts'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import {
-    ImportResponseError,
-    getImportRequestErrorCode,
-} from '@/lib/Admin/Migration/importRequestErrors.ts'
-import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.types.ts'
+import { useImportWorkflow } from '@/shared/Imports/Hooks/useImportWorkflow.ts'
 
 import type { MigrationSource } from '../Types/migration.types.ts'
-
-const MAX_FILE_BYTES = 32 * 1024 * 1024
-
-async function loadHistory(): Promise<ImportResult[]> {
-    const response = await fetch('/api/migration', { credentials: 'same-origin' })
-    return response.ok ? (response.json() as Promise<ImportResult[]>) : []
-}
-
-async function upload(
-    file: File,
-    mode: 'preview' | 'apply',
-    source: MigrationSource,
-    preview?: ImportPreview,
-): Promise<unknown> {
-    const query = new URLSearchParams({
-        mode,
-        source,
-        ...(preview ? { fingerprint: preview.fingerprint, plan: preview.planFingerprint } : {}),
-    })
-    const response = await fetch(`/api/migration?${query}`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/octet-stream', 'X-RentnerProxy-Import': source },
-        body: file,
-    })
-    const data: unknown = await response.json()
-    if (!response.ok) {
-        throw new ImportResponseError(data, 'migration')
-    }
-    return data
-}
 
 export function useMigrationLogic(): MigrationLogicResult {
     const { t } = useTranslationStore()
     const [source, setSource] = useState<MigrationSource>('rentnerproxy')
-    const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<ImportPreview | null>(null)
-    const [result, setResult] = useState<ImportResult | null>(null)
-    const [history, setHistory] = useState<readonly ImportResult[]>([])
-    const [busy, setBusy] = useState<'preview' | 'apply' | null>(null)
     const [exporting, setExporting] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-
-    useEffect(() => {
-        void loadHistory()
-            .then(setHistory)
-            .catch(() => undefined)
-    }, [])
-
-    function selectFile(next: File | null): void {
-        setFile(next)
-        setPreview(null)
-        setResult(null)
-        setError(null)
-    }
+    const { state, handler, setter } = useImportWorkflow({
+        endpoint: '/api/migration',
+        errorNamespace: 'migration',
+        source,
+        importHeader: source,
+        maxFileBytes: (source === 'rentnerproxy' ? 4 : 32) * 1024 * 1024,
+        onError: (code) => {
+            toast.error(t(`admin.migration.errors.${code}`), {
+                title: t('toast.titles.error'),
+            })
+        },
+        onApplied: (next) => {
+            const summary = t('admin.npmImport.resultSummary', {
+                imported: next.imported,
+                skipped: next.skipped,
+                failed: next.failed,
+                runtime: t(`admin.npmImport.runtime.${next.runtimeStatus}`),
+            })
+            if (next.failed > 0) {
+                toast.warning(summary, { title: t('toast.titles.warning') })
+            } else {
+                toast.success(summary, { title: t('toast.titles.success') })
+            }
+        },
+    })
 
     function selectSource(next: MigrationSource): void {
         setSource(next)
-        selectFile(null)
+        handler.selectFile(null)
     }
 
     async function downloadExport(): Promise<void> {
         if (exporting) return
-        setError(null)
+        setter.setError(null)
         setExporting(true)
         try {
             const response = await fetch('/api/migration/export', { credentials: 'same-origin' })
@@ -91,7 +62,7 @@ export function useMigrationLogic(): MigrationLogicResult {
                 title: t('toast.titles.success'),
             })
         } catch {
-            setError('export_failed')
+            setter.setError('export_failed')
             toast.error(t('admin.migration.errors.export_failed'), {
                 title: t('toast.titles.error'),
             })
@@ -100,65 +71,24 @@ export function useMigrationLogic(): MigrationLogicResult {
         }
     }
 
-    async function run(mode: 'preview' | 'apply'): Promise<void> {
-        if (!file || busy) return
-        setError(null)
-        if (file.size > (source === 'rentnerproxy' ? 4 * 1024 * 1024 : MAX_FILE_BYTES)) {
-            setError('source_limit')
-            toast.error(t('admin.migration.errors.source_limit'), {
-                title: t('toast.titles.error'),
-            })
-            return
-        }
-        setBusy(mode)
-        try {
-            if (mode === 'preview') {
-                const next = (await upload(file, 'preview', source)) as ImportPreview
-                setPreview(next)
-                setResult(null)
-            } else if (preview) {
-                const next = (await upload(file, 'apply', source, preview)) as ImportResult
-                setResult(next)
-                setPreview(null)
-                setHistory((current) => [next, ...current].slice(0, 20))
-                const summary = t('admin.npmImport.resultSummary', {
-                    imported: next.imported,
-                    skipped: next.skipped,
-                    failed: next.failed,
-                    runtime: t(`admin.npmImport.runtime.${next.runtimeStatus}`),
-                })
-                if (next.failed > 0) {
-                    toast.warning(summary, { title: t('toast.titles.warning') })
-                } else {
-                    toast.success(summary, { title: t('toast.titles.success') })
-                }
-            }
-        } catch (caught) {
-            const code = getImportRequestErrorCode(caught)
-            setError(code)
-            toast.error(t(`admin.migration.errors.${code}`), {
-                title: t('toast.titles.error'),
-            })
-            if (mode === 'apply') {
-                setPreview(null)
-                void loadHistory()
-                    .then(setHistory)
-                    .catch(() => undefined)
-            }
-        } finally {
-            setBusy(null)
-        }
-    }
-
     return {
-        state: { source, exporting, file, preview, result, history, busy, error },
+        state: {
+            file: state.file,
+            preview: state.preview,
+            result: state.result,
+            history: state.history,
+            busy: state.busy,
+            error: state.error,
+            source,
+            exporting,
+        },
         handler: {
-            selectSource: selectSource,
-            downloadExport: downloadExport,
-            selectFile: selectFile,
-            discardPreview: () => setPreview(null),
-            previewSource: () => run('preview'),
-            applySource: () => run('apply'),
+            selectFile: handler.selectFile,
+            discardPreview: handler.discardPreview,
+            previewSource: handler.previewSource,
+            applySource: handler.applySource,
+            selectSource,
+            downloadExport,
         },
     }
 }

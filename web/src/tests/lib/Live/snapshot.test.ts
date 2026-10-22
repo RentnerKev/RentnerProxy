@@ -66,4 +66,45 @@ describe('bounded live snapshot reading', () => {
     test('rejects a missing response body', async () => {
         await expect(readBoundedJson(new Response(null))).rejects.toThrow()
     })
+
+    test('retains replacement decoding, BOM stripping and header-independent byte limits', async () => {
+        const bytes = Uint8Array.of(123, 34, 118, 34, 58, 34, 255, 34, 125)
+        expect(await readBoundedJson(new Response(bytes))).toEqual({ v: '\uFFFD' })
+        expect(
+            await readBoundedJson(
+                new Response('\uFEFF{}', { headers: { 'content-length': '999' } }),
+                5,
+            ),
+        ).toEqual({})
+    })
+
+    test('keeps the exact raw stream error rather than converting it to a payload error', async () => {
+        const failure = new Error('same raw error')
+        const body = new ReadableStream<Uint8Array>({
+            start: (controller) => controller.error(failure),
+        })
+        await expect(readBoundedJson(new Response(body))).rejects.toBe(failure)
+        expect(body.locked).toBe(false)
+    })
+
+    test('overflow maps to the existing payload error without waiting for cancellation', async () => {
+        const body = new ReadableStream<Uint8Array>({
+            start: (controller) => controller.enqueue(Uint8Array.of(1, 2)),
+            cancel: () => new Promise<void>(() => {}),
+        })
+        await expect(readBoundedJson(new Response(body), 1)).rejects.toThrow(
+            'Live snapshot payload is too large or invalid.',
+        )
+        expect(body.locked).toBe(false)
+    }, 1_000)
+
+    test('forwards abort to an incomplete body and releases its locked reader', async () => {
+        const controller = new AbortController()
+        const failure = new Error('stop snapshot')
+        const body = new ReadableStream<Uint8Array>({ cancel: () => new Promise<void>(() => {}) })
+        const reading = readBoundedJson(new Response(body), 100, controller.signal)
+        controller.abort(failure)
+        await expect(reading).rejects.toBe(failure)
+        expect(body.locked).toBe(false)
+    }, 1_000)
 })

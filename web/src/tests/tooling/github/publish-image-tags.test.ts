@@ -9,7 +9,11 @@ const image = 'ghcr.io/example/runtime'
 const manifest = 'fixture-manifest'
 const digest = 'sha256:' + createHash('sha256').update(manifest).digest('hex')
 
-async function publish(tags: string, publishedManifest = manifest) {
+async function publish(
+    tags: string,
+    publishedManifest = manifest,
+    preflight = { identical: '', failed: false },
+) {
     const parent = join(root, 'tmp')
     await mkdir(parent, { recursive: true })
     const directory = await mkdtemp(join(parent, 'publish-tags-'))
@@ -37,8 +41,27 @@ esac
 `,
             { mode: 0o755 },
         ),
-        writeFile(join(bin, 'bun'), '#!/bin/bash\necho approved >> calls\n', { mode: 0o755 }),
-        writeFile(join(bin, 'jq'), '#!/bin/bash\nexit 0\n', { mode: 0o755 }),
+        writeFile(
+            join(bin, 'bun'),
+            `#!/bin/bash
+if [[ "$2" == *registry-preflight.ts ]]; then
+    printf 'preflight %s\\n' "\${IMAGE_TAGS//$'\\n'/,}" >> calls
+    [[ "$PREFLIGHT_FAILED" == false ]] || exit 1
+    if [[ -n "$IDENTICAL_TAG" ]]; then printf '{"identicalTags":["%s"]}' "$IDENTICAL_TAG"; else printf '{"identicalTags":[]}'; fi
+else
+    echo approved >> calls
+fi
+`,
+            { mode: 0o755 },
+        ),
+        writeFile(
+            join(bin, 'jq'),
+            `#!/bin/bash
+if [[ "$*" == *identicalTags* ]]; then cat >/dev/null; printf '%s\\n' "$IDENTICAL_TAG"; fi
+exit 0
+`,
+            { mode: 0o755 },
+        ),
     ])
     try {
         const child = Bun.spawn(
@@ -72,6 +95,8 @@ esac
                     GHCR_TOKEN: 'fixture-token',
                     GHCR_USERNAME: 'fixture-user',
                     PUBLISHED_MANIFEST: publishedManifest,
+                    IDENTICAL_TAG: preflight.identical,
+                    PREFLIGHT_FAILED: String(preflight.failed),
                 },
                 stdin: 'ignore',
                 stdout: 'ignore',
@@ -111,6 +136,7 @@ describe('image publication tag prevalidation', () => {
             expect(result.exit).toBe(0)
             expect(result.calls).toEqual([
                 'approved',
+                ...expected.filter((tag) => tag.startsWith('v1.')).map((tag) => `preflight ${tag}`),
                 'login',
                 ...expected.flatMap((tag) => [
                     `copy docker://${image}:${tag}`,
@@ -140,6 +166,32 @@ describe('image publication tag prevalidation', () => {
             `copy docker://${image}:dev`,
             `inspect docker://${image}:dev`,
         ])
+        expect(result.output).toBe('')
+    })
+
+    test('preserves an identical immutable version tag while publishing its moving alias', async () => {
+        const result = await publish('v1.2.3\nbeta', manifest, {
+            identical: 'v1.2.3',
+            failed: false,
+        })
+        expect(result.exit).toBe(0)
+        expect(result.calls).toEqual([
+            'approved',
+            'preflight v1.2.3',
+            'login',
+            `inspect docker://${image}:v1.2.3`,
+            `copy docker://${image}:beta`,
+            `inspect docker://${image}:beta`,
+        ])
+    })
+
+    test('preflights every version before any moving alias or immutable copy', async () => {
+        const result = await publish('beta\nv1.2.3\nv1.2.4', manifest, {
+            identical: '',
+            failed: true,
+        })
+        expect(result.exit).not.toBe(0)
+        expect(result.calls).toEqual(['approved', 'preflight v1.2.3,v1.2.4'])
         expect(result.output).toBe('')
     })
 })

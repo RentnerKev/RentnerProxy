@@ -10,10 +10,7 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
-import {
-    observeNotificationSignals,
-    summarizeNotificationState,
-} from '@/server/Notifications/incident-engine.ts'
+import { summarizeNotificationState } from '@/server/Notifications/incident-engine.ts'
 import {
     buildNotificationConfiguration,
     summarizeNotificationConfiguration,
@@ -26,6 +23,7 @@ import {
     lockNotificationRuntime,
     writeNotificationRuntime,
 } from '@/server/Notifications/notification-storage.ts'
+import { persistNotificationConfigurationInTransaction } from '@/server/Notifications/notification-configuration-persistence.server.ts'
 import { NotificationDomainError } from '@/server/Notifications/notification.errors.ts'
 import { filterNotificationStateForChannels } from '@/server/Notifications/notification-access.ts'
 import type { NotificationAdminDependencies } from './Types/notifications.types.ts'
@@ -86,7 +84,6 @@ export function createNotificationAdminService(dependencies: NotificationAdminDe
                 const current = await dependencies.lockConfiguration(transaction)
                 if (current.revision !== parsed.data.expectedRevision)
                     throw new NotificationDomainError('configuration_conflict')
-                const runtime = await dependencies.lockRuntime(transaction)
                 const newIds = new Set(
                     parsed.data.channels
                         .filter(
@@ -97,16 +94,12 @@ export function createNotificationAdminService(dependencies: NotificationAdminDe
                         )
                         .map((channel) => channel.id),
                 )
-                if (
-                    runtime.engine.deliveries.some((delivery) => newIds.has(delivery.channelId)) ||
-                    runtime.engine.incidents.some((incident) =>
-                        incident.channels.some((marker) => newIds.has(marker.channelId)),
-                    )
-                )
-                    throw new NotificationDomainError('invalid_input')
-                const engine = observeNotificationSignals(
-                    runtime.engine,
-                    {
+                await persistNotificationConfigurationInTransaction(dependencies, transaction, {
+                    actorId: actor.id,
+                    configuration,
+                    newIds,
+                    channelCount: built.channels.length,
+                    effective: {
                         enabled: configuration.enabled,
                         pausedAfterRestore: configuration.pausedAfterRestore,
                         channels: configuration.channels.map(
@@ -132,26 +125,6 @@ export function createNotificationAdminService(dependencies: NotificationAdminDe
                                 recovery,
                             }),
                         ),
-                    },
-                    [],
-                    dependencies.now(),
-                    dependencies.makeId,
-                )
-                await dependencies.writeConfiguration(transaction, configuration)
-                await dependencies.writeRuntime(transaction, { ...runtime, engine })
-                await dependencies.audit(transaction, {
-                    actorUserId: actor.id,
-                    actorKind: 'user',
-                    action: 'update',
-                    resource: 'proxy-runtime-settings',
-                    targetId: null,
-                    result: 'success',
-                    metadata: {
-                        setting: 'notifications',
-                        revision: configuration.revision,
-                        channelCount: built.channels.length,
-                        enabled: configuration.enabled,
-                        pausedAfterRestore: configuration.pausedAfterRestore,
                     },
                 })
                 return summarizeNotificationConfiguration(built)

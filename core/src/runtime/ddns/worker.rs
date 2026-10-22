@@ -48,17 +48,28 @@ impl ProxyRuntime {
         }));
     }
 
-    pub(in crate::runtime) async fn stop_ddns_scheduler(&self) {
+    pub(in crate::runtime) async fn stop_ddns_scheduler_until(
+        &self,
+        deadline: tokio::time::Instant,
+    ) {
         self.ddns_automation.stop_accepting();
-        if let Some(mut task) = self.ddns_task.lock().await.take() {
+        let Ok(mut slot) = tokio::time::timeout_at(deadline, self.ddns_task.lock()).await else {
+            tracing::warn!(
+                stage = "ddns_shutdown",
+                "DDNS task slot exceeded shutdown deadline"
+            );
+            return;
+        };
+        if let Some(mut task) = slot.take() {
+            drop(slot);
             // Finish an already admitted bounded batch. Forced termination
             // leaves the persisted in-flight marker for restart recovery.
-            match tokio::time::timeout(Duration::from_secs(30), &mut task).await {
+            match tokio::time::timeout_at(deadline, &mut task).await {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => report_join_failure("ddns_scheduler", &error),
                 Err(_) => {
                     task.abort();
-                    let _ = task.await;
+                    let _ = tokio::time::timeout_at(deadline, task).await;
                     tracing::warn!(
                         "DDNS shutdown deadline exceeded; restart will reconcile the interrupted batch"
                     );

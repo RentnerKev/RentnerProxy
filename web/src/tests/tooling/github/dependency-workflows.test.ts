@@ -76,17 +76,35 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(recurring).not.toContain('continue-on-error')
     for (const source of files) expect(source).not.toContain('accept_known_dev_advisories')
     const workflow = Bun.YAML.parse(recurring) as {
+        on: Record<string, unknown>
         jobs: Record<string, { needs?: string; if?: string; steps?: { run?: string }[] }>
     }
-    expect(workflow.jobs['deployed-dev']?.needs).toBe('rescan-scope')
-    expect(workflow.jobs['deployed-dev']?.if).toBe("needs.rescan-scope.outputs.rescan == 'true'")
+    expect(Object.keys(workflow.on).toSorted()).toEqual([
+        'pull_request',
+        'push',
+        'schedule',
+        'workflow_dispatch',
+    ])
+    expect(workflow.jobs['locked-source']?.if).toBeUndefined()
+    expect(
+        workflow.jobs['locked-source']?.steps?.some((step) => step.run?.includes('audit-cargo.sh')),
+    ).toBe(true)
+    expect(
+        workflow.jobs['locked-source']?.steps?.some((step) => step.run?.includes('audit-bun.sh')),
+    ).toBe(true)
+    expect(workflow.jobs['production-candidate']?.if).toBe("github.event_name != 'schedule'")
+    expect(
+        workflow.jobs['production-candidate']?.steps?.some((step) =>
+            step.run?.includes('scan-image.sh'),
+        ),
+    ).toBe(true)
+    expect(workflow.jobs['deployed-dev']?.needs).toBeUndefined()
+    expect(workflow.jobs['deployed-dev']?.if).toBe(
+        "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+    )
     const integration = workflow.jobs['deployed-dev']?.steps?.find((step) =>
         step.run?.includes('rescan-dev-image.sh'),
     )?.run
     expect(integration).toBe('bash .github/scripts/security/rescan-dev-image.sh')
-    expect(
-        workflow.jobs['rescan-scope']?.steps?.some((step) =>
-            step.run?.includes('git diff --quiet HEAD^1 HEAD -- .github/scripts/security'),
-        ),
-    ).toBe(true)
+    expect(workflow.jobs['rescan-scope']).toBeUndefined()
 })

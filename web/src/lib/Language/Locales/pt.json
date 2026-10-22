@@ -825,7 +825,8 @@
                 "created": "Utilizador criado e convite enviado.",
                 "updated": "Utilizador atualizado.",
                 "disabled": "Utilizador desativado e sessões revogadas.",
-                "enabled": "Utilizador ativado com sucesso."
+                "enabled": "Utilizador ativado com sucesso.",
+                "invitationRestored": "Convite restaurado. Convide este utilizador novamente para concluir a ativação."
             },
             "states": {
                 "unavailableTitle": "Utilizadores indisponíveis",
@@ -1489,10 +1490,24 @@
                 "resetting": "A restaurar…",
                 "saved": "Definições HTTP guardadas e aplicadas.",
                 "reset": "Predefinições geradas restauradas.",
+                "conflict": {
+                    "title": "Conflito de configuração",
+                    "description": "A configuração guardada foi alterada. O teu rascunho foi preservado. Revê as definições atuais antes de guardar.",
+                    "reviewLatest": "Rever a configuração atual",
+                    "savedValues": "Valores guardados atuais",
+                    "draftValues": "O teu rascunho",
+                    "defaultValue": "Herdado/predefinido",
+                    "keepDescription": "Apenas as definições que editaste são reaplicadas. As restantes definições atuais são preservadas. Guarda separadamente após a revisão.",
+                    "keepDraft": "Manter o meu rascunho e usar esta versão",
+                    "useSaved": "Usar as definições atualmente guardadas",
+                    "overwriteTitle": "Substituir os valores guardados em conflito?",
+                    "overwriteDescription": "Algumas definições foram alteradas em ambas as versões. Manter o rascunho substitui esses valores guardados pelas tuas alterações. As restantes definições atuais são preservadas. Nada é guardado até escolheres Guardar e aplicar.",
+                    "overwriteConfirm": "Manter os meus valores editados"
+                },
                 "errors": {
                     "loadFailed": "Não foi possível carregar a configuração.",
                     "saveFailed": "Não foi possível guardar as definições HTTP.",
-                    "configuration_conflict": "A configuração guardada foi alterada enquanto este editor estava aberto. Volte a carregá-la antes de guardar; o seu rascunho foi mantido.",
+                    "configuration_conflict": "A configuração guardada foi alterada. O teu rascunho foi preservado. Revê as definições atuais antes de guardar.",
                     "runtime_unavailable": "O controlador do proxy está indisponível. As definições guardadas continuam disponíveis para aplicação posterior.",
                     "invalidSettings": "Estas definições HTTP são inválidas. Só são aceites os campos e valores listados.",
                     "host_not_found": "Este host proxy já não existe. Feche o editor e volte a carregar a lista de hosts.",
@@ -1824,7 +1839,7 @@
                 "warningDescription": "Até os fornecedores necessários estarem disponíveis, a aplicação deste modo nega todos os pedidos. Reveja o ambiente de execução antes de o atribuir a um host ativo.",
                 "ipRules": {
                     "title": "Regras de acesso por IP",
-                    "description": "Use apenas o endereço do par de ligação. X-Forwarded-For é ignorado; atrás de um proxy, é avaliado o endereço do próprio proxy.",
+                    "description": "Verifica o IP do cliente. X-Forwarded-For só é utilizado a partir de proxies de confiança configurados; caso contrário, é verificado o endereço da ligação direta.",
                     "configure": "Configurar acesso por IP",
                     "configureHint": "Deixe esta opção desativada para manter o fornecedor de IP desativado. Recomenda-se Negar como predefinição.",
                     "defaultAction": "Ação predefinida",

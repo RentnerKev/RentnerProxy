@@ -804,7 +804,8 @@
                 "created": "Gebruiker aangemaakt en uitnodiging verstuurd.",
                 "updated": "Gebruiker bijgewerkt.",
                 "disabled": "Gebruiker uitgeschakeld en sessies ingetrokken.",
-                "enabled": "Gebruiker ingeschakeld."
+                "enabled": "Gebruiker ingeschakeld.",
+                "invitationRestored": "Uitnodiging hersteld. Nodig deze gebruiker opnieuw uit om de activering te voltooien."
             },
             "states": {
                 "unavailableTitle": "Gebruikers niet beschikbaar",
@@ -1454,10 +1455,24 @@
                 "resetting": "Herstellen…",
                 "saved": "HTTP-instellingen opgeslagen en toegepast.",
                 "reset": "Gegenereerde standaardwaarden hersteld.",
+                "conflict": {
+                    "title": "Configuratieconflict",
+                    "description": "De opgeslagen configuratie is gewijzigd. Je concept blijft bewaard. Controleer de huidige instellingen voordat je opslaat.",
+                    "reviewLatest": "Huidige configuratie bekijken",
+                    "savedValues": "Huidige opgeslagen waarden",
+                    "draftValues": "Je concept",
+                    "defaultValue": "Overgenomen/standaard",
+                    "keepDescription": "Alleen je bewerkte instellingen worden opnieuw toegepast. Andere huidige instellingen blijven behouden. Sla na controle afzonderlijk op.",
+                    "keepDraft": "Mijn concept behouden en deze versie gebruiken",
+                    "useSaved": "Huidige opgeslagen instellingen gebruiken",
+                    "overwriteTitle": "Conflicterende opgeslagen waarden vervangen?",
+                    "overwriteDescription": "Sommige instellingen zijn in beide versies gewijzigd. Je concept behouden vervangt die opgeslagen waarden door jouw wijzigingen. Andere huidige instellingen blijven behouden. Er wordt pas opgeslagen wanneer je Opslaan en toepassen kiest.",
+                    "overwriteConfirm": "Mijn bewerkte waarden behouden"
+                },
                 "errors": {
                     "loadFailed": "De configuratie kon niet worden geladen.",
                     "saveFailed": "De HTTP-instellingen konden niet worden opgeslagen.",
-                    "configuration_conflict": "De opgeslagen configuratie is gewijzigd terwijl deze editor open was. Laad deze opnieuw voordat je opslaat; je concept is behouden.",
+                    "configuration_conflict": "De opgeslagen configuratie is gewijzigd. Je concept blijft bewaard. Controleer de huidige instellingen voordat je opslaat.",
                     "runtime_unavailable": "De proxycontroller is niet beschikbaar. Opgeslagen instellingen blijven beschikbaar om later toe te passen.",
                     "invalidSettings": "Deze HTTP-instellingen zijn ongeldig. Alleen de vermelde velden en waarden worden geaccepteerd.",
                     "host_not_found": "Deze proxyhost bestaat niet meer. Sluit de editor en laad de hostlijst opnieuw.",
@@ -1787,7 +1802,7 @@
                 "warningDescription": "Totdat de vereiste providers beschikbaar zijn, weigert deze modus na toepassing elk verzoek. Controleer de actieve configuratie voordat je deze aan een actieve host toewijst.",
                 "ipRules": {
                     "title": "IP-toegangsregels",
-                    "description": "Gebruik alleen het adres van de socketpeer. X-Forwarded-For wordt genegeerd; achter een proxy wordt het proxyadres beoordeeld.",
+                    "description": "Controleert het IP-adres van de client. X-Forwarded-For wordt alleen gebruikt van ingestelde vertrouwde proxies; anders wordt het adres van de directe verbinding gecontroleerd.",
                     "configure": "IP-toegang instellen",
                     "configureHint": "Laat dit uitgeschakeld om de IP-provider uitgeschakeld te houden. Weigeren wordt als standaard aanbevolen.",
                     "defaultAction": "Standaardactie",

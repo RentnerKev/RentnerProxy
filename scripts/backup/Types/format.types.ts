@@ -10,6 +10,13 @@ export type StateArchiveEntry = Readonly<{
     bytes: Uint8Array
 }>
 
+export type StateArchiveFileEntry = Readonly<{
+    name: string
+    directory: boolean
+    bodyOffset: number
+    size: number
+}>
+
 import type { metadataSchema } from '../validation.ts'
 
 export type BackupMetadata = z.infer<typeof metadataSchema>

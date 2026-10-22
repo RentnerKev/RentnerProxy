@@ -30,28 +30,52 @@ log() {
 }
 
 shutdown_children() {
-    local deadline pid
+    local deadline consumer_deadline pid index
 
     trap - EXIT INT TERM
-    for pid in "${child_pids[@]:-}"; do
+    deadline=$((SECONDS + 25))
+    consumer_deadline=$((deadline - 2))
+    # Only the supervisor receives Tini's signal. Keep state services and the
+    # CrowdSec supervisor alive while web/controller consumers drain.
+    for index in "${!child_pids[@]}"; do
+        case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+        pid=${child_pids[$index]}
         if kill -0 "$pid" 2>/dev/null; then
             kill -TERM "$pid" 2>/dev/null || true
         fi
     done
 
-    deadline=$((SECONDS + 25))
-    while ((SECONDS < deadline)); do
+    while ((SECONDS < consumer_deadline)); do
         local running=false
-        for pid in "${child_pids[@]:-}"; do
+        for index in "${!child_pids[@]}"; do
+            case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+            pid=${child_pids[$index]}
             if kill -0 "$pid" 2>/dev/null; then
                 running=true
                 break
             fi
         done
         "$running" || break
-        sleep 1
+        sleep 0.1
     done
 
+    for index in "${!child_pids[@]}"; do
+        case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+        pid=${child_pids[$index]}
+        kill -KILL "$pid" 2>/dev/null || true
+    done
+    for index in "${!child_pids[@]}"; do
+        case ${child_names[$index]} in web|controller) continue ;; esac
+        kill -TERM "${child_pids[$index]}" 2>/dev/null || true
+    done
+    while ((SECONDS < deadline)); do
+        local running=false
+        for pid in "${child_pids[@]:-}"; do
+            if kill -0 "$pid" 2>/dev/null; then running=true; break; fi
+        done
+        "$running" || break
+        sleep 0.1
+    done
     for pid in "${child_pids[@]:-}"; do
         if kill -0 "$pid" 2>/dev/null; then
             kill -KILL "$pid" 2>/dev/null || true

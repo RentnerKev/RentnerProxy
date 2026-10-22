@@ -828,7 +828,8 @@
                 "created": "Usuario creado e invitación enviada.",
                 "updated": "Usuario actualizado.",
                 "disabled": "Usuario desactivado y sesiones revocadas.",
-                "enabled": "Usuario activado correctamente."
+                "enabled": "Usuario activado correctamente.",
+                "invitationRestored": "Invitación restaurada. Invita de nuevo al usuario para completar la activación."
             },
             "states": {
                 "unavailableTitle": "Usuarios no disponibles",
@@ -1475,10 +1476,24 @@
                 "resetting": "Restaurando…",
                 "saved": "Opciones HTTP guardadas y aplicadas.",
                 "reset": "Valores predeterminados restaurados.",
+                "conflict": {
+                    "title": "Conflicto de configuración",
+                    "description": "La configuración guardada ha cambiado. Tu borrador se conserva. Revisa los ajustes actuales antes de guardar.",
+                    "reviewLatest": "Revisar la configuración actual",
+                    "savedValues": "Valores guardados actuales",
+                    "draftValues": "Tu borrador",
+                    "defaultValue": "Heredado/predeterminado",
+                    "keepDescription": "Solo se vuelven a aplicar los ajustes que editaste. Los demás ajustes actuales se conservan. Guarda por separado después de revisar.",
+                    "keepDraft": "Conservar mi borrador y usar esta versión",
+                    "useSaved": "Usar los ajustes guardados actuales",
+                    "overwriteTitle": "¿Reemplazar los valores guardados en conflicto?",
+                    "overwriteDescription": "Algunos ajustes cambiaron en ambas versiones. Conservar tu borrador reemplaza esos valores guardados por tus cambios. Los demás ajustes actuales se conservan. Nada se guarda hasta elegir Guardar y aplicar.",
+                    "overwriteConfirm": "Conservar mis valores editados"
+                },
                 "errors": {
                     "loadFailed": "No se pudo cargar la configuración.",
                     "saveFailed": "No se pudieron guardar las opciones HTTP.",
-                    "configuration_conflict": "La configuración guardada ha cambiado. Vuelve a cargar antes de guardar. Se conserva tu borrador.",
+                    "configuration_conflict": "La configuración guardada ha cambiado. Tu borrador se conserva. Revisa los ajustes actuales antes de guardar.",
                     "runtime_unavailable": "El controlador no está disponible. Las opciones guardadas se podrán aplicar más tarde.",
                     "invalidSettings": "Las opciones HTTP no son válidas. Solo se admiten las directivas y los valores indicados.",
                     "host_not_found": "Este host proxy ya no existe. Cierra el editor y recarga la lista de hosts.",
@@ -1808,7 +1823,7 @@
                 "warningDescription": "Hasta que estén disponibles los proveedores necesarios, este modo rechaza todas las solicitudes. Revisa la ejecución antes de asignarlo.",
                 "ipRules": {
                     "title": "Reglas de acceso IP",
-                    "description": "Usa solo la dirección del par del socket. X-Forwarded-For se ignora; detrás de un proxy se comprueba la dirección del proxy.",
+                    "description": "Comprueba la IP del cliente. X-Forwarded-For solo se utiliza desde proxies de confianza configurados; en los demás casos, se comprueba la dirección de la conexión directa.",
                     "configure": "Configurar acceso IP",
                     "configureHint": "Déjalo desactivado para mantener el proveedor IP deshabilitado. Se recomienda denegar por defecto.",
                     "defaultAction": "Acción predeterminada",

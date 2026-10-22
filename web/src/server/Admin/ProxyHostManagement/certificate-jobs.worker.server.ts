@@ -11,7 +11,7 @@ import {
 } from '@/server/Controller/certificates.server.ts'
 import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
-import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificate-metadata.persistence.ts'
 import {
     bindIssuedJobCertificate,
     certificateJobRuntime,

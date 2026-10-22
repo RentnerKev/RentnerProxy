@@ -55,31 +55,9 @@ ARG CADDY_CROWDSEC_BOUNCER_COMMIT=6b35f6be25e457aa0b94e32c6ae519123e50e7b7
 ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99dc065ae11db852c661e9ced0d
 COPY docker/crowdsec/tooling/caddy-http-only.sh /tmp/caddy-crowdsec-http-only.sh
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
+COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 WORKDIR /tmp/caddy-crowdsec-bouncer
-RUN test "$(go env GOVERSION)" = go1.27.2 \
-    && wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
-        "https://codeload.github.com/hslatman/caddy-crowdsec-bouncer/tar.gz/${CADDY_CROWDSEC_BOUNCER_COMMIT}" \
-    && echo "${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz" | sha256sum -c - \
-    && tar -xzf /tmp/caddy-crowdsec-bouncer.tar.gz --strip-components=1 \
-    && /bin/sh /tmp/caddy-crowdsec-http-only.sh /tmp/caddy-crowdsec-bouncer \
-    && xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
-        --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
-        --replace github.com/hslatman/caddy-crowdsec-bouncer=/tmp/caddy-crowdsec-bouncer \
-        --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1 \
-        --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
-        --replace golang.org/x/crypto=golang.org/x/crypto@v0.58.0 \
-        --replace golang.org/x/sys=golang.org/x/sys@v0.49.0 \
-        --replace golang.org/x/term=golang.org/x/term@v0.47.0 \
-        --replace golang.org/x/text=golang.org/x/text@v0.43.0 \
-    && go version -m /usr/bin/caddy > /tmp/caddy-buildinfo.txt \
-    && /bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt \
-    && go version -m /usr/bin/caddy | grep -Eq '=>[[:space:]]+github\.com/crowdsecurity/crowdsec[[:space:]]+v1\.8\.1[[:space:]]' \
-    && caddy_version="$(/usr/bin/caddy version)" \
-    && printf '%s\n' "$caddy_version" \
-    && test "${caddy_version%% *}" = "$CADDY_VERSION" \
-    && /usr/bin/caddy list-modules | grep -Fx crowdsec \
-    && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
-    && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'
+RUN /bin/sh /tmp/build-caddy.sh
 
 FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS geoip-assets
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
@@ -218,4 +196,4 @@ EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=12 CMD ["bun", "/opt/rentnerproxy/web/docker/web/healthcheck.ts"]
-ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/rentnerproxy-production"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/rentnerproxy-production"]

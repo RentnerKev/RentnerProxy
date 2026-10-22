@@ -49,7 +49,7 @@ fn settings() -> RenderSettings {
         probe_socket: None,
         admin_socket: None,
         state_dir: std::env::temp_dir().join("default-site-test"),
-        controller_port: 8081,
+        controller_addr: "127.0.0.1:8081".parse().unwrap(),
         trusted_proxy_cidrs: Vec::new(),
     }
 }

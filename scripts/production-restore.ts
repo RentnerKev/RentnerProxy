@@ -15,153 +15,57 @@ const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
+import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
+import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
+import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
+import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
 import {
     assertDeploymentCompatible,
     parseBackupMetadata,
-    validateControllerEncryption,
-    validateStateArchive,
-    verifyBackupArtifact,
+    validateControllerEncryptionFile,
+    validateStateArchiveFile,
 } from './backup/format.ts'
+import {
+    parseApplicationEncryptionKeyFile,
+    readFileRange,
+    snapshotBackupArtifact,
+} from './backup/artifact-file.ts'
 import { deploymentSchema } from './backup/validation.ts'
 import { smokeDockerArguments } from './smoke/resources.ts'
 
+const commands = createMaintenanceCommands({
+    cwd: repositoryRoot,
+    operation: 'restore',
+    transformArguments: smokeDockerArguments,
+})
+
 function optionValue(argumentsList: string[], name: string): string | undefined {
-    const index = argumentsList.indexOf(name)
-    if (index === -1) return undefined
-    const value = argumentsList[index + 1]
-    if (!value || value.startsWith('--')) throw new Error('invalid restore options')
-    return value
+    return commandOption(argumentsList, name, 'restore')
 }
 
 function composeProject(argumentsList: string[]): string | undefined {
-    const value =
-        optionValue(argumentsList, '--project') ?? process.env.COMPOSE_PROJECT_NAME?.trim()
-    if (value === undefined || value === '') return undefined
-    if (!/^[a-z0-9][a-z0-9_-]*$/u.test(value)) throw new Error('invalid Compose project name')
-    return value
+    return readComposeProject(argumentsList, process.env.COMPOSE_PROJECT_NAME, 'restore')
 }
 
-function composeCommand(project: string | undefined, composeFile: string): string[] {
-    const command = ['docker', 'compose']
-    if (project) command.push('--project-name', project)
-    command.push('--file', composeFile)
-    return command
-}
-
-async function runCommand(
-    argumentsList: string[],
-    operation: string,
-    timeoutMs = 120_000,
-): Promise<string> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return output.trim()
-    } catch {
-        throw new Error('production restore operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
-}
-
-async function runCommandWithInput(
-    argumentsList: string[],
-    input: Uint8Array,
-    operation: string,
-    timeoutMs = 360_000,
-): Promise<void> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        stdin: 'pipe',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-    let stderrText = ''
-    let failed = false
-    try {
-        if (child.stdin && typeof child.stdin !== 'number') {
-            child.stdin.write(input)
-            child.stdin.end()
-        }
-        const [exitCode, , capturedStderr] = await Promise.all([child.exited, stdout, stderr])
-        stderrText = capturedStderr
-        failed = exitCode !== 0
-    } catch {
-        failed = true
-    } finally {
-        clearTimeout(timer)
-    }
-    if (failed) throw new Error(formatInputCommandFailure(operation, stderrText))
-}
-
-function formatInputCommandFailure(operation: string, stderr: string): string {
-    const prefix = 'production restore operation failed: ' + operation
-    if (operation !== 'restore PostgreSQL') return prefix
-
-    const phase = /RESTORE_PHASE=(initialize|archive|render|assemble|execute)/u.exec(stderr)?.[1]
-    const sqlState = /ERROR:\s*(?:[0-9A-Z]{5}:\s*)?([0-9A-Z]{5})\b/u.exec(stderr)?.[1]
-    const validation =
-        /BACKUP_VALIDATION=(database_version|migration_history|application_key|crowdsec_archive|crowdsec_database|crowdsec_credentials|runtime_validation)/u.exec(
-            stderr,
-        )?.[1]
-    const details = [
-        validation ? 'Backup validation: ' + validation : null,
-        phase ? 'Restore database phase: ' + phase : null,
-        sqlState ? 'SQLSTATE: ' + sqlState : null,
-    ].filter((detail): detail is string => detail !== null)
-
-    return prefix + '.' + (details.length > 0 ? ' ' + details.join('; ') + '.' : '')
-}
+const composeCommand = composeArguments
+const runCommand = commands.text
 
 async function waitForAppliance(compose: string[]): Promise<void> {
-    const deadline = Date.now() + 180_000
-    while (Date.now() < deadline) {
-        try {
-            await runCommand(
-                [...compose, 'exec', '--no-TTY', applianceService, 'bun', healthcheckScript],
-                'wait for appliance',
-                5_000,
-            )
-            return
-        } catch {
-            await Bun.sleep(500)
-        }
-    }
-    throw new Error('RentnerProxy appliance did not become ready')
+    await waitForApplianceReadiness((timeoutMs) =>
+        runCommand(
+            [...compose, 'exec', '--no-TTY', applianceService, 'bun', healthcheckScript],
+            'wait for appliance',
+            timeoutMs,
+        ),
+    )
 }
 
-async function readBackupFile(path: string, maximumBytes = 8 * 1024 ** 3): Promise<Buffer> {
+async function readBackupFile(path: string, maximumBytes: number): Promise<Buffer> {
     const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
     try {
         const info = await file.stat()
         if (!info.isFile() || info.size > maximumBytes) throw new Error('unsupported backup file')
-        return await file.readFile()
+        return await readFileRange(file, 0, info.size)
     } catch {
         throw new Error('backup file is missing, invalid or too large')
     } finally {
@@ -169,32 +73,18 @@ async function readBackupFile(path: string, maximumBytes = 8 * 1024 ** 3): Promi
     }
 }
 
-function parseApplicationEncryptionKey(bytes: Uint8Array): Buffer {
-    const value = Buffer.from(bytes).toString('utf8').trim()
-    if (
-        !/^[A-Za-z0-9+/]{43}=$/u.test(value) ||
-        Buffer.from(value, 'base64').length !== 32 ||
-        Buffer.from(value, 'base64').toString('base64') !== value
-    ) {
-        throw new Error('invalid backup application encryption key')
-    }
-    return Buffer.from(value, 'base64')
-}
-
 function postgresRestoreCommand(validateOnly: boolean): string {
     return [
         'restore_phase=archive',
         'restore_directory=$(mktemp -d /tmp/rentnerproxy-restore.XXXXXX)',
         'chown postgres:postgres "$restore_directory"',
-        'dump_path="$restore_directory/postgres.dump"',
         'rendered_sql_path="$restore_directory/rendered.sql"',
         'restore_sql_path="$restore_directory/restore.sql"',
-        'touch "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-        'cat > "$dump_path"',
-        'chown postgres:postgres "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-        'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+        'touch "$rendered_sql_path" "$restore_sql_path"',
+        'chown postgres:postgres "$rendered_sql_path" "$restore_sql_path"',
+        'chmod 0600 "$rendered_sql_path" "$restore_sql_path"',
         'restore_phase=render',
-        'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" "$dump_path"',
+        'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" < /backup/postgres.dump',
         'restore_phase=assemble',
         '{ printf "%s\\n" "DROP SCHEMA IF EXISTS rentnerproxy CASCADE;" "DROP SCHEMA IF EXISTS drizzle CASCADE;"; cat "$rendered_sql_path"; } > "$restore_sql_path"',
         ...(validateOnly
@@ -220,7 +110,7 @@ export function postgresCommand(validateOnly: boolean): string {
         'umask 077',
         'restore_phase=initialize',
         'trap \'status=$?; printf "RESTORE_PHASE=%s\\n" "$restore_phase" >&2; exit "$status"\' ERR',
-        'restore_directory=""; dump_path=""; rendered_sql_path=""; restore_sql_path=""',
+        'restore_directory=""; rendered_sql_path=""; restore_sql_path=""',
         validateOnly
             ? 'data_directory=/tmp/backup-postgres; socket_directory=/tmp/backup-postgres-socket'
             : 'data_directory=/var/lib/rentnerproxy/postgres-data; socket_directory=/var/run/postgresql',
@@ -234,7 +124,8 @@ export function postgresCommand(validateOnly: boolean): string {
         'gosu postgres postgres -D "$data_directory" -c listen_addresses=' +
             (validateOnly ? '127.0.0.1' : '') +
             ' -c unix_socket_directories="$socket_directory" >&2 & postgres_pid=$!',
-        'cleanup() { rm -f -- "$dump_path" "$rendered_sql_path" "$restore_sql_path"; rmdir -- "$restore_directory" 2>/dev/null || true; kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }',
+        postgresShutdownScript(),
+        'cleanup() { rm -f -- "$rendered_sql_path" "$restore_sql_path"; rmdir -- "$restore_directory" 2>/dev/null || true; stop_postgres; }',
         'trap cleanup EXIT',
         'ready=false',
         'for attempt in $(seq 1 60); do if gosu postgres pg_isready --host="$socket_directory" --username=postgres >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done',
@@ -270,39 +161,57 @@ async function restore(): Promise<void> {
         }
         const metadata = parseBackupMetadata(metadataValue)
         const backupId = createHash('sha256').update(metadataBytes).digest('hex')
-        await writeFile(join(snapshot, 'metadata.json'), metadataBytes, { mode: 0o600 })
+        await writeFile(join(snapshot, 'metadata.json'), metadataBytes, { mode: 0o600, flag: 'wx' })
+        await chmod(join(snapshot, 'metadata.json'), 0o600)
         const artifacts = [
             { name: 'postgres.dump', metadata: metadata.postgres },
             { name: 'app-encryption-key', metadata: metadata.applicationEncryptionKey },
             { name: stateArchiveName, metadata: metadata.controllerState },
             { name: 'crowdsec-state.tar', metadata: metadata.crowdSecState },
         ]
-        const bytes = new Map<string, Buffer>()
         for (const artifact of artifacts) {
-            const value = await readBackupFile(
+            await snapshotBackupArtifact(
                 join(inputPath, artifact.name),
-                artifact.metadata.bytes,
+                join(snapshot, artifact.name),
+                artifact.metadata,
             )
-            verifyBackupArtifact(value, artifact.metadata, artifact.name)
-            bytes.set(artifact.name, value)
-            await writeFile(join(snapshot, artifact.name), value, { mode: 0o600 })
         }
-        const appKey = parseApplicationEncryptionKey(bytes.get('app-encryption-key')!)
-        const controllerEntries = validateStateArchive(bytes.get(stateArchiveName)!, 'controller')
-        validateControllerEncryption(controllerEntries, (ciphertext, iv, context) => {
-            try {
-                if (iv.length !== 12 || ciphertext.length < 17)
-                    throw new Error('invalid encrypted secret')
-                const decipher = createDecipheriv('aes-256-gcm', appKey, iv)
-                decipher.setAAD(Buffer.from(context, 'utf8'))
-                decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16))
-                decipher.update(ciphertext.subarray(0, -16))
-                decipher.final()
-            } catch {
-                throw new Error('backup application key cannot decrypt controller state')
-            }
-        })
-        validateStateArchive(bytes.get('crowdsec-state.tar')!, 'crowdsec')
+        const keyFile = await open(join(snapshot, 'app-encryption-key'), 'r')
+        let appKey: Buffer
+        try {
+            appKey = await parseApplicationEncryptionKeyFile(keyFile)
+        } finally {
+            await keyFile.close()
+        }
+        const controllerFile = await open(join(snapshot, stateArchiveName), 'r')
+        try {
+            const controllerEntries = await validateStateArchiveFile(controllerFile, 'controller')
+            await validateControllerEncryptionFile(
+                controllerFile,
+                controllerEntries,
+                (ciphertext, iv, context) => {
+                    try {
+                        if (iv.length !== 12 || ciphertext.length < 17)
+                            throw new Error('invalid encrypted secret')
+                        const decipher = createDecipheriv('aes-256-gcm', appKey, iv)
+                        decipher.setAAD(Buffer.from(context, 'utf8'))
+                        decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16))
+                        decipher.update(ciphertext.subarray(0, -16))
+                        decipher.final()
+                    } catch {
+                        throw new Error('backup application key cannot decrypt controller state')
+                    }
+                },
+            )
+        } finally {
+            await controllerFile.close()
+        }
+        const crowdSecFile = await open(join(snapshot, 'crowdsec-state.tar'), 'r')
+        try {
+            await validateStateArchiveFile(crowdSecFile, 'crowdsec')
+        } finally {
+            await crowdSecFile.close()
+        }
 
         const project = composeProject(argumentsList)
         const composeFile = resolve(process.env.RENTNERPROXY_COMPOSE_FILE ?? defaultComposeFile)
@@ -328,12 +237,11 @@ async function restore(): Promise<void> {
             'inspect restore image',
         )
         if (!/^sha256:[a-f0-9]{64}$/u.test(imageId)) throw new Error('invalid restore target image')
-        await runCommandWithInput(
+        await runCommand(
             [
                 'docker',
                 'run',
                 '--rm',
-                '--interactive',
                 '--network=none',
                 '--entrypoint=bash',
                 '--volume',
@@ -342,7 +250,6 @@ async function restore(): Promise<void> {
                 '-c',
                 postgresCommand(true),
             ],
-            bytes.get('postgres.dump')!,
             'restore PostgreSQL',
             360_000,
         )
@@ -400,7 +307,7 @@ async function restore(): Promise<void> {
                 bootstrap('begin-app-key-restore'),
                 'stage application encryption key restore',
             )
-            await runCommandWithInput(
+            await runCommand(
                 [
                     ...compose,
                     'run',
@@ -410,11 +317,12 @@ async function restore(): Promise<void> {
                     '--entrypoint=bash',
                     '--env',
                     'RENTNERPROXY_RESTORE_PHASE=database',
+                    '--volume',
+                    archiveVolume,
                     applianceService,
                     '-c',
                     postgresCommand(false),
                 ],
-                bytes.get('postgres.dump')!,
                 'restore PostgreSQL',
                 360_000,
             )

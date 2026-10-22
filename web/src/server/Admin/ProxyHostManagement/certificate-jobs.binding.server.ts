@@ -9,7 +9,7 @@ import type { ControllerCertificateMetadata } from '@/server/Controller/Types/ce
 import { getProxyRuntimeStatus } from '@/server/Controller/proxy.server.ts'
 import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
 import { reconcileProxyConfigurationService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
-import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificate-metadata.persistence.ts'
 import {
     CertificateJobDomainError,
     readCertificateJobHost,

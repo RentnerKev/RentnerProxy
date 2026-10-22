@@ -35,7 +35,7 @@ pub(super) fn reverse_proxy(
     set.insert("Host".to_owned(), vec!["{http.request.host}".to_owned()]);
     set.insert(
         "X-Real-IP".to_owned(),
-        vec!["{http.request.remote.host}".to_owned()],
+        vec!["{http.vars.client_ip}".to_owned()],
     );
     set.insert(
         "X-Forwarded-Proto".to_owned(),
@@ -72,38 +72,35 @@ pub(super) fn reverse_proxy(
                 .or_else(|| defaults.and_then(|v| v.proxy_send_timeout_seconds)),
         );
         if host.forward_scheme == "https" {
-            let policy = Some(
-                host.upstream_tls
-                    .as_ref()
-                    .ok_or(RenderError::MissingUpstreamTlsPolicy)?,
-            );
-            let server_name = policy.and_then(|p| p.server_name.clone()).or_else(|| {
+            let policy = host
+                .upstream_tls
+                .as_ref()
+                .ok_or(RenderError::MissingUpstreamTlsPolicy)?;
+            let server_name = policy.server_name.clone().or_else(|| {
                 host.forward_host
                     .parse::<IpAddr>()
                     .ok()
                     .is_none()
                     .then(|| host.forward_host.clone())
             });
-            let (ca, insecure) = match (policy, ca_settings) {
-                (Some(policy), Some(settings)) if policy.verify => {
-                    let path = match policy.trusted_ca_id.as_ref() {
-                        Some(id) => settings
-                            .trusted_ca_paths
-                            .get(id)
-                            .ok_or(RenderError::MissingTrustedCa)?,
-                        None => &settings.system_ca_bundle,
-                    };
-                    (
-                        Some(CaSource {
-                            provider: "file".to_owned(),
-                            pem_files: vec![certificate_path(path)?],
-                        }),
-                        None,
-                    )
-                }
-                (Some(policy), None) if policy.verify => return Err(RenderError::MissingTrustedCa),
-                (Some(_), _) => (None, Some(true)),
-                _ => (None, None),
+            let (ca, insecure) = if policy.verify {
+                let settings = ca_settings.ok_or(RenderError::MissingTrustedCa)?;
+                let path = match policy.trusted_ca_id.as_ref() {
+                    Some(id) => settings
+                        .trusted_ca_paths
+                        .get(id)
+                        .ok_or(RenderError::MissingTrustedCa)?,
+                    None => &settings.system_ca_bundle,
+                };
+                (
+                    Some(CaSource {
+                        provider: "file".to_owned(),
+                        pem_files: vec![certificate_path(path)?],
+                    }),
+                    None,
+                )
+            } else {
+                (None, Some(true))
             };
             transport.tls = Some(UpstreamTls {
                 ca,

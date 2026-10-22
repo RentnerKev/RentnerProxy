@@ -97,8 +97,10 @@ export async function claimNextNotificationDelivery(): Promise<NotificationDeliv
             Date.now(),
             randomUUID,
         )
-        runtime.engine = result.state
-        await writeNotificationRuntime(transaction, runtime)
+        if (JSON.stringify(runtime.engine) !== JSON.stringify(result.state)) {
+            runtime.engine = result.state
+            await writeNotificationRuntime(transaction, runtime)
+        }
         if (!result.delivery) return null
         const channel = configuration.channels.find(
             (item) =>
@@ -120,14 +122,17 @@ export async function acknowledgeNotificationDelivery(
             await lockNotificationConfiguration(transaction),
         )
         const runtime = await lockNotificationRuntime(transaction)
-        runtime.engine = finishNotificationDelivery(
+        const state = finishNotificationDelivery(
             runtime.engine,
             configuration,
             leaseToken,
             result,
             Date.now(),
         )
-        await writeNotificationRuntime(transaction, runtime)
+        if (JSON.stringify(runtime.engine) !== JSON.stringify(state)) {
+            runtime.engine = state
+            await writeNotificationRuntime(transaction, runtime)
+        }
     })
 }
 

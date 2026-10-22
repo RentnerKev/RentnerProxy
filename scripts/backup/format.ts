@@ -1,8 +1,14 @@
 import { metadataSchema } from './validation.ts'
 import { validateDnsConnectionsBackup } from './dns-connections.ts'
 import type { BackupMetadata } from './Types/format.types.ts'
-import type { DeploymentSettings, StateArchiveEntry } from './Types/format.types.ts'
+import type {
+    DeploymentSettings,
+    StateArchiveEntry,
+    StateArchiveFileEntry,
+} from './Types/format.types.ts'
 import { createHash } from 'node:crypto'
+import type { FileHandle } from 'node:fs/promises'
+import { readFileRange } from './artifact-file.ts'
 
 export function parseBackupMetadata(value: unknown): BackupMetadata {
     const result = metadataSchema.safeParse(value)
@@ -88,26 +94,39 @@ function safeName(value: string): string {
     return parts.join('/')
 }
 
-export function validateStateArchive(
-    archive: Uint8Array,
+function validateArchivePathConflicts(names: ReadonlyMap<string, boolean>): void {
+    for (const name of names.keys()) {
+        for (let slash = name.indexOf('/'); slash !== -1; slash = name.indexOf('/', slash + 1)) {
+            if (names.get(name.slice(0, slash)) === false)
+                throw new Error('conflicting state archive paths')
+        }
+    }
+}
+
+function* archiveIndex(
+    byteLength: number,
     kind: 'controller' | 'crowdsec',
-): StateArchiveEntry[] {
-    if (archive.byteLength < 1024 || archive.byteLength % 512 !== 0)
-        throw new Error('invalid state archive')
-    const entries: StateArchiveEntry[] = []
+): Generator<{ offset: number; size: number }, StateArchiveFileEntry[], Uint8Array> {
+    if (byteLength < 1024 || byteLength % 512 !== 0) throw new Error('invalid state archive')
+    const entries: StateArchiveFileEntry[] = []
     const names = new Map<string, boolean>()
     let offset = 0
     let longName: string | null = null
-    while (offset + 512 <= archive.byteLength) {
-        const header = archive.subarray(offset, offset + 512)
+    while (offset + 512 <= byteLength) {
+        const header = yield { offset, size: 512 }
         if (header.every((byte) => byte === 0)) {
-            if (
-                longName !== null ||
-                offset + 1024 > archive.byteLength ||
-                archive.subarray(offset).some((byte) => byte !== 0)
-            )
+            if (longName !== null || offset + 1024 > byteLength)
                 throw new Error('invalid state archive trailer')
+            for (let position = offset + 512; position < byteLength; position += 65_536) {
+                const trailer = yield {
+                    offset: position,
+                    size: Math.min(65_536, byteLength - position),
+                }
+                if (trailer.some((byte) => byte !== 0))
+                    throw new Error('invalid state archive trailer')
+            }
             if (entries.length === 0) throw new Error('empty state archive')
+            validateArchivePathConflicts(names)
             if (kind === 'crowdsec' && names.has('data/crowdsec.db')) {
                 for (const name of [
                     'credentials/local_api_credentials.yaml',
@@ -117,9 +136,8 @@ export function validateStateArchive(
                         throw new Error('incomplete CrowdSec state archive')
                 }
                 const db = entries.find((entry) => entry.name === 'data/crowdsec.db')!
-                if (
-                    Buffer.from(db.bytes.subarray(0, 16)).toString('utf8') !== 'SQLite format 3\0'
-                ) {
+                const signature = yield { offset: db.bodyOffset, size: Math.min(16, db.size) }
+                if (Buffer.from(signature).toString('utf8') !== 'SQLite format 3\0') {
                     throw new Error('invalid CrowdSec database')
                 }
             }
@@ -137,11 +155,10 @@ export function validateStateArchive(
         const type = header[156]
         const bodyOffset = offset + 512
         offset = bodyOffset + Math.ceil(size / 512) * 512
-        if (offset > archive.byteLength) throw new Error('truncated state archive')
-        const bytes = archive.subarray(bodyOffset, bodyOffset + size)
+        if (offset > byteLength) throw new Error('truncated state archive')
         if (type === 76) {
             if (longName !== null || size > 4097) throw new Error('invalid long state archive path')
-            longName = tarString(bytes)
+            longName = tarString(yield { offset: bodyOffset, size })
             continue
         }
         if (type !== 0 && type !== 48 && type !== 53)
@@ -157,14 +174,6 @@ export function validateStateArchive(
         longName = null
         if ((!name && !directory) || names.has(name))
             throw new Error('duplicate or invalid state archive entry')
-        const parts = name.split('/')
-        for (let index = 1; index < parts.length; index += 1) {
-            if (names.get(parts.slice(0, index).join('/')) === false)
-                throw new Error('conflicting state archive paths')
-        }
-        if (!directory && [...names.keys()].some((entry) => entry.startsWith(name + '/'))) {
-            throw new Error('conflicting state archive paths')
-        }
         if (
             kind === 'crowdsec' &&
             !(directory
@@ -182,19 +191,95 @@ export function validateStateArchive(
             throw new Error('invalid CrowdSec credential size')
         }
         names.set(name, directory)
-        entries.push({ name, directory, bytes })
+        entries.push({ name, directory, bodyOffset, size })
         if (entries.length > 200_000) throw new Error('too many state archive entries')
     }
     throw new Error('missing state archive trailer')
+}
+
+export function validateStateArchive(
+    archive: Uint8Array,
+    kind: 'controller' | 'crowdsec',
+): StateArchiveEntry[] {
+    const index = archiveIndex(archive.byteLength, kind)
+    let next = index.next()
+    while (!next.done) {
+        const { offset, size } = next.value
+        next = index.next(archive.subarray(offset, offset + size))
+    }
+    return next.value.map((entry) => ({
+        name: entry.name,
+        directory: entry.directory,
+        bytes: archive.subarray(entry.bodyOffset, entry.bodyOffset + entry.size),
+    }))
+}
+
+export async function validateStateArchiveFile(
+    file: FileHandle,
+    kind: 'controller' | 'crowdsec',
+): Promise<StateArchiveFileEntry[]> {
+    const info = await file.stat()
+    if (!info.isFile()) throw new Error('invalid state archive')
+    const index = archiveIndex(info.size, kind)
+    let next = index.next()
+    while (!next.done) {
+        const { offset, size } = next.value
+        // oxlint-disable-next-line no-await-in-loop -- Each header determines the next offset.
+        next = index.next(await readFileRange(file, offset, size))
+    }
+    return next.value
 }
 
 export function validateControllerEncryption(
     entries: StateArchiveEntry[],
     decrypt: (ciphertext: Uint8Array, iv: Uint8Array, context: string) => void,
 ): void {
-    const files = new Map(
-        entries.filter((entry) => !entry.directory).map((entry) => [entry.name, entry.bytes]),
+    validateControllerEncryptionEntries(
+        entries,
+        new Map(
+            entries
+                .filter((entry) => !entry.directory)
+                .map((entry) => [entry.name, entry.bytes.length]),
+        ),
+        decrypt,
     )
+}
+
+export async function validateControllerEncryptionFile(
+    file: FileHandle,
+    entries: StateArchiveFileEntry[],
+    decrypt: (ciphertext: Uint8Array, iv: Uint8Array, context: string) => void,
+): Promise<void> {
+    const files = new Map(
+        entries.filter((entry) => !entry.directory).map((entry) => [entry.name, entry.size]),
+    )
+    for (const entry of entries) {
+        const limit =
+            entry.name === 'dns-connections.json'
+                ? 1024 ** 2
+                : /(?:^|\/)certificate-metadata\.json$/u.test(entry.name)
+                  ? 8 * 1024 ** 2
+                  : /(?:^|\/)candidate\.json$/u.test(entry.name)
+                    ? 256 * 1024
+                    : null
+        if (limit === null || (entry.directory && entry.name !== 'dns-connections.json')) continue
+        if (entry.size > limit) throw new Error('controller state metadata is too large')
+        // Validate each bounded document immediately rather than retaining all metadata bodies.
+        // oxlint-disable-next-line no-await-in-loop -- Preserve archive order and bounded memory.
+        const bytes = await readFileRange(file, entry.bodyOffset, entry.size)
+        validateControllerEncryptionEntries(
+            [{ name: entry.name, directory: entry.directory, bytes }],
+            files,
+            decrypt,
+        )
+    }
+}
+
+function validateControllerEncryptionEntries(
+    entries: StateArchiveEntry[],
+    files: ReadonlyMap<string, number>,
+    decrypt: (ciphertext: Uint8Array, iv: Uint8Array, context: string) => void,
+): void {
     for (const entry of entries) {
         if (entry.name === 'dns-connections.json') {
             if (entry.directory) throw new Error('invalid DNS connection state metadata')
@@ -236,8 +321,7 @@ export function validateControllerEncryption(
                             '/' +
                             name,
                     )
-                    if (!file || file.length === 0)
-                        throw new Error('incomplete certificate material in backup')
+                    if (!file) throw new Error('incomplete certificate material in backup')
                 }
             }
             const provider = acme?.dnsProvider

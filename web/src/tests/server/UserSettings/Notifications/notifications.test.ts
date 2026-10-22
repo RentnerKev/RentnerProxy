@@ -57,7 +57,8 @@ const input: UpdatePersonalNotificationConfigurationInput = {
     channels: [{ ...policy, events: [...policy.events] }],
 }
 
-function setup() {
+function setup(commitFails = false) {
+    const order: string[] = []
     let configuration = structuredClone(initial)
     let permissions: PermissionKey[] = [PERMISSIONS.APP_ACCESS, PERMISSIONS.DDNS_VIEW]
     let privateTarget = false
@@ -80,11 +81,25 @@ function setup() {
     })
     const dependencies = {
         authorize: mock(async () => user()),
-        authorizeInTransaction: mock(async () => user()),
-        transaction: async (run, _readOnly) => {
+        authorizeInTransaction: mock(async () => {
+            order.push('authorize')
+            return user()
+        }),
+        transaction: async (run, readOnly) => {
+            const savedConfiguration = structuredClone(configuration)
+            const savedRuntime = structuredClone(runtime)
             insideTransaction = true
             try {
-                return await run(transaction)
+                const result = await run(transaction)
+                if (!readOnly) {
+                    if (commitFails) throw new Error('commit failed')
+                    order.push('commit')
+                }
+                return result
+            } catch (error) {
+                configuration = savedConfiguration
+                runtime = savedRuntime
+                throw error
             } finally {
                 insideTransaction = false
             }
@@ -92,13 +107,21 @@ function setup() {
         limit: mock(async () => {}),
         limitTest: mock(async () => {}),
         readConfiguration: mock(async () => structuredClone(configuration)),
-        lockConfiguration: mock(async () => structuredClone(configuration)),
+        lockConfiguration: mock(async () => {
+            order.push('lockConfiguration')
+            return structuredClone(configuration)
+        }),
         writeConfiguration: mock(async (_transaction, next) => {
+            order.push('writeConfiguration')
             configuration = structuredClone(next)
         }),
         readRuntime: mock(async () => structuredClone(runtime)),
-        lockRuntime: mock(async () => structuredClone(runtime)),
+        lockRuntime: mock(async () => {
+            order.push('lockRuntime')
+            return structuredClone(runtime)
+        }),
         writeRuntime: mock(async (_transaction, next) => {
+            order.push('writeRuntime')
             runtime = structuredClone(next)
         }),
         buildConfiguration: mock(
@@ -132,7 +155,10 @@ function setup() {
                 allowedPrivateCidrs: privateTarget ? ['10.0.0.0/8'] : [],
             }
         }),
-        effectiveConfiguration: mock(async (_transaction, next) => next),
+        effectiveConfiguration: mock(async (_transaction, next) => {
+            order.push('effective')
+            return next
+        }),
         smtpConfigured: () => false,
         deliver: mock(
             async (_claim: NotificationDeliveryClaim): Promise<NotificationDeliveryResult> => {
@@ -150,15 +176,18 @@ function setup() {
             )
         }),
         audit: mock(async (_transaction, event) => {
+            order.push('audit')
             auditEventInputSchema.parse(event)
         }),
         publish: mock(() => {
+            order.push('publish')
             expect(insideTransaction).toBe(false)
         }),
         now: () => 2_000,
         makeId: () => crypto.randomUUID(),
     } satisfies PersonalNotificationDependencies
     return {
+        order,
         dependencies,
         service: createPersonalNotificationService(dependencies),
         configuration: () => configuration,
@@ -177,6 +206,34 @@ function setup() {
         },
     }
 }
+
+describe('notification configuration transaction failures', () => {
+    test.each(['writeRuntime', 'audit', 'commit'] as const)(
+        'rolls back configuration and runtime and skips publish when %s fails',
+        async (failure) => {
+            const fixture = setup(failure === 'commit')
+            const before = structuredClone({
+                configuration: fixture.configuration(),
+                runtime: fixture.runtime(),
+            })
+            if (failure !== 'commit')
+                fixture.dependencies[failure].mockImplementationOnce(async () => {
+                    throw new Error(`${failure} failed`)
+                })
+            await expect(
+                fixture.service.updatePersonalNotificationConfigurationService(input),
+            ).rejects.toThrow(`${failure} failed`)
+            expect(fixture.configuration()).toEqual(before.configuration)
+            expect(fixture.runtime()).toEqual(before.runtime)
+            expect(fixture.dependencies.writeConfiguration).toHaveBeenCalledTimes(1)
+            expect(fixture.dependencies.writeRuntime).toHaveBeenCalledTimes(1)
+            expect(fixture.dependencies.audit).toHaveBeenCalledTimes(
+                failure === 'writeRuntime' ? 0 : 1,
+            )
+            expect(fixture.dependencies.publish).not.toHaveBeenCalled()
+        },
+    )
+})
 
 describe('personal notification authorization and delivery', () => {
     test('reads return only the actor channels, freshly allowed categories, and no destination or lease secrets', async () => {
@@ -218,6 +275,19 @@ describe('personal notification authorization and delivery', () => {
         expect(fixture.dependencies.deliver).not.toHaveBeenCalled()
         expect(fixture.dependencies.publish).toHaveBeenCalledTimes(1)
         expect(fixture.dependencies.effectiveConfiguration).toHaveBeenCalled()
+        expect(fixture.order.slice(-9)).toEqual([
+            'authorize',
+            'lockConfiguration',
+            'effective',
+            'lockRuntime',
+            'writeConfiguration',
+            'writeRuntime',
+            'audit',
+            'commit',
+            'publish',
+        ])
+        expect(fixture.dependencies.audit.mock.calls.at(-1)?.[1].metadata?.channelCount).toBe(1)
+        expect(JSON.stringify(fixture.dependencies.audit.mock.calls)).not.toContain('sealed-secret')
     })
 
     test.each([otherActorId, undefined])(

@@ -87,6 +87,13 @@ pub(crate) trait ProxyEngine: Send + Sync {
     fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
     fn probe<'a>(&'a self, expected_revision: &'a str) -> EngineFuture<'a>;
     fn shutdown<'a>(&'a self) -> EngineFuture<'a>;
+    fn shutdown_until(&self, deadline: Instant) -> EngineFuture<'_> {
+        Box::pin(async move {
+            timeout_at(deadline, self.shutdown())
+                .await
+                .unwrap_or(Err(EngineError::TimedOut))
+        })
+    }
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
     fn metrics<'a>(
         &'a self,
@@ -111,6 +118,7 @@ pub(crate) struct CaddyProcess {
     probe_socket: PathBuf,
     environment: std::sync::Mutex<EngineEnvironment>,
     child: Mutex<Option<Child>>,
+    stopping: std::sync::atomic::AtomicBool,
 }
 
 impl CaddyProcess {
@@ -122,6 +130,7 @@ impl CaddyProcess {
             state_dir,
             environment: std::sync::Mutex::new(EngineEnvironment::default()),
             child: Mutex::new(None),
+            stopping: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -222,6 +231,9 @@ impl CaddyProcess {
     }
 
     async fn start_owned(&self, configuration: &str, revision: &str) -> Result<(), EngineError> {
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(EngineError::Unavailable);
+        }
         if !cfg!(unix) {
             return Err(EngineError::Unavailable);
         }
@@ -266,6 +278,10 @@ impl CaddyProcess {
         })?;
         let mut stdin = child.stdin.take().ok_or(EngineError::CommandFailed)?;
         *self.child.lock().await = Some(child);
+        if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            self.terminate_child().await?;
+            return Err(EngineError::Unavailable);
+        }
         let result = async {
             stdin
                 .write_all(configuration.as_bytes())
@@ -290,7 +306,16 @@ impl CaddyProcess {
     }
 
     async fn terminate_child_bounded(&self, reap_timeout: Duration) -> Result<(), EngineError> {
-        let Some(mut child) = self.child.lock().await.take() else {
+        self.terminate_child_until(Instant::now() + reap_timeout)
+            .await
+    }
+
+    async fn terminate_child_until(&self, deadline: Instant) -> Result<(), EngineError> {
+        let Some(mut child) = timeout_at(deadline, self.child.lock())
+            .await
+            .map_err(|_| EngineError::TimedOut)?
+            .take()
+        else {
             return Ok(());
         };
         let kill_result = child.start_kill().map_err(|error| {
@@ -299,28 +324,44 @@ impl CaddyProcess {
         });
         // Even when signalling fails, reaping remains bounded. On timeout the
         // owned child is dropped with kill_on_drop as the final fallback.
-        match timeout(reap_timeout, child.wait()).await {
+        match timeout_at(deadline, child.wait()).await {
             Ok(Ok(_)) => kill_result,
             Ok(Err(error)) => {
                 tracing::warn!(stage = "child_reap", error_kind = ?error.kind(), "Caddy child reap failed");
                 Err(EngineError::CommandFailed)
             }
             Err(_) => {
-                tracing::warn!(
-                    stage = "child_reap",
-                    timeout_ms = reap_timeout.as_millis(),
-                    "Caddy child reap timed out"
-                );
+                tracing::warn!(stage = "child_reap", "Caddy child reap timed out");
                 Err(EngineError::TimedOut)
             }
         }
     }
 
     async fn shutdown_owned(&self, budget: ShutdownBudget) -> Result<(), EngineError> {
-        if !self.child_running().await {
-            return Ok(());
+        self.shutdown_owned_until(budget, Instant::now() + budget.drain + budget.reap)
+            .await
+    }
+
+    async fn shutdown_owned_until(
+        &self,
+        budget: ShutdownBudget,
+        final_deadline: Instant,
+    ) -> Result<(), EngineError> {
+        let deadline = final_deadline
+            .checked_sub(budget.reap)
+            .unwrap_or(final_deadline);
+        match timeout_at(deadline, self.child_running()).await {
+            Ok(false) => return Ok(()),
+            Ok(true) => {}
+            Err(_) => {
+                self.terminate_child_until(final_deadline).await?;
+                return Err(EngineError::TimedOut);
+            }
         }
-        let deadline = Instant::now() + budget.drain;
+        if Instant::now() >= deadline {
+            self.terminate_child_until(final_deadline).await?;
+            return Err(EngineError::TimedOut);
+        }
         let result = timeout_at(
             deadline,
             self.request_bounded(
@@ -337,28 +378,39 @@ impl CaddyProcess {
         .await
         .unwrap_or(Err(EngineError::TimedOut));
         if !matches!(result, Ok(ControlResponse { status: 200, .. })) {
-            self.terminate_child_bounded(budget.reap).await?;
+            self.terminate_child_until(final_deadline).await?;
             return Err(result.err().unwrap_or(EngineError::CommandFailed));
         }
-        let mut slot = self.child.lock().await;
-        let Some(child) = slot.as_mut() else {
-            return Ok(());
-        };
         // The control call and child drain share one deadline; their budgets
-        // must not add up beyond the appliance's own termination deadline.
-        let result = timeout_at(deadline, child.wait()).await;
+        // must not add up beyond the appliance's own termination deadline. Do
+        // not retain the slot lock while waiting: final shutdown must be able
+        // to force a child already draining during a configuration operation.
+        let result = timeout_at(deadline, async {
+            loop {
+                {
+                    let mut slot = self.child.lock().await;
+                    let Some(child) = slot.as_mut() else {
+                        return Ok(None);
+                    };
+                    if let Some(status) = child.try_wait()? {
+                        *slot = None;
+                        return Ok::<_, std::io::Error>(Some(status));
+                    }
+                }
+                sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await;
         match result {
             Ok(Ok(status)) => {
-                *slot = None;
-                if status.success() {
+                if status.is_none_or(|status| status.success()) {
                     Ok(())
                 } else {
                     Err(EngineError::CommandFailed)
                 }
             }
             result => {
-                drop(slot);
-                self.terminate_child_bounded(budget.reap).await?;
+                self.terminate_child_until(final_deadline).await?;
                 Err(if result.is_err() {
                     EngineError::TimedOut
                 } else {
@@ -402,6 +454,20 @@ impl ProxyEngine for CaddyProcess {
     }
     fn shutdown<'a>(&'a self) -> EngineFuture<'a> {
         Box::pin(self.shutdown_owned(SHUTDOWN_BUDGET))
+    }
+    fn shutdown_until(&self, deadline: Instant) -> EngineFuture<'_> {
+        self.stopping
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let reap = SHUTDOWN_BUDGET.reap.min(remaining);
+        Box::pin(self.shutdown_owned_until(
+            ShutdownBudget {
+                control: SHUTDOWN_BUDGET.control.min(remaining.saturating_sub(reap)),
+                drain: remaining.saturating_sub(reap),
+                reap,
+            },
+            deadline,
+        ))
     }
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
         Box::pin(self.child_running())

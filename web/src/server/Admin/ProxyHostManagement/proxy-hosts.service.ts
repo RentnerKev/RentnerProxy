@@ -1,7 +1,8 @@
 import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 import '@tanstack/react-start/server-only'
-import { attachHostTagsService } from '@/server/Admin/HostTags/host-tags.service.ts'
+import { tagsForHost } from '@/lib/HostTags/hostTags.ts'
+import { readHostTags } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
@@ -80,12 +81,16 @@ function parseProxyHostId(proxyHostId: string): string {
     return parsed.data.proxyHostId
 }
 
-export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-    const rows = await getAuthDatabase()
+export async function readProxyHostSummariesInTransaction(
+    transaction: AuthTransaction,
+    ids?: readonly string[],
+): Promise<Array<ProxyHostSummary>> {
+    if (ids?.length === 0) return []
+    const rows = await transaction
         .select({ ...proxyHostSummaryColumns, domain: hostDomains.domain })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
+        .where(ids ? inArray(proxyHosts.id, [...ids]) : undefined)
         .orderBy(asc(proxyHosts.id), asc(hostDomains.domain))
     const summaries = new Map<string, ProxyHostSummary>()
 
@@ -107,7 +112,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
     const latestJobs = new Map<string, ReturnType<typeof certificateJobSummary>>()
     const hostIds = [...summaries.keys()]
     if (hostIds.length > 0) {
-        const jobs = await getAuthDatabase()
+        const jobs = await transaction
             .selectDistinctOn([certificateJobs.proxyHostId])
             .from(certificateJobs)
             .where(inArray(certificateJobs.proxyHostId, hostIds))
@@ -123,13 +128,14 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
         }
     }
 
-    const registry = await getAuthDatabase().transaction(readDiscoveryRegistry, {
-        accessMode: 'read only',
-    })
+    const registry = await readDiscoveryRegistry(transaction)
+    const ownersByHost = new Map<string, (typeof registry.owners)[number]>()
+    for (const owner of registry.owners) {
+        if (owner.state !== 'detached' && !ownersByHost.has(owner.hostId))
+            ownersByHost.set(owner.hostId, owner)
+    }
     for (const summary of summaries.values()) {
-        const owner = registry.owners.find(
-            (entry) => entry.hostId === summary.id && entry.state !== 'detached',
-        )
+        const owner = ownersByHost.get(summary.id)
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
             certificateJob: latestJobs.get(summary.id) ?? null,
@@ -137,7 +143,26 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
         })
     }
 
-    return attachHostTagsService('proxy', result)
+    return result
+}
+
+export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
+    const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+    return getAuthDatabase().transaction(
+        async (transaction) => {
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+            )
+            const state = await readHostTags(transaction, 'proxy')
+            const hosts = await readProxyHostSummariesInTransaction(transaction)
+            return hosts.map((host) =>
+                Object.assign({}, host, { tags: tagsForHost(state, host.id) }),
+            )
+        },
+        { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    )
 }
 
 export async function createProxyHostService(

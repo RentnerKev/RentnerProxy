@@ -1,4 +1,5 @@
 export interface ProxyConfigEditorActionsProps {
+    readonly isBlocked: boolean
     readonly canEdit: boolean
     readonly isBusy: boolean
     readonly hasData: boolean

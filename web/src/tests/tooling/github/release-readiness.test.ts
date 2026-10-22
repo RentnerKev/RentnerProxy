@@ -123,10 +123,16 @@ test('publishes readiness last with trusted automation and the assessed build di
         'utf8',
     )
     const identity = script.indexOf('bash "$script_directory/verify-release-identity.sh"')
-    const generate = script.indexOf('bun --no-env-file')
+    const gate = script.indexOf('bun --no-env-file "$script_directory/verify-exact-revision-ci.ts"')
+    const finalIdentity = script.lastIndexOf('bash "$script_directory/verify-release-identity.sh"')
+    const generate = script.indexOf(
+        'bun --no-env-file "$script_directory/generate-release-readiness.ts"',
+    )
     const upload = script.indexOf('gh release upload')
     expect(identity).toBeGreaterThan(-1)
-    expect(generate).toBeGreaterThan(identity)
+    expect(gate).toBeGreaterThan(identity)
+    expect(finalIdentity).toBeGreaterThan(gate)
+    expect(generate).toBeGreaterThan(finalIdentity)
     expect(upload).toBeGreaterThan(generate)
     expect(script).toContain('set -Eeuo pipefail')
     expect(script).toContain('rentnerproxy-update.json')

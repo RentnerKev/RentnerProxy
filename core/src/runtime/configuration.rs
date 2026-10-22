@@ -321,7 +321,7 @@ impl ProxyRuntime {
             &TlsRenderSettings {
                 https_port: self.settings.https_port,
                 public_https_port: self.settings.public_https_port,
-                controller_port: self.settings.controller_port,
+                controller_port: self.settings.controller_addr.port(),
             },
             &materials,
             &upstream_tls,

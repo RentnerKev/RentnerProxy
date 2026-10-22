@@ -24,7 +24,7 @@ fn settings() -> RenderSettings {
         probe_socket: cfg!(unix).then(|| base.join("runtime-probe.sock")),
         admin_socket: cfg!(unix).then(|| base.join("caddy-admin.sock")),
         state_dir: base,
-        controller_port: 8081,
+        controller_addr: "127.0.0.1:8081".parse().unwrap(),
         trusted_proxy_cidrs: Vec::new(),
     }
 }
@@ -184,6 +184,55 @@ fn crowdsec_wraps_https_after_transport_headers_and_acme_bypass() {
         rendered.contains("{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}")
             && !rendered.contains("super-secret-bouncer-key")
     );
+}
+
+#[test]
+fn challenge_routes_use_the_same_complete_controller_address_on_http_and_https() {
+    let mut configuration = config();
+    let certificate_id = "018f4b4a-7d1f-7abc-8def-2123456789ab";
+    configuration.proxy_hosts[0].certificate_id = Some(certificate_id.to_owned());
+    let materials = BTreeMap::from([(
+        certificate_id.to_owned(),
+        TlsMaterial {
+            fullchain_path: std::env::temp_dir().join("fullchain.pem"),
+            private_key_path: std::env::temp_dir().join("private-key.pem"),
+        },
+    )]);
+    let upstream = UpstreamTlsRenderSettings {
+        system_ca_bundle: std::env::temp_dir().join("ca-certificates.crt"),
+        trusted_ca_paths: BTreeMap::new(),
+    };
+    for address in [
+        "127.0.0.1:49152",
+        "192.0.2.10:49153",
+        "[::1]:49154",
+        "[2001:db8::10]:49155",
+        "[fe80::1%7]:49156",
+    ] {
+        let mut settings = settings();
+        settings.controller_addr = address.parse().unwrap();
+        let rendered = render_config_with_tls(
+            &configuration,
+            &settings,
+            &TlsRenderSettings {
+                https_port: 8443,
+                public_https_port: 443,
+                controller_port: 8081,
+            },
+            &materials,
+            &upstream,
+        )
+        .unwrap();
+        let json: Value = serde_json::from_str(&rendered).unwrap();
+        for (server, index) in [("rentnerproxy-http", 0), ("rentnerproxy-https", 1)] {
+            let challenge = &json["apps"]["http"]["servers"][server]["routes"][index];
+            assert_eq!(
+                challenge["match"][0]["path"][0],
+                "/.well-known/acme-challenge/*"
+            );
+            assert_eq!(challenge["handle"][0]["upstreams"][0]["dial"], address);
+        }
+    }
 }
 
 #[test]
@@ -675,7 +724,7 @@ fn force_https_basic_auth_can_pass_only_through_trusted_termination() {
 }
 
 #[test]
-fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
+fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_clients() {
     let mut configuration = config();
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
         id: "0198d98a-0000-7000-8000-000000000001".into(),
@@ -700,24 +749,24 @@ fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
         .unwrap();
     assert_eq!(routes[1]["handle"][0]["status_code"], 403);
     assert_eq!(
-        routes[1]["match"][0]["remote_ip"]["ranges"],
+        routes[1]["match"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
     );
     assert_eq!(routes[2]["handle"][1]["handler"], "reverse_proxy");
     assert_eq!(
-        routes[2]["match"][0]["remote_ip"]["ranges"],
+        routes[2]["match"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.0/24", "::ffff:192.0.2.0/120"])
     );
     assert_eq!(
-        routes[2]["match"][0]["not"][0]["remote_ip"]["ranges"],
+        routes[2]["match"][0]["not"][0]["client_ip"]["ranges"],
         serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
     );
     assert_eq!(routes[3]["handle"][0]["status_code"], 403);
 }
 
-fn matcher_matches_remote_ip(matcher: &Value, address: IpAddr) -> bool {
-    let remote_matches = matcher
-        .get("remote_ip")
+fn matcher_matches_client_ip(matcher: &Value, address: IpAddr) -> bool {
+    let client_matches = matcher
+        .get("client_ip")
         .and_then(|remote| remote.get("ranges"))
         .is_none_or(|ranges| {
             ranges.as_array().unwrap().iter().any(|range| {
@@ -735,13 +784,13 @@ fn matcher_matches_remote_ip(matcher: &Value, address: IpAddr) -> bool {
         .is_none_or(|excluded| {
             !excluded
                 .iter()
-                .any(|nested| matcher_matches_remote_ip(nested, address))
+                .any(|nested| matcher_matches_client_ip(nested, address))
         });
-    remote_matches && not_matches
+    client_matches && not_matches
 }
 
 #[test]
-fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
+fn ipv6_matchers_exclude_unlisted_mapped_clients_and_append_deny() {
     let mut configuration = config();
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
         id: "0198d98a-0000-7000-8000-000000000001".into(),
@@ -773,21 +822,21 @@ fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
 
     assert_eq!(allow_matcher["not"].as_array().unwrap().len(), 2);
     assert_eq!(
-        allow_matcher["not"][0]["remote_ip"]["ranges"],
+        allow_matcher["not"][0]["client_ip"]["ranges"],
         serde_json::json!(["::ffff:0:0/96"])
     );
     assert_eq!(
         allow_matcher["not"][0]["not"],
         serde_json::json!([{
-            "remote_ip": { "ranges": ["::ffff:192.0.2.0/120"] }
+            "client_ip": { "ranges": ["::ffff:192.0.2.0/120"] }
         }])
     );
-    assert!(matcher_matches_remote_ip(allow_matcher, mapped_allowed));
-    assert!(!matcher_matches_remote_ip(allow_matcher, mapped_unlisted));
-    assert!(matcher_matches_remote_ip(allow_matcher, allowed_ipv6));
-    assert!(!matcher_matches_remote_ip(allow_matcher, denied_ipv6));
-    assert!(matcher_matches_remote_ip(deny_matcher, denied_ipv6));
-    assert!(!matcher_matches_remote_ip(deny_matcher, mapped_unlisted));
+    assert!(matcher_matches_client_ip(allow_matcher, mapped_allowed));
+    assert!(!matcher_matches_client_ip(allow_matcher, mapped_unlisted));
+    assert!(matcher_matches_client_ip(allow_matcher, allowed_ipv6));
+    assert!(!matcher_matches_client_ip(allow_matcher, denied_ipv6));
+    assert!(matcher_matches_client_ip(deny_matcher, denied_ipv6));
+    assert!(!matcher_matches_client_ip(deny_matcher, mapped_unlisted));
 }
 
 #[test]
@@ -827,7 +876,7 @@ fn combined_any_uses_ip_without_auth_then_basic_auth_as_fallback() {
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
     );
-    assert!(routes[2]["match"][0]["remote_ip"].is_null());
+    assert!(routes[2]["match"][0]["client_ip"].is_null());
 }
 
 #[test]
@@ -902,6 +951,33 @@ fn global_timeouts_are_server_timeouts_and_host_body_limit_is_typed() {
 }
 
 #[test]
+fn normal_upstreams_forward_effective_client_ip_with_and_without_trusted_proxies() {
+    fn assert_proxy_headers(value: &Value) -> usize {
+        match value {
+            Value::Object(object) => {
+                if object.get("handler").and_then(Value::as_str) == Some("reverse_proxy") {
+                    assert_eq!(
+                        value["headers"]["request"]["set"]["X-Real-IP"],
+                        serde_json::json!(["{http.vars.client_ip}"])
+                    );
+                    return 1;
+                }
+                object.values().map(assert_proxy_headers).sum()
+            }
+            Value::Array(values) => values.iter().map(assert_proxy_headers).sum(),
+            _ => 0,
+        }
+    }
+    for trusted in [Vec::new(), vec!["192.0.2.0/24".to_owned()]] {
+        let mut settings = settings();
+        settings.trusted_proxy_cidrs = trusted;
+        let rendered = render_config(Some(&config()), &settings).unwrap();
+        let json: Value = serde_json::from_str(&rendered).unwrap();
+        assert!(assert_proxy_headers(&json) >= 2);
+    }
+}
+
+#[test]
 fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
     use crate::models::UpstreamTls;
     use crate::runtime::renderer::RenderError;
@@ -944,7 +1020,7 @@ fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
     );
     assert_eq!(
         proxy["headers"]["request"]["set"]["X-Real-IP"][0],
-        "{http.request.remote.host}"
+        "{http.vars.client_ip}"
     );
     assert_eq!(
         proxy["headers"]["request"]["delete"],
@@ -1040,6 +1116,7 @@ fn host_source_preview_preserves_trusted_termination_routes() {
 
     let http_routes = json["http"]["routes"].as_array().unwrap();
     assert_eq!(http_routes.len(), 2);
+    assert!(http_routes[0]["match"][0]["client_ip"].is_null());
     assert_eq!(
         http_routes[0]["match"][0]["remote_ip"]["ranges"],
         serde_json::json!(["192.0.2.10/32", "::ffff:192.0.2.10/128"])

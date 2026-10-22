@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { lt, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 
 import { auditEvents } from '@/db/schema.ts'
 import type {
@@ -87,14 +87,19 @@ export async function recordAuditEventBestEffortService(input: AuditEventInput):
 
 export async function pruneAuditEventsInTransaction(transaction: AuthTransaction): Promise<void> {
     const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1_000)
-    await transaction.delete(auditEvents).where(lt(auditEvents.createdAt, cutoff))
-
+    // Expired rows are a suffix of the same ordering used by the row cap.
     await transaction.execute(sql`
-        delete from "rentnerproxy"."audit_events"
-        where "id" in (
+        delete from "rentnerproxy"."audit_events" as events
+        using (
             select "id" from "rentnerproxy"."audit_events"
-            order by "created_at" desc, "id" desc
-            offset ${AUDIT_MAX_ROWS}
-        )
+            where "created_at" < ${cutoff.toISOString()}::timestamptz
+            union
+            select "id" from (
+                select "id" from "rentnerproxy"."audit_events"
+                order by "created_at" desc, "id" desc
+                offset ${AUDIT_MAX_ROWS}
+            ) as overflow
+        ) as obsolete
+        where events."id" = obsolete."id"
     `)
 }

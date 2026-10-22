@@ -245,6 +245,26 @@ describe('notification source adapters', () => {
         target.lastSuccessAt = target.lastAttemptAt
         expect(ddnsObservations(snapshot, NOW)[0]?.health).toBe('healthy')
     })
+    test.each(['A', 'AAAA'] as const)(
+        'disabled address family excludes stale failure and recovery evidence for %s',
+        (recordType) => {
+            const snapshot = ddns()
+            const settings = snapshot.configuration!.settings
+            settings.targets[0]!.recordType = recordType
+            const family = recordType === 'A' ? 'ipv4' : 'ipv6'
+            settings[family] = true
+            expect(ddnsObservations(snapshot, NOW)[0]?.health).toBe('failing')
+            settings[family] = false
+            expect(ddnsObservations(snapshot, NOW)).toEqual([])
+            const target = snapshot.targets[0]!
+            target.consecutiveFailures = 0
+            target.lastResult!.status = 'updated'
+            target.lastSuccessAt = target.lastAttemptAt
+            expect(ddnsObservations(snapshot, NOW)).toEqual([])
+            settings[family] = true
+            expect(ddnsObservations(snapshot, NOW)[0]?.health).toBe('healthy')
+        },
+    )
     test('another DDNS target and the global sequence do not refresh unchanged target evidence', () => {
         const snapshot = ddns()
         snapshot.configuration!.settings.targets.push({

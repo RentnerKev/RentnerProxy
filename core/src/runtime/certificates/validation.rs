@@ -1,5 +1,6 @@
 use super::operations;
 use super::recovery::candidate_is_valid;
+use super::scheduling::valid_fingerprint;
 use super::{
     AcmeChallengeType, BTreeSet, CertificateEnvironment, CertificateError, CertificateIndex,
     CertificateSource, DnsRecordIntent, ErrorKind, MAX_CERTIFICATES, OffsetDateTime, Rfc3339,
@@ -191,14 +192,8 @@ pub(super) fn index_is_valid(index: &CertificateIndex) -> bool {
                 && entry
                     .metadata
                     .fingerprint
-                    .as_ref()
-                    .is_none_or(|fingerprint| {
-                        fingerprint.len() == 71
-                            && fingerprint.starts_with("sha256:")
-                            && fingerprint[7..]
-                                .bytes()
-                                .all(|byte| byte.is_ascii_hexdigit())
-                    })
+                    .as_deref()
+                    .is_none_or(valid_fingerprint)
                 && entry
                     .metadata
                     .issued_at

@@ -228,8 +228,84 @@ test_filesystem() (
     printf 'PASS: real directories, retained key selectors and lower-identity chmod\n'
 )
 
+test_shutdown() (
+    local scratch pid name supervisor_pid
+    scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-shutdown.XXXXXX")
+    trap 'rm -rf -- "$scratch"' EXIT
+    load_function "$entrypoint" shutdown_children
+    load_function "$entrypoint" on_shutdown_signal
+    load_function "$entrypoint" start_child
+    log() { :; }
+    (
+        declare -a child_pids=() child_names=()
+        trap shutdown_children EXIT
+        trap on_shutdown_signal INT TERM
+        for name in postgres valkey crowdsec-supervisor controller web; do
+            start_child "$name" bash -c '
+                name=$1; scratch=$2
+                stopped() {
+                    case $name in
+                        web|controller)
+                            [[ ! -e $scratch/postgres-stopped && ! -e $scratch/valkey-stopped ]] || touch "$scratch/ordering-error"
+                            touch "$scratch/$name-stopped"
+                            ;;
+                        *)
+                            [[ -e $scratch/web-stopped && -e $scratch/controller-stopped ]] || touch "$scratch/ordering-error"
+                            touch "$scratch/$name-stopped"
+                            ;;
+                    esac
+                    exit 0
+                }
+                trap stopped TERM
+                touch "$scratch/$name-ready"
+                while :; do sleep 0.02; done
+            ' fixture "$name" "$scratch"
+        done
+        touch "$scratch/supervisor-ready"
+        wait -n "${child_pids[@]}"
+    ) &
+    supervisor_pid=$!
+    for name in supervisor postgres valkey crowdsec-supervisor controller web; do
+        local attempt
+        for attempt in $(seq 1 100); do
+            [[ -e $scratch/$name-ready ]] && break
+            sleep 0.02
+        done
+        [[ -e $scratch/$name-ready ]] || fail "$name fixture did not start"
+    done
+    kill -TERM "$supervisor_pid"
+    wait "$supervisor_pid" || fail 'supervisor signal exit failed'
+    [[ ! -e $scratch/ordering-error ]] || fail 'state services stopped before consumers'
+    for name in postgres valkey crowdsec-supervisor controller web; do
+        [[ -e $scratch/$name-stopped ]] || fail "$name did not receive TERM"
+    done
+    # Exercise the forced fallback deterministically without waiting 25s or
+    # sending any signals to external processes.
+    (
+        declare -a child_pids=(101 102 103) child_names=(web controller postgres)
+        local signals='' states_started=false
+        SECONDS=0
+        sleep() { SECONDS=$((SECONDS + 1)); }
+        kill() {
+            [[ $1 != -0 ]] || return 0
+            signals+="$1:$2 "
+            if [[ $1 == -TERM && $2 == 103 ]]; then
+                [[ $signals == *'-KILL:101 '* && $signals == *'-KILL:102 '* ]] || fail 'consumer force stop must precede state TERM'
+                ((SECONDS == 23)) || fail 'consumer phase changed the shared deadline'
+                states_started=true
+            fi
+        }
+        wait() { :; }
+        shutdown_children
+        "$states_started" || fail 'state shutdown was skipped'
+        ((SECONDS == 25)) || fail 'shutdown phases exceeded total budget'
+    )
+    printf 'PASS: SIGTERM drains consumers before state services; forced phases share 25s\n'
+)
+
 case ${1:-} in
     --environment) test_environment ;;
     --filesystem) test_filesystem ;;
-    *) printf 'usage: bash runtime-boundaries.sh --environment|--filesystem\n' >&2; exit 2 ;;
+    --shutdown) test_shutdown ;;
+    *) printf 'usage: bash runtime-boundaries.sh --environment|--filesystem|--shutdown\n' >&2; exit 2 ;;
 esac

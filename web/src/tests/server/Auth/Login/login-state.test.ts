@@ -75,6 +75,8 @@ function query(promise: Promise<AuthenticationTestRow[]>, table: unknown): Authe
 
 // This fixture models committed state and service ordering, not PostgreSQL locking or SQL predicates.
 const database: AuthenticationTestDatabase = {
+    // Cleanup SQL/locking is exercised by the dedicated PostgreSQL sessions fixture.
+    execute: async () => {},
     select: () => ({ from: (table) => query(Promise.resolve(rows(table)), table) }),
     transaction: async (callback) => {
         const pause = transactionPause
@@ -90,7 +92,11 @@ const database: AuthenticationTestDatabase = {
             returning: async () => {
                 if (table !== sessions)
                     throw new Error('Unexpected insert in authentication fixture.')
-                const row = { ...value, id: `session-${storedSessions.length + 1}` }
+                const row = {
+                    lastSeenAt: new Date(),
+                    ...value,
+                    id: `session-${storedSessions.length + 1}`,
+                }
                 storedSessions.push(row)
                 events.push('session-created')
                 return [row]
@@ -288,6 +294,7 @@ beforeEach(() => {
             userId,
             expiresAt: new Date(Date.now() + 600_000),
             reauthenticatedAt: new Date(),
+            lastSeenAt: new Date(),
         },
     ]
     factor = null

@@ -1,3 +1,4 @@
+import { readBoundedStream, ResponseBodyLimitError } from '@/lib/Http/readBoundedStream.ts'
 import {
     LIVE_MAX_QUERY_BYTES,
     LIVE_MAX_PAYLOAD_BYTES,
@@ -121,34 +122,15 @@ export function snapshotUrl(
 export async function readBoundedJson(
     response: Response,
     maxPayloadBytes = LIVE_MAX_PAYLOAD_BYTES,
+    signal?: AbortSignal,
 ): Promise<unknown> {
-    const reader = response.body?.getReader()
-    if (!reader) throw new LivePayloadError()
-    const chunks: Uint8Array[] = []
-    let length = 0
-
+    if (!response.body) throw new LivePayloadError()
+    let bytes: Uint8Array
     try {
-        for (;;) {
-            // oxlint-disable-next-line no-await-in-loop -- Count each chunk before reading more data.
-            const chunk = await reader.read()
-            if (chunk.done) break
-            length += chunk.value.byteLength
-            if (length > maxPayloadBytes) {
-                // oxlint-disable-next-line no-await-in-loop -- Cancel the oversized stream before releasing its reader.
-                await reader.cancel()
-                throw new LivePayloadError()
-            }
-            chunks.push(chunk.value)
-        }
-    } finally {
-        reader.releaseLock()
-    }
-
-    const bytes = new Uint8Array(length)
-    let offset = 0
-    for (const chunk of chunks) {
-        bytes.set(chunk, offset)
-        offset += chunk.byteLength
+        bytes = await readBoundedStream(response.body, maxPayloadBytes, signal)
+    } catch (error) {
+        if (error instanceof ResponseBodyLimitError) throw new LivePayloadError()
+        throw error
     }
 
     try {

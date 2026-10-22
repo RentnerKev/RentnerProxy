@@ -5,6 +5,7 @@ test('mail and passkeys use deployment configuration without consulting legacy d
     const child = Bun.spawn(
         [
             process.execPath,
+            '--no-env-file',
             '-e',
             `
         import { mock } from 'bun:test'

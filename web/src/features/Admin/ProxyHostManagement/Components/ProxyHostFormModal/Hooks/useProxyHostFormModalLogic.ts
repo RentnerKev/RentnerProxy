@@ -10,7 +10,6 @@ import type {
 } from '../Types/proxy-host-form.types.ts'
 
 import { invalidateTrustedCaManagementCache } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
-import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { invalidateCertificateManagementAssignableCache } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -160,7 +159,6 @@ export default function useProxyHostFormModalLogic({
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.all,
                 }),
-                invalidateProxyHostManagementRuntimeStatusCache(queryClient),
                 invalidateCertificateManagementAssignableCache(queryClient),
                 invalidateAccessPoliciesCache(queryClient),
             ])

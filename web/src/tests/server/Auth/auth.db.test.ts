@@ -61,6 +61,7 @@ import {
 import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
 import { createRoleService } from '@/server/Admin/RoleManagement/roles.service.ts'
 import {
+    disableUserService,
     enableUserService,
     updateUserService,
 } from '@/server/Admin/UserManagement/users.service.ts'
@@ -1485,43 +1486,60 @@ describe('user enablement with PostgreSQL', () => {
         },
     )
 
+    integrationTest('rejects active, pending, and unknown targets', async () => {
+        const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+        const active = await createTestUser({ status: 'active' })
+        const pending = await createTestUser({ status: 'pending', withPassword: false })
+        const errors = await Promise.all(
+            [active, pending].map((user) =>
+                captureError(runAsUser(owner.id, () => enableUserService(user.id))),
+            ),
+        )
+        for (const error of errors) {
+            expect(error).toBeInstanceOf(AuthDomainError)
+            expect(error).toMatchObject({ code: 'invalid_input' })
+        }
+        const missingError = await captureError(
+            runAsUser(owner.id, () => enableUserService(randomUUID())),
+        )
+        expect(missingError).toBeInstanceOf(AuthDomainError)
+        expect(missingError).toMatchObject({ code: 'user_not_found' })
+
+        const statuses = await getAuthDatabase()
+            .select({ id: users.id, status: users.status })
+            .from(users)
+            .where(inArray(users.id, [active.id, pending.id]))
+        expect(statuses).toEqual(
+            expect.arrayContaining([
+                { id: active.id, status: 'active' },
+                { id: pending.id, status: 'pending' },
+            ]),
+        )
+    })
+
     integrationTest(
-        'rejects active, pending, incomplete-disabled, and unknown targets',
+        'restores an unfinished disabled account to pending without reviving its invite',
         async () => {
             const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
-            const active = await createTestUser({ status: 'active' })
-            const pending = await createTestUser({ status: 'pending', withPassword: false })
-            const incompleteDisabled = await createTestUser({
-                status: 'disabled',
-                withPassword: false,
+            const invite = await createPendingInvite()
+            await runAsUser(owner.id, () => disableUserService(invite.userId))
+            const enabled = await runAsUser(owner.id, () => enableUserService(invite.userId))
+            expect(enabled).toMatchObject({ id: invite.userId, status: 'pending' })
+            expect(await captureError(createSessionService(invite.userId))).toMatchObject({
+                code: 'user_not_active',
             })
-
-            const errors = await Promise.all(
-                [active, pending, incompleteDisabled].map((user) =>
-                    captureError(runAsUser(owner.id, () => enableUserService(user.id))),
-                ),
-            )
-            for (const error of errors) {
-                expect(error).toBeInstanceOf(AuthDomainError)
-                expect(error).toMatchObject({ code: 'invalid_input' })
-            }
-            const missingError = await captureError(
-                runAsUser(owner.id, () => enableUserService(randomUUID())),
-            )
-            expect(missingError).toBeInstanceOf(AuthDomainError)
-            expect(missingError).toMatchObject({ code: 'user_not_found' })
-
-            const statuses = await getAuthDatabase()
-                .select({ id: users.id, status: users.status })
+            expect(
+                await acceptInviteService({
+                    token: invite.token,
+                    displayName: 'Restored invitation',
+                    password: CURRENT_PASSWORD,
+                }),
+            ).toEqual({ success: false, code: 'invalid_or_expired_token' })
+            const [row] = await getAuthDatabase()
+                .select({ status: users.status, passwordHash: users.passwordHash })
                 .from(users)
-                .where(inArray(users.id, [active.id, pending.id, incompleteDisabled.id]))
-            expect(statuses).toEqual(
-                expect.arrayContaining([
-                    { id: active.id, status: 'active' },
-                    { id: pending.id, status: 'pending' },
-                    { id: incompleteDisabled.id, status: 'disabled' },
-                ]),
-            )
+                .where(eq(users.id, invite.userId))
+            expect(row).toEqual({ status: 'pending', passwordHash: null })
         },
     )
 

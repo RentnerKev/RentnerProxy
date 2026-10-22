@@ -12,6 +12,7 @@ import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/pro
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import type {
+    ProxyHttpSettings,
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
     ProxyHostConfigEditorData,
@@ -31,7 +32,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 
-const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestPageAlerts, openPageAlerts } =
@@ -39,7 +40,7 @@ const { default: withTestPageAlerts, openPageAlerts } =
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
-const getProxyHostsHandlerMock = mock(async (): Promise<ProxyHostSummary[]> => [])
+const loadProxyHostPageFixture = mock(async (): Promise<ProxyHostSummary[]> => [])
 const getProxyRuntimeStatusHandlerMock = mock(async (): Promise<ProxyRuntimeSyncStatus> => ({
     available: true,
     running: true,
@@ -169,9 +170,8 @@ mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
     disableProxyHostHandler: disableProxyHostHandlerMock,
     enableProxyHostHandler: enableProxyHostHandlerMock,
     getProxyRuntimeStatusHandler: getProxyRuntimeStatusHandlerMock,
-    getProxyHostsHandler: getProxyHostsHandlerMock,
     getProxyHostPageHandler: async ({ data }: { data: unknown }) =>
-        filterHostPage(await getProxyHostsHandlerMock(), [], hostListQuerySchema.parse(data), {
+        filterHostPage(await loadProxyHostPageFixture(), [], hostListQuerySchema.parse(data), {
             enabled: 'Enabled',
             disabled: 'Disabled',
         }),
@@ -541,7 +541,7 @@ beforeEach(() => {
         message: 'admin.proxyHosts.config.reset',
         runtimeStatus: 'applied',
     })
-    getProxyHostsHandlerMock.mockReset()
+    loadProxyHostPageFixture.mockReset()
     getProxyRuntimeStatusHandlerMock.mockReset()
     applyProxyConfigurationHandlerMock.mockReset()
     createProxyHostHandlerMock.mockReset()
@@ -572,7 +572,7 @@ beforeEach(() => {
         message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
     })
     getCertificateJobProgressHandlerMock.mockReset().mockResolvedValue([])
-    getProxyHostsHandlerMock.mockResolvedValue([enabledHost, disabledHost])
+    loadProxyHostPageFixture.mockResolvedValue([enabledHost, disabledHost])
     getProxyRuntimeStatusHandlerMock.mockResolvedValue({
         available: true,
         running: true,
@@ -908,7 +908,7 @@ describe('ProxyHost management table', () => {
         expect(trigger.getAttribute('aria-expanded')).toBe('true')
     })
     test('keeps tag assignment accessible for discovered hosts without editing routing', async () => {
-        getProxyHostsHandlerMock.mockResolvedValue([
+        loadProxyHostPageFixture.mockResolvedValue([
             {
                 ...enabledHost,
                 discovery: { state: 'managed' },
@@ -948,7 +948,7 @@ describe('ProxyHost management table', () => {
     })
 
     test('does not leave certificate job stages in the host status column', async () => {
-        getProxyHostsHandlerMock.mockResolvedValueOnce([
+        loadProxyHostPageFixture.mockResolvedValueOnce([
             {
                 ...enabledHost,
                 certificateJob: certificateJobFixture({
@@ -973,7 +973,7 @@ describe('ProxyHost management table', () => {
             forwardScheme: index % 2 === 0 ? 'http' : 'https',
             id: `018f2f52-7c1b-7cc0-9f3c-6a9952c5${String(index).padStart(3, '0')}`,
         }))
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
@@ -1003,7 +1003,7 @@ describe('ProxyHost management table', () => {
                       : `host-${index}.example.com`,
             ],
         }))
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 10)
         await click(getButton('Filters'))
@@ -1055,7 +1055,7 @@ describe('ProxyHost management table', () => {
                 id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54032',
             },
         ]
-        getProxyHostsHandlerMock.mockResolvedValue(hosts)
+        loadProxyHostPageFixture.mockResolvedValue(hosts)
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 3)
 
@@ -1080,7 +1080,7 @@ describe('ProxyHost management table', () => {
     })
     test('shows loading, empty, and filtered-empty states', async () => {
         let resolveHosts: ((hosts: ProxyHostSummary[]) => void) | undefined
-        getProxyHostsHandlerMock.mockImplementationOnce(
+        loadProxyHostPageFixture.mockImplementationOnce(
             () =>
                 new Promise((resolve) => {
                     resolveHosts = resolve
@@ -1095,7 +1095,7 @@ describe('ProxyHost management table', () => {
         resolveHosts?.([])
         await waitFor(() => document.body.textContent?.includes('No proxy hosts yet') ?? false)
 
-        getProxyHostsHandlerMock.mockResolvedValueOnce([enabledHost])
+        loadProxyHostPageFixture.mockResolvedValueOnce([enabledHost])
         await act(async () => activeRoot?.unmount())
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 1)
@@ -1141,7 +1141,7 @@ describe('ProxyHost permissions and row actions', () => {
     })
 
     test('moves page load failures into the navbar and clears them after retry', async () => {
-        getProxyHostsHandlerMock.mockRejectedValueOnce(new Error('private controller diagnostics'))
+        loadProxyHostPageFixture.mockRejectedValueOnce(new Error('private controller diagnostics'))
         const container = await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => document.querySelector('button[data-severity="error"]') !== null)
         expect(container.textContent).not.toContain('Proxy hosts are unavailable')
@@ -1405,7 +1405,7 @@ describe('ProxyHost form modal', () => {
     ])(
         'cannot duplicate a protected source without its assignment permissions: %j',
         async (protection) => {
-            getProxyHostsHandlerMock.mockResolvedValue([{ ...enabledHost, ...protection }])
+            loadProxyHostPageFixture.mockResolvedValue([{ ...enabledHost, ...protection }])
             await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
             await waitFor(() => getRows().length === 1)
             await openMenu(getButton('Open actions for app.example.com'))
@@ -1440,7 +1440,7 @@ describe('ProxyHost form modal', () => {
             { ...assignableCertificate, domains: ['*.example.com'] },
         ])
         getAssignableAccessPoliciesHandlerMock.mockResolvedValue([policy])
-        getProxyHostsHandlerMock.mockResolvedValue([source])
+        loadProxyHostPageFixture.mockResolvedValue([source])
         await renderPage([
             PERMISSIONS.PROXY_HOSTS_VIEW,
             PERMISSIONS.PROXY_HOSTS_CREATE,
@@ -1523,6 +1523,18 @@ describe('ProxyHost form modal', () => {
         )
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!)
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
+        const fetches = [0, 0]
+        const subscriptions = [
+            proxyHostManagementQueryKeys.all,
+            proxyHostManagementQueryKeys.runtimeStatus,
+        ].map((queryKey, index) =>
+            new QueryObserver(activeQueryClient!, {
+                queryKey,
+                initialData: 0,
+                staleTime: Infinity,
+                queryFn: async () => ++fetches[index]!,
+            }).subscribe(() => undefined),
+        )
         const invalidate = spyOn(activeQueryClient!, 'invalidateQueries')
         expect(getButton('Create proxy host').disabled).toBeFalse()
 
@@ -1546,13 +1558,15 @@ describe('ProxyHost form modal', () => {
         expect(invalidate).toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.all,
         })
-        expect(invalidate).toHaveBeenCalledWith({
+        expect(invalidate).not.toHaveBeenCalledWith({
             queryKey: proxyHostManagementQueryKeys.runtimeStatus,
         })
         await waitForToast('success', 'Proxy host created successfully.')
         expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'Proxy host created successfully.',
         )
+        expect(fetches).toEqual([1, 1])
+        subscriptions.forEach((unsubscribe) => unsubscribe())
         invalidate.mockRestore()
     })
 
@@ -1727,6 +1741,39 @@ describe('ProxyHost form modal', () => {
 })
 
 describe('ProxyHost confirmation and mutation flows', () => {
+    test.each(['Delete', 'Disable', 'Enable'] as const)(
+        'refetches active host root, page and runtime queries once after %s',
+        async (action) => {
+            await renderPage(allManagementPermissions)
+            await waitFor(() => getRows().length === 2)
+            let rootFetches = 0
+            const observer = new QueryObserver(activeQueryClient!, {
+                queryKey: proxyHostManagementQueryKeys.all,
+                initialData: 0,
+                staleTime: Infinity,
+                queryFn: async () => ++rootFetches,
+            })
+            const unsubscribe = observer.subscribe(() => undefined)
+            const pageFetches = loadProxyHostPageFixture.mock.calls.length
+            const runtimeFetches = getProxyRuntimeStatusHandlerMock.mock.calls.length
+            try {
+                await openMenu(
+                    getButton(
+                        `Open actions for ${action === 'Enable' ? 'disabled.example.com' : 'app.example.com'}`,
+                    ),
+                )
+                await click(getMenuItem(action))
+                if (action !== 'Enable') await click(getButton(`${action} proxy host`))
+                await waitForToast('success')
+                expect(rootFetches).toBe(1)
+                expect(loadProxyHostPageFixture).toHaveBeenCalledTimes(pageFetches + 1)
+                expect(getProxyRuntimeStatusHandlerMock).toHaveBeenCalledTimes(runtimeFetches + 1)
+            } finally {
+                unsubscribe()
+            }
+        },
+    )
+
     test('cancels and confirms delete without exposing transport diagnostics', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)
@@ -2162,7 +2209,7 @@ describe('Caddy proxy host configuration editor', () => {
             upstreamTlsServerName: 'backend-with-a-long-name.internal.example',
             trustedCaId: assignableTrustedCa.id,
         }
-        getProxyHostsHandlerMock.mockResolvedValueOnce([secureHost, disabledHost])
+        loadProxyHostPageFixture.mockResolvedValueOnce([secureHost, disabledHost])
 
         const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
         expect(dialog.textContent).toContain(secureHost.domains[0]!)
@@ -2262,11 +2309,24 @@ describe('Caddy proxy host configuration editor', () => {
         await click(getButton('Save'))
         await waitForToast(
             'error',
-            'The saved configuration changed while this editor was open. Reload it before saving; your draft has been kept.',
+            'The saved configuration changed. Your draft is kept. Review the current settings before saving.',
         )
         expect(readTimeout.value).toBe('120')
         expect(dialog.isConnected).toBeTrue()
 
+        expect(getButton('Save').disabled).toBeTrue()
+        expect(getProxyHostConfigEditorHandlerMock).toHaveBeenCalledTimes(1)
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            baseRevision: 'sha256:' + '2'.repeat(64),
+        })
+        await click(getButton('Review latest configuration'))
+        await waitFor(
+            () =>
+                document.body.textContent?.includes('Keep my draft and use this revision') ?? false,
+        )
+        await click(getButton('Keep my draft and use this revision'))
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledTimes(1)
         saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
             success: true,
             message: 'admin.proxyHosts.runtime.savedPending',
@@ -2300,6 +2360,191 @@ describe('Caddy proxy host configuration editor', () => {
         })
         await waitForToast('success')
     })
+})
+
+describe.each(['host', 'global'] as const)('%s configuration conflict recovery', (scope) => {
+    const latestRevision = 'sha256:' + '2'.repeat(64)
+    const conflict = {
+        success: false as const,
+        message: 'admin.proxyHosts.config.errors.configuration_conflict',
+    }
+    const saveMock =
+        scope === 'host' ? saveProxyHostConfigEditorHandlerMock : saveProxyConfigEditorHandlerMock
+    const resetMock =
+        scope === 'host' ? resetProxyHostConfigEditorHandlerMock : resetProxyConfigEditorHandlerMock
+    const getMock =
+        scope === 'host' ? getProxyHostConfigEditorHandlerMock : getProxyConfigEditorHandlerMock
+    async function openEditor() {
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        if (scope === 'host') {
+            await openMenu(getButton('Open actions for app.example.com'))
+            await click(getMenuItem('Config'))
+        } else await click(getButton('Caddy config'))
+        await waitFor(() => document.querySelector('input[type="number"]') !== null)
+        return document.querySelector('[role="dialog"]')!
+    }
+    function latest(settings: ProxyHttpSettings) {
+        if (scope === 'host')
+            getProxyHostConfigEditorHandlerMock.mockResolvedValue({
+                ...editorFixture,
+                settings,
+                baseRevision: latestRevision,
+            })
+        else
+            getProxyConfigEditorHandlerMock.mockResolvedValue({
+                ...globalEditorFixture,
+                settings,
+                baseRevision: latestRevision,
+            })
+    }
+    async function startConflict(value = '120') {
+        saveMock.mockResolvedValueOnce(conflict)
+        const dialog = await openEditor()
+        await setControlValue(
+            dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!,
+            value,
+        )
+        await click(getButton('Save'))
+        await waitFor(() => getButton('Save').disabled)
+        await waitFor(() => dialog.textContent?.includes('Review latest configuration') ?? false)
+        return dialog
+    }
+    async function review() {
+        expect(getMock.mock.calls.length).toBeGreaterThan(0)
+        await click(getButton('Review latest configuration'))
+        await waitFor(
+            () =>
+                document.body.textContent?.includes('Keep my draft and use this revision') ?? false,
+        )
+    }
+    test('requires explicit review and separate save, merges only local edits and rejects a second race', async () => {
+        const dialog = await startConflict()
+        expect(getMock).toHaveBeenCalledTimes(1)
+        expect(resetMock).not.toHaveBeenCalled()
+        latest({ proxyReadTimeoutSeconds: 90, proxySendTimeoutSeconds: 180 })
+        await review()
+        expect(dialog.querySelector('table')?.textContent).toContain('180 seconds')
+        expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
+            '120',
+        )
+        await click(getButton('Keep my draft and use this revision'))
+        expect(saveMock).toHaveBeenCalledTimes(1)
+        saveMock.mockResolvedValueOnce(conflict)
+        await click(getButton('Save'))
+        await waitFor(() => saveMock.mock.calls.length === 2)
+        const expected = {
+            baseRevision: latestRevision,
+            settings: { proxyReadTimeoutSeconds: 120, proxySendTimeoutSeconds: 180 },
+        }
+        expect(saveMock.mock.calls[1]?.[0]).toEqual({
+            data: scope === 'host' ? { proxyHostId: enabledHost.id, ...expected } : expected,
+        })
+        await waitFor(() => dialog.textContent?.includes('Review latest configuration') ?? false)
+        expect(getButton('Save').disabled).toBeTrue()
+        expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
+            '120',
+        )
+    })
+    test('requires confirmation for overlapping edits, preserves a cleared field and the reviewed revision', async () => {
+        const dialog = await startConflict('')
+        latest({ proxyReadTimeoutSeconds: 180, proxySendTimeoutSeconds: 200 })
+        await review()
+        await click(getButton('Keep my draft and use this revision'))
+        await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 2)
+        await click(getLastButton('Cancel'))
+        expect(saveMock).toHaveBeenCalledTimes(1)
+        expect(getButton('Save').disabled).toBeTrue()
+        // A background update must not silently replace the values the user reviewed.
+        await act(async () =>
+            activeQueryClient?.setQueryData(
+                scope === 'host'
+                    ? proxyHostManagementQueryKeys.hostConfigEditor(enabledHost.id)
+                    : proxyHostManagementQueryKeys.configEditor,
+                {
+                    ...(scope === 'host' ? editorFixture : globalEditorFixture),
+                    baseRevision: 'sha256:' + '3'.repeat(64),
+                    settings: { proxySendTimeoutSeconds: 300 },
+                },
+            ),
+        )
+        await click(getButton('Keep my draft and use this revision'))
+        await click(getButton('Keep my edited values'))
+        expect(saveMock).toHaveBeenCalledTimes(1)
+        await click(getButton('Save'))
+        await waitFor(() => saveMock.mock.calls.length === 2)
+        const expected = {
+            baseRevision: latestRevision,
+            settings: { proxySendTimeoutSeconds: 200 },
+        }
+        expect(saveMock.mock.calls[1]?.[0]).toEqual({
+            data: scope === 'host' ? { proxyHostId: enabledHost.id, ...expected } : expected,
+        })
+        expect(
+            dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]?.value ?? '',
+        ).toBe('')
+    })
+    test('keeps the draft when review fails and adopts saved settings only on explicit choice', async () => {
+        const dialog = await startConflict()
+        getMock.mockRejectedValueOnce(new Error('unavailable'))
+        await click(getButton('Review latest configuration'))
+        await waitForToast('error', 'The configuration could not be loaded.')
+        expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
+            '120',
+        )
+        expect(getButton('Save').disabled).toBeTrue()
+        latest({ proxyReadTimeoutSeconds: 180 })
+        await review()
+        await click(getButton('Use current saved settings'))
+        expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
+            '180',
+        )
+        expect(saveMock).toHaveBeenCalledTimes(1)
+        expect(getButton('Save').disabled).toBeFalse()
+    })
+    test.each([false, true])(
+        'requires fresh reset confirmation after resolving a reset conflict (edited draft: %s)',
+        async (edited) => {
+            resetMock.mockResolvedValueOnce(conflict)
+            const dialog = await openEditor()
+            if (edited)
+                await setControlValue(
+                    dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[3]!,
+                    '120',
+                )
+            await click(getButton('Restore defaults'))
+            await click(getButton('Restore and apply'))
+            await waitFor(
+                () => dialog.textContent?.includes('Review latest configuration') ?? false,
+            )
+            expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+            expect(getButton('Restore defaults').disabled).toBeTrue()
+            latest({ proxyReadTimeoutSeconds: 180 })
+            await review()
+            await click(getButton('Keep my draft and use this revision'))
+            expect(
+                dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value,
+            ).toBe('180')
+            expect(resetMock).toHaveBeenCalledTimes(1)
+            expect(
+                dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[3]!.value,
+            ).toBe(edited ? '120' : '')
+            await click(getButton('Restore defaults'))
+            expect(resetMock).toHaveBeenCalledTimes(1)
+            await click(getButton('Restore and apply'))
+            await waitFor(() => resetMock.mock.calls.length === 2)
+            expect(resetMock.mock.calls[1]?.[0]).toEqual({
+                data:
+                    scope === 'host'
+                        ? { proxyHostId: enabledHost.id, baseRevision: latestRevision }
+                        : { baseRevision: latestRevision },
+            })
+        },
+    )
 })
 
 describe('integrated proxy host setup guide', () => {
@@ -2399,7 +2644,7 @@ describe('integrated proxy host setup guide', () => {
     )
 
     test('opens automatically for the first host and can be skipped and reopened', async () => {
-        getProxyHostsHandlerMock.mockResolvedValue([])
+        loadProxyHostPageFixture.mockResolvedValue([])
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
         await waitFor(() => !getButton('Add proxy host').disabled)
         await click(getButton('Add proxy host'))

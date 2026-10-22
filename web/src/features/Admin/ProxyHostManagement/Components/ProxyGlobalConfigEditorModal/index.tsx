@@ -1,3 +1,4 @@
+import ProxyConfigEditorConflict from '../ProxyConfigEditorConflict.tsx'
 import ProxyConfigEditorActions from '../ProxyConfigEditorActions.tsx'
 import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
 import { NumberInput } from '@rentnerkev/inputs'
@@ -34,6 +35,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                 closeDisabled={busy}
                 footer={
                     <ProxyConfigEditorActions
+                        isBlocked={state.hasConflict}
                         canEdit={props.canEdit}
                         isBusy={busy}
                         hasData={Boolean(state.data)}
@@ -53,6 +55,16 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                     </p>
                 ) : (
                     <div className="grid gap-4">
+                        {state.hasConflict ? (
+                            <ProxyConfigEditorConflict
+                                settings={state.settings}
+                                latest={state.reviewedLatest}
+                                busy={busy}
+                                global={true}
+                                confirmationOpen={state.isConflictConfirmationOpen}
+                                handler={handler}
+                            />
+                        ) : null}
                         <ProxyConfigEditorTabs
                             activeTab={state.activeTab}
                             disabled={busy}
@@ -84,7 +96,9 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                                             : Number(event.target.value),
                                                     )
                                                 }
-                                                disabled={!props.canEdit || busy}
+                                                disabled={
+                                                    !props.canEdit || busy || state.hasConflict
+                                                }
                                             />
                                             <small className="text-muted">
                                                 {t(`admin.proxyHosts.config.${unitKey}`)}

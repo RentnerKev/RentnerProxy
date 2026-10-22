@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import {
     createDiscoveryPlan,
+    discoveryHash,
     discoverySourceKey,
 } from '@/server/Admin/DockerDiscovery/discovery-plan.ts'
 import {
@@ -211,4 +212,54 @@ test('management inputs reject stale-action omissions, unknown fields and secret
         }).success,
     ).toBe(false)
     expect(discoveryRegistrySchema.parse(discoveryRegistry())).toEqual(discoveryRegistry())
+})
+
+test('read-only indexes keep the first owner and preserve detached protection without changing the preview hash', () => {
+    const registry = owned()
+    const first = registry.owners[0]!
+    first.state = 'detached'
+    registry.owners.push({
+        ...first,
+        hostId: '0198d98a-0000-7000-8000-000000000099',
+        state: 'managed',
+    })
+    const snapshot = discoverySnapshot()
+    const inventory = { hosts: [discoveredHost()], domains: [] }
+    const before = structuredClone({ registry, snapshot, inventory })
+    const plan = createDiscoveryPlan(snapshot, registry, inventory)
+    expect(plan.rows[0]).toMatchObject({ hostId: DISCOVERY_HOST, state: 'detached' })
+    expect(plan.changes).toHaveLength(0)
+    expect(plan).toEqual(createDiscoveryPlan(snapshot, registry, inventory))
+    expect({ registry, snapshot, inventory }).toEqual(before)
+    expect(plan.previewToken).toBe(
+        discoveryHash({
+            configuration: snapshot.configuration,
+            status: snapshot.status,
+            stale: snapshot.stale,
+            candidates: snapshot.candidates,
+            registry,
+            hosts: inventory.hosts.map((host) => ({ ...host, certificateJob: undefined })),
+            occupied: inventory.domains,
+            rejections: undefined,
+        }),
+    )
+})
+
+test('read-only indexes keep the first duplicate result and retain the owner error fallback', () => {
+    const registry = owned()
+    const owner = registry.owners[0]!
+    owner.error = 'reconcile_failed'
+    registry.results = [
+        { key: owner.key, error: 'reference_invalid' },
+        { key: owner.key, error: 'authorization_required' },
+    ]
+    const inventory = { hosts: [discoveredHost()], domains: [] }
+    const withResults = createDiscoveryPlan(discoverySnapshot(), registry, inventory)
+    expect(withResults.rows[0]!.issues).toContain('reference_invalid')
+    expect(withResults.rows[0]!.issues).not.toContain('authorization_required')
+    expect(withResults.rows[0]!.issues).not.toContain('reconcile_failed')
+    registry.results = []
+    const fallback = createDiscoveryPlan(discoverySnapshot(), registry, inventory)
+    expect(fallback.rows[0]!.issues).toContain('reconcile_failed')
+    expect(fallback.rows[0]!.state).toBe('conflicted')
 })
