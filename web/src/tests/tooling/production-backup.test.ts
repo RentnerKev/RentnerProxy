@@ -28,14 +28,15 @@ async function backup(scenario: string) {
     await writeFile(join(directory, 'archive.tar'), directoryArchive())
     await writeFile(
         join(directory, 'clock.ts'),
-        `let calls = 0; Object.defineProperty(performance, 'now', { value: () => calls++ < 3 ? 0 : 200_000 });`,
+        `let calls = 0; const now = performance.now.bind(performance); Object.defineProperty(performance, 'now', { value: () => new Error().stack?.includes('appliance-readiness.ts') ? (calls++ < 3 ? 0 : 200_000) : now() });`,
     )
     const fake = join(bin, 'docker')
     await writeFile(
         fake,
         `#!/usr/bin/env -S bun --no-env-file
-import { appendFileSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
+import { appendFileSync, readFileSync, existsSync, writeFileSync, unlinkSync } from 'node:fs'
 const command = process.argv.slice(2).join(' ')
+const args = process.argv.slice(2)
 const directory = process.env.FIXTURE_DIRECTORY
 const scenario = process.env.FIXTURE_SCENARIO
 appendFileSync(directory + '/calls', command + '\\n')
@@ -44,6 +45,16 @@ if (command.includes('config --format=json')) {
     console.log(JSON.stringify({ services: { rentnerproxy: { image: 'fixture-image', environment: { RENTNERPROXY_PUBLIC_ORIGIN: 'https://proxy.test' } } } }))
 } else if (command.startsWith('image inspect ')) {
     console.log(JSON.stringify({ Id: imageId, Config: {} }))
+} else if (command.startsWith('container ls ')) {
+    if (existsSync(directory + '/container.json')) {
+        const saved = JSON.parse(readFileSync(directory + '/container.json', 'utf8'))
+        console.log(JSON.stringify({ ID: saved.Id, Names: saved.Name.slice(1) }))
+    }
+} else if (command.startsWith('container inspect ')) {
+    process.stdout.write(readFileSync(directory + '/container.json'))
+} else if (command.startsWith('container rm ')) {
+    if (scenario === 'cleanup-failure') process.exit(1)
+    unlinkSync(directory + '/container.json')
 } else if (command.includes('ps --all --quiet')) {
     console.log('fixture-container')
 } else if (command.startsWith('inspect ')) {
@@ -59,6 +70,12 @@ if (command.includes('config --format=json')) {
     const marker = directory + '/health-probed'
     if (scenario === 'warming' && !existsSync(marker)) { writeFileSync(marker, '1'); process.exit(1) }
 } else if (command.includes('export-app-key')) {
+    if (scenario === 'run-failure-cleaned' || scenario === 'cleanup-failure' || scenario === 'wrong-owner') {
+        const name = args[args.indexOf('--name') + 1]
+        const label = args[args.indexOf('--label') + 1].split('=')[1]
+        writeFileSync(directory + '/container.json', JSON.stringify({ Id: 'b'.repeat(64), Name: '/' + name, Config: { Labels: { 'io.rentnerproxy.maintenance-run': scenario === 'wrong-owner' ? 'different-owner' : label } } }))
+        process.exit(1)
+    }
     if (scenario === 'early-failure') process.exit(1)
     process.stdout.write('A'.repeat(43) + '=\\n')
 } else if (command.includes('pg_dump')) {
@@ -129,6 +146,10 @@ describe.skipIf(process.platform === 'win32')(
             expect(probes).toHaveLength(2)
             expect(result.calls.indexOf(probes[0]!)).toBeGreaterThan(restart)
             expect(result.stdout).toContain('Production backup created:')
+            expect(result.calls.some((call) => call.includes('stop_postgres()'))).toBe(true)
+            expect(
+                result.calls.some((call) => call.includes('local deadline=$((SECONDS + 5))')),
+            ).toBe(true)
         })
 
         test('keeps an initialized stopped appliance stopped without requiring application readiness', async () => {
@@ -164,6 +185,34 @@ describe.skipIf(process.platform === 'win32')(
             expect(result.stderr).not.toContain('Completed backup retained:')
             expect(result.stderr).not.toContain('Backup captured')
             expect(result.stdout).not.toContain('Production backup created:')
+            expect(result.calls.some((call) => call.endsWith('start rentnerproxy'))).toBe(false)
         })
+
+        test('cleans the observed owned container before restarting after a failed maintenance command', async () => {
+            const result = await backup('run-failure-cleaned')
+            expect(result.exit).toBe(1)
+            const removal = result.calls.findIndex((call) =>
+                call.startsWith('container rm --force '),
+            )
+            const restart = result.calls.findIndex((call) => call.endsWith('start rentnerproxy'))
+            expect(removal).toBeGreaterThan(0)
+            expect(restart).toBeGreaterThan(removal)
+            expect(result.calls[removal + 1]).toContain('container ls ')
+            expect(result.backups).toHaveLength(0)
+        })
+
+        test.each(['cleanup-failure', 'wrong-owner'])(
+            'never restarts or deletes an unrelated container after %s',
+            async (scenario) => {
+                const result = await backup(scenario)
+                expect(result.exit).toBe(1)
+                expect(result.calls.some((call) => call.endsWith('start rentnerproxy'))).toBe(false)
+                expect(result.stderr).toContain('Maintenance cleanup unresolved')
+                if (scenario === 'wrong-owner')
+                    expect(result.calls.some((call) => call.startsWith('container rm '))).toBe(
+                        false,
+                    )
+            },
+        )
     },
 )

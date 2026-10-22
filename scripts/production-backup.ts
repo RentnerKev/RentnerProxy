@@ -1,4 +1,7 @@
 import type { CommandOptions } from './backup/Types/production-backup.types.ts'
+import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
+import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
+import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
 import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import {
@@ -34,93 +37,32 @@ const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 
+const commands = createMaintenanceCommands({ cwd: repositoryRoot, operation: 'backup' })
+
 function optionValue(argumentsList: string[], name: string): string | undefined {
-    const index = argumentsList.indexOf(name)
-    if (index === -1) return undefined
-    const value = argumentsList[index + 1]
-    if (!value || value.startsWith('--')) throw new Error('invalid backup options')
-    return value
+    return commandOption(argumentsList, name, 'backup')
 }
 
 function composeProject(argumentsList: string[]): string | undefined {
-    const value =
-        optionValue(argumentsList, '--project') ?? process.env.COMPOSE_PROJECT_NAME?.trim()
-    if (value === undefined || value === '') return undefined
-    if (!/^[a-z0-9][a-z0-9_-]*$/u.test(value)) throw new Error('invalid Compose project name')
-    return value
+    return readComposeProject(argumentsList, process.env.COMPOSE_PROJECT_NAME, 'backup')
 }
 
-function composeCommand(project: string | undefined, composeFile: string): string[] {
-    const command = ['docker', 'compose']
-    if (project) command.push('--project-name', project)
-    command.push('--file', composeFile)
-    return command
-}
+const composeCommand = composeArguments
 
-async function runCommand(
+function runCommand(
     argumentsList: string[],
     operation: string,
     options: CommandOptions = {},
 ): Promise<string> {
-    const child = Bun.spawn({
-        cmd: argumentsList,
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), options.timeoutMs ?? 120_000)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return output.trim()
-    } catch {
-        throw new Error('production backup operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
+    return commands.text(argumentsList, operation, options.timeoutMs)
 }
 
-async function runCommandBytes(
+function runCommandBytes(
     argumentsList: string[],
     operation: string,
     options: CommandOptions = {},
 ): Promise<Uint8Array> {
-    const child = Bun.spawn({
-        cmd: argumentsList,
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), options.timeoutMs ?? 300_000)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).arrayBuffer()
-            : Promise.resolve(new ArrayBuffer(0))
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return new Uint8Array(output)
-    } catch {
-        throw new Error('production backup operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
+    return commands.bytes(argumentsList, operation, options.timeoutMs)
 }
 
 async function sha256(path: string): Promise<string> {
@@ -236,7 +178,9 @@ async function backup(): Promise<void> {
         await chmod(appEncryptionKeyPath, 0o600)
 
         const dumpCommand =
-            'set -Eeuo pipefail; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
+            'set -Eeuo pipefail; ' +
+            postgresShutdownScript() +
+            '; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { stop_postgres; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
             databaseUser +
             ' --dbname=' +
             database +
@@ -390,6 +334,7 @@ async function backup(): Promise<void> {
     } finally {
         if (restartAppliance) {
             try {
+                commands.assertRestartSafe()
                 await runCommand([...compose, 'start', applianceService], 'restart appliance', {
                     timeoutMs: 180_000,
                 })

@@ -16,6 +16,9 @@ const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
+import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
+import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
+import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
 import {
     assertDeploymentCompatible,
     parseBackupMetadata,
@@ -26,119 +29,23 @@ import {
 import { deploymentSchema } from './backup/validation.ts'
 import { smokeDockerArguments } from './smoke/resources.ts'
 
+const commands = createMaintenanceCommands({
+    cwd: repositoryRoot,
+    operation: 'restore',
+    transformArguments: smokeDockerArguments,
+})
+
 function optionValue(argumentsList: string[], name: string): string | undefined {
-    const index = argumentsList.indexOf(name)
-    if (index === -1) return undefined
-    const value = argumentsList[index + 1]
-    if (!value || value.startsWith('--')) throw new Error('invalid restore options')
-    return value
+    return commandOption(argumentsList, name, 'restore')
 }
 
 function composeProject(argumentsList: string[]): string | undefined {
-    const value =
-        optionValue(argumentsList, '--project') ?? process.env.COMPOSE_PROJECT_NAME?.trim()
-    if (value === undefined || value === '') return undefined
-    if (!/^[a-z0-9][a-z0-9_-]*$/u.test(value)) throw new Error('invalid Compose project name')
-    return value
+    return readComposeProject(argumentsList, process.env.COMPOSE_PROJECT_NAME, 'restore')
 }
 
-function composeCommand(project: string | undefined, composeFile: string): string[] {
-    const command = ['docker', 'compose']
-    if (project) command.push('--project-name', project)
-    command.push('--file', composeFile)
-    return command
-}
-
-async function runCommand(
-    argumentsList: string[],
-    operation: string,
-    timeoutMs = 120_000,
-): Promise<string> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-    try {
-        const [exitCode, output] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) throw new Error('command failed')
-        return output.trim()
-    } catch {
-        throw new Error('production restore operation failed: ' + operation)
-    } finally {
-        clearTimeout(timer)
-    }
-}
-
-async function runCommandWithInput(
-    argumentsList: string[],
-    input: Uint8Array,
-    operation: string,
-    timeoutMs = 360_000,
-): Promise<void> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        stdin: 'pipe',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-    let stderrText = ''
-    let failed = false
-    try {
-        if (child.stdin && typeof child.stdin !== 'number') {
-            child.stdin.write(input)
-            child.stdin.end()
-        }
-        const [exitCode, , capturedStderr] = await Promise.all([child.exited, stdout, stderr])
-        stderrText = capturedStderr
-        failed = exitCode !== 0
-    } catch {
-        failed = true
-    } finally {
-        clearTimeout(timer)
-    }
-    if (failed) throw new Error(formatInputCommandFailure(operation, stderrText))
-}
-
-function formatInputCommandFailure(operation: string, stderr: string): string {
-    const prefix = 'production restore operation failed: ' + operation
-    if (operation !== 'restore PostgreSQL') return prefix
-
-    const phase = /RESTORE_PHASE=(initialize|archive|render|assemble|execute)/u.exec(stderr)?.[1]
-    const sqlState = /ERROR:\s*(?:[0-9A-Z]{5}:\s*)?([0-9A-Z]{5})\b/u.exec(stderr)?.[1]
-    const validation =
-        /BACKUP_VALIDATION=(database_version|migration_history|application_key|crowdsec_archive|crowdsec_database|crowdsec_credentials|runtime_validation)/u.exec(
-            stderr,
-        )?.[1]
-    const details = [
-        validation ? 'Backup validation: ' + validation : null,
-        phase ? 'Restore database phase: ' + phase : null,
-        sqlState ? 'SQLSTATE: ' + sqlState : null,
-    ].filter((detail): detail is string => detail !== null)
-
-    return prefix + '.' + (details.length > 0 ? ' ' + details.join('; ') + '.' : '')
-}
+const composeCommand = composeArguments
+const runCommand = commands.text
+const runCommandWithInput = commands.input
 
 async function waitForAppliance(compose: string[]): Promise<void> {
     await waitForApplianceReadiness((timeoutMs) =>
@@ -228,7 +135,8 @@ export function postgresCommand(validateOnly: boolean): string {
         'gosu postgres postgres -D "$data_directory" -c listen_addresses=' +
             (validateOnly ? '127.0.0.1' : '') +
             ' -c unix_socket_directories="$socket_directory" >&2 & postgres_pid=$!',
-        'cleanup() { rm -f -- "$dump_path" "$rendered_sql_path" "$restore_sql_path"; rmdir -- "$restore_directory" 2>/dev/null || true; kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }',
+        postgresShutdownScript(),
+        'cleanup() { rm -f -- "$dump_path" "$rendered_sql_path" "$restore_sql_path"; rmdir -- "$restore_directory" 2>/dev/null || true; stop_postgres; }',
         'trap cleanup EXIT',
         'ready=false',
         'for attempt in $(seq 1 60); do if gosu postgres pg_isready --host="$socket_directory" --username=postgres >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done',
