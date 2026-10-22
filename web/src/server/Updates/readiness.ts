@@ -8,7 +8,7 @@ import { compareReleaseVersions, parseReleaseVersion } from './version.ts'
 export const RELEASE_REPOSITORY = 'RentnerKev/RentnerProxy'
 export const RELEASE_API = `https://api.github.com/repos/${RELEASE_REPOSITORY}/releases`
 export const READINESS_ASSET = 'rentnerproxy-update.json'
-export const MINIMUM_UPGRADE_SOURCE = 'v1.0.0-beta.1'
+const MINIMUM_UPGRADE_SOURCE = 'v1.0.0-beta.1'
 
 const readinessSchema = z.object({
     schemaVersion: z.literal(1),
