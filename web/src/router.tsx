@@ -15,8 +15,7 @@ export function getRouter() {
     })
     router.subscribe('onBeforeLoad', () => {
         const serverContext = router.options.additionalContext?.serverContext as
-            | { cspNonce?: unknown }
-            | undefined
+            { cspNonce?: unknown } | undefined
         const nonce = serverContext?.cspNonce
         if (isCspNonce(nonce)) {
             router.update({ ssr: { ...router.options.ssr, nonce } })

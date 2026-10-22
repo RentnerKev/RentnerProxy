@@ -659,13 +659,17 @@ async function runSmoke(): Promise<void> {
             const insertMigration = npmDb.query('insert into knex_migrations (name) values (?)')
             for (const name of NPM_216_MIGRATIONS) insertMigration.run(name)
             npmDb
-                .query(`insert into proxy_host (id, domain_names, forward_scheme,
-                forward_host, forward_port) values (1, ?, 'http', 'host.docker.internal', ?)`)
+                .query(
+                    `insert into proxy_host (id, domain_names, forward_scheme,
+                forward_host, forward_port) values (1, ?, 'http', 'host.docker.internal', ?)`,
+                )
                 .run(JSON.stringify([npmProxyDomain]), first.port!)
             npmDb
-                .query(`insert into redirection_host (id, domain_names, forward_domain_name,
+                .query(
+                    `insert into redirection_host (id, domain_names, forward_domain_name,
                 forward_scheme, forward_http_code, preserve_path)
-                values (2, ?, 'demo.test', 'http', 302, 1)`)
+                values (2, ?, 'demo.test', 'http', 302, 1)`,
+                )
                 .run(JSON.stringify([npmRedirectDomain]))
         } finally {
             npmDb.close()

@@ -87,15 +87,15 @@ async function sourceFixture(): Promise<{
     `)
     const migration = db.query('insert into knex_migrations (name) values (?)')
     for (const name of NPM_216_MIGRATIONS) migration.run(name)
-    db.query(`insert into proxy_host (id, domain_names, forward_scheme, forward_host,
-        forward_port) values (1, ?, 'http', 'backend.example.test', 8080)`).run(
-        JSON.stringify([domain]),
-    )
-    db.query(`insert into redirection_host (id, domain_names, forward_domain_name,
+    db.query(
+        `insert into proxy_host (id, domain_names, forward_scheme, forward_host,
+        forward_port) values (1, ?, 'http', 'backend.example.test', 8080)`,
+    ).run(JSON.stringify([domain]))
+    db.query(
+        `insert into redirection_host (id, domain_names, forward_domain_name,
         forward_scheme, forward_http_code, preserve_path)
-        values (2, ?, 'target.example.test', 'https', 302, 1)`).run(
-        JSON.stringify([redirectDomain]),
-    )
+        values (2, ?, 'target.example.test', 'https', 302, 1)`,
+    ).run(JSON.stringify([redirectDomain]))
     db.close()
     const fingerprint = createHash('sha256')
         .update(await readFile(path))

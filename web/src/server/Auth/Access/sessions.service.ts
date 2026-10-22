@@ -81,12 +81,7 @@ export async function createSessionInTransaction(
     transaction: AuthTransaction,
     userId: string,
     authenticationMethod:
-        | 'password'
-        | 'totp'
-        | 'recovery-code'
-        | 'passkey'
-        | 'invite'
-        | 'setup' = 'password',
+        'password' | 'totp' | 'recovery-code' | 'passkey' | 'invite' | 'setup' = 'password',
 ) {
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)

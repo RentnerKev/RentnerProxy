@@ -9,3 +9,24 @@ minimumReleaseAgeExcludes = [
     "@rentnerkev/tooltips",
     "@rentnerkev/toasts",
 ]
+
+[fmt]
+printWidth = 100
+semi = false
+singleQuote = true
+tabWidth = 4
+ignorePatterns = [
+    "**/drizzle/**",
+    "**/.env*",
+    "**/routeTree.gen.ts",
+    "**/*.gen.ts",
+    "**/node_modules/**",
+    "**/target/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.git/**",
+    "coverage/**",
+    "backups/**",
+    "tmp/**",
+    "temp/**",
+]

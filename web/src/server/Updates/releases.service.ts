@@ -201,8 +201,7 @@ export function createUpdateChecker({
 }: UpdateCheckerDependencies = {}): (currentVersion: string) => Promise<ApplicationUpdateResult> {
     let cached: CachedUpdate | undefined
     let pending:
-        | { readonly version: string; readonly promise: Promise<ApplicationUpdateResult> }
-        | undefined
+        { readonly version: string; readonly promise: Promise<ApplicationUpdateResult> } | undefined
 
     async function check(currentVersion: string): Promise<ApplicationUpdateResult> {
         const current = parseReleaseVersion(currentVersion)!

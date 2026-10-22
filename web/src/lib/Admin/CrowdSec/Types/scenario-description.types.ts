@@ -1,7 +1,2 @@
 export type ScenarioDescriptionKey =
-    | 'bruteForce'
-    | 'scanning'
-    | 'crawling'
-    | 'flooding'
-    | 'exploit'
-    | 'generic'
+    'bruteForce' | 'scanning' | 'crawling' | 'flooding' | 'exploit' | 'generic'

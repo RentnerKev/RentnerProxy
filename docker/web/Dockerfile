@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS dependencies
+FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -12,7 +12,7 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web
 RUN bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
-FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS runtime
+FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -24,7 +24,7 @@ COPY docker/web/prune-build-tools.sh /tmp/prune-build-tools.sh
 RUN bun install --frozen-lockfile --production \
     && /bin/sh /tmp/prune-build-tools.sh \
     && rm /tmp/prune-build-tools.sh \
-    && bun --no-env-file -e "import { format } from 'oxfmt'; const result = await format('default-site.html', '<style>h1{color:red}</style>', { tabWidth: 4, printWidth: 100, htmlWhitespaceSensitivity: 'strict' }); if (result.errors.length || !result.code.includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
+    && bun --no-env-file -e "const result = Bun.spawnSync([process.execPath, '--no-env-file', 'fmt', '--no-script', '--no-config', '--no-editorconfig', '--stdin-filepath=default-site.html', '--tab-width=4', '--print-width=100', '--html-whitespace-sensitivity=strict', '--threads=1'], { stdin: Buffer.from('<style>h1{color:red}</style>'), stdout: 'pipe', stderr: 'pipe', timeout: 5000, killSignal: 'SIGKILL', maxBuffer: 262144 }); if (result.exitCode !== 0 || !result.stdout.toString().includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js

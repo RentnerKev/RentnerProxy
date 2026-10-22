@@ -161,8 +161,7 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
                     typeof challenge.sessionId === 'string' &&
                     typeof challenge.challenge === 'string'
                     ? (challenge as
-                          | WebAuthnRegistrationChallenge
-                          | WebAuthnReauthenticationChallenge)
+                          WebAuthnRegistrationChallenge | WebAuthnReauthenticationChallenge)
                     : null
             case 'webauthn-authentication':
                 return typeof challenge.challenge === 'string'

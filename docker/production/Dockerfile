@@ -1,6 +1,6 @@
 # syntax=mirror.gcr.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS web-dependencies
+FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS web-dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -14,7 +14,7 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web \
     && bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
-FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS web-runtime
+FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS web-runtime
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -59,7 +59,7 @@ COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 WORKDIR /tmp/caddy-crowdsec-bouncer
 RUN /bin/sh /tmp/build-caddy.sh
 
-FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS geoip-assets
+FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS geoip-assets
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
 RUN bun --no-env-file /tmp/download-geoip.ts
 
@@ -190,7 +190,7 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \
     && cd /opt/rentnerproxy/web \
-    && gosu rentnerproxy-web bun --no-env-file -e "import { format } from 'oxfmt'; const result = await format('default-site.html', '<style>h1{color:red}</style>', { tabWidth: 4, printWidth: 100, htmlWhitespaceSensitivity: 'strict' }); if (result.errors.length || !result.code.includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
+    && gosu rentnerproxy-web bun --no-env-file -e "const result = Bun.spawnSync([process.execPath, '--no-env-file', 'fmt', '--no-script', '--no-config', '--no-editorconfig', '--stdin-filepath=default-site.html', '--tab-width=4', '--print-width=100', '--html-whitespace-sensitivity=strict', '--threads=1'], { stdin: Buffer.from('<style>h1{color:red}</style>'), stdout: 'pipe', stderr: 'pipe', timeout: 5000, killSignal: 'SIGKILL', maxBuffer: 262144 }); if (result.exitCode !== 0 || !result.stdout.toString().includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
 
 EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]

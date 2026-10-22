@@ -16,7 +16,7 @@ concurrency:
 
 env:
     RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
-    BUN_VERSION: 1.4.3
+    BUN_VERSION: 1.4.4
     RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:

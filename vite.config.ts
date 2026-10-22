@@ -43,7 +43,7 @@ export default defineConfig({
         ssr: {
             resolve: {
                 builtins: serverBuiltins,
-                external: ['bun', 'oxfmt'],
+                external: ['bun'],
             },
         },
     },
