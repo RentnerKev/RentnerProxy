@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -20,6 +20,60 @@ const validBuildinfo = `/usr/bin/caddy: go1.27.2
 `
 
 describe('patched Caddy binary security metadata', () => {
+    test('both images use the same Caddy build while retaining pins, static ABI and licenses', async () => {
+        const root = resolve(import.meta.dir, '../../../../..')
+        const shared = await readFile(join(root, 'docker/caddy/tooling/build.sh'), 'utf8')
+        const images = await Promise.all(
+            ['production', 'proxy-runtime'].map((image) =>
+                readFile(join(root, 'docker', image, 'Dockerfile'), 'utf8'),
+            ),
+        )
+        for (const image of images) {
+            expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
+            expect(image.match(/RUN \/bin\/sh \/tmp\/build-caddy.sh/gu)).toHaveLength(1)
+            expect(image).not.toContain('xcaddy build')
+            expect(image).toContain('ENV GOTOOLCHAIN=local CGO_ENABLED=0')
+            expect(image).toContain(
+                'ARG CADDY_CROWDSEC_BOUNCER_COMMIT=6b35f6be25e457aa0b94e32c6ae519123e50e7b7',
+            )
+            expect(image).toContain(
+                'ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99dc065ae11db852c661e9ced0d',
+            )
+            expect(image).toContain('COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy')
+            expect(image).toContain(
+                'docker/licenses/CaddyCrowdSecBouncer-NOTICE /usr/share/licenses/caddy-crowdsec-bouncer/NOTICE',
+            )
+            expect(image).toContain(
+                'golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d',
+            )
+            expect(image).toContain(
+                'caddy:2.11.7-builder@sha256:d842facfd63b960922e57444ff76fd8f0793a66dfdcf481af8026e1f4e6a39b4',
+            )
+        }
+        for (const contract of [
+            'test "$(go env GOVERSION)" = go1.27.2',
+            '${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz',
+            '/bin/sh /tmp/caddy-crowdsec-http-only.sh /tmp/caddy-crowdsec-bouncer',
+            '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT}',
+            '--replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1',
+            '--replace golang.org/x/net=golang.org/x/net@v0.61.0',
+            '--replace golang.org/x/crypto=golang.org/x/crypto@v0.58.0',
+            '--replace golang.org/x/sys=golang.org/x/sys@v0.49.0',
+            '--replace golang.org/x/term=golang.org/x/term@v0.47.0',
+            '--replace golang.org/x/text=golang.org/x/text@v0.43.0',
+            '/bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt',
+            'test "${caddy_version%% *}" = "$CADDY_VERSION"',
+            '! /usr/bin/caddy list-modules',
+        ])
+            expect(shared).toContain(contract)
+        expect(shared.indexOf('sha256sum -c -')).toBeLessThan(shared.indexOf('tar -xzf'))
+        expect(shared.indexOf('caddy-crowdsec-http-only.sh')).toBeLessThan(
+            shared.indexOf('xcaddy build'),
+        )
+        expect(
+            await readFile(join(root, 'docker/proxy-runtime/Dockerfile.dockerignore'), 'utf8'),
+        ).toContain('!docker/caddy/tooling/build.sh')
+    })
     test('checks the compiler and effective x/net version instead of the original module version', async () => {
         if (!shell) throw new Error('A POSIX shell is required to verify the Caddy build contract')
         const directory = await mkdtemp(join(tmpdir(), 'caddy-buildinfo-'))
