@@ -30,6 +30,10 @@ describe('patched Caddy binary security metadata', () => {
         )
         for (const image of images) {
             expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
+            expect(image).toContain(
+                'COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/',
+            )
+            expect(image).toContain('http.handlers.rentnerproxy_response_cache')
             expect(image.match(/RUN \/bin\/sh \/tmp\/build-caddy.sh/gu)).toHaveLength(1)
             expect(image).not.toContain('xcaddy build')
             expect(image).toContain('ENV GOTOOLCHAIN=local CGO_ENABLED=0')
@@ -55,6 +59,9 @@ describe('patched Caddy binary security metadata', () => {
             '${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz',
             '/bin/sh /tmp/caddy-crowdsec-http-only.sh /tmp/caddy-crowdsec-bouncer',
             '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT}',
+            'go mod verify',
+            'go test -mod=readonly ./...',
+            '--with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
             '--replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1',
             '--replace golang.org/x/net=golang.org/x/net@v0.61.0',
             '--replace golang.org/x/crypto=golang.org/x/crypto@v0.58.0',

@@ -11,6 +11,7 @@ export function getProxyHostFormValues(
     const source = mode === 'create' ? undefined : proxyHost
     return {
         browserCache: source?.browserCache,
+        responseCache: source?.responseCache ? structuredClone(source.responseCache) : null,
         ...(source?.tags ? { tagIds: source.tags.map((tag) => tag.id) } : {}),
         responseCompression: source?.responseCompression ?? null,
         domains: mode === 'edit' && source ? [...source.domains] : [''],

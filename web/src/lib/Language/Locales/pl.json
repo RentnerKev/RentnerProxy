@@ -1627,6 +1627,14 @@
                 "add": "Dodaj regułę",
                 "invalid": "Podaj unikalne publiczne ścieżki i ważność od 1 do 31 536 000 sekund. Aktywne reguły nie mogą być puste. HTML, API, uwierzytelnianie i symbole wieloznaczne są niedozwolone. Reguły nie mogą się nakładać.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Pamięć odpowiedzi zasobów publicznych",
+                "enabled": "Włącz pamięć odpowiedzi",
+                "paths": "Publiczne prefiksy ścieżek (oddzielone przecinkami, zakończone /)",
+                "ttl": "Maksymalny czas w sekundach (1–3600)",
+                "hint": "Tylko udane publiczne odpowiedzi CSS, JavaScript, obrazów i czcionek. Pliki cookie, dane logowania, parametry, strumienie i chronione hosty pomijają pamięć. Limity: 1 MiB na odpowiedź, 64 MiB łącznie i 1024 wpisy.",
+                "invalid": "Użyj 1–16 unikatowych prefiksów, np. /assets/, oraz czasu od 1 do 3600 sekund."
             }
         },
         "redirectHosts": {

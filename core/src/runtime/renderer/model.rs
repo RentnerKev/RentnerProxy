@@ -176,6 +176,8 @@ pub(super) enum Handler {
     Vars(EmptyVars),
     #[serde(rename = "crowdsec")]
     CrowdSec(CrowdSecHandler),
+    #[serde(rename = "rentnerproxy_response_cache")]
+    ResponseCache(ResponseCache),
     #[serde(rename = "static_response")]
     ErrorResponse(ErrorResponse),
     #[serde(rename = "static_response")]
@@ -396,4 +398,12 @@ pub(super) struct CertificateSelection {
 pub(super) struct ResponseHeaderMatcher {
     pub(super) status_code: Vec<u16>,
     pub(super) headers: BTreeMap<String, Option<Vec<String>>>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ResponseCache {
+    pub(super) configuration: String,
+    pub(super) scheme: String,
+    pub(super) path_prefixes: Vec<String>,
+    pub(super) ttl_seconds: u32,
 }

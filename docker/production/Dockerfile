@@ -56,6 +56,7 @@ ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99
 COPY docker/crowdsec/tooling/caddy-http-only.sh /tmp/caddy-crowdsec-http-only.sh
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
+COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/caddy-crowdsec-bouncer
 RUN /bin/sh /tmp/build-caddy.sh
 
@@ -184,6 +185,7 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && gosu crowdsec cscli -c /usr/share/rentnerproxy/crowdsec/config.yaml collections list -o json | grep -F 'crowdsecurity/caddy' \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
+    && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$' \
     && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157986a2b2c2163300fdaef5ed01289f7d2' \
     && setcap -r /usr/bin/caddy \

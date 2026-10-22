@@ -15,6 +15,7 @@ export type UseProxyHostFormLogicParams = Pick<
     | 'canAssignCertificates'
     | 'canRequestCertificate'
     | 'canAssignPolicies'
+    | 'canApplyResponseCache'
     | 'mode'
     | 'onSuccess'
     | 'proxyHost'

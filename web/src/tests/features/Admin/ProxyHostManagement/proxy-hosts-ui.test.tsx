@@ -1294,6 +1294,7 @@ function FormHarness({
     canAssignCertificates = false,
     canRequestCertificate = false,
     canAssignPolicies = false,
+    canApplyResponseCache = false,
     mode,
     proxyHost,
 }: {
@@ -1304,6 +1305,7 @@ function FormHarness({
     canAssignCertificates?: boolean
     canRequestCertificate?: boolean
     canAssignPolicies?: boolean
+    canApplyResponseCache?: boolean
     mode: 'create' | 'edit' | 'duplicate'
     proxyHost?: ProxyHostSummary
 }) {
@@ -1320,6 +1322,7 @@ function FormHarness({
             canAssignCertificates={canAssignCertificates}
             canRequestCertificate={canRequestCertificate}
             canAssignPolicies={canAssignPolicies}
+            canApplyResponseCache={canApplyResponseCache}
             onOpenChange={setOpen}
             onSuccess={() => setOpen(false)}
         />
@@ -2889,5 +2892,96 @@ describe('browser-cache rule controls', () => {
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(
             true,
         )
+    })
+})
+
+describe('public response cache form controls', () => {
+    test('edits explicit rules and disables them without changing unrelated host fields', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                    }}
+                    canApplyResponseCache
+                />,
+            ),
+        )
+        const ttl = document.querySelector<HTMLInputElement>('input[id$="-response-cache-ttl"]')!
+        expect(ttl.value).toBe('60')
+        await setControlValue(ttl, '120')
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: {
+                responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 120 },
+                proxyHostId: enabledHost.id,
+            },
+        })
+    })
+    test('turns an existing cache off explicitly', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                    }}
+                    canApplyResponseCache
+                />,
+            ),
+        )
+        await click(document.querySelector<HTMLInputElement>('input[id$="-response-cache"]')!)
+        expect(document.querySelector('input[id$="-response-cache-ttl"]')).toBeNull()
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: { responseCache: null },
+        })
+    })
+    test('ordinary editors preserve the setting without an APPLY control or payload', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                    }}
+                />,
+            ),
+        )
+        expect(document.querySelector('input[id$="-response-cache"]')).toBeNull()
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).not.toHaveProperty(
+            'data.responseCache',
+        )
+    })
+    test('rejects reserved API rules before submitting', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                    }}
+                    canApplyResponseCache
+                />,
+            ),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[id$="-response-cache-paths"]')!,
+            '/api/',
+        )
+        await click(getButton('Save changes'))
+        await waitFor(
+            () => document.body.textContent?.includes('Use 1–16 unique path prefixes') ?? false,
+        )
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
     })
 })

@@ -4,6 +4,9 @@
 !core/Cargo.lock
 !core/src/
 !core/src/**
+!core/caddy-modules/
+!core/caddy-modules/responsecache/
+!core/caddy-modules/responsecache/**
 
 !docker/
 !docker/caddy/

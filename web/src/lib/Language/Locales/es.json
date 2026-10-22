@@ -1611,6 +1611,14 @@
                 "add": "Añadir regla",
                 "invalid": "Indique rutas públicas únicas y una duración de 1 a 31.536.000 segundos. Las reglas activas no pueden estar vacías. No se permiten HTML, API, autenticación ni comodines. Las reglas no deben solaparse.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Caché de respuestas de recursos públicos",
+                "enabled": "Activar caché de respuestas",
+                "paths": "Prefijos públicos (separados por comas, terminados en /)",
+                "ttl": "Duración máxima en segundos (1–3600)",
+                "hint": "Solo respuestas públicas correctas de CSS, JavaScript, imágenes y fuentes. Cookies, credenciales, consultas, flujos y hosts protegidos omiten la caché. Límites: 1 MiB por respuesta, 64 MiB compartidos y 1024 entradas.",
+                "invalid": "Usa 1–16 prefijos únicos como /assets/ y una duración de 1 a 3600 segundos."
             }
         },
         "redirectHosts": {

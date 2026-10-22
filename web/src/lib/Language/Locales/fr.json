@@ -1611,6 +1611,14 @@
                 "add": "Ajouter une règle",
                 "invalid": "Indiquez des chemins publics uniques et une durée de 1 à 31 536 000 secondes. Les règles actives ne peuvent pas être vides. HTML, API, authentification et jokers interdits. Les règles ne doivent pas se chevaucher.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Cache des réponses de ressources publiques",
+                "enabled": "Activer le cache des réponses",
+                "paths": "Préfixes publics (séparés par des virgules, terminés par /)",
+                "ttl": "Durée maximale en secondes (1–3600)",
+                "hint": "Uniquement les réponses publiques réussies CSS, JavaScript, images et polices. Cookies, identifiants, requêtes, flux et hôtes protégés contournent le cache. Limites : 1 MiB par réponse, 64 MiB partagés et 1024 entrées.",
+                "invalid": "Utilisez 1 à 16 préfixes uniques tels que /assets/ et une durée de 1 à 3600 secondes."
             }
         },
         "redirectHosts": {

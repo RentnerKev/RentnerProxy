@@ -13,6 +13,7 @@ test.skipIf(process.env.RENTNERPROXY_CADDY_BUILD_FIXTURE !== '1' || process.plat
     'shared Caddy build enforces source, compiler, patch, binary and module guards',
     async () => {
         const owned = [
+            '/opt/rentnerproxy-responsecache',
             '/usr/bin/caddy',
             '/tmp/caddy-crowdsec-http-only.sh',
             '/tmp/verify-caddy-buildinfo.sh',
@@ -25,7 +26,12 @@ test.skipIf(process.env.RENTNERPROXY_CADDY_BUILD_FIXTURE !== '1' || process.plat
         const directory = await mkdtemp('/tmp/caddy-script-fixture-')
         const bin = join(directory, 'bin'),
             source = join(directory, 'source')
-        await Promise.all([mkdir(bin), mkdir(source), mkdir('/tmp/caddy-crowdsec-bouncer')])
+        await Promise.all([
+            mkdir(bin),
+            mkdir(source),
+            mkdir('/tmp/caddy-crowdsec-bouncer'),
+            mkdir('/opt/rentnerproxy-responsecache'),
+        ])
         try {
             await writeFile(join(source, 'fixture'), 'synthetic source')
             const tarball = join(directory, 'source.tar.gz')
@@ -44,7 +50,7 @@ test.skipIf(process.env.RENTNERPROXY_CADDY_BUILD_FIXTURE !== '1' || process.plat
             const fakeCaddy = `#!/usr/bin/env -S bun --no-env-file
 const mode=process.env.FIXTURE_MODE
 if(process.argv[2]==='version')console.log(mode==='version'?'v0.0.0':'v2.11.7 fixture')
-else { console.log('crowdsec');if(mode!=='missing-http')console.log('http.handlers.crowdsec');if(mode==='layer4')console.log('layer4.handlers.fixture');if(mode==='appsec')console.log('http.handlers.appsec') }
+else { if(mode!=='missing-cache')console.log('http.handlers.rentnerproxy_response_cache'); console.log('crowdsec');if(mode!=='missing-http')console.log('http.handlers.crowdsec');if(mode==='layer4')console.log('layer4.handlers.fixture');if(mode==='appsec')console.log('http.handlers.appsec') }
 `
             const buildinfo = `/usr/bin/caddy: go1.27.2\n\tdep\tgolang.org/x/net\tv0.61.0\th1:fixture\n\tdep\tgithub.com/crowdsecurity/crowdsec\tv1.7.0\n\t=>\tgithub.com/crowdsecurity/crowdsec\tv1.8.1\th1:fixture\n\tbuild\tCGO_ENABLED=0\n`
             const fake = `#!/usr/bin/env -S bun --no-env-file
@@ -77,6 +83,7 @@ if(name==='xcaddy'){writeFileSync('/usr/bin/caddy',${JSON.stringify(fakeCaddy)})
                 'crowdsec',
                 'version',
                 'missing-http',
+                'missing-cache',
                 'layer4',
                 'appsec',
             ]) {

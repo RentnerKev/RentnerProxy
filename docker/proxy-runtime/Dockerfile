@@ -23,6 +23,7 @@ ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99
 COPY docker/crowdsec/tooling/caddy-http-only.sh /tmp/caddy-crowdsec-http-only.sh
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
+COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/caddy-crowdsec-bouncer
 RUN /bin/sh /tmp/build-caddy.sh
 
@@ -39,6 +40,7 @@ RUN apt-get update \
     && update-ca-certificates \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
+    && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \

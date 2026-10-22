@@ -802,3 +802,53 @@ fn browser_cache_and_compression_revision_matches_typescript() {
         "sha256:95068eb53f67332e62375d660d73f93a3051def7dd3dfe30d51ad4dabc8ed5c8"
     );
 }
+
+#[test]
+fn response_cache_bounds_and_reserved_paths_are_validated() {
+    let base = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["demo.test"],
+        "http",
+        "backend.internal",
+        4000,
+    );
+    for (prefix, ttl, valid) in [
+        ("/assets/", 60, true),
+        ("/", 60, false),
+        ("/api/", 60, false),
+        ("/AUTH/", 60, false),
+        ("/assets/../", 60, false),
+        ("/assets/", 0, false),
+        ("/assets/", 3601, false),
+    ] {
+        let mut configured = base.clone();
+        configured.response_cache = Some(crate::models::ResponseCacheSettings {
+            path_prefixes: vec![prefix.to_owned()],
+            ttl_seconds: ttl,
+        });
+        assert_eq!(
+            validate_proxy_config(request(vec![configured])).is_ok(),
+            valid,
+            "{prefix} {ttl}"
+        );
+    }
+}
+
+#[test]
+fn response_cache_revision_matches_typescript_known_vector() {
+    let mut configured = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["demo.test"],
+        "http",
+        "backend.internal",
+        4000,
+    );
+    configured.response_cache = Some(crate::models::ResponseCacheSettings {
+        path_prefixes: vec!["/assets/".to_owned()],
+        ttl_seconds: 60,
+    });
+    assert_eq!(
+        revision_for_configuration(&[configured], &ProxyHttpSettings::default()),
+        "sha256:75fb60b6690b2c3ba7c6ad7f6326667811e524c1ef43d6dba7ee37bbd1f0794d"
+    );
+}

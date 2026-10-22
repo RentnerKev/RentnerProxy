@@ -1409,3 +1409,53 @@ fn compression_wraps_browser_cache_headers_before_the_proxy() {
         .unwrap();
     assert!(encode < cache && cache < proxy);
 }
+
+#[test]
+fn public_response_cache_is_opt_in_after_crowdsec_and_excluded_for_protected_hosts() {
+    let mut configuration = config();
+    let crowdsec = CrowdSecRenderSettings {
+        api_url: "http://127.0.0.1:18080".to_owned(),
+    };
+    let disabled =
+        render_config_with_crowdsec(Some(&configuration), &settings(), Some(&crowdsec)).unwrap();
+    assert!(!disabled.contains("rentnerproxy_response_cache"));
+    configuration.proxy_hosts[0].response_cache = Some(crate::models::ResponseCacheSettings {
+        path_prefixes: vec!["/assets/".to_owned()],
+        ttl_seconds: 60,
+    });
+    let rendered =
+        render_config_with_crowdsec(Some(&configuration), &settings(), Some(&crowdsec)).unwrap();
+    let value: Value = serde_json::from_str(&rendered).unwrap();
+    let routes = value["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    assert_eq!(routes[1]["handle"][0]["handler"], "crowdsec");
+    let handles = routes[2]["handle"].as_array().unwrap();
+    let cache = handles
+        .iter()
+        .position(|handler| handler["handler"] == "rentnerproxy_response_cache")
+        .unwrap();
+    assert_eq!(handles[cache + 1]["handler"], "reverse_proxy");
+    assert_eq!(handles[cache]["ttl_seconds"], 60);
+    assert_eq!(
+        handles[cache]["path_prefixes"],
+        serde_json::json!(["/assets/"])
+    );
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        forward_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Allow,
+            allow: vec![],
+            deny: vec![],
+        }),
+    });
+    assert!(
+        !render_config_with_crowdsec(Some(&configuration), &settings(), Some(&crowdsec))
+            .unwrap()
+            .contains("rentnerproxy_response_cache")
+    );
+}

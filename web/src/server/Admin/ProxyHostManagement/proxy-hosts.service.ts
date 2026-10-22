@@ -1,3 +1,7 @@
+import {
+    readResponseCacheSettingsMap,
+    writeResponseCacheSettings,
+} from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 import '@tanstack/react-start/server-only'
@@ -25,6 +29,7 @@ import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import {
     readProxyHostHttpSettingsMap,
+    readProxyHostHttpSettings,
     lockProxyRuntimeSettings,
     writeProxyHostHttpSettings,
 } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
@@ -130,6 +135,7 @@ export async function readProxyHostSummariesInTransaction(
     }
 
     const httpSettings = await readProxyHostHttpSettingsMap(transaction, hostIds)
+    const responseCacheSettings = await readResponseCacheSettingsMap(transaction, hostIds)
     const registry = await readDiscoveryRegistry(transaction)
     const ownersByHost = new Map<string, (typeof registry.owners)[number]>()
     for (const owner of registry.owners) {
@@ -142,6 +148,9 @@ export async function readProxyHostSummariesInTransaction(
             ...toProxyHostSummary(summary, summary.domains),
             responseCompression: httpSettings.get(summary.id)?.responseCompression ?? null,
             browserCache: httpSettings.get(summary.id)?.browserCache,
+            ...(responseCacheSettings.has(summary.id)
+                ? { responseCache: responseCacheSettings.get(summary.id)! }
+                : {}),
             certificateJob: latestJobs.get(summary.id) ?? null,
             ...(owner && owner.state !== 'detached' ? { discovery: { state: owner.state } } : {}),
         })
@@ -250,6 +259,7 @@ export async function deleteProxyHostService(
             }
 
             await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
+            await writeResponseCacheSettings(transaction, proxyHost.id, null)
             await assertDiscoveryHostEditable(transaction, proxyHost.id)
             await assignHostTagsInTransaction(transaction, 'proxy', proxyHost.id, [])
             await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
@@ -332,7 +342,15 @@ async function setProxyHostEnabledService(
                 result: 'success',
             })
 
-            return toProxyHostSummary(updatedProxyHost, domains)
+            const savedHttpSettings = await readProxyHostHttpSettings(transaction, id)
+            const responseCache =
+                (await readResponseCacheSettingsMap(transaction, [id])).get(id) ?? null
+            return {
+                ...toProxyHostSummary(updatedProxyHost, domains),
+                responseCompression: savedHttpSettings.responseCompression ?? null,
+                browserCache: savedHttpSettings.browserCache,
+                ...(responseCache ? { responseCache } : {}),
+            }
         })
     } catch (error) {
         await recordMutationFailureBestEffort({
