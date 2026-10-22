@@ -2277,6 +2277,35 @@ describe('browser-cache host settings with PostgreSQL', () => {
                     getProxyHostConfigEditorService(created.id),
                 )
                 expect(initial.settings.browserCache).toEqual(browserCache)
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...created,
+                        proxyHostId: created.id,
+                        browserCache: {
+                            rules: [{ immutable: true, maxAgeSeconds: 3600, path: '/assets/' }],
+                            enabled: true,
+                        },
+                    }),
+                )
+                const noOpEvents = await getAuthDatabase()
+                    .select({ action: auditEvents.action, metadata: auditEvents.metadata })
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, created.id))
+                expect(noOpEvents.filter((event) => event.action === 'update')).toHaveLength(1)
+                expect(
+                    noOpEvents.some(
+                        (event) =>
+                            event.action === 'update' &&
+                            (
+                                event.metadata as { changedFields?: string[] }
+                            )?.changedFields?.includes('browserCache'),
+                    ),
+                ).toBe(false)
+                expect(
+                    (await runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id)))
+                        .baseRevision,
+                ).toBe(initial.baseRevision)
+
                 const deniedUpdate = await captureError(
                     runAsUser(restricted.id, () =>
                         updateProxyHostService({

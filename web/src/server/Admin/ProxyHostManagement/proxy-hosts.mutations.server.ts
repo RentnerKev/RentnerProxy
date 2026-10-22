@@ -348,6 +348,9 @@ export async function updateProxyHostInTransaction(
 
     const httpSettings = { ...(await readProxyHostHttpSettings(transaction, proxyHost.id)) }
     const previousCompression = httpSettings.responseCompression ?? null
+    const browserCacheChanged =
+        parsedInput.browserCache !== undefined &&
+        JSON.stringify(parsedInput.browserCache) !== JSON.stringify(httpSettings.browserCache)
     if (parsedInput.responseCompression !== undefined) {
         if (parsedInput.responseCompression !== previousCompression)
             await requirePermissionInTransaction(
@@ -370,7 +373,7 @@ export async function updateProxyHostInTransaction(
               )
             : undefined
 
-    if (parsedInput.browserCache !== undefined) {
+    if (parsedInput.browserCache !== undefined && browserCacheChanged) {
         const settings = await readProxyHostHttpSettings(transaction, proxyHost.id)
         await writeProxyHostHttpSettings(transaction, proxyHost.id, {
             ...settings,
@@ -393,7 +396,7 @@ export async function updateProxyHostInTransaction(
                 parsedInput.responseCompression === previousCompression
                     ? []
                     : ['responseCompression' as const]),
-                ...(parsedInput.browserCache === undefined ? [] : (['browserCache'] as const)),
+                ...(browserCacheChanged ? (['browserCache'] as const) : []),
                 ...(parsedInput.tagIds ? ['tags' as const] : []),
                 ...(parsedInput.certificateId === undefined ? [] : (['certificate'] as const)),
                 ...(parsedInput.trustedCaId === undefined ? [] : (['trustedCa'] as const)),
