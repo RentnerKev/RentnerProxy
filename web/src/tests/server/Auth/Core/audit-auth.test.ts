@@ -5,6 +5,7 @@ test('auth failures preserve results and exceptions without recording operation 
     const child = Bun.spawn(
         [
             process.execPath,
+            '--no-env-file',
             '-e',
             `
         import { mock } from 'bun:test'

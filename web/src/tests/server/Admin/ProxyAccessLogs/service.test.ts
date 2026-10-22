@@ -57,7 +57,7 @@ const serviceScript = `
 
 describe('proxy access-log service authorization', () => {
     test('denies before reaching the controller and returns authorized results', async () => {
-        const child = Bun.spawn([process.execPath, '-e', serviceScript], {
+        const child = Bun.spawn([process.execPath, '--no-env-file', '-e', serviceScript], {
             cwd: fileURLToPath(new URL('../../../..', import.meta.url)),
             stdout: 'pipe',
             stderr: 'pipe',
