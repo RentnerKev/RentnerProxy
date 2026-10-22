@@ -47,6 +47,14 @@ export function createDiscoveryPlan(
     const complete = snapshot?.status === 'ready' && !snapshot.stale && Boolean(endpoint)
     const hosts = new Map(inventory.hosts.map((host) => [host.id, host]))
     const occupied = new Map(inventory.domains.map((entry) => [entry.domain, entry.proxyHostId]))
+    const ownersByKey = new Map<string, DiscoveryRegistry['owners'][number]>()
+    for (const owner of registry.owners) {
+        if (!ownersByKey.has(owner.key)) ownersByKey.set(owner.key, owner)
+    }
+    const resultsByKey = new Map<string, DiscoveryRegistry['results'][number]>()
+    for (const result of registry.results) {
+        if (!resultsByKey.has(result.key)) resultsByKey.set(result.key, result)
+    }
     const counts = new Map<string, number>()
     for (const candidate of snapshot?.candidates ?? []) {
         if (candidate.sourceId)
@@ -56,7 +64,7 @@ export function createDiscoveryPlan(
         const sourceId = candidate.sourceId ?? `container:${candidate.containerId}`
         const key = discoverySourceKey(endpoint ?? 'http://unavailable.invalid', sourceId)
         observed.add(key)
-        const owner = registry.owners.find((entry) => entry.key === key)
+        const owner = ownersByKey.get(key)
         const host = owner ? (hosts.get(owner.hostId) ?? null) : null
         const issues: string[] = [...candidate.issues]
         if (!candidate.sourceId && !issues.includes('invalid_source')) issues.push('invalid_source')
@@ -112,7 +120,7 @@ export function createDiscoveryPlan(
             changes.push({ key, candidate, host, input: input.data })
         if (state === 'current') settled.push(key)
         // Errors from reference validation remain visible until a successful retry.
-        const error = registry.results.find((entry) => entry.key === key)?.error ?? owner?.error
+        const error = resultsByKey.get(key)?.error ?? owner?.error
         if (error && !issues.includes(error)) issues.push(error)
         rows.push({
             key,

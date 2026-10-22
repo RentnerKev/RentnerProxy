@@ -129,10 +129,13 @@ export async function readProxyHostSummariesInTransaction(
     }
 
     const registry = await readDiscoveryRegistry(transaction)
+    const ownersByHost = new Map<string, (typeof registry.owners)[number]>()
+    for (const owner of registry.owners) {
+        if (owner.state !== 'detached' && !ownersByHost.has(owner.hostId))
+            ownersByHost.set(owner.hostId, owner)
+    }
     for (const summary of summaries.values()) {
-        const owner = registry.owners.find(
-            (entry) => entry.hostId === summary.id && entry.state !== 'detached',
-        )
+        const owner = ownersByHost.get(summary.id)
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
             certificateJob: latestJobs.get(summary.id) ?? null,

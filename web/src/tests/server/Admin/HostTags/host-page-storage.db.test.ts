@@ -124,6 +124,28 @@ afterAll(async () => {
 })
 
 describe('host page storage on isolated PostgreSQL', () => {
+    integrationTest('keeps the first non-detached discovery owner for each host', async () => {
+        const owners = (['detached', 'orphaned', 'managed'] as const).map((ownerState, index) => ({
+            key: String(index).repeat(64),
+            sourceId: `compose:app${index}`,
+            hostId: id(1),
+            containerId: 'b'.repeat(64),
+            domains: ['app1.example.com'],
+            state: ownerState,
+            error: null,
+        }))
+        const registry = discoveryRegistry({
+            owners: [...owners, { ...owners[0]!, key: 'f'.repeat(64), hostId: id(2) }],
+        })
+        await client!`update rentnerproxy.system_settings set value = ${JSON.stringify(registry)}::jsonb where key = 'docker_discovery_management_v1'`
+        const hosts = await database().transaction(
+            (transaction) => readProxyHostSummariesInTransaction(transaction, [id(1), id(2)]),
+            { isolationLevel: 'repeatable read', accessMode: 'read only' },
+        )
+        expect(hosts[0]!.discovery).toEqual({ state: 'orphaned' })
+        expect(hosts[1]!.discovery).toBeUndefined()
+    })
+
     integrationTest(
         'reads only base fields and groups all aliases without metadata hydration',
         async () => {

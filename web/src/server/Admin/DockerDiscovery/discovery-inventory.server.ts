@@ -65,9 +65,25 @@ export async function readDiscoveryInventory(
               ).map((policy) => policy.id)
             : [],
     )
+    const domainsByHost = new Map<string, string[]>()
+    for (const entry of domains) {
+        if (entry.proxyHostId === null) continue
+        const names = domainsByHost.get(entry.proxyHostId)
+        if (names) names.push(entry.domain)
+        else domainsByHost.set(entry.proxyHostId, [entry.domain])
+    }
+    const certificatesById = new Map(certificateRows.map((row) => [row.id, row]))
+    const domainsByCertificate = new Map<string, string[]>()
+    for (const entry of certificateNames) {
+        const names = domainsByCertificate.get(entry.id)
+        if (names) names.push(entry.domain)
+        else domainsByCertificate.set(entry.id, [entry.domain])
+    }
     const rejections: Record<string, 'reference_invalid'> = {}
     for (const candidate of candidates) {
-        const certificate = certificateRows.find((row) => row.id === candidate.certificateId)
+        const certificate = candidate.certificateId
+            ? certificatesById.get(candidate.certificateId)
+            : undefined
         if (
             (candidate.accessPolicyId && !policies.has(candidate.accessPolicyId)) ||
             (candidate.certificateId &&
@@ -78,9 +94,7 @@ export async function readDiscoveryInventory(
                     certificate.issuedAt.getTime() > Date.now() ||
                     certificate.expiresAt.getTime() <= Date.now() ||
                     !certificateCoversDomains(
-                        certificateNames
-                            .filter((entry) => entry.id === certificate.id)
-                            .map((entry) => entry.domain),
+                        domainsByCertificate.get(certificate.id) ?? [],
                         candidate.domains,
                     )))
         ) {
@@ -88,14 +102,7 @@ export async function readDiscoveryInventory(
         }
     }
     return {
-        hosts: rows.map((row) =>
-            toProxyHostSummary(
-                row,
-                domains
-                    .filter((entry) => entry.proxyHostId === row.id)
-                    .map((entry) => entry.domain),
-            ),
-        ),
+        hosts: rows.map((row) => toProxyHostSummary(row, domainsByHost.get(row.id) ?? [])),
         domains,
         rejections,
     }
