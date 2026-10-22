@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { bulkHostServices } from '@/server/Admin/HostBulkActions/bulk-hosts.storage.server.ts'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { eq, inArray, like } from 'drizzle-orm'
@@ -201,6 +202,55 @@ afterEach(async () => {
 })
 
 describe('trusted CAs with PostgreSQL', () => {
+    integrationTest(
+        'bulk enable previews read a trusted CA without write locks or metadata changes',
+        async () => {
+            const owner = await createUser([SYSTEM_ROLES.OWNER])
+            const ca = await asUser(owner, () =>
+                createTrustedCaService({ name: PREFIX + 'bulk', pem: PEM }),
+            )
+            const host = await asUser(owner, () =>
+                createProxyHostService({
+                    ...hostInput('bulk'),
+                    enabled: false,
+                    trustedCaId: ca.trustedCaId,
+                }),
+            )
+            const before = await getAuthDatabase()
+                .select()
+                .from(trustedCas)
+                .where(eq(trustedCas.id, ca.trustedCaId))
+            controller!.revisions.length = 0
+            const action = { type: 'enable' } as const
+            const preview = await asUser(owner, () =>
+                bulkHostServices.preview({ kind: 'proxy', hostIds: [host.id], action }),
+            )
+            expect(preview.rows[0]?.status).toBe('ready')
+            expect(
+                await getAuthDatabase()
+                    .select()
+                    .from(trustedCas)
+                    .where(eq(trustedCas.id, ca.trustedCaId)),
+            ).toEqual(before)
+            expect(controller!.revisions).toHaveLength(0)
+            const result = await asUser(owner, () =>
+                bulkHostServices.apply({
+                    kind: 'proxy',
+                    action,
+                    hosts: [{ id: host.id, version: preview.rows[0]!.version! }],
+                }),
+            )
+            expect(result.rows[0]?.status).toBe('applied')
+            expect(result.runtimeStatus).toBe('applied')
+            const [persisted] = await getAuthDatabase()
+                .select({ enabled: proxyHosts.enabled })
+                .from(proxyHosts)
+                .where(eq(proxyHosts.id, host.id))
+            expect(persisted?.enabled).toBe(true)
+            expect(controller!.revisions).toHaveLength(1)
+        },
+    )
+
     integrationTest(
         'persists controller-canonical bundle and metadata, rejects duplicate, and replaces atomically',
         async () => {

@@ -47,7 +47,11 @@ export const bulkHostServices = createBulkHostServices({
         }
         if (action.type === 'certificate' || action.type === 'enable') {
             if (action.type === 'enable' && 'trustedCaId' in host)
-                await validateTrustedCaAssignmentInTransaction(transaction, host.trustedCaId)
+                await validateTrustedCaAssignmentInTransaction(
+                    transaction,
+                    host.trustedCaId,
+                    !preview,
+                )
             await validateCertificateAssignmentInTransaction(
                 transaction,
                 action.type === 'certificate' ? action.certificateId : host.certificateId,
