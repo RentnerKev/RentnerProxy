@@ -26,10 +26,7 @@ import { appendAuditEventInTransactionService } from '@/server/Audit/audit.servi
 import { getSmtpConfiguration } from '@/server/env.server.ts'
 import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
-import {
-    observeNotificationSignals,
-    summarizeNotificationState,
-} from '@/server/Notifications/incident-engine.ts'
+import { summarizeNotificationState } from '@/server/Notifications/incident-engine.ts'
 import {
     buildNotificationConfiguration,
     openNotificationDestination,
@@ -50,6 +47,7 @@ import {
 import { deliverAuthorizedNotificationClaim } from '@/server/Notifications/notification-delivery.server.ts'
 import { acknowledgeNotificationDelivery } from '@/server/Notifications/notification-repository.ts'
 import { claimNotificationTestDelivery } from '@/server/Notifications/notification-test.ts'
+import { persistNotificationConfigurationInTransaction } from '@/server/Notifications/notification-configuration-persistence.server.ts'
 import { NotificationDomainError } from '@/server/Notifications/notification.errors.ts'
 import type { StoredNotificationConfiguration } from '@/server/Notifications/Types/notification-internal.types.ts'
 import type { PersonalNotificationDependencies } from './Types/notifications.types.ts'
@@ -218,7 +216,6 @@ export function createPersonalNotificationService(dependencies: PersonalNotifica
                     transaction,
                     configuration,
                 )
-                const runtime = await dependencies.lockRuntime(transaction)
                 const previousIds = new Set(
                     current.channels
                         .filter((channel) => channel.ownerUserId === actor.id)
@@ -229,36 +226,12 @@ export function createPersonalNotificationService(dependencies: PersonalNotifica
                         .filter((channel) => !previousIds.has(channel.id))
                         .map((channel) => channel.id),
                 )
-                if (
-                    runtime.engine.deliveries.some((delivery) => newIds.has(delivery.channelId)) ||
-                    runtime.engine.incidents.some((incident) =>
-                        incident.channels.some((marker) => newIds.has(marker.channelId)),
-                    )
-                )
-                    throw new NotificationDomainError('invalid_input')
-                const engine = observeNotificationSignals(
-                    runtime.engine,
+                await persistNotificationConfigurationInTransaction(dependencies, transaction, {
+                    actorId: actor.id,
+                    configuration,
                     effective,
-                    [],
-                    dependencies.now(),
-                    dependencies.makeId,
-                )
-                await dependencies.writeConfiguration(transaction, configuration)
-                await dependencies.writeRuntime(transaction, { ...runtime, engine })
-                await dependencies.audit(transaction, {
-                    actorUserId: actor.id,
-                    actorKind: 'user',
-                    action: 'update',
-                    resource: 'proxy-runtime-settings',
-                    targetId: null,
-                    result: 'success',
-                    metadata: {
-                        setting: 'notifications',
-                        revision: configuration.revision,
-                        channelCount: built.channels.length,
-                        enabled: configuration.enabled,
-                        pausedAfterRestore: configuration.pausedAfterRestore,
-                    },
+                    newIds,
+                    channelCount: built.channels.length,
                 })
                 return settings(configuration, currentActor)
             }, false)

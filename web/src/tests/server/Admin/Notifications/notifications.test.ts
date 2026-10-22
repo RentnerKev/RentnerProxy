@@ -50,7 +50,8 @@ const input: UpdateNotificationConfigurationInput = {
 }
 const transaction = {} as AuthTransaction
 
-function setup() {
+function setup(commitFails = false) {
+    const order: string[] = []
     let configuration = structuredClone(initial)
     let runtime = {
         version: 1 as const,
@@ -58,23 +59,50 @@ function setup() {
         certificateCursor: null as string | null,
         collectionLease: null as { token: string; expiresAt: number } | null,
     }
+    let insideTransaction = false
     const modes: boolean[] = []
     const dependencies = {
         authorize: mock(async () => ({ id: actorId })),
-        authorizeInTransaction: mock(async () => {}),
+        authorizeInTransaction: mock(async () => {
+            order.push('authorize')
+        }),
         transaction: async (run, readOnly) => {
             modes.push(readOnly)
-            return run(transaction)
+            const savedConfiguration = structuredClone(configuration)
+            const savedRuntime = structuredClone(runtime)
+            insideTransaction = true
+            try {
+                const result = await run(transaction)
+                if (!readOnly) {
+                    if (commitFails) throw new Error('commit failed')
+                    order.push('commit')
+                }
+                return result
+            } catch (error) {
+                configuration = savedConfiguration
+                runtime = savedRuntime
+                throw error
+            } finally {
+                insideTransaction = false
+            }
         },
         limit: mock(async () => {}),
         readConfiguration: mock(async () => structuredClone(configuration)),
-        lockConfiguration: mock(async () => structuredClone(configuration)),
+        lockConfiguration: mock(async () => {
+            order.push('lockConfiguration')
+            return structuredClone(configuration)
+        }),
         writeConfiguration: mock(async (_transaction, value) => {
+            order.push('writeConfiguration')
             configuration = structuredClone(value)
         }),
         readRuntime: mock(async () => structuredClone(runtime)),
-        lockRuntime: mock(async () => structuredClone(runtime)),
+        lockRuntime: mock(async () => {
+            order.push('lockRuntime')
+            return structuredClone(runtime)
+        }),
         writeRuntime: mock(async (_transaction, value) => {
+            order.push('writeRuntime')
             runtime = structuredClone(value)
         }),
         buildConfiguration: mock(async (current, next) => {
@@ -88,13 +116,18 @@ function setup() {
             }
         }),
         audit: mock(async (_transaction, event) => {
+            order.push('audit')
             auditEventInputSchema.parse(event)
         }),
-        publish: mock(() => {}),
+        publish: mock(() => {
+            expect(insideTransaction).toBe(false)
+            order.push('publish')
+        }),
         now: () => 2_000,
         makeId: () => crypto.randomUUID(),
     } satisfies NotificationAdminDependencies
     return {
+        order,
         dependencies,
         service: createNotificationAdminService(dependencies),
         modes,
@@ -108,6 +141,34 @@ function setup() {
         },
     }
 }
+
+describe('notification configuration transaction failures', () => {
+    test.each(['writeRuntime', 'audit', 'commit'] as const)(
+        'rolls back configuration and runtime and skips publish when %s fails',
+        async (failure) => {
+            const fixture = setup(failure === 'commit')
+            const before = structuredClone({
+                configuration: fixture.configuration(),
+                runtime: fixture.runtime(),
+            })
+            if (failure !== 'commit')
+                fixture.dependencies[failure].mockImplementationOnce(async () => {
+                    throw new Error(`${failure} failed`)
+                })
+            await expect(
+                fixture.service.updateNotificationConfigurationService(input),
+            ).rejects.toThrow(`${failure} failed`)
+            expect(fixture.configuration()).toEqual(before.configuration)
+            expect(fixture.runtime()).toEqual(before.runtime)
+            expect(fixture.dependencies.writeConfiguration).toHaveBeenCalledTimes(1)
+            expect(fixture.dependencies.writeRuntime).toHaveBeenCalledTimes(1)
+            expect(fixture.dependencies.audit).toHaveBeenCalledTimes(
+                failure === 'writeRuntime' ? 0 : 1,
+            )
+            expect(fixture.dependencies.publish).not.toHaveBeenCalled()
+        },
+    )
+})
 
 describe('notification admin authorization and persistence', () => {
     test.each(['delivery', 'marker'] as const)(
@@ -187,6 +248,7 @@ describe('notification admin authorization and persistence', () => {
         expect(status.deliveries).toEqual([])
         const updated = await fixture.service.updateNotificationConfigurationService(input)
         expect(updated.channels.map((channel) => channel.id)).toEqual([channelId])
+        expect(fixture.dependencies.audit.mock.calls.at(-1)?.[1].metadata?.channelCount).toBe(1)
         expect(
             fixture.configuration().channels.find((channel) => channel.id === personal.id),
         ).toEqual(personal)
@@ -379,5 +441,15 @@ describe('notification admin authorization and persistence', () => {
         })
         expect(fixture.dependencies.publish).toHaveBeenCalledTimes(1)
         expect(fixture.dependencies.buildConfiguration).toHaveBeenCalledTimes(1)
+        expect(fixture.order.slice(-8)).toEqual([
+            'authorize',
+            'lockConfiguration',
+            'lockRuntime',
+            'writeConfiguration',
+            'writeRuntime',
+            'audit',
+            'commit',
+            'publish',
+        ])
     })
 })
