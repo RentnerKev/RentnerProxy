@@ -8,6 +8,7 @@ export interface ProxyHostFormModalRefs {
 export type UseProxyHostFormLogicParams = Pick<
     ProxyHostFormModalProps,
     | 'initialGuideOpen'
+    | 'canConfigureCompression'
     | 'canEnable'
     | 'canDisable'
     | 'canAssignCertificates'

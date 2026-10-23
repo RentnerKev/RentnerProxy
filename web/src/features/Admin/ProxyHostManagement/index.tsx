@@ -150,6 +150,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
             ) : null}
             {state.showCreate ? (
                 <ProxyHostFormModal
+                    canConfigureCompression={state.canApply}
                     key={state.duplicateSource?.id ?? 'create'}
                     open
                     mode={state.duplicateSource ? 'duplicate' : 'create'}
@@ -172,6 +173,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
             ) : null}
             {state.selectedProxyHost ? (
                 <ProxyHostFormModal
+                    canConfigureCompression={state.canApply}
                     key={state.selectedProxyHost.id}
                     open
                     mode="edit"

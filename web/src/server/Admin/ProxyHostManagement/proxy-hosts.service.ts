@@ -24,6 +24,7 @@ import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/pro
 import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import {
+    readProxyHostHttpSettingsMap,
     lockProxyRuntimeSettings,
     writeProxyHostHttpSettings,
 } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
@@ -128,6 +129,7 @@ export async function readProxyHostSummariesInTransaction(
         }
     }
 
+    const httpSettings = await readProxyHostHttpSettingsMap(transaction, hostIds)
     const registry = await readDiscoveryRegistry(transaction)
     const ownersByHost = new Map<string, (typeof registry.owners)[number]>()
     for (const owner of registry.owners) {
@@ -138,6 +140,7 @@ export async function readProxyHostSummariesInTransaction(
         const owner = ownersByHost.get(summary.id)
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
+            responseCompression: httpSettings.get(summary.id)?.responseCompression ?? null,
             certificateJob: latestJobs.get(summary.id) ?? null,
             ...(owner && owner.state !== 'detached' ? { discovery: { state: owner.state } } : {}),
         })

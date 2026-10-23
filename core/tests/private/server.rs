@@ -155,6 +155,7 @@ fn custom_payload() -> Vec<u8> {
         proxy_send_timeout_seconds: Some(300),
         send_timeout_seconds: Some(30),
         keepalive_timeout_seconds: Some(75),
+        ..Default::default()
     };
     serde_json::to_vec(&ProxyConfigRequest {
         version: 7,

@@ -8,7 +8,11 @@ import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { accessPolicies, hostDomains, proxyHosts } from '@/db/schema.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
-import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import {
+    lockProxyRuntimeSettings,
+    readProxyHostHttpSettings,
+    writeProxyHostHttpSettings,
+} from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
@@ -140,6 +144,8 @@ export async function createProxyHostInTransaction(
     )
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
+    if (parsedInput.responseCompression != null)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_APPLY)
     await assertDomainsAvailableInTransaction(transaction, domains)
     const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
     const forceHttps = parsedInput.forceHttps ?? false
@@ -186,6 +192,13 @@ export async function createProxyHostInTransaction(
         throw new ProxyHostDomainError('invalid_input', 'Proxy host could not be created.')
     }
 
+    await writeProxyHostHttpSettings(
+        transaction,
+        proxyHost.id,
+        parsedInput.responseCompression
+            ? { responseCompression: parsedInput.responseCompression }
+            : {},
+    )
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
@@ -206,9 +219,16 @@ export async function createProxyHostInTransaction(
         resource: 'proxy-host',
         targetId: proxyHost.id,
         result: 'success',
+        ...(parsedInput.responseCompression == null
+            ? {}
+            : { metadata: { changedFields: ['responseCompression' as const] } }),
     })
 
-    return { ...toProxyHostSummary(proxyHost, domains), ...(tags ? { tags } : {}) }
+    return {
+        ...toProxyHostSummary(proxyHost, domains),
+        responseCompression: parsedInput.responseCompression ?? null,
+        ...(tags ? { tags } : {}),
+    }
 }
 
 export async function updateProxyHostInTransaction(
@@ -304,6 +324,19 @@ export async function updateProxyHostInTransaction(
         throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
     }
 
+    const httpSettings = { ...(await readProxyHostHttpSettings(transaction, proxyHost.id)) }
+    const previousCompression = httpSettings.responseCompression ?? null
+    if (parsedInput.responseCompression !== undefined) {
+        if (parsedInput.responseCompression !== previousCompression)
+            await requirePermissionInTransaction(
+                transaction,
+                actorId,
+                PERMISSIONS.PROXY_HOSTS_APPLY,
+            )
+        if (parsedInput.responseCompression === null) delete httpSettings.responseCompression
+        else httpSettings.responseCompression = parsedInput.responseCompression
+        await writeProxyHostHttpSettings(transaction, proxyHost.id, httpSettings)
+    }
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
     const tags =
         parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
@@ -327,6 +360,10 @@ export async function updateProxyHostInTransaction(
                 'domains',
                 'upstream',
                 'tls',
+                ...(parsedInput.responseCompression === undefined ||
+                parsedInput.responseCompression === previousCompression
+                    ? []
+                    : ['responseCompression' as const]),
                 ...(parsedInput.tagIds ? ['tags' as const] : []),
                 ...(parsedInput.certificateId === undefined ? [] : (['certificate'] as const)),
                 ...(parsedInput.trustedCaId === undefined ? [] : (['trustedCa'] as const)),
@@ -343,5 +380,9 @@ export async function updateProxyHostInTransaction(
         },
     })
 
-    return { ...toProxyHostSummary(updatedProxyHost, domains), ...(tags ? { tags } : {}) }
+    return {
+        ...toProxyHostSummary(updatedProxyHost, domains),
+        responseCompression: httpSettings.responseCompression ?? null,
+        ...(tags ? { tags } : {}),
+    }
 }

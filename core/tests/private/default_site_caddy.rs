@@ -739,3 +739,264 @@ async fn verify_real_caddy_client_addresses(ip_policy: bool) {
     echo_task.abort();
     let _ = echo_task.await;
 }
+
+const COMPRESSED_UPSTREAM: &[u8] = &[
+    31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 115, 204, 41, 74, 77, 76, 169, 84, 72, 206, 207, 45, 40, 74,
+    45, 46, 78, 77, 81, 40, 45, 40, 46, 1, 10, 230, 42, 20, 36, 86, 230, 228, 39, 166, 232, 41, 56,
+    142, 42, 26, 85, 52, 170, 104, 84, 209, 168, 162, 81, 69, 163, 138, 32, 138, 0, 187, 30, 39,
+    241, 58, 7, 0, 0,
+];
+
+fn compression_exchange(
+    address: SocketAddr,
+    path: &str,
+    encoding: &str,
+    method: &str,
+) -> HttpResponse {
+    compression_exchange_host(address, path, encoding, method, "compression.example")
+}
+
+fn compression_exchange_host(
+    address: SocketAddr,
+    path: &str,
+    encoding: &str,
+    method: &str,
+    host: &str,
+) -> HttpResponse {
+    let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(1)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .unwrap();
+    write!(stream, "{method} {path} HTTP/1.0\r\nHost: {host}\r\nAccept-Encoding: {encoding}\r\nConnection: close\r\n\r\n").unwrap();
+    let mut bytes = Vec::new();
+    stream.read_to_end(&mut bytes).unwrap();
+    response(&bytes)
+}
+
+fn decompress_response(bytes: &[u8], encoding: &str) -> Vec<u8> {
+    let binary = std::env::var_os("RENTNERPROXY_TEST_BUN_BIN").unwrap_or_else(|| "bun".into());
+    let mut child = Command::new(binary)
+        .args(["--no-env-file", "-e", "const data=Buffer.from(await Bun.stdin.arrayBuffer()); process.stdout.write(process.argv[1]==='gzip'?Bun.gunzipSync(data):Bun.zstdDecompressSync(data))", encoding])
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().expect("Bun is required to decode smoke response payloads");
+    child.stdin.take().unwrap().write_all(bytes).unwrap();
+    let result = child.wait_with_output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    result.stdout
+}
+
+#[test]
+#[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN and Bun for payload decoding"]
+fn response_compression_real_caddy_smoke() {
+    use crate::models::{ProxyHttpSettings, ResponseCompression};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
+
+    let binary = PathBuf::from(
+        std::env::var_os("RENTNERPROXY_TEST_CADDY_BIN").expect("set RENTNERPROXY_TEST_CADDY_BIN"),
+    )
+    .canonicalize()
+    .unwrap();
+    let workspace = SmokeWorkspace::new();
+    let payload = "Compression must preserve every byte. äöüß\n"
+        .repeat(100)
+        .into_bytes();
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    upstream.set_nonblocking(true).unwrap();
+    let upstream_address = upstream.local_addr().unwrap();
+    let running = Arc::new(AtomicBool::new(true));
+    let worker_running = running.clone();
+    let upstream_payload = payload.clone();
+    let (release_stream, stream_release) = mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        while worker_running.load(Ordering::Relaxed) {
+            let Ok((mut socket, _)) = upstream.accept() else {
+                std::thread::sleep(Duration::from_millis(5));
+                continue;
+            };
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                if socket.read(&mut byte).unwrap_or(0) == 0 {
+                    break;
+                }
+                request.push(byte[0]);
+            }
+            let request = String::from_utf8(request).unwrap();
+            let path = request.split_whitespace().nth(1).unwrap_or("/");
+            if path == "/stream" {
+                socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\ndata: first\n\n").unwrap();
+                socket.flush().unwrap();
+                let _ = stream_release.recv_timeout(Duration::from_secs(3));
+                let _ = socket.write_all(b"data: last\n\n");
+                continue;
+            }
+            let (mime, body, extra) = match path {
+                "/small" => ("text/plain", b"small".as_slice(), ""),
+                "/binary" => ("image/png", upstream_payload.as_slice(), ""),
+                "/encoded" => (
+                    "text/plain",
+                    COMPRESSED_UPSTREAM,
+                    "Content-Encoding: gzip\r\n",
+                ),
+                "/no-transform" => (
+                    "text/plain",
+                    upstream_payload.as_slice(),
+                    "Cache-Control: no-transform\r\n",
+                ),
+                _ => ("text/plain; charset=utf-8", upstream_payload.as_slice(), ""),
+            };
+            write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: {mime}\r\nContent-Length: {}\r\n{extra}Connection: close\r\n\r\n", body.len()).unwrap();
+            if !request.starts_with("HEAD ") {
+                let _ = socket.write_all(body);
+            }
+        }
+    });
+    // The worker is bounded even if a response assertion fails.
+    struct StopWorker(Arc<AtomicBool>);
+    impl Drop for StopWorker {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::Relaxed);
+        }
+    }
+    let _stop_worker = StopWorker(running.clone());
+    let listeners: Vec<_> = (0..2)
+        .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
+        .collect();
+    let addresses: Vec<_> = listeners.iter().map(|v| v.local_addr().unwrap()).collect();
+    let state = workspace.0.join("compression");
+    std::fs::create_dir(&state).unwrap();
+    let mut host = super::fixtures::host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["compression.example"],
+        "http",
+        "127.0.0.1",
+        upstream_address.port(),
+    );
+    let mut disabled = host.clone();
+    disabled.id = "018f4b4a-7d1f-7abc-8def-1123456789ab".into();
+    disabled.domains = vec!["off.example".into()];
+    disabled.http_settings.response_compression = Some(ResponseCompression::Off);
+    host.http_settings.response_compression = None;
+    let config = validate_proxy_config(super::fixtures::request_with_settings(
+        vec![host, disabled],
+        ProxyHttpSettings {
+            response_compression: Some(ResponseCompression::Auto),
+            ..Default::default()
+        },
+    ))
+    .unwrap();
+    let rendered = render_config(
+        Some(&config),
+        &RenderSettings {
+            http_port: addresses[0].port(),
+            probe_socket: None,
+            admin_socket: None,
+            state_dir: state.clone(),
+            controller_addr: addresses[0],
+            trusted_proxy_cidrs: Vec::new(),
+        },
+    )
+    .unwrap();
+    let mut json: Value = serde_json::from_str(&rendered).unwrap();
+    json["apps"]["http"]["servers"]["rentnerproxy-http"]["listen"] =
+        json!([addresses[0].to_string()]);
+    json["apps"]["http"]["servers"]["rentnerproxy-probe"]["listen"] =
+        json!([addresses[1].to_string()]);
+    let (_caddy, address, _) = start_rendered_caddy(&binary, &state, json, listeners);
+    for (accept, expected) in [
+        ("gzip", "gzip"),
+        ("zstd", "zstd"),
+        ("gzip, zstd", "zstd"),
+        ("zstd;q=0.2, gzip;q=1", "gzip"),
+    ] {
+        let result = compression_exchange(address, "/", accept, "GET");
+        assert_eq!(result.status, 200);
+        assert_eq!(result.headers.get("content-encoding").unwrap(), expected);
+        assert!(
+            result
+                .headers
+                .get("vary")
+                .unwrap()
+                .to_ascii_lowercase()
+                .contains("accept-encoding")
+        );
+        assert_eq!(decompress_response(&result.body, expected), payload);
+    }
+    for path in ["/small", "/binary", "/no-transform"] {
+        let result = compression_exchange(address, path, "zstd, gzip", "GET");
+        assert!(!result.headers.contains_key("content-encoding"));
+        assert_eq!(
+            result.body,
+            if path == "/small" {
+                b"small".to_vec()
+            } else {
+                payload.clone()
+            }
+        );
+    }
+    for encoding in ["identity", "br", "gzip;q=0, zstd;q=0"] {
+        let result = compression_exchange(address, "/", encoding, "GET");
+        assert!(!result.headers.contains_key("content-encoding"));
+        assert_eq!(result.body, payload);
+    }
+    let preserved = compression_exchange(address, "/encoded", "zstd, gzip", "GET");
+    assert_eq!(preserved.headers.get("content-encoding").unwrap(), "gzip");
+    assert_eq!(preserved.body, COMPRESSED_UPSTREAM);
+    assert_eq!(
+        decompress_response(&preserved.body, "gzip"),
+        b"Already compressed upstream payload. ".repeat(50)
+    );
+    let off = compression_exchange_host(address, "/", "zstd, gzip", "GET", "off.example");
+    assert!(!off.headers.contains_key("content-encoding"));
+    assert_eq!(off.body, payload);
+    let off_encoded =
+        compression_exchange_host(address, "/encoded", "zstd, gzip", "GET", "off.example");
+    assert_eq!(off_encoded.body, COMPRESSED_UPSTREAM);
+    assert_eq!(off_encoded.headers.get("content-encoding").unwrap(), "gzip");
+    assert!(
+        compression_exchange(address, "/", "gzip", "HEAD")
+            .body
+            .is_empty()
+    );
+
+    let mut stream = TcpStream::connect(address).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    stream
+        .write_all(
+            b"GET /stream HTTP/1.0\r\nHost: compression.example\r\nAccept-Encoding: gzip\r\n\r\n",
+        )
+        .unwrap();
+    let mut bytes = Vec::new();
+    let mut buffer = [0; 4096];
+    while !bytes.windows(4).any(|v| v == b"\r\n\r\n") {
+        let count = stream
+            .read(&mut buffer)
+            .expect("SSE headers must arrive before upstream completes");
+        assert_ne!(count, 0);
+        bytes.extend_from_slice(&buffer[..count]);
+    }
+    release_stream.send(()).unwrap();
+    stream.read_to_end(&mut bytes).unwrap();
+    let streamed = response(&bytes);
+    assert_eq!(streamed.status, 200);
+    let decoded = match streamed.headers.get("content-encoding") {
+        Some(encoding) => decompress_response(&streamed.body, encoding),
+        None => streamed.body,
+    };
+    assert_eq!(decoded, b"data: first\n\ndata: last\n\n");
+    running.store(false, Ordering::Relaxed);
+    worker.join().unwrap();
+}

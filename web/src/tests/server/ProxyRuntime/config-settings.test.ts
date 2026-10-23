@@ -53,3 +53,17 @@ describe('Caddy structured runtime settings', () => {
         expect(second).toEqual(first)
     })
 })
+
+test('compression is additive in v7, retained in desired state and included in the revision', () => {
+    const initial = createProxyRuntimeSnapshot([host()])
+    const automatic = createProxyRuntimeSnapshot([host()], { responseCompression: 'auto' })
+    const override = createProxyRuntimeSnapshot(
+        [host({ httpSettings: { responseCompression: 'off' } })],
+        { responseCompression: 'auto' },
+    )
+    expect(automatic.httpSettings).toEqual({ responseCompression: 'auto' })
+    expect(override.proxyHosts[0]?.httpSettings).toEqual({ responseCompression: 'off' })
+    expect(automatic.revision).not.toBe(initial.revision)
+    expect(override.revision).not.toBe(automatic.revision)
+    expect(createProxyRuntimeSnapshot([host()])).toEqual(initial)
+})

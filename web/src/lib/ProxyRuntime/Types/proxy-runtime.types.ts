@@ -1,6 +1,7 @@
 export type ProxyRuntimeMutationStatus = 'applied' | 'pending'
 
 export interface ProxyHttpSettings {
+    readonly responseCompression?: 'auto' | 'off'
     readonly clientMaxBodySizeBytes?: number
     readonly proxyConnectTimeoutSeconds?: number
     readonly proxyReadTimeoutSeconds?: number

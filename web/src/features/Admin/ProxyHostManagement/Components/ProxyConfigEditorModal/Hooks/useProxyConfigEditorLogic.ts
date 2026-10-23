@@ -59,7 +59,7 @@ export default function useProxyConfigEditorLogic({
         keepDraft,
         useSaved,
     } = useProxyConfigDraft(data)
-    const setSetting = (key: keyof ProxyHttpSettings, value: number | undefined) => {
+    const setSetting = <K extends keyof ProxyHttpSettings>(key: K, value: ProxyHttpSettings[K]) => {
         if (canEdit && !query.isFetching && !saveMutation.isPending && !resetMutation.isPending)
             updateSetting(key, value)
     }

@@ -118,6 +118,9 @@ async function saveHostSettings(
                 resource: 'proxy-host-settings',
                 targetId: proxyHostId,
                 result: 'success',
+                ...(settings.responseCompression === latest.hostSettings.responseCompression
+                    ? {}
+                    : { metadata: { changedFields: ['responseCompression' as const] } }),
             })
             return latest.host.enabled
         })

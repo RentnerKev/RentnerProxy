@@ -1459,6 +1459,15 @@
                 "title": "Configuração do Caddy",
                 "description": "Consulte a configuração ativa e ajuste com segurança as definições HTTP.",
                 "settings": "Definições HTTP",
+                "compression": {
+                    "title": "Compressão de respostas",
+                    "inherit": "Herdar definição global",
+                    "auto": "Automática (Zstd/Gzip)",
+                    "off": "Apenas upstream",
+                    "default": "Predefinição (apenas upstream)",
+                    "hint": "Compressão adicional para respostas elegíveis. As respostas já comprimidas são preservadas.",
+                    "effective": "Definição global: {{mode}}."
+                },
                 "fieldClientMaxBodySizeBytes": "Tamanho máximo do corpo do pedido",
                 "fieldProxyConnectTimeoutSeconds": "Tempo limite de ligação ao servidor de destino",
                 "fieldProxyReadTimeoutSeconds": "Tempo limite de resposta do servidor de destino",

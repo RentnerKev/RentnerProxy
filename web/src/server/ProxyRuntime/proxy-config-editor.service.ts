@@ -92,6 +92,9 @@ async function saveSettings(
                 resource: 'proxy-runtime-settings',
                 targetId: null,
                 result: 'success',
+                ...(settings.responseCompression === latest.httpSettings.responseCompression
+                    ? {}
+                    : { metadata: { changedFields: ['responseCompression' as const] } }),
             })
         })
     } catch (error) {

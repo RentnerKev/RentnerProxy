@@ -93,6 +93,7 @@ function hostSettingsKey(proxyHostId: string): string {
 function normalizeStoredHostSettings(input: unknown): ProxyHttpSettings {
     const parsed = proxyHttpSettingsSchema.parse(input)
     return normalizeProxyHostHttpSettings({
+        responseCompression: parsed.responseCompression,
         clientMaxBodySizeBytes: parsed.clientMaxBodySizeBytes,
         proxyConnectTimeoutSeconds: parsed.proxyConnectTimeoutSeconds,
         proxyReadTimeoutSeconds: parsed.proxyReadTimeoutSeconds,

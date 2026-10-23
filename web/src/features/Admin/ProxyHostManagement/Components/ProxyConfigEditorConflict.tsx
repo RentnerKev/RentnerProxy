@@ -53,6 +53,21 @@ export default function ProxyConfigEditorConflict({
                                 </tr>
                             </thead>
                             <tbody>
+                                <tr>
+                                    <th scope="row" className="py-2 pr-3 font-medium">
+                                        {t('admin.proxyHosts.config.compression.title')}
+                                    </th>
+                                    <td className="pr-3">
+                                        {t(
+                                            `admin.proxyHosts.config.compression.${latest.responseCompression ?? (global ? 'default' : 'inherit')}`,
+                                        )}
+                                    </td>
+                                    <td>
+                                        {t(
+                                            `admin.proxyHosts.config.compression.${settings.responseCompression ?? (global ? 'default' : 'inherit')}`,
+                                        )}
+                                    </td>
+                                </tr>
                                 {FIELDS.slice(0, global ? 6 : 4).map(([key, label, unit]) => (
                                     <tr key={key}>
                                         <th scope="row" className="py-2 pr-3 font-medium">

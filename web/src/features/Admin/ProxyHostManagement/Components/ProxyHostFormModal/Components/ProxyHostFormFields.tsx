@@ -1,3 +1,4 @@
+import ResponseCompressionField from '../../ResponseCompressionField.tsx'
 import QueryFieldFeedback from '@/shared/Forms/QueryFieldFeedback.tsx'
 import useProxyHostFormFieldsLogic from '../Hooks/useProxyHostFormFieldsLogic.ts'
 import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
@@ -12,6 +13,7 @@ import UpstreamTlsFields from './UpstreamTlsFields.tsx'
 import CertificateRequestFields from '@/features/Admin/CertificateManagement/Components/CertificateRequestModal/Components/CertificateRequestFields.tsx'
 
 export default function ProxyHostFormFields({
+    canConfigureCompression,
     addDomain,
     canChangeEnabled,
     canAssignCertificates,
@@ -357,6 +359,18 @@ export default function ProxyHostFormFields({
                         </div>
                     ) : null
                 }}
+            </form.Field>
+            <form.Field name="responseCompression">
+                {(field) => (
+                    <div className="shell:col-span-full">
+                        <ResponseCompressionField
+                            id={`${formId}-responseCompression`}
+                            value={field.state.value}
+                            disabled={isPending || !canConfigureCompression}
+                            onChange={(value) => field.handleChange(value ?? null)}
+                        />
+                    </div>
+                )}
             </form.Field>
             <form.Field name="enabled">
                 {(field) => (

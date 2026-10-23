@@ -150,6 +150,8 @@ impl MatcherSet {
 #[derive(Serialize)]
 #[serde(tag = "handler")]
 pub(super) enum Handler {
+    #[serde(rename = "encode")]
+    Encode(Encode),
     #[serde(rename = "static_response")]
     StaticResponse(StaticResponse),
     #[serde(rename = "reverse_proxy")]
@@ -172,6 +174,12 @@ pub(super) enum Handler {
     ErrorResponse(ErrorResponse),
     #[serde(rename = "static_response")]
     AbortResponse(AbortResponse),
+}
+
+#[derive(Serialize)]
+pub(super) struct Encode {
+    pub(super) encodings: BTreeMap<String, EmptyVars>,
+    pub(super) prefer: Vec<String>,
 }
 
 #[derive(Serialize)]

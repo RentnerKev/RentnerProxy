@@ -1,3 +1,4 @@
+import ResponseCompressionField from '../ResponseCompressionField.tsx'
 import ProxyConfigEditorConflict from '../ProxyConfigEditorConflict.tsx'
 import ProxyConfigEditorActions from '../ProxyConfigEditorActions.tsx'
 import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
@@ -308,6 +309,17 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                                     {t('admin.proxyHosts.config.inheritsDefaults')}
                                 </p>
                                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                                    <ResponseCompressionField
+                                        id="proxy-host-setting-responseCompression"
+                                        value={state.settings.responseCompression}
+                                        inherited={
+                                            state.data!.inheritedSettings.responseCompression
+                                        }
+                                        disabled={!props.canEdit || busy || state.hasConflict}
+                                        onChange={(value) =>
+                                            handler.setSetting('responseCompression', value)
+                                        }
+                                    />
                                     {FIELDS.map((field) => (
                                         <HostSettingField
                                             key={field[0]}

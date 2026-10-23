@@ -147,11 +147,13 @@ const resetProxyHostConfigEditorHandlerMock = mock(
 const getProxyConfigEditorHandlerMock = mock(
     async (): Promise<ProxyConfigEditorData> => globalEditorFixture,
 )
-const saveProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
-    success: true,
-    message: 'admin.proxyHosts.config.saved',
-    runtimeStatus: 'applied',
-}))
+const saveProxyConfigEditorHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.config.saved',
+        runtimeStatus: 'applied',
+    }),
+)
 const resetProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
     success: true,
     message: 'admin.proxyHosts.config.reset',
@@ -1284,6 +1286,7 @@ describe('ProxyHost permissions and row actions', () => {
 })
 
 function FormHarness({
+    canConfigureCompression = false,
     initialGuideOpen = false,
     canDisable = true,
     canEnable = true,
@@ -1293,6 +1296,7 @@ function FormHarness({
     mode,
     proxyHost,
 }: {
+    canConfigureCompression?: boolean
     initialGuideOpen?: boolean
     canDisable?: boolean
     canEnable?: boolean
@@ -1305,6 +1309,7 @@ function FormHarness({
     const [open, setOpen] = useState(true)
     return (
         <ProxyHostFormModal
+            canConfigureCompression={canConfigureCompression}
             open={open}
             initialGuideOpen={initialGuideOpen}
             mode={mode}
@@ -1840,6 +1845,33 @@ describe('ProxyHost confirmation and mutation flows', () => {
     )
 })
 
+for (const canConfigureCompression of [true, false]) {
+    test(`host creation compression respects apply permission: ${canConfigureCompression}`, async () => {
+        await render(
+            withQueryClient(
+                <FormHarness mode="create" canConfigureCompression={canConfigureCompression} />,
+            ),
+        )
+        const control = getButton('Response compression')
+        expect(control.disabled).toBe(!canConfigureCompression)
+        if (canConfigureCompression)
+            await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'compression.example.com')
+        await blurControl(domain)
+        const upstream = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+        await setControlValue(upstream, 'backend.internal')
+        await blurControl(upstream)
+        await click(getButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        const submitted = createProxyHostHandlerMock.mock.calls[0]?.[0] as {
+            data: { responseCompression?: string }
+        }
+        if (canConfigureCompression) expect(submitted.data.responseCompression).toBe('auto')
+        else expect(submitted.data).not.toHaveProperty('responseCompression')
+    })
+}
+
 test('assigns a usable certificate and enables HTTPS redirect', async () => {
     getAssignableCertificatesHandlerMock.mockResolvedValueOnce([assignableCertificate])
     await render(withQueryClient(<FormHarness mode="create" canAssignCertificates />))
@@ -2055,6 +2087,21 @@ describe('Caddy global proxy configuration editor', () => {
         await waitFor(() => document.querySelectorAll('input[type="number"]').length === 6)
     }
 
+    test('saves the global automatic compression default', async () => {
+        await openEditor()
+        await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyConfigEditorHandlerMock.mock.calls[0]).toEqual([
+            {
+                data: {
+                    baseRevision: editorBaseRevision,
+                    settings: { proxyReadTimeoutSeconds: 90, responseCompression: 'auto' },
+                },
+            },
+        ])
+    })
+
     test('shows only settings and active config with formatted syntax colors', async () => {
         await openEditor()
         expect(document.body.textContent).not.toContain('Generated defaults')
@@ -2149,6 +2196,33 @@ describe('Caddy proxy host configuration editor', () => {
             expect(dialog.textContent).not.toContain('private transport failure')
         })
     }
+
+    test('saves an upstream-only override and removes it when inheriting again', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            settings: { responseCompression: 'off' },
+            inheritedSettings: { responseCompression: 'auto' },
+        })
+        const dialog = await openHostConfig()
+        expect(
+            dialog
+                .querySelector('[data-setting="responseCompression"]')
+                ?.getAttribute('data-setting-source'),
+        ).toBe('override')
+        await chooseSelectOption('Response compression', 'Inherit global default')
+        expect(dialog.textContent).toContain('Global setting: Automatic (Zstd/Gzip).')
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock.mock.calls[0]).toEqual([
+            {
+                data: {
+                    proxyHostId: editorFixture.proxyHostId,
+                    baseRevision: editorBaseRevision,
+                    settings: {},
+                },
+            },
+        ])
+    })
 
     test('labels inherited and overridden values and updates the effective value', async () => {
         const dialog = await openHostConfig()
@@ -2422,6 +2496,30 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
                 document.body.textContent?.includes('Keep my draft and use this revision') ?? false,
         )
     }
+    test('merges a compression draft using the explicitly reviewed configuration revision', async () => {
+        saveMock.mockResolvedValueOnce(conflict)
+        const dialog = await openEditor()
+        await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
+        await click(getButton('Save'))
+        await waitFor(() => getButton('Save').disabled)
+        latest({ proxyReadTimeoutSeconds: 90, proxySendTimeoutSeconds: 180 })
+        await review()
+        expect(dialog.querySelector('table')?.textContent).toContain('Automatic (Zstd/Gzip)')
+        await click(getButton('Keep my draft and use this revision'))
+        await click(getButton('Save'))
+        await waitFor(() => saveMock.mock.calls.length === 2)
+        const expected = {
+            baseRevision: latestRevision,
+            settings: {
+                responseCompression: 'auto',
+                proxyReadTimeoutSeconds: 90,
+                proxySendTimeoutSeconds: 180,
+            },
+        }
+        expect(saveMock.mock.calls[1]?.[0]).toEqual({
+            data: scope === 'host' ? { proxyHostId: enabledHost.id, ...expected } : expected,
+        })
+    })
     test('requires explicit review and separate save, merges only local edits and rejects a second race', async () => {
         const dialog = await startConflict()
         expect(getMock).toHaveBeenCalledTimes(1)

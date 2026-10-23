@@ -78,6 +78,7 @@ export const proxyUpstreamTlsServerNameSchema = z
     })
 
 const proxyHostInputSchema = z.object({
+    responseCompression: z.enum(['auto', 'off']).nullable().optional(),
     tagIds: hostTagIdsSchema.optional(),
     domains: proxyHostDomainsSchema,
     forwardScheme: z.enum(PROXY_HOST_FORWARD_SCHEMES),

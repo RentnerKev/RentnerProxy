@@ -1445,6 +1445,15 @@
                 "title": "Configuration Caddy",
                 "description": "Consultez la configuration active et ajustez les paramètres HTTP en toute sécurité.",
                 "settings": "Paramètres HTTP",
+                "compression": {
+                    "title": "Compression des réponses",
+                    "inherit": "Hériter du réglage global",
+                    "auto": "Automatique (Zstd/Gzip)",
+                    "off": "Serveur amont uniquement",
+                    "default": "Par défaut (serveur amont uniquement)",
+                    "hint": "Compression supplémentaire des réponses compatibles. Les réponses déjà compressées sont conservées.",
+                    "effective": "Réglage global : {{mode}}."
+                },
                 "fieldClientMaxBodySizeBytes": "Taille maximale de la requête",
                 "fieldProxyConnectTimeoutSeconds": "Délai de connexion à l’amont",
                 "fieldProxyReadTimeoutSeconds": "Délai de réponse de l’amont",

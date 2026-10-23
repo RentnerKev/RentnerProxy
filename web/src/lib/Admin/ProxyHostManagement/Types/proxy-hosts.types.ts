@@ -19,6 +19,7 @@ export interface ProxyHostAccessPolicy {
 }
 
 export interface ProxyHostSummary {
+    readonly responseCompression?: 'auto' | 'off' | null | undefined
     readonly tags?: readonly HostTag[]
     readonly discovery?: { readonly state: 'managed' | 'orphaned' } | null
     readonly certificateJob?: CertificateJobSummary | null
