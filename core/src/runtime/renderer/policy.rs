@@ -79,6 +79,7 @@ pub(super) fn proxy_route(
             prefer: vec!["zstd".to_owned(), "gzip".to_owned()],
         }));
     }
+    handle.extend(super::browser_cache::handlers(host));
     let upstream = upstream_dial(&host.forward_host, host.forward_port);
     let mut proxy = reverse_proxy(
         &upstream,
@@ -103,6 +104,27 @@ pub(super) fn proxy_route(
         key: "upstream".to_owned(),
         value: "{http.reverse_proxy.upstream.address}".to_owned(),
     }));
+    if host
+        .access_policy
+        .as_ref()
+        .is_none_or(|policy| policy.mode == AccessPolicyMode::Public)
+        && let Some(settings) = host.response_cache.as_ref()
+    {
+        use aws_lc_rs::digest::{SHA256, digest};
+        let identity = serde_json::to_vec(&(host, defaults, forwarded_proto))
+            .expect("typed cache identity is serializable");
+        let configuration = digest(&SHA256, &identity)
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        handle.push(Handler::ResponseCache(super::model::ResponseCache {
+            configuration,
+            scheme: forwarded_proto.to_owned(),
+            path_prefixes: settings.path_prefixes.clone(),
+            ttl_seconds: settings.ttl_seconds,
+        }));
+    }
     handle.push(Handler::ReverseProxy(Box::new(proxy)));
     Ok(Route {
         matchers: vec![matcher],

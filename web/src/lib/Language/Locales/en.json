@@ -1597,6 +1597,26 @@
                 "resultHelp": "Saving stores configuration. A queued or issuing certificate is not ready. Wait for application and check the runtime status; applied configuration does not prove DNS or your service is reachable.",
                 "failureHelp": "Fix highlighted fields before saving. For failed certificate jobs inspect the error and retry after fixing it. For pending configuration apply changes when permitted; if the runtime is unavailable, restore it and retry.",
                 "certificateUnavailable": "Details unavailable"
+            },
+            "browserCache": {
+                "title": "Browser cache for public assets",
+                "help": "Fills missing cache policy only. Exact asset file path or public directory ending in / (e.g. /assets/). Up to 20 rules, 31,536,000 seconds. Existing cache headers are preserved. Successful GET/HEAD responses with asset content types only. Protected hosts, cookies, credentials, query parameters, conditional and range requests are bypassed. Rules must not overlap.",
+                "enable": "Enable browser-cache rules",
+                "path": "Public file path or directory/",
+                "age": "Freshness in seconds",
+                "immutable": "This asset is versioned (immutable)",
+                "remove": "Remove rule",
+                "add": "Add rule",
+                "invalid": "Enter unique public asset paths or directories and freshness from 1 to 31,536,000 seconds. Enabled rules cannot be empty. HTML, API, auth paths and wildcards are not allowed. Rules must not overlap.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Public asset response cache",
+                "enabled": "Enable response cache",
+                "paths": "Public path prefixes (comma separated, ending in /)",
+                "ttl": "Maximum lifetime in seconds (1–3600)",
+                "hint": "Off by default. Only successful public CSS, JavaScript, image and font responses in these paths can be stored. Cookies, credentials, queries, streaming responses and protected hosts always bypass the cache. Limits: 1 MiB per response, 64 MiB shared payload budget and 1024 entries.",
+                "invalid": "Use 1–16 unique path prefixes such as /assets/, and a lifetime from 1 to 3600 seconds."
             }
         },
         "redirectHosts": {

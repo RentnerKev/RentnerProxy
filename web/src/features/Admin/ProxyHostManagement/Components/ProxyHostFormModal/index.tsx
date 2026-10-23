@@ -1,5 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { Info } from 'lucide-react'
+import BrowserCacheFields from '../BrowserCacheFields/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -84,6 +85,15 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         retryAssignableCertificates={handler.retryAssignableCertificates}
                         setRequestNewCertificate={handler.setRequestNewCertificate}
                     />
+                    <form.Field name="browserCache">
+                        {(field) => (
+                            <BrowserCacheFields
+                                value={field.state.value}
+                                onChange={field.handleChange}
+                                disabled={state.isPending || !props.canConfigureBrowserCache}
+                            />
+                        )}
+                    </form.Field>
                     <form.Field name="tagIds">
                         {(field) => (
                             <HostTagSelect

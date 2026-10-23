@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf};
 
+mod browser_cache;
 mod config;
 mod default_site;
 mod model;

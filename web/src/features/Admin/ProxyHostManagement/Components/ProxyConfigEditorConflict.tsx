@@ -68,6 +68,19 @@ export default function ProxyConfigEditorConflict({
                                         )}
                                     </td>
                                 </tr>
+                                {!global ? (
+                                    <tr>
+                                        <th scope="row">
+                                            {t('admin.proxyHosts.browserCache.title')}
+                                        </th>
+                                        <td className="max-w-48 break-all">
+                                            {JSON.stringify(latest.browserCache ?? null)}
+                                        </td>
+                                        <td className="max-w-48 break-all">
+                                            {JSON.stringify(settings.browserCache ?? null)}
+                                        </td>
+                                    </tr>
+                                ) : null}
                                 {FIELDS.slice(0, global ? 6 : 4).map(([key, label, unit]) => (
                                     <tr key={key}>
                                         <th scope="row" className="py-2 pr-3 font-medium">

@@ -86,6 +86,7 @@ fn valid_payload() -> Vec<u8> {
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
+        response_cache: None,
         access_policy: None,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
@@ -146,9 +147,11 @@ fn custom_payload() -> Vec<u8> {
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
+        response_cache: None,
         access_policy: None,
     }];
     let http_settings = ProxyHttpSettings {
+        browser_cache: None,
         client_max_body_size_bytes: Some(10_485_760),
         proxy_connect_timeout_seconds: Some(15),
         proxy_read_timeout_seconds: Some(300),

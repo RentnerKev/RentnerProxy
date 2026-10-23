@@ -1,3 +1,5 @@
+import type { BrowserCacheSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 import type { ProxyHostForwardScheme } from '../../../../config/Types/proxy-hosts-config.types.ts'
 import type {
     AccessPolicyCombination,
@@ -20,6 +22,8 @@ export interface ProxyHostAccessPolicy {
 
 export interface ProxyHostSummary {
     readonly responseCompression?: 'auto' | 'off' | null | undefined
+    readonly browserCache?: BrowserCacheSettings | undefined
+    readonly responseCache?: ResponseCacheSettings | null | undefined
     readonly tags?: readonly HostTag[]
     readonly discovery?: { readonly state: 'managed' | 'orphaned' } | null
     readonly certificateJob?: CertificateJobSummary | null

@@ -3,6 +3,8 @@ import '@tanstack/react-start/server-only'
 
 import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { responseCacheSchema } from '@/lib/ResponseCache/responseCache.ts'
+import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 
 import { systemSettings } from '@/db/schema.ts'
 import {
@@ -18,6 +20,7 @@ export const PROXY_RUNTIME_SETTINGS_KEY = 'proxy_runtime_editor_v1'
 const storedSettingsSchema = z.strictObject({
     version: z.literal(1),
     httpSettings: proxyHttpSettingsSchema,
+    responseCache: responseCacheSchema.optional(),
 })
 
 function parseStoredSettings(input: unknown, errorMessage: string) {
@@ -94,6 +97,7 @@ function normalizeStoredHostSettings(input: unknown): ProxyHttpSettings {
     const parsed = proxyHttpSettingsSchema.parse(input)
     return normalizeProxyHostHttpSettings({
         responseCompression: parsed.responseCompression,
+        browserCache: parsed.browserCache,
         clientMaxBodySizeBytes: parsed.clientMaxBodySizeBytes,
         proxyConnectTimeoutSeconds: parsed.proxyConnectTimeoutSeconds,
         proxyReadTimeoutSeconds: parsed.proxyReadTimeoutSeconds,
@@ -146,11 +150,57 @@ export async function writeProxyHostHttpSettings(
 ): Promise<void> {
     const key = hostSettingsKey(proxyHostId)
     const httpSettings = normalizeProxyHostHttpSettings(settings)
-    if (Object.keys(httpSettings).length === 0) {
+    const responseCache = (await readResponseCacheSettingsMap(transaction, [proxyHostId])).get(
+        proxyHostId,
+    )
+    if (Object.keys(httpSettings).length === 0 && !responseCache) {
         await transaction.delete(systemSettings).where(eq(systemSettings.key, key))
         return
     }
-    const value = { version: 1, httpSettings }
+    const value = { version: 1, httpSettings, ...(responseCache ? { responseCache } : {}) }
+    await transaction
+        .insert(systemSettings)
+        .values({ key, value: jsonbValue(value) })
+        .onConflictDoUpdate({
+            target: systemSettings.key,
+            set: { value: jsonbValue(value), updatedAt: new Date() },
+        })
+}
+
+export async function readResponseCacheSettingsMap(
+    transaction: AuthTransaction,
+    proxyHostIds: readonly string[],
+): Promise<Map<string, ResponseCacheSettings>> {
+    if (proxyHostIds.length === 0) return new Map()
+    const rows = await transaction
+        .select({ key: systemSettings.key, value: systemSettings.value })
+        .from(systemSettings)
+        .where(inArray(systemSettings.key, proxyHostIds.map(hostSettingsKey)))
+    const result = new Map<string, ResponseCacheSettings>()
+    for (const row of rows) {
+        const stored = parseStoredSettings(
+            row.value,
+            'Stored proxy host HTTP settings are invalid.',
+        )
+        if (stored.responseCache)
+            result.set(row.key.slice(HOST_SETTINGS_PREFIX.length), stored.responseCache)
+    }
+    return result
+}
+
+export async function writeResponseCacheSettings(
+    transaction: AuthTransaction,
+    proxyHostId: string,
+    settings: ResponseCacheSettings | null,
+): Promise<void> {
+    const key = hostSettingsKey(proxyHostId)
+    const httpSettings = await readProxyHostHttpSettings(transaction, proxyHostId)
+    const responseCache = settings === null ? undefined : responseCacheSchema.parse(settings)
+    if (!responseCache && Object.keys(httpSettings).length === 0) {
+        await transaction.delete(systemSettings).where(eq(systemSettings.key, key))
+        return
+    }
+    const value = { version: 1, httpSettings, ...(responseCache ? { responseCache } : {}) }
     await transaction
         .insert(systemSettings)
         .values({ key, value: jsonbValue(value) })

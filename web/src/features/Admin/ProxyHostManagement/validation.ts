@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { browserCacheSettingsSchema } from './config-validation.ts'
+import { responseCacheSchema } from '@/lib/ResponseCache/responseCache.ts'
 import { hostTagIdsSchema } from '@/lib/HostTags/hostTags.ts'
 
 import { MAX_PROXY_HOST_DOMAINS, PROXY_HOST_FORWARD_SCHEMES } from '@/config/proxy-hosts.config.ts'
@@ -79,7 +81,9 @@ export const proxyUpstreamTlsServerNameSchema = z
 
 const proxyHostInputSchema = z.object({
     responseCompression: z.enum(['auto', 'off']).nullable().optional(),
+    browserCache: browserCacheSettingsSchema.optional(),
     tagIds: hostTagIdsSchema.optional(),
+    responseCache: responseCacheSchema.nullable().optional(),
     domains: proxyHostDomainsSchema,
     forwardScheme: z.enum(PROXY_HOST_FORWARD_SCHEMES),
     forwardHost: proxyForwardHostSchema,

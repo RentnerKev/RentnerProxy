@@ -33,6 +33,10 @@ describe('upstream Caddy binary security metadata', () => {
         )
         for (const image of images) {
             expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
+            expect(image).toContain(
+                'COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/',
+            )
+            expect(image).toContain('http.handlers.rentnerproxy_response_cache')
             expect(image.match(/RUN \/bin\/sh \/tmp\/build-caddy.sh/gu)).toHaveLength(1)
             expect(image).not.toContain('xcaddy build')
             expect(image).toContain('ENV GOTOOLCHAIN=local CGO_ENABLED=0')
@@ -54,6 +58,9 @@ describe('upstream Caddy binary security metadata', () => {
         for (const contract of [
             'test "$(go env GOVERSION)" = go1.27.2',
             '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT}',
+            'go mod verify',
+            'go test -mod=readonly ./...',
+            '--with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
             '--replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module}',
             '--replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1',
             '--replace golang.org/x/net=golang.org/x/net@v0.61.0',

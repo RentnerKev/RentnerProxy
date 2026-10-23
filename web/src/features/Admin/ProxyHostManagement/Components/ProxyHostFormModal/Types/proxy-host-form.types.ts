@@ -12,12 +12,14 @@ export type ProxyHostEditorFormValues = z.input<typeof proxyHostFormSchema>
 type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
 
 export interface ProxyHostFormModalProps {
+    readonly canConfigureBrowserCache?: boolean
     readonly initialGuideOpen?: boolean
     readonly canConfigureCompression?: boolean
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
     readonly canRequestCertificate?: boolean
+    readonly canApplyResponseCache?: boolean
     readonly canAssignPolicies?: boolean
     readonly mode: 'create' | 'edit' | 'duplicate'
     readonly onOpenChange: (open: boolean) => void
@@ -44,6 +46,7 @@ export interface ProxyHostFormModalState {
     readonly guide: ProxyHostSetupGuideState
     readonly canAssignCertificates: boolean
     readonly canRequestCertificate: boolean
+    readonly canApplyResponseCache: boolean
     readonly canAssignPolicies: boolean
     readonly assignableAccessPolicies: readonly AccessPolicySummary[]
     readonly assignableAccessPoliciesLoadFailed: boolean
@@ -88,6 +91,7 @@ export type ProxyHostFormFieldsProps = Pick<
     | 'canChangeEnabled'
     | 'canAssignCertificates'
     | 'canRequestCertificate'
+    | 'canApplyResponseCache'
     | 'canAssignPolicies'
     | 'assignableAccessPolicies'
     | 'assignableAccessPoliciesLoadFailed'

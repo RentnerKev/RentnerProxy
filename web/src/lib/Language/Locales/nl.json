@@ -1578,6 +1578,26 @@
                 "resultHelp": "Opslaan bewaart de configuratie. Een certificaat in de wachtrij of in uitgifte is nog niet klaar. Wacht op toepassing en controleer de runtime; toegepaste configuratie bewijst geen bereikbaarheid via DNS of van de service.",
                 "failureHelp": "Corrigeer gemarkeerde velden voor het opslaan. Bekijk certificaatfouten en probeer opnieuw na herstel. Pas wachtende wijzigingen toe als je toestemming hebt; herstel een onbeschikbare runtime en probeer opnieuw.",
                 "certificateUnavailable": "Details niet beschikbaar"
+            },
+            "browserCache": {
+                "title": "Browsercache voor openbare bestanden",
+                "help": "Vult alleen ontbrekend cachebeleid aan. Exact bestand of openbare map eindigend op /; maximaal 20 regels en 31.536.000 seconden. Bestaande headers blijven behouden. Alleen geslaagde GET/HEAD met statische inhoudstypen. Beveiligde hosts, cookies, inloggegevens, queryparameters, voorwaardelijke aanvragen en bereiken worden overgeslagen. Regels mogen niet overlappen.",
+                "enable": "Browsercacheregels inschakelen",
+                "path": "Openbaar bestand of map/",
+                "age": "Geldigheid in seconden",
+                "immutable": "Dit bestand heeft een versie (immutable)",
+                "remove": "Regel verwijderen",
+                "add": "Regel toevoegen",
+                "invalid": "Voer unieke openbare paden en een geldigheid van 1 tot 31.536.000 seconden in. Actieve regels mogen niet leeg zijn. HTML, API, authenticatie en jokertekens zijn niet toegestaan. Regels mogen niet overlappen.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Antwoordcache voor openbare bestanden",
+                "enabled": "Antwoordcache inschakelen",
+                "paths": "Openbare padprefixen (komma gescheiden, eindigend op /)",
+                "ttl": "Maximale levensduur in seconden (1–3600)",
+                "hint": "Alleen geslaagde openbare CSS-, JavaScript-, afbeeldings- en lettertypeantwoorden. Cookies, inloggegevens, queryparameters, streams en beschermde hosts omzeilen de cache. Grenzen: 1 MiB per antwoord, 64 MiB gedeeld en 1024 items.",
+                "invalid": "Gebruik 1–16 unieke padprefixen zoals /assets/ en een levensduur van 1 tot 3600 seconden."
             }
         },
         "redirectHosts": {

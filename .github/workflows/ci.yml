@@ -297,3 +297,32 @@ jobs:
 
             - name: Build production artifacts
               run: bun --no-env-file run build
+
+    caddy-response-cache:
+        name: Caddy Response Cache
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Verify module checksums, race safety and formatting
+              run: |
+                  docker run --rm --workdir /src \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
+                    --env GOTOOLCHAIN=local --env CGO_ENABLED=1 \
+                    mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e \
+                    /bin/sh -ec 'go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
+
+            - name: Build actual custom Caddy
+              run: docker build --file docker/proxy-runtime/Dockerfile --target caddy-build --tag response-cache-caddy:test .
+
+            - name: Verify counting upstream, security ordering, variants and ephemeral lifecycle
+              run: |
+                  docker run --rm --entrypoint /bin/sh --workdir /src \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
+                    --env RENTNERPROXY_CADDY_TEST_BINARY=/usr/bin/caddy \
+                    response-cache-caddy:test \
+                    -ec 'go test -mod=readonly -run TestCaddyRuntime -count=1 -v ./...'

@@ -21,6 +21,7 @@ ARG CADDY_CROWDSEC_BOUNCER_COMMIT=ffdcb7c6f8619effc7510bc0db0edec3609a1d28
 ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261023161224-4ad6aec1ccc6
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
+COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/rentnerproxy-caddy
 RUN /bin/sh /tmp/build-caddy.sh
 
@@ -37,6 +38,7 @@ RUN apt-get update \
     && update-ca-certificates \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
+    && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \

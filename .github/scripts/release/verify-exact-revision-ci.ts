@@ -10,6 +10,7 @@ export const REQUIRED_CI_JOBS = [
     'Fuzz Tests',
     'Rust',
     'Build',
+    'Caddy Response Cache',
 ] as const
 const REPOSITORY = 'rentnerkev/rentnerproxy'
 const API_PATH = `/repos/${REPOSITORY}/actions`
