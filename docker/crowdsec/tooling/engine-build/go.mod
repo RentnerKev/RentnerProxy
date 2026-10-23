@@ -1,4 +1,4 @@
-module github.com/crowdsecurity/crowdsec
+module rentnerproxy.local/crowdsec-dependencies
 
 go 1.27.2
 
