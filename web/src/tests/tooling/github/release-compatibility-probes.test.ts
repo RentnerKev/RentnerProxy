@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, lstat } from 'node:fs/promises
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { webSocketProbeScript } from '../../../../../.github/scripts/ci/release-compatibility/websocket-probe.ts'
+import { assertFreshExternalDefaults } from '../../../../../.github/scripts/ci/release-compatibility/state.ts'
 import {
     prepareTargetSource,
     immutableImageId,
@@ -31,6 +32,45 @@ async function capture(args: string[], cwd?: string) {
         clearTimeout(timer)
     }
 }
+
+describe('compatibility external-defaults diagnostics', () => {
+    test.each([
+        ['disabled', 'external-mutations-disabled'],
+        ['ddns-http', 'ddns-http-503'],
+        ['discovery-http', 'discovery-http-401'],
+        ['ddns-configured', 'ddns-configured'],
+        ['discovery-enabled', 'discovery-not-disabled'],
+    ] as const)('reports only a fixed status for %s', async (mode, expected) => {
+        let reported = ''
+        const fixtureValue = 'private-fixture-value-must-not-appear'
+        const command = async (args: string[]) => {
+            if (!args.includes('bun')) {
+                expect(args.at(-1)).toContain('psql')
+                return '0'
+            }
+            expect(args.slice(-2, -1)).toEqual(['-e'])
+            const source = [
+                `Bun.file=()=>({text:async()=>${JSON.stringify(fixtureValue)}});`,
+                `const mode=${JSON.stringify(mode)};const fixtureValue=${JSON.stringify(fixtureValue)};`,
+                "globalThis.fetch=async(url)=>{const ddns=url.endsWith('/ddns/status');const code=ddns&&mode==='ddns-http'?503:!ddns&&mode==='discovery-http'?401:200;const configuration=ddns?(mode==='ddns-configured'?{credential:fixtureValue}:null):{settings:{enabled:mode==='discovery-enabled'}};return Response.json({configuration,private:fixtureValue},{status:code});};",
+                args.at(-1)!,
+            ].join('')
+            const result = await capture([process.execPath, '--no-env-file', '-e', source])
+            expect(result.exitCode).toBe(0)
+            expect(result.stderr).toBe('')
+            expect(result.stdout).toBe(expected)
+            expect(result.stdout).not.toContain(fixtureValue)
+            reported = result.stdout
+            return result.stdout
+        }
+        if (mode === 'disabled') await assertFreshExternalDefaults(command, 'fixture-container')
+        else
+            await expect(assertFreshExternalDefaults(command, 'fixture-container')).rejects.toThrow(
+                expected,
+            )
+        expect(reported).toBe(expected)
+    })
+})
 
 describe('compatibility WebSocket evidence', () => {
     test.each(['marker', 'empty-close', 'wrong-message', 'timeout', 'http-error'] as const)(

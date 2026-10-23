@@ -6,7 +6,8 @@ import type {
     ProxyHostSummary,
     ProxyHostAccessPolicy,
 } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
-import { describe, expect, mock, spyOn, test } from 'bun:test'
+import { describe, expect, mock, spyOn, test, type Mock } from 'bun:test'
+import { ZodError } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
@@ -418,6 +419,47 @@ function snapshotFor(hosts: BulkHost[], policy?: ProxyHostAccessPolicy) {
 }
 
 describe('combined desired-state validation inside each bulk savepoint', () => {
+    test.each(['validateRuntime', 'write', 'audit'] as const)(
+        'classifies %s ZodErrors while rolling back only the failed savepoint',
+        async (stage) => {
+            const f = fixture([host(1, { enabled: false }), host(2, { enabled: false })])
+            const action = { type: 'enable' } as const
+            const preview = await f.services.preview(f.input(action))
+            const error = new ZodError([
+                { code: 'custom', path: [], message: 'private validation details' },
+            ])
+            const write = (
+                f.deps.write as Mock<BulkHostDependencies['write']>
+            ).getMockImplementation()!
+            const audited: string[] = []
+            spyOn(f.deps, 'write').mockImplementation(async (...args) => {
+                await write(...args)
+                if (stage === 'write' && args[2].id === id(1)) throw error
+            })
+            spyOn(f.deps, 'validateRuntime').mockImplementation(async () => {
+                if (stage === 'validateRuntime' && f.hosts()[0]?.enabled) throw error
+            })
+            spyOn(f.deps, 'audit').mockImplementation(async (_transaction, event) => {
+                if (stage === 'audit' && event.targetId === id(1)) throw error
+                audited.push(event.targetId!)
+            })
+
+            const result = await f.services.apply(appliedInput(preview, action))
+            expect(result.rows.map((row) => [row.status, row.reason])).toEqual([
+                stage === 'validateRuntime' ? ['skipped', 'invalid'] : ['failed', 'unavailable'],
+                ['applied', undefined],
+            ])
+            expect(f.hosts().map((row) => row.enabled)).toEqual([false, true])
+            expect(audited).toEqual([id(2)])
+            expect(f.deps.write).toHaveBeenCalledTimes(2)
+            expect(f.deps.validateRuntime).toHaveBeenCalledTimes(stage === 'write' ? 1 : 2)
+            expect(f.deps.audit).toHaveBeenCalledTimes(stage === 'audit' ? 2 : 1)
+            expect(f.deps.reconcile).toHaveBeenCalledTimes(1)
+            expect(result.runtimeStatus).toBe('applied')
+            expect(JSON.stringify(result)).not.toContain('private validation details')
+        },
+    )
+
     test('repairs an over-limit legacy state by disabling hosts across intermediate invalid states', async () => {
         const initial = Array.from({ length: 1002 }, (_, index) => host(index + 1))
         const f = fixture(initial)

@@ -60,8 +60,7 @@ function versionFor(
 }
 
 function failure(error: unknown): Pick<BulkHostOutcome, 'status' | 'reason'> {
-    if (error instanceof ProxyRuntimeSnapshotError || error instanceof ZodError)
-        return { status: 'skipped', reason: 'invalid' }
+    if (error instanceof ProxyRuntimeSnapshotError) return { status: 'skipped', reason: 'invalid' }
     if (error instanceof AuthDomainError && error.code === 'permission_denied')
         return { status: 'skipped', reason: 'permission' }
     if (error instanceof Error && 'code' in error) {
@@ -147,8 +146,17 @@ export function createBulkHostServices(dependencies: BulkHostDependencies) {
                         action.type === 'enable' ||
                         action.type === 'certificate' ||
                         action.type === 'accessPolicy'
-                    )
-                        await dependencies.validateRuntime(nested)
+                    ) {
+                        try {
+                            await dependencies.validateRuntime(nested)
+                        } catch (error) {
+                            if (error instanceof ZodError)
+                                throw new ProxyRuntimeSnapshotError(
+                                    'Invalid proxy runtime snapshot.',
+                                )
+                            throw error
+                        }
+                    }
                     await dependencies.audit(nested, {
                         actorUserId: actor.id,
                         actorKind: 'user',

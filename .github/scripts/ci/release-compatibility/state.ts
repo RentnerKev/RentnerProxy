@@ -129,10 +129,14 @@ export async function assertFreshExternalDefaults(
     assert.equal(output, '0')
     const probe = [
         "const token=await Bun.file('/run/rentnerproxy/controller-token/value').text();",
-        "async function status(path){const r=await fetch('http://127.0.0.1:8081/internal/v1/'+path,{headers:{authorization:'Bearer '+token}});if(!r.ok)process.exit(1);return r.json();}",
+        "async function status(path){const r=await fetch('http://127.0.0.1:8081/internal/v1/'+path,{headers:{authorization:'Bearer '+token}});return {ok:r.ok,http:r.status,configuration:r.ok?(await r.json()).configuration:undefined};}",
         "const ddns=await status('ddns/status');const discovery=await status('discovery/docker/status');",
-        'if(ddns.configuration!==null||discovery.configuration?.settings?.enabled!==false)process.exit(1);',
-        "process.stdout.write('external-mutations-disabled');",
+        "let result='external-mutations-disabled';",
+        "if(!ddns.ok)result='ddns-http-'+ddns.http;",
+        "else if(!discovery.ok)result='discovery-http-'+discovery.http;",
+        "else if(ddns.configuration!==null)result='ddns-configured';",
+        "else if(discovery.configuration?.settings?.enabled!==false)result='discovery-not-disabled';",
+        'process.stdout.write(result);',
     ].join('')
     assert.equal(
         await command([

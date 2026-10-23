@@ -117,6 +117,7 @@ export async function startBeta2Controller(input: Beta2ControllerInput, signal?:
             },
             'controller readiness',
             480_000,
+            () => false,
         )
         const value = JSON.parse(await readFile(ready, 'utf8')) as { readonly url?: unknown }
         if (typeof value.url !== 'string') throw new Error('invalid controller readiness')
