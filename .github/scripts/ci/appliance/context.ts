@@ -1,3 +1,5 @@
+import { createBeta2AutomationFixture } from '../fixtures/beta2-automation-state.ts'
+import { crowdSecEngineUidProbe } from './crowdsec-processes.ts'
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import type { CrowdSecMode, CrowdSecRuntimeStatus } from '../Types/appliance-compose-smoke.types.ts'
@@ -269,11 +271,12 @@ async function crowdSecEngineUids(id: string): Promise<string[]> {
         'docker',
         'exec',
         id,
-        'sh',
-        '-c',
-        'for status_file in /proc/[0-9]*/status; do if grep -q "^Name:[[:space:]]*crowdsec$" "$status_file"; then awk "/^Uid:/{print \\$2}" "$status_file"; fi; done',
+        'bun',
+        '--no-env-file',
+        '-e',
+        crowdSecEngineUidProbe(),
     ])
-    return output.split(/\r?\n/u).filter(Boolean)
+    return JSON.parse(output) as string[]
 }
 
 function digest(value: string | Uint8Array): string {
@@ -415,6 +418,7 @@ export async function createApplianceSmokeContext() {
         deploymentChangeProject,
     )
     let backend: ReturnType<typeof Bun.serve> | undefined
+    let beta2Automation: ReturnType<typeof createBeta2AutomationFixture> | undefined
     const scriptEnvironment: NodeJS.ProcessEnv = {
         ...commandEnvironment,
         ...smtpEnvironment,
@@ -476,6 +480,13 @@ export async function createApplianceSmokeContext() {
         },
         set backend(value: typeof backend) {
             backend = value
+        },
+        get beta2Automation() {
+            return beta2Automation
+        },
+        startBeta2Automation() {
+            beta2Automation ??= createBeta2AutomationFixture(runId)
+            return beta2Automation
         },
         scriptEnvironment,
     }

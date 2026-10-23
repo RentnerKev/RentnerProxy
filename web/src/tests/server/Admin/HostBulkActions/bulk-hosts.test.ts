@@ -1,4 +1,13 @@
-import { describe, expect, mock, spyOn, test } from 'bun:test'
+import {
+    createProxyRuntimeSnapshot,
+    MAX_RUNTIME_PAYLOAD_BYTES,
+} from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
+import type {
+    ProxyHostSummary,
+    ProxyHostAccessPolicy,
+} from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import { describe, expect, mock, spyOn, test, type Mock } from 'bun:test'
+import { ZodError } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
@@ -110,6 +119,7 @@ function fixture(initial: BulkHost[] = [host(1), host(2)]) {
         ),
         readTags: mock(async () => structuredClone(tags)),
         validate: mock(async () => undefined),
+        validateRuntime: mock(async () => undefined),
         write: mock(async (_transaction, _kind, row, action, state) => {
             if (action.type === 'addTags' || action.type === 'removeTags') {
                 tags = assignHostTags(state, row.id, bulkHostTagIds(state, row.id, action))
@@ -385,5 +395,205 @@ describe('previewed bulk host mutations', () => {
                 hosts: [{ id: id(1), version: 'forged' }],
             }).success,
         ).toBe(false)
+    })
+})
+
+function snapshotFor(hosts: BulkHost[], policy?: ProxyHostAccessPolicy) {
+    return createProxyRuntimeSnapshot(
+        hosts
+            .filter((row): row is ProxyHostSummary => 'forwardHost' in row)
+            .map((row) =>
+                Object.assign(
+                    {
+                        id: row.id,
+                        domains: row.domains,
+                        enabled: row.enabled,
+                        forwardScheme: row.forwardScheme,
+                        forwardHost: row.forwardHost,
+                        forwardPort: row.forwardPort,
+                    },
+                    policy && row.accessPolicyId === policy.id ? { accessPolicy: policy } : {},
+                ),
+            ),
+    )
+}
+
+describe('combined desired-state validation inside each bulk savepoint', () => {
+    test.each(['validateRuntime', 'write', 'audit'] as const)(
+        'classifies %s ZodErrors while rolling back only the failed savepoint',
+        async (stage) => {
+            const f = fixture([host(1, { enabled: false }), host(2, { enabled: false })])
+            const action = { type: 'enable' } as const
+            const preview = await f.services.preview(f.input(action))
+            const error = new ZodError([
+                { code: 'custom', path: [], message: 'private validation details' },
+            ])
+            const write = (
+                f.deps.write as Mock<BulkHostDependencies['write']>
+            ).getMockImplementation()!
+            const audited: string[] = []
+            spyOn(f.deps, 'write').mockImplementation(async (...args) => {
+                await write(...args)
+                if (stage === 'write' && args[2].id === id(1)) throw error
+            })
+            spyOn(f.deps, 'validateRuntime').mockImplementation(async () => {
+                if (stage === 'validateRuntime' && f.hosts()[0]?.enabled) throw error
+            })
+            spyOn(f.deps, 'audit').mockImplementation(async (_transaction, event) => {
+                if (stage === 'audit' && event.targetId === id(1)) throw error
+                audited.push(event.targetId!)
+            })
+
+            const result = await f.services.apply(appliedInput(preview, action))
+            expect(result.rows.map((row) => [row.status, row.reason])).toEqual([
+                stage === 'validateRuntime' ? ['skipped', 'invalid'] : ['failed', 'unavailable'],
+                ['applied', undefined],
+            ])
+            expect(f.hosts().map((row) => row.enabled)).toEqual([false, true])
+            expect(audited).toEqual([id(2)])
+            expect(f.deps.write).toHaveBeenCalledTimes(2)
+            expect(f.deps.validateRuntime).toHaveBeenCalledTimes(stage === 'write' ? 1 : 2)
+            expect(f.deps.audit).toHaveBeenCalledTimes(stage === 'audit' ? 2 : 1)
+            expect(f.deps.reconcile).toHaveBeenCalledTimes(1)
+            expect(result.runtimeStatus).toBe('applied')
+            expect(JSON.stringify(result)).not.toContain('private validation details')
+        },
+    )
+
+    test('repairs an over-limit legacy state by disabling hosts across intermediate invalid states', async () => {
+        const initial = Array.from({ length: 1002 }, (_, index) => host(index + 1))
+        const f = fixture(initial)
+        const snapshot = spyOn(f.deps, 'validateRuntime').mockImplementation(async () =>
+            snapshotFor(f.hosts()),
+        )
+        expect(() => snapshotFor(f.hosts())).toThrow()
+        const preview = await f.services.preview({
+            kind: 'proxy',
+            action: { type: 'disable' },
+            hostIds: initial.slice(1000).map((row) => row.id),
+        })
+        const result = await f.services.apply(appliedInput(preview))
+        expect(result.rows.map((row) => row.status)).toEqual(['applied', 'applied'])
+        expect(snapshotFor(f.hosts()).proxyHosts).toHaveLength(1000)
+        expect(
+            f
+                .hosts()
+                .slice(1000)
+                .every((row) => !row.enabled),
+        ).toBe(true)
+        expect(snapshot).not.toHaveBeenCalled()
+        expect(f.deps.lock).toHaveBeenCalledTimes(1)
+        expect(f.deps.validate).toHaveBeenCalledTimes(4)
+        expect(f.deps.audit).toHaveBeenCalledTimes(2)
+        expect(f.deps.reconcile).toHaveBeenCalledTimes(1)
+        expect(result.runtimeStatus).toBe('applied')
+    })
+
+    test('rejects the 1001st active host while preserving the earlier valid enable and its audit', async () => {
+        const initial = Array.from({ length: 1001 }, (_, index) =>
+            host(index + 1, { enabled: index < 999 }),
+        )
+        const f = fixture(initial)
+        const action = { type: 'enable' } as const
+        const snapshot = spyOn(f.deps, 'validateRuntime').mockImplementation(async () =>
+            snapshotFor(f.hosts()),
+        )
+        expect(snapshotFor(f.hosts()).proxyHosts).toHaveLength(999)
+        const preview = await f.services.preview({
+            kind: 'proxy',
+            action,
+            hostIds: initial.slice(999).map((row) => row.id),
+        })
+        expect(preview.rows.map((row) => row.status)).toEqual(['ready', 'ready'])
+        expect(f.deps.write).not.toHaveBeenCalled()
+        expect(snapshot).not.toHaveBeenCalled()
+        const result = await f.services.apply(appliedInput(preview, action))
+        expect(result.rows.map((row) => [row.status, row.reason])).toEqual([
+            ['applied', undefined],
+            ['skipped', 'invalid'],
+        ])
+        expect(snapshotFor(f.hosts()).proxyHosts).toHaveLength(1000)
+        expect(f.hosts()[1000]?.enabled).toBe(false)
+        expect(f.deps.audit).toHaveBeenCalledTimes(1)
+        expect(snapshot).toHaveBeenCalledTimes(2)
+        expect(f.deps.reconcile).toHaveBeenCalledTimes(1)
+        expect(result.runtimeStatus).toBe('applied')
+    })
+
+    test('rejects a policy assignment crossing the aggregate payload limit without undoing the preceding valid row', async () => {
+        const policy: ProxyHostAccessPolicy = {
+            id: Bun.randomUUIDv7(),
+            mode: 'authenticated',
+            combination: null,
+            basicAuth: {
+                accounts: Array.from({ length: 32 }, (_, index) => ({
+                    username: ('user' + String(index).padStart(2, '0')).padEnd(64, 'x'),
+                    passwordHash:
+                        '$argon2id$v=19$m=47104,t=1,p=1$' + 'A'.repeat(43) + '$' + 'A'.repeat(43),
+                })),
+            },
+        }
+        const initial = Array.from({ length: 1000 }, (_, index) =>
+            host(index + 1, {
+                domains: Array.from({ length: 50 }, (_alias, alias) =>
+                    [
+                        'host' + index + '-d' + alias,
+                        'a'.repeat(63),
+                        'b'.repeat(63),
+                        'c'.repeat(63),
+                        'example',
+                        'test',
+                    ].join('.'),
+                ),
+            }),
+        )
+        const { revision: _revision, ...plain } = snapshotFor(initial)
+        const capacity = Math.floor(
+            (MAX_RUNTIME_PAYLOAD_BYTES - 100 - Buffer.byteLength(JSON.stringify(plain))) /
+                Buffer.byteLength(',"accessPolicy":' + JSON.stringify(policy)),
+        )
+        expect(capacity).toBeGreaterThan(1)
+        expect(capacity).toBeLessThan(999)
+        const alreadyAssigned = capacity - 1
+        const configured = initial.map((row, index) =>
+            index < alreadyAssigned ? Object.assign({}, row, { accessPolicyId: policy.id }) : row,
+        )
+        const f = fixture(configured)
+        spyOn(f.deps, 'validateRuntime').mockImplementation(async () =>
+            snapshotFor(f.hosts(), policy),
+        )
+        expect(() => snapshotFor(f.hosts(), policy)).not.toThrow()
+        const action = { type: 'accessPolicy', accessPolicyId: policy.id } as const
+        const preview = await f.services.preview({
+            kind: 'proxy',
+            action,
+            hostIds: initial.slice(alreadyAssigned, alreadyAssigned + 2).map((row) => row.id),
+        })
+        const result = await f.services.apply(appliedInput(preview, action))
+        expect(result.rows.map((row) => [row.status, row.reason])).toEqual([
+            ['applied', undefined],
+            ['skipped', 'invalid'],
+        ])
+        expect(() => snapshotFor(f.hosts(), policy)).not.toThrow()
+        expect(f.hosts()[alreadyAssigned]).toMatchObject({ accessPolicyId: policy.id })
+        expect(f.hosts()[alreadyAssigned + 1]).toMatchObject({ accessPolicyId: null })
+        expect(f.deps.audit).toHaveBeenCalledTimes(1)
+        expect(f.deps.reconcile).toHaveBeenCalledTimes(1)
+    })
+
+    test('does not validate or reload the runtime when changing only tags', async () => {
+        const f = fixture()
+        const tagId = id(100)
+        f.setTags({
+            version: 1,
+            revision: 0,
+            tags: [{ id: tagId, name: 'Public' }],
+            assignments: {},
+        })
+        const action: BulkHostAction = { type: 'addTags', tagIds: [tagId] }
+        const preview = await f.services.preview(f.input(action))
+        await f.services.apply(appliedInput(preview, action))
+        expect(f.deps.validateRuntime).not.toHaveBeenCalled()
+        expect(f.deps.reconcile).not.toHaveBeenCalled()
     })
 })

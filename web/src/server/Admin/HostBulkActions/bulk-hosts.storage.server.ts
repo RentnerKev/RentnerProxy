@@ -11,6 +11,7 @@ import { requirePermissionService } from '@/server/Auth/Access/authorization.ser
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { assignHostTags } from '@/lib/HostTags/hostTags.ts'
@@ -61,6 +62,7 @@ export const bulkHostServices = createBulkHostServices({
             )
         }
     },
+    validateRuntime: readProxyRuntimeSnapshot,
     write: async (transaction, kind, host, action, tags) => {
         if (action.type === 'addTags' || action.type === 'removeTags') {
             const next = assignHostTags(tags, host.id, bulkHostTagIds(tags, host.id, action))

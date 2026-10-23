@@ -1,6 +1,8 @@
 // oxlint-disable no-await-in-loop -- One bounded transaction serializes writes and savepoints under the runtime lock.
 import '@tanstack/react-start/server-only'
 import { createHash, randomUUID } from 'node:crypto'
+import { ZodError } from 'zod'
+import { ProxyRuntimeSnapshotError } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 import { BULK_HOST_LIMITS } from '@/config/bulk-hosts.config.ts'
 import {
     bulkHostApplySchema,
@@ -58,6 +60,7 @@ function versionFor(
 }
 
 function failure(error: unknown): Pick<BulkHostOutcome, 'status' | 'reason'> {
+    if (error instanceof ProxyRuntimeSnapshotError) return { status: 'skipped', reason: 'invalid' }
     if (error instanceof AuthDomainError && error.code === 'permission_denied')
         return { status: 'skipped', reason: 'permission' }
     if (error instanceof Error && 'code' in error) {
@@ -137,6 +140,23 @@ export function createBulkHostServices(dependencies: BulkHostDependencies) {
                     // Read current classification after previous savepoints, so the batch preserves every row.
                     const tags = await dependencies.readTags(nested, kind)
                     await dependencies.write(nested, kind, host, action, tags)
+                    // Validate additions together with every earlier successful savepoint.
+                    // Disabling only removes runtime state and must also repair invalid legacy state.
+                    if (
+                        action.type === 'enable' ||
+                        action.type === 'certificate' ||
+                        action.type === 'accessPolicy'
+                    ) {
+                        try {
+                            await dependencies.validateRuntime(nested)
+                        } catch (error) {
+                            if (error instanceof ZodError)
+                                throw new ProxyRuntimeSnapshotError(
+                                    'Invalid proxy runtime snapshot.',
+                                )
+                            throw error
+                        }
+                    }
                     await dependencies.audit(nested, {
                         actorUserId: actor.id,
                         actorKind: 'user',

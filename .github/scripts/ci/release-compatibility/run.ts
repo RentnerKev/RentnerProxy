@@ -1,3 +1,6 @@
+import { webSocketProbeScript } from './websocket-probe.ts'
+import { prepareTargetSource, immutableImageId } from './source-identity.ts'
+import { assertHistoricalImports, copyHistoricalZod } from './historical-dependencies.ts'
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { psql } from '../fixtures/appliance-storage.ts'
@@ -8,7 +11,7 @@ import { PINNED_BACKUP_TOOL_PATHS } from '../../../../scripts/compatibility/publ
 import assert from 'node:assert/strict'
 import { dockerBuildDiagnostic } from '../../../../scripts/smoke/docker-build-diagnostics.ts'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -50,7 +53,12 @@ import { assertAuditFixture, seedAuditFixture } from './audit-state.ts'
 import type { AuditFixture } from './Types/audit-state.types.ts'
 import { assertAcmeAccountFixture, seedAcmeAccountFixture } from './acme-account-state.ts'
 import type { AcmeAccountFixture } from './Types/acme-account-state.types.ts'
-import { assertBetaDefaults, assertPolicyFixture, seedPolicyFixture } from './state.ts'
+import {
+    assertBetaDefaults,
+    assertFreshExternalDefaults,
+    assertPolicyFixture,
+    seedPolicyFixture,
+} from './state.ts'
 import type { PolicyFixture } from './Types/state.types.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
@@ -72,6 +80,8 @@ let sourceMigrationCount = 0
 let reconciliation = 'not-started'
 let trafficStatus = 'not-started'
 let temporaryRoot = ''
+let targetSourceRevision = 'unverified'
+let targetImageId = 'unbuilt'
 let backend: ReturnType<typeof Bun.serve> | undefined
 
 const environment: NodeJS.ProcessEnv = { ...process.env }
@@ -108,7 +118,8 @@ async function command(
         throw new Error(`command failed: ${args[0]} ${args[1] ?? ''} (exit ${exitCode})`)
     }
     // docker logs keeps the container's stdout and stderr in separate streams.
-    return (args[0] === 'docker' && args[1] === 'logs' ? stdout + stderr : stdout || stderr).trim()
+    const output = args[0] === 'docker' && args[1] === 'logs' ? stdout + stderr : stdout || stderr
+    return args[0] === 'git' && args[1] === 'show' ? output : output.trim()
 }
 
 function waitFor(check: () => Promise<boolean>, label: string, timeoutMs = 240_000): Promise<void> {
@@ -173,6 +184,11 @@ async function materializePinnedScript(
     repositoryPath: string,
 ): Promise<{ readonly path: string; readonly sha256: string }> {
     const contents = await command(['git', 'show', `${revision}:${repositoryPath}`])
+    assertHistoricalImports(contents, repositoryPath, [
+        ...PINNED_BACKUP_TOOL_PATHS,
+        'scripts/production-backup.ts',
+        'scripts/production-restore.ts',
+    ])
     const path = join(temporaryRoot, 'historical-tools', release, repositoryPath)
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, contents, { mode: 0o600 })
@@ -184,11 +200,11 @@ async function createPinnedSourceBackup(backupRoot: string): Promise<string> {
     const release = source.version
     for (const path of PINNED_BACKUP_TOOL_PATHS)
         await materializePinnedScript(source.revision, release, path)
-    // Historical validation imports Zod; resolve installed dependencies without modifying source.
-    await symlink(
-        join(root, 'node_modules'),
-        join(temporaryRoot, 'historical-tools', release, 'node_modules'),
-        'dir',
+    // Historical tools import only Zod beyond Bun/Node builtins and the pinned local files.
+    // Copy that package into this disposable tool tree; Windows needs no symlink privilege.
+    await copyHistoricalZod(
+        join(root, 'node_modules', 'zod'),
+        join(temporaryRoot, 'historical-tools', release),
     )
     const backupScript = await materializePinnedScript(
         source.revision,
@@ -525,13 +541,11 @@ async function verifyTraffic(base: UpgradeFixture, policy: PolicyFixture): Promi
     assert.equal(await http(policy.basicDomain, `${policy.username}:wrong`), '401')
     assert.equal(await http(policy.basicDomain, `${policy.username}:${policy.password}`), '200')
     assert.equal(await http(policy.ipDomain), '200')
-    const script = [
-        `const socket=new WebSocket('ws://127.0.0.1:8080/compat',{headers:{Host:${JSON.stringify(base.hostDomain)}}});`,
-        'const timer=setTimeout(()=>process.exit(1),10000);',
-        `socket.onmessage=(event)=>{if(event.data!==${JSON.stringify(marker)})process.exit(1);socket.close();};`,
-        "socket.onclose=()=>{clearTimeout(timer);process.stdout.write('websocket-ok');};",
-        'socket.onerror=()=>process.exit(1);',
-    ].join('')
+    const script = webSocketProbeScript({
+        url: 'ws://127.0.0.1:8080/compat',
+        headers: { Host: base.hostDomain },
+        expectedMessage: marker,
+    })
     assert.equal(
         await command(['docker', 'exec', container, 'bun', '-e', script], 20_000),
         'websocket-ok',
@@ -700,6 +714,9 @@ async function run(): Promise<void> {
     temporaryRoot = await mkdtemp(join(tmpdir(), 'rp-compat-'))
     const targetFile = join(temporaryRoot, 'target.compose.json')
     const sourceFile = join(temporaryRoot, 'source.compose.json')
+    stage = 'target-source'
+    const targetSource = await prepareTargetSource(command, temporaryRoot)
+    targetSourceRevision = targetSource.revision
     const upstreamPort = await freePort()
     backend = Bun.serve({
         hostname: '0.0.0.0',
@@ -718,16 +735,31 @@ async function run(): Promise<void> {
             message: () => undefined,
         },
     })
-    await writeFile(targetFile, composeFile(targetImage, upstreamPort))
     if (source) await writeFile(sourceFile, composeFile(source.image, upstreamPort))
-    const targetSha = await command(['git', 'rev-parse', 'HEAD'])
     console.log(
-        `source_version=${source?.version ?? 'fresh'} source_image=${source?.image ?? 'none'} source_digest=${source?.digest ?? 'none'} target_sha=${targetSha} target_image=${targetImage}`,
+        `source_version=${source?.version ?? 'fresh'} source_revision=${source?.revision ?? 'none'} source_image=${source?.image ?? 'none'} source_digest=${source?.digest ?? 'none'} target_sha=${targetSourceRevision} target_source=git-archive target_image_tag=${targetImage}`,
     )
     stage = 'target-build'
     await command(
-        ['docker', 'build', '--file', 'docker/production/Dockerfile', '--tag', targetImage, '.'],
+        [
+            'docker',
+            'build',
+            '--file',
+            join(targetSource.context, 'docker/production/Dockerfile'),
+            '--tag',
+            targetImage,
+            '--label',
+            `org.opencontainers.image.revision=${targetSourceRevision}`,
+            targetSource.context,
+        ],
         1_800_000,
+    )
+    targetImageId = immutableImageId(
+        await command(['docker', 'image', 'inspect', '--format', '{{.Id}}', targetImage]),
+    )
+    await writeFile(targetFile, composeFile(targetImageId, upstreamPort))
+    console.log(
+        `target_sha=${targetSourceRevision} target_source=git-archive target_image_id=${targetImageId}`,
     )
     if (source) {
         stage = 'http3-client-build'
@@ -869,6 +901,7 @@ async function run(): Promise<void> {
         await start(targetFile)
         assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
         await assertBetaDefaults(command, container)
+        await assertFreshExternalDefaults(command, container)
         await waitFor(
             async () => Boolean(await activeRevision().catch(() => '')),
             'fresh runtime revision',
@@ -879,6 +912,7 @@ async function run(): Promise<void> {
         await start(targetFile)
         assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
         await assertBetaDefaults(command, container)
+        await assertFreshExternalDefaults(command, container)
         await waitFor(
             async () => Boolean(await activeRevision().catch(() => '')),
             'fresh runtime revision after restart',
@@ -899,13 +933,16 @@ try {
               )?.[0] ?? 'unknown')
             : 'unknown'
     const category =
-        error instanceof Error && /^command failed: (?:docker|git)|^timed out:/u.test(error.message)
+        error instanceof Error &&
+        /^command failed: (?:docker|git)|^timed out:|^compatibility test requires a clean committed checkout$/u.test(
+            error.message,
+        )
             ? error.message
             : error instanceof Error
               ? error.name
               : 'unknown'
     console.error(
-        `FAIL source_version=${source?.version ?? 'fresh'} source_digest=${source?.digest ?? 'none'} target_image=${targetImage} stage=${stage} migration_status=${migrationStatus} health=${health} runtime_reconciliation=${reconciliation} traffic_status=${trafficStatus} category=${category} location=${location}`,
+        `FAIL source_version=${source?.version ?? 'fresh'} source_revision=${source?.revision ?? 'none'} source_digest=${source?.digest ?? 'none'} target_sha=${targetSourceRevision} target_image_id=${targetImageId} target_image_tag=${targetImage} stage=${stage} migration_status=${migrationStatus} health=${health} runtime_reconciliation=${reconciliation} traffic_status=${trafficStatus} category=${category} location=${location}`,
     )
     process.exitCode = 1
 } finally {

@@ -177,6 +177,15 @@ jobs:
             - name: Run database integration tests
               run: bun --no-env-file run test:db
 
+            - name: Create isolated host page fixture database
+              run: psql "$DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 -c 'CREATE DATABASE host_page_fixture;'
+
+            - name: Run host page storage integration tests
+              env:
+                  DATABASE_URL: postgresql://rentnerproxy:rentnerproxy@127.0.0.1:5432/host_page_fixture
+                  RENTNERPROXY_HOST_PAGE_FIXTURE: '1'
+              run: bun --no-env-file test --isolate ./web/src/tests/server/Admin/HostTags/host-page-storage.db.test.ts
+
     fuzz:
         name: Fuzz Tests
         runs-on: ubuntu-latest

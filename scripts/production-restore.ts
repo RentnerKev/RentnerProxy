@@ -283,24 +283,28 @@ async function restore(): Promise<void> {
             throw new Error('interrupted restore requires --resume with the same backup')
         if (!pending && argumentsList.includes('--resume'))
             throw new Error('no interrupted restore is pending')
-        if (!pending) {
-            const running = await runCommand(
-                [...compose, 'ps', '--status', 'running', '--quiet', applianceService],
-                'inspect appliance',
-            )
-            if (!running)
-                await runCommand(
-                    [...compose, 'up', '--detach', applianceService],
-                    'initialize restore target',
-                    600_000,
-                )
-            await waitForAppliance(compose)
-        }
         await runCommand(
             [...compose, 'stop', '--timeout', '30', applianceService],
             'quiesce restore target',
             180_000,
         )
+        // Preparing a fresh database must never boot the old controller/web workers.
+        // A resumed restore already has its initialized cluster and must retain its journal/key state.
+        if (!pending)
+            await runCommand(
+                [
+                    ...compose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint=/usr/local/bin/rentnerproxy-production',
+                    applianceService,
+                    '--initialize-restore-target',
+                ],
+                'initialize restore target',
+                180_000,
+            )
         await runCommand(bootstrap('begin-production-restore'), 'stage production restore')
         try {
             await runCommand(
