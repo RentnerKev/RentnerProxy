@@ -3,13 +3,15 @@ Version: v1.8.1 (commit 909b5157986a2b2c2163300fdaef5ed01289f7d2)
 Source: https://github.com/crowdsecurity/crowdsec
 License: MIT (see LICENSE)
 
-RentnerProxy rebuilds the full upstream CrowdSec and cscli feature profile with
-the reviewed module locks in docker/crowdsec/tooling/engine-build/. gRPC is updated to v1.84.0
-and golang.org/x/crypto to v0.58.0. Both PostgreSQL adapter imports are migrated
-to github.com/jackc/pgx/v5 v5.11.0; golang.org/x/net is updated to v0.61.0 and
-the binaries use Go 1.27.2. RE2 retains the upstream 2023-03-01 static build.
-Configuration and Hub assets still originate from the pinned official
-CrowdSec image and Hub snapshot below.
+RentnerProxy rebuilds pristine upstream CrowdSec and cscli sources with the
+reviewed dependency workspace in docker/crowdsec/tooling/engine-build/.
+Upstream source files and go.mod/go.sum remain unchanged. The binaries use
+Go 1.27.2, gRPC v1.84.0, golang.org/x/crypto v0.58.0 and golang.org/x/net
+v0.61.0. Only the unused PostgreSQL database backend is excluded through
+upstream's supported EXCLUDE=db_postgres build option; the managed appliance
+uses SQLite. All other default features remain enabled, including MySQL.
+RE2 retains the upstream 2023-03-01 static build. Configuration and Hub assets
+still originate from the pinned official CrowdSec image and Hub snapshot below.
 
 CrowdSec Hub content
 Snapshot: b967aecfbcb89bdd1e6a2832ad43f97f22a39728

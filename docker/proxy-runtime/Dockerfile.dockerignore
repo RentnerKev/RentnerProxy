@@ -13,9 +13,6 @@
 !docker/caddy/tooling/
 !docker/caddy/tooling/verify-buildinfo.sh
 !docker/caddy/tooling/build.sh
-!docker/crowdsec/
-!docker/crowdsec/tooling/
-!docker/crowdsec/tooling/caddy-http-only.sh
 !docker/licenses/
 !docker/licenses/Caddy-LICENSE
 !docker/licenses/CaddyCrowdSecBouncer-NOTICE

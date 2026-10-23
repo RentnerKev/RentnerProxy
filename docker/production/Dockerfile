@@ -43,29 +43,27 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" cargo build --locke
 FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS caddy-go-toolchain
 
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
-# The module revision is the signed v0.14.1 release.
-# Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
-# registrations so the appliance exposes only the required HTTP bouncer.
+# Use immutable upstream modules without changing their source.
+# Their optional AppSec and Layer 4 modules remain unconfigured.
 FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:d842facfd63b960922e57444ff76fd8f0793a66dfdcf481af8026e1f4e6a39b4 AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
-ENV GOTOOLCHAIN=local CGO_ENABLED=0
-ARG CADDY_CROWDSEC_BOUNCER_COMMIT=6b35f6be25e457aa0b94e32c6ae519123e50e7b7
-ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99dc065ae11db852c661e9ced0d
-COPY docker/crowdsec/tooling/caddy-http-only.sh /tmp/caddy-crowdsec-http-only.sh
+ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
+ARG CADDY_CROWDSEC_BOUNCER_COMMIT=ffdcb7c6f8619effc7510bc0db0edec3609a1d28
+ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261023161224-4ad6aec1ccc6
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
-WORKDIR /tmp/caddy-crowdsec-bouncer
+WORKDIR /tmp/rentnerproxy-caddy
 RUN /bin/sh /tmp/build-caddy.sh
 
 FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS geoip-assets
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
 RUN bun --no-env-file /tmp/download-geoip.ts
 
-# Retain upstream CrowdSec 1.8.1 and its full static build profile with patched
-# gRPC, SSH, HTTP/2 and PostgreSQL dependencies.
+# Build pristine upstream CrowdSec with the managed SQLite backend and pinned
+# security dependencies; exclude its unused legacy PostgreSQL backend.
 FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS crowdsec-build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
@@ -186,7 +184,6 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
-    && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$' \
     && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157986a2b2c2163300fdaef5ed01289f7d2' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
