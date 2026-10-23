@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
     accessPolicies,
@@ -100,24 +100,30 @@ async function seed(
             enabled: index < enabled,
         })),
     )
-    const domains = ids.flatMap((hostId, index) =>
-        Array.from({ length: manyDomains ? 50 : 1 }, (_, alias) => ({
-            proxyHostId: hostId,
-            domain: manyDomains
-                ? [
-                      'host' + index + '-d' + alias,
-                      'a'.repeat(63),
-                      'b'.repeat(63),
-                      'c'.repeat(63),
-                      'example',
-                      'test',
-                  ].join('.')
-                : 'host' + index + '.bulk-fixture.example.test',
-        })),
-    )
-    for (let start = 0; start < domains.length; start += 1000)
-        // oxlint-disable-next-line no-await-in-loop -- Keep PostgreSQL parameter counts bounded.
-        await transaction.insert(hostDomains).values(domains.slice(start, start + 1000))
+    if (manyDomains) {
+        // Generate the same 50,000 long aliases in PostgreSQL without building and
+        // transmitting 50 separate Drizzle insert batches on the CI runner.
+        await transaction.execute(sql`
+            INSERT INTO ${hostDomains} (proxy_host_id, domain)
+            SELECT fixture.host_id,
+                'host' || (fixture.position - 1)::text || '-d' || alias::text || '.' ||
+                repeat('a', 63) || '.' || repeat('b', 63) || '.' || repeat('c', 63) ||
+                '.example.test'
+            FROM unnest(ARRAY[${sql.join(
+                ids.map((id) => sql`${id}::uuid`),
+                sql`, `,
+            )}])
+                WITH ORDINALITY AS fixture(host_id, position)
+            CROSS JOIN generate_series(0, 49) AS alias
+        `)
+    } else {
+        await transaction.insert(hostDomains).values(
+            ids.map((proxyHostId, index) => ({
+                proxyHostId,
+                domain: 'host' + index + '.bulk-fixture.example.test',
+            })),
+        )
+    }
     return ids
 }
 
@@ -181,8 +187,15 @@ describe('bulk runtime snapshot PostgreSQL savepoints', () => {
                 await transaction
                     .insert(accessPolicyBasicAuthAccounts)
                     .values(accounts.map((account) => ({ ...account, policyId })))
+                // Earlier tests leave tiny-table statistics; autovacuum cannot see
+                // these 50,000 uncommitted aliases before the boundary snapshots.
+                await transaction.execute(sql`ANALYZE ${proxyHosts}, ${hostDomains}`)
                 const { revision: _revision, ...plain } =
                     await readProxyRuntimeSnapshot(transaction)
+                expect(plain.proxyHosts).toHaveLength(1000)
+                expect(plain.proxyHosts.reduce((sum, host) => sum + host.domains.length, 0)).toBe(
+                    50_000,
+                )
                 const policy = {
                     id: policyId,
                     mode: 'authenticated',
@@ -199,12 +212,12 @@ describe('bulk runtime snapshot PostgreSQL savepoints', () => {
                     .update(proxyHosts)
                     .set({ accessPolicyId: policyId })
                     .where(inArray(proxyHosts.id, ids.slice(0, capacity - 1)))
-                await readProxyRuntimeSnapshot(transaction)
+                // applyPair validates both actual savepoint snapshots, then reconciles
+                // through a fresh snapshot after the oversized assignment rolls back.
                 await applyPair(transaction, ids.slice(capacity - 1, capacity + 1), {
                     type: 'accessPolicy',
                     accessPolicyId: policyId,
                 })
-                await readProxyRuntimeSnapshot(transaction)
                 const untouched = await transaction
                     .select({ policy: proxyHosts.accessPolicyId })
                     .from(proxyHosts)
