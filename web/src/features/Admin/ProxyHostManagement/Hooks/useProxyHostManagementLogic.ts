@@ -35,13 +35,15 @@ export default function useProxyHostManagementLogic({
         permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW) &&
         (canCreate || permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE))
     const canAssignPolicies = permissionSet.has(PERMISSIONS.ACCESS_POLICIES_ASSIGN)
+    const canApply = permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY)
     const canDuplicate = useCallback(
         (host: ProxyHostSummary) =>
             canView &&
             canCreate &&
             (!host.certificateId || canAssignCertificates) &&
-            (!host.accessPolicyId || canAssignPolicies),
-        [canView, canCreate, canAssignCertificates, canAssignPolicies],
+            (!host.accessPolicyId || canAssignPolicies) &&
+            (!(host.responseCache || host.browserCache || host.responseCompression) || canApply),
+        [canView, canCreate, canAssignCertificates, canAssignPolicies, canApply],
     )
     const [showCreate, setShowCreate] = useState(false)
     const [duplicateSource, setDuplicateSource] = useState<ProxyHostSummary | null>(null)
@@ -284,7 +286,7 @@ export default function useProxyHostManagementLogic({
 
     return {
         state: {
-            canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
+            canApply,
             canAssignCertificates,
             canAssignPolicies,
             canRequestCertificate:

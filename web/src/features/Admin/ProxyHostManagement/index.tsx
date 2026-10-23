@@ -162,11 +162,13 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                         state.remote.initialState.columnFilters.length === 0
                     }
                     proxyHost={state.duplicateSource ?? undefined}
+                    canConfigureBrowserCache={state.canApply}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
                     canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
+                    canApplyResponseCache={state.canApply}
                     onOpenChange={handler.setCreateOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
@@ -178,11 +180,13 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     open
                     mode="edit"
                     proxyHost={state.selectedProxyHost}
+                    canConfigureBrowserCache={state.canApply}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
                     canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
+                    canApplyResponseCache={state.canApply}
                     onOpenChange={handler.setEditorOpen}
                     onSuccess={handler.handleFormSuccess}
                 />

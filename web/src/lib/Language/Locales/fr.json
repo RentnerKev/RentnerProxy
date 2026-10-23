@@ -1599,6 +1599,26 @@
                 "resultHelp": "Enregistrer stocke la configuration. Un certificat en attente ou en émission n’est pas prêt. Attendez l’application et vérifiez le runtime ; une configuration appliquée ne prouve pas que le DNS ou le service est accessible.",
                 "failureHelp": "Corrigez les champs signalés avant d’enregistrer. Examinez les erreurs de certificats et réessayez après correction. Appliquez les changements en attente si autorisé ; restaurez le runtime indisponible et réessayez.",
                 "certificateUnavailable": "Détails indisponibles"
+            },
+            "browserCache": {
+                "title": "Cache du navigateur pour les fichiers publics",
+                "help": "Complète uniquement une politique de cache absente. Fichier exact ou dossier public terminé par /, maximum 20 règles et 31 536 000 secondes. Préserve les en-têtes existants. Seulement GET/HEAD réussis et types de fichiers statiques. Ignore les hôtes protégés, cookies, identifiants, paramètres, requêtes conditionnelles et plages. Les règles ne doivent pas se chevaucher.",
+                "enable": "Activer les règles du cache du navigateur",
+                "path": "Fichier public ou dossier/",
+                "age": "Durée en secondes",
+                "immutable": "Ce fichier est versionné (immutable)",
+                "remove": "Supprimer la règle",
+                "add": "Ajouter une règle",
+                "invalid": "Indiquez des chemins publics uniques et une durée de 1 à 31 536 000 secondes. Les règles actives ne peuvent pas être vides. HTML, API, authentification et jokers interdits. Les règles ne doivent pas se chevaucher.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Cache des réponses de ressources publiques",
+                "enabled": "Activer le cache des réponses",
+                "paths": "Préfixes publics (séparés par des virgules, terminés par /)",
+                "ttl": "Durée maximale en secondes (1–3600)",
+                "hint": "Uniquement les réponses publiques réussies CSS, JavaScript, images et polices. Cookies, identifiants, requêtes, flux et hôtes protégés contournent le cache. Limites : 1 MiB par réponse, 64 MiB partagés et 1024 entrées.",
+                "invalid": "Utilisez 1 à 16 préfixes uniques tels que /assets/ et une durée de 1 à 3600 secondes."
             }
         },
         "redirectHosts": {

@@ -1,3 +1,8 @@
+import {
+    readResponseCacheSettingsMap,
+    writeResponseCacheSettings,
+} from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
 import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
@@ -142,6 +147,8 @@ export async function createProxyHostInTransaction(
         actorId,
         PERMISSIONS.PROXY_HOSTS_CREATE,
     )
+    if (parsedInput.browserCache !== undefined)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_APPLY)
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     if (parsedInput.responseCompression != null)
@@ -202,6 +209,13 @@ export async function createProxyHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
+    if (parsedInput.responseCache !== undefined)
+        await writeAuthorizedResponseCacheSettings(
+            transaction,
+            actorId,
+            proxyHost.id,
+            parsedInput.responseCache,
+        )
     const tags =
         parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
             ? await assignHostTagsInTransaction(
@@ -212,6 +226,13 @@ export async function createProxyHostInTransaction(
               )
             : undefined
 
+    if (parsedInput.browserCache !== undefined) {
+        const settings = await readProxyHostHttpSettings(transaction, proxyHost.id)
+        await writeProxyHostHttpSettings(transaction, proxyHost.id, {
+            ...settings,
+            browserCache: parsedInput.browserCache,
+        })
+    }
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
@@ -219,14 +240,29 @@ export async function createProxyHostInTransaction(
         resource: 'proxy-host',
         targetId: proxyHost.id,
         result: 'success',
-        ...(parsedInput.responseCompression == null
+        ...(parsedInput.responseCompression == null && parsedInput.browserCache === undefined
             ? {}
-            : { metadata: { changedFields: ['responseCompression' as const] } }),
+            : {
+                  metadata: {
+                      changedFields: [
+                          ...(parsedInput.responseCompression == null
+                              ? []
+                              : ['responseCompression' as const]),
+                          ...(parsedInput.browserCache === undefined
+                              ? []
+                              : ['browserCache' as const]),
+                      ],
+                  },
+              }),
     })
 
     return {
         ...toProxyHostSummary(proxyHost, domains),
         responseCompression: parsedInput.responseCompression ?? null,
+        ...(parsedInput.browserCache ? { browserCache: parsedInput.browserCache } : {}),
+        ...(parsedInput.responseCache === undefined
+            ? {}
+            : { responseCache: parsedInput.responseCache }),
         ...(tags ? { tags } : {}),
     }
 }
@@ -245,6 +281,8 @@ export async function updateProxyHostInTransaction(
         actorId,
         PERMISSIONS.PROXY_HOSTS_UPDATE,
     )
+    if (parsedInput.browserCache !== undefined)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_APPLY)
     if (parsedInput.tagIds !== undefined)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
     await assertDiscoveryHostEditable(transaction, parsedInput.proxyHostId, discoveryKey)
@@ -326,6 +364,9 @@ export async function updateProxyHostInTransaction(
 
     const httpSettings = { ...(await readProxyHostHttpSettings(transaction, proxyHost.id)) }
     const previousCompression = httpSettings.responseCompression ?? null
+    const browserCacheChanged =
+        parsedInput.browserCache !== undefined &&
+        JSON.stringify(parsedInput.browserCache) !== JSON.stringify(httpSettings.browserCache)
     if (parsedInput.responseCompression !== undefined) {
         if (parsedInput.responseCompression !== previousCompression)
             await requirePermissionInTransaction(
@@ -338,6 +379,13 @@ export async function updateProxyHostInTransaction(
         await writeProxyHostHttpSettings(transaction, proxyHost.id, httpSettings)
     }
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
+    if (parsedInput.responseCache !== undefined)
+        await writeAuthorizedResponseCacheSettings(
+            transaction,
+            actorId,
+            proxyHost.id,
+            parsedInput.responseCache,
+        )
     const tags =
         parsedInput.tagIds !== undefined || actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)
             ? await assignHostTagsInTransaction(
@@ -348,6 +396,13 @@ export async function updateProxyHostInTransaction(
               )
             : undefined
 
+    if (parsedInput.browserCache !== undefined && browserCacheChanged) {
+        const settings = await readProxyHostHttpSettings(transaction, proxyHost.id)
+        await writeProxyHostHttpSettings(transaction, proxyHost.id, {
+            ...settings,
+            browserCache: parsedInput.browserCache,
+        })
+    }
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
@@ -364,6 +419,7 @@ export async function updateProxyHostInTransaction(
                 parsedInput.responseCompression === previousCompression
                     ? []
                     : ['responseCompression' as const]),
+                ...(browserCacheChanged ? (['browserCache'] as const) : []),
                 ...(parsedInput.tagIds ? ['tags' as const] : []),
                 ...(parsedInput.certificateId === undefined ? [] : (['certificate'] as const)),
                 ...(parsedInput.trustedCaId === undefined ? [] : (['trustedCa'] as const)),
@@ -380,9 +436,37 @@ export async function updateProxyHostInTransaction(
         },
     })
 
+    const savedHttpSettings = await readProxyHostHttpSettings(transaction, proxyHost.id)
+    const savedResponseCache = (
+        await readResponseCacheSettingsMap(transaction, [proxyHost.id])
+    ).get(proxyHost.id)
     return {
         ...toProxyHostSummary(updatedProxyHost, domains),
-        responseCompression: httpSettings.responseCompression ?? null,
+        responseCompression: savedHttpSettings.responseCompression ?? null,
+        browserCache: savedHttpSettings.browserCache,
+        ...(savedResponseCache ? { responseCache: savedResponseCache } : {}),
         ...(tags ? { tags } : {}),
     }
+}
+
+async function writeAuthorizedResponseCacheSettings(
+    transaction: AuthTransaction,
+    actorId: string,
+    proxyHostId: string,
+    settings: ResponseCacheSettings | null,
+): Promise<void> {
+    const existing =
+        (await readResponseCacheSettingsMap(transaction, [proxyHostId])).get(proxyHostId) ?? null
+    if (JSON.stringify(existing) === JSON.stringify(settings)) return
+    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_APPLY)
+    await writeResponseCacheSettings(transaction, proxyHostId, settings)
+    await appendAuditEventInTransactionService(transaction, {
+        actorUserId: actorId,
+        actorKind: 'user',
+        action: 'save',
+        resource: 'proxy-host-settings',
+        targetId: proxyHostId,
+        result: 'success',
+        metadata: { enabled: settings !== null },
+    })
 }

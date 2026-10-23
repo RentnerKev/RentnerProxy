@@ -1000,3 +1000,368 @@ fn response_compression_real_caddy_smoke() {
     running.store(false, Ordering::Relaxed);
     worker.join().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires RENTNERPROXY_TEST_CADDY_BIN"]
+async fn browser_cache_real_caddy_smoke() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    use crate::models::{
+        AccessPolicy, AccessPolicyMode, BrowserCacheRule, BrowserCacheSettings, IpDefaultAction,
+        IpRules,
+    };
+    use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri};
+    let binary = PathBuf::from(
+        std::env::var_os("RENTNERPROXY_TEST_CADDY_BIN").expect("set RENTNERPROXY_TEST_CADDY_BIN"),
+    )
+    .canonicalize()
+    .unwrap();
+    let workspace = SmokeWorkspace::new();
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let upstream_addr = upstream.local_addr().unwrap();
+    let app = axum::Router::new().fallback(|uri: Uri| async move {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "content-type",
+            HeaderValue::from_static("text/css; charset=utf-8"),
+        );
+        headers.insert("etag", HeaderValue::from_static("\"original\""));
+        headers.insert("x-upstream", HeaderValue::from_static("preserved"));
+        let mut status = StatusCode::OK;
+        let file = uri.path().rsplit('/').next().unwrap_or_default();
+        match file {
+            "private.css" => {
+                headers.insert(
+                    "cache-control",
+                    HeaderValue::from_static("private, max-age=5"),
+                );
+            }
+            "no-store.css" => {
+                headers.insert("cache-control", HeaderValue::from_static("no-store"));
+            }
+            "no-cache.css" => {
+                headers.insert("cache-control", HeaderValue::from_static("no-cache"));
+            }
+            "public-policy.css" => {
+                headers.insert(
+                    "cache-control",
+                    HeaderValue::from_static("public, max-age=17"),
+                );
+            }
+            "cookie.css" => {
+                headers.insert("set-cookie", HeaderValue::from_static("synthetic=1"));
+            }
+            "vary.css" => {
+                headers.insert("vary", HeaderValue::from_static("Cookie"));
+            }
+            "expires.css" => {
+                headers.insert("expires", HeaderValue::from_static("0"));
+            }
+            "pragma.css" => {
+                headers.insert("pragma", HeaderValue::from_static("no-cache"));
+            }
+            "html.css" => {
+                headers.insert("content-type", HeaderValue::from_static("text/html"));
+            }
+            "json.css" => {
+                headers.insert("content-type", HeaderValue::from_static("application/json"));
+            }
+            "error.css" => status = StatusCode::INTERNAL_SERVER_ERROR,
+            "missing.css" => status = StatusCode::NOT_FOUND,
+            "redirect.css" => status = StatusCode::FOUND,
+            "partial.css" => {
+                status = StatusCode::PARTIAL_CONTENT;
+                headers.insert("content-range", HeaderValue::from_static("bytes 0-2/3"));
+            }
+            "not-modified.css" => status = StatusCode::NOT_MODIFIED,
+            _ => {}
+        }
+        (
+            status,
+            headers,
+            if file == "compressed.css" {
+                "body { color: red; }".repeat(100)
+            } else {
+                "body { color: red; }".to_owned()
+            },
+        )
+    });
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(upstream, app).await.unwrap();
+    });
+    let listeners: Vec<_> = (0..2)
+        .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
+        .collect();
+    let addresses: Vec<_> = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect();
+    let mut public = super::fixtures::host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["assets.example"],
+        "http",
+        "127.0.0.1",
+        upstream_addr.port(),
+    );
+    public.http_settings.browser_cache = Some(BrowserCacheSettings {
+        enabled: true,
+        rules: vec![
+            BrowserCacheRule {
+                path: "/assets/".to_owned(),
+                max_age_seconds: 3600,
+                immutable: true,
+            },
+            BrowserCacheRule {
+                path: "/fixed.css".to_owned(),
+                max_age_seconds: 60,
+                immutable: false,
+            },
+        ],
+    });
+    let mut explicit_public = public.clone();
+    explicit_public.id = "018f4b4a-7d1f-7abc-8def-4123456789ab".to_owned();
+    explicit_public.domains = vec!["public-policy.example".to_owned()];
+    explicit_public.access_policy = Some(AccessPolicy {
+        id: explicit_public.id.clone(),
+        mode: AccessPolicyMode::Public,
+        combination: None,
+        basic_auth: None,
+        forward_auth: None,
+        ip_rules: None,
+    });
+    let mut protected = public.clone();
+    protected.id = "018f4b4a-7d1f-7abc-8def-1123456789ab".to_owned();
+    protected.domains = vec!["protected.example".to_owned()];
+    protected.access_policy = Some(AccessPolicy {
+        id: protected.id.clone(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        forward_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Allow,
+            allow: vec![],
+            deny: vec![],
+        }),
+    });
+    let mut disabled = public.clone();
+    disabled.id = "018f4b4a-7d1f-7abc-8def-2123456789ab".to_owned();
+    disabled.domains = vec!["disabled.example".to_owned()];
+    disabled
+        .http_settings
+        .browser_cache
+        .as_mut()
+        .unwrap()
+        .enabled = false;
+    let mut omitted = disabled.clone();
+    omitted.id = "018f4b4a-7d1f-7abc-8def-3123456789ab".to_owned();
+    omitted.domains = vec!["omitted.example".to_owned()];
+    omitted.http_settings.browser_cache = None;
+    let config = validate_proxy_config(super::fixtures::request_with_settings(
+        vec![public, explicit_public, protected, disabled, omitted],
+        crate::models::ProxyHttpSettings {
+            response_compression: Some(crate::models::ResponseCompression::Auto),
+            ..Default::default()
+        },
+    ))
+    .unwrap();
+    let rendered = render_config(
+        Some(&config),
+        &RenderSettings {
+            http_port: addresses[0].port(),
+            probe_socket: None,
+            admin_socket: None,
+            state_dir: workspace.0.clone(),
+            controller_addr: upstream_addr,
+            trusted_proxy_cidrs: Vec::new(),
+        },
+    )
+    .unwrap();
+    let mut json: Value = serde_json::from_str(&rendered).unwrap();
+    json["apps"]["http"]["servers"]["rentnerproxy-http"]["listen"] =
+        json!([addresses[0].to_string()]);
+    json["apps"]["http"]["servers"]["rentnerproxy-probe"]["listen"] =
+        json!([addresses[1].to_string()]);
+    let (_child, address, _) = start_rendered_caddy(&binary, &workspace.0, json, listeners);
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+    let url = |path: &str| format!("http://{address}{path}");
+    for method in [reqwest::Method::GET, reqwest::Method::HEAD] {
+        let response = client
+            .request(method.clone(), url("/assets/public.css"))
+            .header("Host", "assets.example")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            response.headers()["cache-control"],
+            "public, max-age=3600, immutable"
+        );
+        assert_eq!(response.headers()["etag"], "\"original\"");
+        assert_eq!(response.headers()["x-upstream"], "preserved");
+        assert_eq!(
+            response.text().await.unwrap(),
+            if method == reqwest::Method::HEAD {
+                ""
+            } else {
+                "body { color: red; }"
+            }
+        );
+    }
+    for method in [reqwest::Method::GET, reqwest::Method::HEAD] {
+        let response = client
+            .request(method, url("/assets/public.css"))
+            .header("Host", "public-policy.example")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            response.headers()["cache-control"],
+            "public, max-age=3600, immutable"
+        );
+    }
+    let compressed = client
+        .get(url("/assets/compressed.css"))
+        .header("Host", "assets.example")
+        .header("Accept-Encoding", "gzip")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        compressed.headers()["cache-control"],
+        "public, max-age=3600, immutable"
+    );
+    assert_eq!(compressed.headers()["content-encoding"], "gzip");
+    assert!(
+        compressed.headers()["vary"]
+            .to_str()
+            .unwrap()
+            .to_ascii_lowercase()
+            .contains("accept-encoding")
+    );
+    let body = compressed.bytes().await.unwrap();
+    assert_eq!(
+        decompress_response(&body, "gzip"),
+        "body { color: red; }".repeat(100).as_bytes()
+    );
+    let exact = client
+        .get(url("/fixed.css"))
+        .header("Host", "assets.example")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(exact.headers()["cache-control"], "public, max-age=60");
+    for path in [
+        "/other/public.css",
+        "/assets-other/public.css",
+        "/fixed.css/extra",
+        "/assets/public.css?token=synthetic",
+        "/assets/cookie.css",
+        "/assets/vary.css",
+        "/assets/expires.css",
+        "/assets/pragma.css",
+        "/assets/html.css",
+        "/assets/json.css",
+        "/assets/error.css",
+        "/assets/missing.css",
+        "/assets/redirect.css",
+        "/assets/partial.css",
+        "/assets/not-modified.css",
+    ] {
+        let response = client
+            .get(url(path))
+            .header("Host", "assets.example")
+            .send()
+            .await
+            .unwrap();
+        if path == "/assets/pragma.css" {
+            // Go's HTTP transport expands upstream Pragma: no-cache to Cache-Control.
+            assert_eq!(response.headers()["cache-control"], "no-cache");
+            assert_eq!(response.headers()["pragma"], "no-cache");
+        } else {
+            assert!(
+                !response.headers().contains_key("cache-control"),
+                "{path}: {:?}",
+                response.headers()
+            );
+        }
+    }
+    for (path, value) in [
+        ("private.css", "private, max-age=5"),
+        ("no-store.css", "no-store"),
+        ("no-cache.css", "no-cache"),
+        ("public-policy.css", "public, max-age=17"),
+    ] {
+        let response = client
+            .get(url(&format!("/assets/{path}")))
+            .header("Host", "assets.example")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.headers()["cache-control"], value);
+    }
+    for (name, value) in [
+        ("Cookie", "synthetic=1"),
+        ("Remote-User", "synthetic"),
+        ("Remote-Email", "synthetic"),
+        ("Remote-Name", "synthetic"),
+        ("Remote-Groups", "synthetic"),
+        ("X-Auth-Request-User", "synthetic"),
+        ("X-Auth-Request-Email", "synthetic"),
+        ("X-Auth-Request-Groups", "synthetic"),
+        ("X-Auth-Request-Preferred-Username", "synthetic"),
+        ("X-Forwarded-User", "synthetic"),
+        ("X-Forwarded-Email", "synthetic"),
+        ("X-User", "synthetic"),
+        ("X-Email", "synthetic"),
+        ("X-Authentik-Username", "synthetic"),
+        ("X-Authentik-Email", "synthetic"),
+        ("X-Authentik-Name", "synthetic"),
+        ("X-Authentik-Groups", "synthetic"),
+        ("X-Authentik-Uid", "synthetic"),
+        ("Authorization", "Bearer synthetic"),
+        ("Proxy-Authorization", "Basic synthetic"),
+        ("Range", "bytes=0-2"),
+        ("If-Range", "synthetic"),
+        ("If-Match", "synthetic"),
+        ("If-None-Match", "synthetic"),
+        ("If-Modified-Since", "Wed, 21 Oct 2015 07:28:00 GMT"),
+        ("If-Unmodified-Since", "Wed, 21 Oct 2015 07:28:00 GMT"),
+        ("Cache-Control", "no-cache"),
+        ("Pragma", "no-cache"),
+    ] {
+        let response = client
+            .get(url("/assets/public.css"))
+            .header("Host", "assets.example")
+            .header(name, value)
+            .send()
+            .await
+            .unwrap();
+        assert!(!response.headers().contains_key("cache-control"), "{name}");
+    }
+    for domain in ["protected.example", "disabled.example", "omitted.example"] {
+        let response = client
+            .get(url("/assets/public.css"))
+            .header("Host", domain)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert!(
+            !response.headers().contains_key("cache-control"),
+            "{domain}"
+        );
+    }
+    let post = client
+        .post(url("/assets/public.css"))
+        .header("Host", "assets.example")
+        .send()
+        .await
+        .unwrap();
+    assert!(!post.headers().contains_key("cache-control"));
+    upstream_task.abort();
+}

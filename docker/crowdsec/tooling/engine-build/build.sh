@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Full upstream v1.8.1 with the PostgreSQL driver migration and frozen module overlay.
+# Pristine upstream v1.8.1 with reviewed workspace pins and its SQLite appliance backend.
 script_root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 source_commit=909b5157986a2b2c2163300fdaef5ed01289f7d2
 source_sha256=6a9219a2a2706e35b723750d581c697db54d32d1b3995216cc2838329e15f7dc
@@ -36,21 +36,28 @@ curl --fail --location --retry 3 --output "$work_root/source.tar.gz" \
 printf '%s  %s\n' "$source_sha256" "$work_root/source.tar.gz" | sha256sum --check --strict -
 mkdir "$work_root/source"
 tar -xzf "$work_root/source.tar.gz" --strip-components=1 -C "$work_root/source"
-/bin/sh "$script_root/patch-postgres.sh" "$work_root/source"
-cp "$script_root/go.mod" "$script_root/go.sum" "$work_root/source/"
+mkdir "$work_root/pins"
+cp "$script_root/go.mod" "$script_root/go.sum" "$work_root/pins/"
+cp "$script_root/go.work.template" "$work_root/go.work"
+cp "$script_root/go.work.sum" "$work_root/go.work.sum"
+export GOWORK="$work_root/go.work"
+cd "$work_root"
+sha256sum pins/go.mod pins/go.sum go.work go.work.sum > "$work_root/locks.sha256"
 cd "$work_root/source"
-sha256sum go.mod go.sum > "$work_root/locks.sha256"
-go mod download
-go mod verify
-# Reject missing sums or any implicit lockfile changes, including during build.
-sha256sum --check --strict "$work_root/locks.sha256"
-go list -deps -tags netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo \
+# Hash every original source file, including upstream's untouched go.mod/go.sum.
+find . -type f -print0 | sort -z | xargs -0 sha256sum > "$work_root/source-files.sha256"
+go list -deps -tags netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo,no_db_postgres \
     ./cmd/crowdsec ./cmd/crowdsec-cli > "$work_root/packages.txt"
+go mod verify
+(cd "$work_root" && sha256sum --check --strict "$work_root/locks.sha256")
+sha256sum --check --strict "$work_root/source-files.sha256" > /dev/null
 /bin/sh "$script_root/verify-packages.sh" "$work_root/packages.txt"
+# Both managed configurations use SQLite; upstream supports excluding just PostgreSQL.
 make build BUILD_VERSION=v1.8.1 BUILD_TAG="$source_commit" \
     BUILD_TIMESTAMP=2026-09-03_09:08:00 DOCKER_BUILD=1 \
-    BUILD_PROFILE=default EXCLUDE= PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1
-sha256sum --check --strict "$work_root/locks.sha256"
+    BUILD_PROFILE=default EXCLUDE=db_postgres PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1
+(cd "$work_root" && sha256sum --check --strict "$work_root/locks.sha256")
+sha256sum --check --strict "$work_root/source-files.sha256" > /dev/null
 
 mkdir -p "$output_root/bin" "$output_root/evidence"
 for binary in crowdsec cscli; do
@@ -66,7 +73,11 @@ for binary in crowdsec cscli; do
     esac
     cp "$binary_path" "$output_root/bin/$binary"
 done
-cp go.mod go.sum "$output_root/evidence/"
+cp "$work_root/pins/go.mod" "$work_root/pins/go.sum" \
+    "$work_root/go.work" "$work_root/go.work.sum" \
+    "$work_root/source-files.sha256" "$output_root/evidence/"
+cp go.mod "$output_root/evidence/upstream.go.mod"
+cp go.sum "$output_root/evidence/upstream.go.sum"
 cp "$work_root/packages.txt" "$output_root/evidence/packages.txt"
 printf '%s\n' "$source_commit" > "$output_root/evidence/source-commit.txt"
 printf '%s\n' "$source_sha256" > "$output_root/evidence/source-archive.sha256"

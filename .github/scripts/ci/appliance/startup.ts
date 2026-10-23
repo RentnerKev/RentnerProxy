@@ -202,9 +202,24 @@ export async function verifyApplianceStartup(context: ApplianceStartupContext) {
         )
         .toSorted()
     assert.deepEqual(caddyModules, ['admin.api.crowdsec', 'crowdsec', 'http.handlers.crowdsec'])
+    // Upstream ships optional registrations; verify they are not activated.
+    const caddyConfig = JSON.parse(
+        await context.command([
+            'docker',
+            'exec',
+            id,
+            'curl',
+            '--silent',
+            '--fail',
+            '--unix-socket',
+            '/var/lib/rentnerproxy/proxy/caddy-admin.sock',
+            'http://localhost/config/',
+        ]),
+    ) as { apps?: { layer4?: unknown; http?: unknown } }
+    assert.equal(caddyConfig.apps?.layer4, undefined)
     assert.doesNotMatch(
-        await context.command(['docker', 'exec', id, '/usr/bin/caddy', 'list-modules']),
-        /(?:^|\.)appsec(?:$|\.)|(?:^|\.)layer4(?:$|\.)/mu,
+        JSON.stringify(caddyConfig.apps?.http ?? {}),
+        /"(?:handler|wrapper)":"(?:appsec|layer4)"/u,
     )
     assert.match(
         await context.command(['docker', 'exec', id, '/usr/local/bin/crowdsec', '-version']),

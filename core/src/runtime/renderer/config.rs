@@ -297,6 +297,7 @@ fn alt_svc_handler(public_https_port: u16, deferred: bool) -> Handler {
     Handler::Headers(Headers {
         request: None,
         response: Some(ResponseHeaders {
+            matcher: None,
             set: BTreeMap::from([(
                 "Alt-Svc".to_owned(),
                 vec![format!("h3=\":{public_https_port}\"; ma=2592000")],

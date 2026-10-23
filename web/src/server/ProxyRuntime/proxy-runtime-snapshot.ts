@@ -2,6 +2,7 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
+import { responseCacheSchema } from '@/lib/ResponseCache/responseCache.ts'
 import { defaultSiteSettingsSchema } from '@/lib/DefaultSite/defaultSite.ts'
 import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 import {
@@ -165,6 +166,7 @@ const runtimeHostSchema = z
         forwardHost: proxyForwardHostSchema,
         forwardPort: proxyForwardPortSchema,
         httpSettings: proxyHostHttpSettingsSchema.optional(),
+        responseCache: responseCacheSchema.optional(),
         certificateId: z.uuidv7().nullish(),
         forceHttps: z.boolean().default(false),
         upstreamTls: runtimeUpstreamTlsSchema.optional(),
@@ -294,6 +296,7 @@ export function createProxyRuntimeSnapshot(
                     forwardPort: host.forwardPort,
                 },
                 Object.keys(hostSettings).length === 0 ? {} : { httpSettings: hostSettings },
+                host.responseCache ? { responseCache: host.responseCache } : {},
                 host.certificateId ? { certificateId: host.certificateId.toLowerCase() } : {},
                 host.forceHttps ? { forceHttps: true } : {},
                 host.forwardScheme === 'https'
@@ -348,6 +351,8 @@ export function createProxyRuntimeSnapshot(
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
+    if (httpSettings.browserCache !== undefined)
+        throw new ProxyRuntimeSnapshotError('Browser-cache settings are host-scoped.')
     const normalizedSettings = normalizeProxyHttpSettings(httpSettings)
     const referencedCaIds = new Set(
         proxyHosts.flatMap((host) =>

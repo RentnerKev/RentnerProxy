@@ -91,7 +91,7 @@ test('trusted checkout CLI loads with only native Bun and its byte helper, witho
             globalThis.fetch = async input => {
                 const path = new URL(String(input)).pathname
                 if (path.endsWith('/ci.yml')) return Response.json({ id: 10, path: run.path, state: 'active' })
-                if (path.endsWith('/jobs')) return Response.json({ total_count: 7, jobs: ${JSON.stringify(REQUIRED_CI_JOBS)}.map((name, index) => ({ id: index + 1, run_id: 20, head_sha: run.head_sha, name, status: 'completed', conclusion: 'success' })) })
+                if (path.endsWith('/jobs')) return Response.json({ total_count: ${REQUIRED_CI_JOBS.length}, jobs: ${JSON.stringify(REQUIRED_CI_JOBS)}.map((name, index) => ({ id: index + 1, run_id: 20, head_sha: run.head_sha, name, status: 'completed', conclusion: 'success' })) })
                 if (path.endsWith('/runs')) return Response.json({ total_count: 1, workflow_runs: [run] })
                 return Response.json(run)
             }

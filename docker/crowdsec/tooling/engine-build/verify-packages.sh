@@ -2,7 +2,10 @@
 set -eu
 
 packages=${1:?Usage: verify-packages.sh PACKAGE_INVENTORY}
-grep -Fxq 'github.com/jackc/pgx/v5/stdlib' "$packages"
+for datasource in appsec cloudwatch docker file http journalctl kafka kinesis \
+    kubernetes kubernetesaudit loki s3 syslog victorialogs wineventlog; do
+    grep -Fxq "github.com/crowdsecurity/crowdsec/pkg/acquisition/modules/$datasource" "$packages"
+done
 grep -Fxq 'github.com/go-sql-driver/mysql' "$packages"
 grep -Fxq 'github.com/mattn/go-sqlite3' "$packages"
 if grep -Eq '^github\.com/jackc/(pgx/v4|pgproto3/v2|pgconn|pgtype)(/|$)|^golang\.org/x/crypto/openpgp(/|$)' "$packages"; then

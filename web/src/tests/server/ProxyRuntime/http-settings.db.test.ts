@@ -86,6 +86,34 @@ describe('HTTP settings JSONB persistence', () => {
         },
     )
 
+    integrationTest(
+        'round-trips browser-cache rules with existing timeouts and reset',
+        async () => {
+            await rolledBack(async (transaction) => {
+                const hostId = crypto.randomUUID()
+                const browserCache = {
+                    enabled: true,
+                    rules: [{ path: '/assets/', maxAgeSeconds: 3600, immutable: true }],
+                }
+                const settings = { proxyReadTimeoutSeconds: 90, browserCache }
+                await writeProxyHostHttpSettings(transaction, hostId, settings)
+                expect(await readProxyHostHttpSettings(transaction, hostId)).toEqual(settings)
+                expect(
+                    (await readProxyHostHttpSettingsMap(transaction, [hostId])).get(hostId),
+                ).toEqual(settings)
+                await writeProxyHostHttpSettings(transaction, hostId, {
+                    ...settings,
+                    browserCache: { ...browserCache, enabled: false },
+                })
+                expect(
+                    (await readProxyHostHttpSettings(transaction, hostId)).browserCache?.enabled,
+                ).toBe(false)
+                await writeProxyHostHttpSettings(transaction, hostId, {})
+                expect(await readProxyHostHttpSettings(transaction, hostId)).toEqual({})
+            })
+        },
+    )
+
     integrationTest('round-trips host inserts, updates, bulk reads and reset', async () => {
         await rolledBack(async (transaction) => {
             const hostId = crypto.randomUUID()

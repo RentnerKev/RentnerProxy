@@ -1597,6 +1597,26 @@
                 "resultHelp": "Speichern hinterlegt die Konfiguration. Ein eingereihtes oder gerade in Ausstellung befindliches Zertifikat ist noch nicht bereit. Auf die Anwendung warten und den Runtime-Status prüfen; angewendete Konfiguration beweist keine DNS- oder Dienst-Erreichbarkeit.",
                 "failureHelp": "Markierte Felder vor dem Speichern korrigieren. Bei fehlgeschlagenen Zertifikatsaufträgen Fehler prüfen, beheben und erneut versuchen. Ausstehende Konfiguration bei entsprechender Berechtigung anwenden; bei nicht verfügbarer Runtime diese wiederherstellen und erneut versuchen.",
                 "certificateUnavailable": "Details nicht verfügbar"
+            },
+            "browserCache": {
+                "title": "Browser-Cache für öffentliche Dateien",
+                "help": "Ergänzt ausschließlich fehlende Cache-Richtlinien. Exakter Asset-Dateipfad oder öffentliches Verzeichnis mit abschließendem / (z. B. /assets/). Höchstens 20 Regeln, 31.536.000 Sekunden. Bestehende Cache-Header bleiben erhalten. Nur erfolgreiche GET/HEAD-Antworten mit Asset-Inhaltstyp. Geschützte Hosts, Cookies, Zugangsdaten, Query-Parameter, bedingte Anfragen und Range-Anfragen werden übersprungen. Regeln dürfen sich nicht überschneiden.",
+                "enable": "Browser-Cache-Regeln aktivieren",
+                "path": "Öffentlicher Dateipfad oder Verzeichnis/",
+                "age": "Gültigkeit in Sekunden",
+                "immutable": "Diese Datei ist versioniert (immutable)",
+                "remove": "Regel entfernen",
+                "add": "Regel hinzufügen",
+                "invalid": "Bitte eindeutige öffentliche Asset-Pfade oder Verzeichnisse und eine Gültigkeit von 1 bis 31.536.000 Sekunden angeben. Aktive Regeln dürfen nicht leer sein. HTML-, API- und Auth-Pfade sowie Platzhalter sind nicht erlaubt. Regeln dürfen sich nicht überschneiden.",
+                "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Antwort-Cache für öffentliche Assets",
+                "enabled": "Antwort-Cache aktivieren",
+                "paths": "Öffentliche Pfadpräfixe (kommagetrennt, mit / am Ende)",
+                "ttl": "Maximale Lebensdauer in Sekunden (1–3600)",
+                "hint": "Standardmäßig aus. Nur erfolgreiche öffentliche CSS-, JavaScript-, Bild- und Schriftantworten in diesen Pfaden werden gespeichert. Cookies, Zugangsdaten, Query-Parameter, Streams und geschützte Hosts umgehen den Cache. Grenzen: 1 MiB je Antwort, 64 MiB gemeinsames Nutzdatenbudget und 1024 Einträge.",
+                "invalid": "1–16 eindeutige Pfadpräfixe wie /assets/ und eine Lebensdauer von 1 bis 3600 Sekunden angeben."
             }
         },
         "redirectHosts": {

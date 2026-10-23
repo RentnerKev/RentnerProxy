@@ -41,11 +41,13 @@ import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHos
 export default function useProxyHostFormModalLogic({
     initialGuideOpen = false,
     canConfigureCompression = false,
+    canConfigureBrowserCache = false,
     canEnable,
     canDisable,
     canAssignCertificates = false,
     canRequestCertificate = false,
     canAssignPolicies = false,
+    canApplyResponseCache = false,
     mode,
     onSuccess,
     proxyHost,
@@ -109,14 +111,15 @@ export default function useProxyHostFormModalLogic({
     >({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
-            if (!canConfigureCompression) delete data.responseCompression
-            const submittedData = canAssignPolicies
-                ? data
-                : (() => {
-                      const preserved = { ...data }
-                      delete preserved.accessPolicyId
-                      return preserved
-                  })()
+            const submittedData = { ...data }
+            if (!canAssignPolicies) delete submittedData.accessPolicyId
+            if (!canConfigureBrowserCache) delete submittedData.browserCache
+            if (!canConfigureCompression) delete submittedData.responseCompression
+            if (
+                !canApplyResponseCache ||
+                (submittedData.responseCache === null && !proxyHost?.responseCache)
+            )
+                delete submittedData.responseCache
             const request = requestNewCertificate
                 ? (() => {
                       const parsed = certificateRequest.getRequestInput({
@@ -297,6 +300,7 @@ export default function useProxyHostFormModalLogic({
             canAssignCertificates,
             canRequestCertificate,
             canAssignPolicies,
+            canApplyResponseCache,
             assignableAccessPolicies: accessPoliciesQuery.data ?? [],
             assignableAccessPoliciesLoadFailed: accessPoliciesQuery.isError,
             assignableAccessPoliciesLoading: accessPoliciesQuery.isPending,

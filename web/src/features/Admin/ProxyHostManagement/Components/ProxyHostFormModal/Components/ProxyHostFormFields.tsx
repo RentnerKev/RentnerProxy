@@ -9,6 +9,7 @@ import { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types.ts'
 import { proxyForwardHostSchema, proxyHostFormSchema } from '../../../validation.ts'
 import DomainInputs from './DomainInputs.tsx'
+import ResponseCacheFields from './ResponseCacheFields.tsx'
 import UpstreamTlsFields from './UpstreamTlsFields.tsx'
 import CertificateRequestFields from '@/features/Admin/CertificateManagement/Components/CertificateRequestModal/Components/CertificateRequestFields.tsx'
 
@@ -19,6 +20,7 @@ export default function ProxyHostFormFields({
     canAssignCertificates,
     canRequestCertificate,
     canAssignPolicies,
+    canApplyResponseCache,
     assignableAccessPolicies,
     assignableAccessPoliciesLoadFailed,
     assignableAccessPoliciesLoading,
@@ -372,6 +374,9 @@ export default function ProxyHostFormFields({
                     </div>
                 )}
             </form.Field>
+            {canApplyResponseCache ? (
+                <ResponseCacheFields form={form} formId={formId} isPending={isPending} />
+            ) : null}
             <form.Field name="enabled">
                 {(field) => (
                     <div className="grid gap-[0.45rem] shell:col-span-full">

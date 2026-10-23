@@ -1,4 +1,5 @@
 import ResponseCompressionField from '../ResponseCompressionField.tsx'
+import BrowserCacheFields from '../BrowserCacheFields/index.tsx'
 import ProxyConfigEditorConflict from '../ProxyConfigEditorConflict.tsx'
 import ProxyConfigEditorActions from '../ProxyConfigEditorActions.tsx'
 import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
@@ -308,6 +309,11 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                                 <p className="m-0 text-sm leading-relaxed text-muted">
                                     {t('admin.proxyHosts.config.inheritsDefaults')}
                                 </p>
+                                <BrowserCacheFields
+                                    value={state.settings.browserCache}
+                                    onChange={(value) => handler.setSetting('browserCache', value)}
+                                    disabled={!props.canEdit || busy || state.hasConflict}
+                                />
                                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                                     <ResponseCompressionField
                                         id="proxy-host-setting-responseCompression"

@@ -93,6 +93,7 @@ export const AUDIT_CHANGED_FIELDS = [
     'domains',
     'upstream',
     'tls',
+    'browserCache',
     'headers',
     'responseCompression',
     'certificate',
