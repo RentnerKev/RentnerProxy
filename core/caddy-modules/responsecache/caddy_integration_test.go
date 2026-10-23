@@ -201,6 +201,12 @@ func TestCaddyRuntime(t *testing.T) {
 			t.Fatal("credential or conditional request consumed warm hit")
 		}
 	}
+	fetch("one.test", "/assets/public.css", nil)
+	warmed := count("one.test", "/assets/public.css")
+	fetch("one.test", "/assets/public.css", nil)
+	if count("one.test", "/assets/public.css") != warmed {
+		t.Fatal("entry was not warm before the mutation")
+	}
 	mutation, err := http.NewRequest("DELETE", "http://"+address+"/assets/public.css", nil)
 	if err != nil {
 		t.Fatal(err)

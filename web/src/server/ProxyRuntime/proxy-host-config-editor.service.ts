@@ -111,6 +111,15 @@ async function saveHostSettings(
             if (latest.baseRevision !== baseRevision)
                 throw new ProxyConfigEditorError('configuration_conflict')
             await writeProxyHostHttpSettings(transaction, proxyHostId, settings)
+            const changedFields = [
+                ...(settings.responseCompression === latest.hostSettings.responseCompression
+                    ? []
+                    : (['responseCompression'] as const)),
+                ...(JSON.stringify(settings.browserCache) ===
+                JSON.stringify(latest.hostSettings.browserCache)
+                    ? []
+                    : (['browserCache'] as const)),
+            ]
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
@@ -118,9 +127,7 @@ async function saveHostSettings(
                 resource: 'proxy-host-settings',
                 targetId: proxyHostId,
                 result: 'success',
-                ...(settings.responseCompression === latest.hostSettings.responseCompression
-                    ? {}
-                    : { metadata: { changedFields: ['responseCompression' as const] } }),
+                ...(changedFields.length === 0 ? {} : { metadata: { changedFields } }),
             })
             return latest.host.enabled
         })

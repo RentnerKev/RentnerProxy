@@ -45,6 +45,7 @@ import {
 import {
     getProxyHostConfigEditorService,
     saveProxyHostConfigEditorService,
+    resetProxyHostConfigEditorService,
 } from '@/server/ProxyRuntime/proxy-host-config-editor.service.ts'
 import {
     lockProxyRuntimeSettings,
@@ -2248,6 +2249,86 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
 })
 
 describe('browser-cache host settings with PostgreSQL', () => {
+    integrationTest(
+        'audits editor save and reset only for changed cache and compression settings',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const controller = startFakeController(false)
+            try {
+                const created = await runAsUser(owner.id, () =>
+                    createProxyHostService(proxyHostInput('browser-cache-editor-audit')),
+                )
+                const editor = () =>
+                    runAsUser(owner.id, () => getProxyHostConfigEditorService(created.id))
+                const events = async () =>
+                    (
+                        await getAuthDatabase()
+                            .select()
+                            .from(auditEvents)
+                            .where(eq(auditEvents.targetId, created.id))
+                    )
+                        .filter(
+                            (event) =>
+                                event.resource === 'proxy-host-settings' &&
+                                event.result === 'success',
+                        )
+                        .toSorted((left, right) => left.id.localeCompare(right.id))
+                const settings = {
+                    responseCompression: 'off' as const,
+                    browserCache: {
+                        enabled: true,
+                        rules: [{ path: '/assets/', maxAgeSeconds: 3600, immutable: true }],
+                    },
+                }
+                const save = async (next: ProxyHttpSettings) => {
+                    const basis = await editor()
+                    await runAsUser(owner.id, () =>
+                        saveProxyHostConfigEditorService({
+                            proxyHostId: created.id,
+                            baseRevision: basis.baseRevision,
+                            settings: next,
+                        }),
+                    )
+                    return (await events()).at(-1)
+                }
+                expect((await save(settings))?.metadata.changedFields).toEqual([
+                    'responseCompression',
+                    'browserCache',
+                ])
+                const saved = await editor()
+                expect((await save(settings))?.metadata.changedFields).toBeUndefined()
+                expect((await editor()).baseRevision).toBe(saved.baseRevision)
+                expect(
+                    (
+                        await save({
+                            ...settings,
+                            browserCache: { ...settings.browserCache, enabled: false },
+                        })
+                    )?.metadata.changedFields,
+                ).toEqual(['browserCache'])
+                const reset = async () => {
+                    const basis = await editor()
+                    await runAsUser(owner.id, () =>
+                        resetProxyHostConfigEditorService({
+                            proxyHostId: created.id,
+                            baseRevision: basis.baseRevision,
+                        }),
+                    )
+                    return (await events()).at(-1)
+                }
+                expect((await reset())?.metadata.changedFields).toEqual([
+                    'responseCompression',
+                    'browserCache',
+                ])
+                expect((await editor()).settings).toEqual({})
+                expect((await reset())?.metadata.changedFields).toBeUndefined()
+                expect(await events()).toHaveLength(5)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
     integrationTest(
         'requires APPLY and round-trips form/editor state with audit and conflict protection',
         async () => {
