@@ -49,13 +49,13 @@ function open(key: string, nonce: Uint8Array, ciphertext: Uint8Array, context: s
 const setting = (key: string, value: unknown) =>
     `INSERT INTO rentnerproxy.system_settings (key,value) VALUES (${sqlQuote(key)},${sqlJson(value)}) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;`
 async function settings(command: ApplianceCommand, id: string) {
-    return (JSON.parse(
-        await psql(
-            command,
-            id,
-            `SELECT json_object_agg(key,value) FROM rentnerproxy.system_settings WHERE key IN (${[notificationKey, runtimeKey, discoveryKey, tagsKey].map(sqlQuote).join(',')});`,
-        ),
-    ) ?? {}) as Record<string, unknown>
+    const output = await psql(
+        command,
+        id,
+        `SELECT json_object_agg(key,value) FROM rentnerproxy.system_settings WHERE key IN (${[notificationKey, runtimeKey, discoveryKey, tagsKey].map(sqlQuote).join(',')});`,
+    )
+    // psql renders a SQL NULL aggregate as an empty field, rather than JSON's null literal.
+    return (output === '' ? {} : (JSON.parse(output) ?? {})) as Record<string, unknown>
 }
 async function offlineSql(command: ApplianceCommand, compose: string[], statement: string) {
     const script = [
@@ -112,7 +112,8 @@ export function createBeta2AutomationFixture(runId: string) {
         port: 0,
         maxRequestBodySize: 16_384,
         async fetch(request) {
-            const path = new URL(request.url).pathname
+            const url = new URL(request.url)
+            const path = url.pathname
             if (path === '/notifications' && request.method === 'POST') {
                 const payload = (await request.json()) as { id: string }
                 deliveries.push({
@@ -123,9 +124,17 @@ export function createBeta2AutomationFixture(runId: string) {
             }
             dockerRequests += 1
             if (request.method !== 'GET') return new Response(null, { status: 405 })
-            if (path === '/containers/json')
+            if (path === '/v1.47/containers/json') {
+                if (
+                    url.searchParams.size !== 2 ||
+                    url.searchParams.get('all') !== '1' ||
+                    url.searchParams.get('filters') !== '{"label":["rentnerproxy.enable=true"]}'
+                )
+                    return new Response(null, { status: 400 })
                 return Response.json([{ Id: containerId(), Labels: labels }])
-            if (path === '/containers/' + containerId() + '/json')
+            }
+            if (path === '/v1.47/containers/' + containerId() + '/json') {
+                if (url.searchParams.size !== 0) return new Response(null, { status: 400 })
                 return Response.json({
                     Id: containerId(),
                     Name: '/beta2-' + runId,
@@ -140,7 +149,21 @@ export function createBeta2AutomationFixture(runId: string) {
                         },
                     },
                 })
-            if (path === '/events') {
+            }
+            if (path === '/v1.47/events') {
+                const since = url.searchParams.get('since') ?? ''
+                const timestamp = Number(since)
+                const now = Math.floor(Date.now() / 1_000)
+                if (
+                    url.searchParams.size !== 2 ||
+                    !/^\d{1,12}$/u.test(since) ||
+                    !Number.isSafeInteger(timestamp) ||
+                    timestamp < now - 60 ||
+                    timestamp > now + 5 ||
+                    url.searchParams.get('filters') !==
+                        '{"type":["container","network"],"event":["create","start","stop","die","destroy","rename","update","pause","unpause","connect","disconnect"]}'
+                )
+                    return new Response(null, { status: 400 })
                 let current: ReadableStreamDefaultController<Uint8Array>
                 const stream = new ReadableStream<Uint8Array>({
                     start(controller) {
