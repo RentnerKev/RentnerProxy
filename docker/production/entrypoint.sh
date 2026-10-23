@@ -367,8 +367,22 @@ monitor_children() {
     exit 1
 }
 
+initialize_restore_target() {
+    # Restore preparation only needs persistent secrets and an application-owned database.
+    # Never start consumers of old persisted automation, or apply migrations before replacement.
+    initialize_layout
+    initialize_secrets
+    initialize_postgres_data_directory
+    start_postgres
+}
+
 trap shutdown_children EXIT
 trap on_shutdown_signal INT TERM
+
+if [[ ${1:-} == --initialize-restore-target ]]; then
+    initialize_restore_target
+    exit 0
+fi
 
 initialize_layout
 initialize_secrets

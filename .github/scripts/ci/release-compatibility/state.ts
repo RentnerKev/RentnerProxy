@@ -116,3 +116,36 @@ export async function assertBetaDefaults(
     ])
     assert.equal(mode, 'stopped')
 }
+
+export async function assertFreshExternalDefaults(
+    command: ApplianceCommand,
+    containerId: string,
+): Promise<void> {
+    const output = await psql(
+        command,
+        containerId,
+        "select count(*) from rentnerproxy.system_settings where key='notification_configuration_v1' and value->>'enabled'='true'",
+    )
+    assert.equal(output, '0')
+    const probe = [
+        "const token=await Bun.file('/run/rentnerproxy/controller-token/value').text();",
+        "async function status(path){const r=await fetch('http://127.0.0.1:8081/internal/v1/'+path,{headers:{authorization:'Bearer '+token}});if(!r.ok)process.exit(1);return r.json();}",
+        "const ddns=await status('ddns/status');const discovery=await status('discovery/docker/status');",
+        'if(ddns.configuration!==null||discovery.configuration?.settings?.enabled!==false)process.exit(1);',
+        "process.stdout.write('external-mutations-disabled');",
+    ].join('')
+    assert.equal(
+        await command([
+            'docker',
+            'exec',
+            '--user',
+            '10001:10001',
+            containerId,
+            'bun',
+            '--no-env-file',
+            '-e',
+            probe,
+        ]),
+        'external-mutations-disabled',
+    )
+}

@@ -71,7 +71,7 @@ export async function verifyApplianceRestore(context: ApplianceRestoreContext) {
         context.scriptEnvironment,
         900_000,
     )
-    const restoredId = await context.containerId(context.restoreCompose)
+    let restoredId = await context.containerId(context.restoreCompose)
     await context.waitForHealthy(restoredId)
     const restoredCrowdSec = await context.waitForCrowdSec(
         restoredId,
@@ -285,6 +285,68 @@ export async function verifyApplianceRestore(context: ApplianceRestoreContext) {
     )
     context.passed(
         'backup restores PostgreSQL, controller state, and application identity to a fresh appliance',
+    )
+    const automation = context.beta2AutomationFixture
+    await automation.assertRestored(context.command, restoredId, context.controllerCall)
+    const pausedBefore = automation.counters()
+    await Bun.sleep(16_000)
+    assert.deepEqual(
+        automation.counters(),
+        pausedBefore,
+        'restored paused automation contacted a receiver',
+    )
+    context.passed(
+        'fresh-volume restore preserves encrypted DNS/DDNS, Discovery ownership/tags and notification destinations while pausing all automation',
+    )
+    await automation.armStoppedTarget(
+        context.command,
+        restoredId,
+        context.restoreCompose,
+        context.controllerCall,
+    )
+    const stoppedBefore = automation.counters()
+    await context.commandWithEnvironment(
+        [
+            process.execPath,
+            '--no-env-file',
+            'scripts/production-restore.ts',
+            '--project',
+            context.restoreProject,
+            '--input',
+            context.backupPath,
+            '--confirm-replace',
+        ],
+        context.scriptEnvironment,
+        900_000,
+    )
+    restoredId = await context.containerId(context.restoreCompose)
+    await context.waitForHealthy(restoredId)
+    await automation.assertRestored(context.command, restoredId, context.controllerCall)
+    await Bun.sleep(16_000)
+    assert.deepEqual(
+        automation.counters(),
+        stoppedBefore,
+        'restore booted old queued notifications or Docker discovery before pausing',
+    )
+    await context.assertRealTraffic(
+        restoredId,
+        'stopped configured target restores without admitting old automation or losing existing proxy traffic',
+    )
+    context.passed(
+        'restore of a stopped configured target never replays its due outbox or reads Docker before the restore fence',
+    )
+    await automation.resumeAndVerify(
+        context.command,
+        restoredId,
+        context.controllerCall,
+        context.waitFor,
+    )
+    await context.assertRealTraffic(
+        restoredId,
+        'explicit notification/discovery reactivation preserves existing HTTP, HTTPS and WebSocket traffic',
+    )
+    context.passed(
+        'explicit activation sends a new notification, never the restored queue, and updates the same tagged discovery-owned host',
     )
     const preflightSecretsDigest = await context.command([
         'docker',

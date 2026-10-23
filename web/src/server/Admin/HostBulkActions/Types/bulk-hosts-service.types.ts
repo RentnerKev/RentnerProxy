@@ -36,6 +36,7 @@ export interface BulkHostDependencies {
         action: BulkHostAction,
         preview: boolean,
     ) => Promise<void>
+    readonly validateRuntime: (transaction: AuthTransaction) => Promise<unknown>
     readonly write: (
         transaction: AuthTransaction,
         kind: HostKind,

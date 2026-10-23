@@ -1,3 +1,4 @@
+import { createBeta2AutomationFixture } from '../fixtures/beta2-automation-state.ts'
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import type { CrowdSecMode, CrowdSecRuntimeStatus } from '../Types/appliance-compose-smoke.types.ts'
@@ -415,6 +416,7 @@ export async function createApplianceSmokeContext() {
         deploymentChangeProject,
     )
     let backend: ReturnType<typeof Bun.serve> | undefined
+    let beta2Automation: ReturnType<typeof createBeta2AutomationFixture> | undefined
     const scriptEnvironment: NodeJS.ProcessEnv = {
         ...commandEnvironment,
         ...smtpEnvironment,
@@ -476,6 +478,13 @@ export async function createApplianceSmokeContext() {
         },
         set backend(value: typeof backend) {
             backend = value
+        },
+        get beta2Automation() {
+            return beta2Automation
+        },
+        startBeta2Automation() {
+            beta2Automation ??= createBeta2AutomationFixture(runId)
+            return beta2Automation
         },
         scriptEnvironment,
     }

@@ -236,6 +236,40 @@ export async function verifyApplianceBackup(context: ApplianceBackupContext) {
         containerId: context.recreatedId,
         fixture: betaBackupState,
     })
+    // Retain the original live-backup contract: quiesce a running appliance and restart it.
+    const runningBackupRoot = join(context.temporaryRoot, 'running-source-backup')
+    await context.commandWithEnvironment(
+        [
+            process.execPath,
+            '--no-env-file',
+            'scripts/production-backup.ts',
+            '--project',
+            context.project,
+            '--output',
+            runningBackupRoot,
+        ],
+        context.scriptEnvironment,
+        900_000,
+    )
+    await context.waitForHealthy(await context.containerId(context.compose))
+    assert.equal((await readdir(runningBackupRoot)).length, 1)
+    await context.assertRealTraffic(
+        context.recreatedId,
+        'a running-source production backup quiesces and restarts without losing existing traffic',
+    )
+    context.passed(
+        'production backup quiesces a running source and restores its healthy serving state',
+    )
+    const beta2Automation = context.startBeta2Automation()
+    await beta2Automation.seedDatabase(
+        context.command,
+        context.recreatedId,
+        persistenceFixture.ownerUserId,
+        context.generatedSecrets.appEncryptionKey!,
+    )
+    await context.command([...context.compose, 'stop', '--timeout', '30', 'rentnerproxy'], 180_000)
+    // DNS tokens are seeded offline: production DNS providers remain pinned and are never contacted.
+    await beta2Automation.seedStoppedController(context.command, context.compose)
     const backupRoot = join(context.temporaryRoot, 'backups')
     await context.commandWithEnvironment(
         [
@@ -250,6 +284,10 @@ export async function verifyApplianceBackup(context: ApplianceBackupContext) {
         context.scriptEnvironment,
         900_000,
     )
+    // Keep the completed artifact active and unpaused while preventing any real provider call
+    // from the source's explicit restart. No controller runs between offline seeding and this fence.
+    await beta2Automation.pauseStoppedSource(context.command, context.compose)
+    await context.command([...context.compose, 'start', 'rentnerproxy'], 180_000)
     await context.waitForHealthy(await context.containerId(context.compose))
     const backupEntries = await readdir(backupRoot)
     assert.equal(backupEntries.length, 1)
@@ -267,6 +305,10 @@ export async function verifyApplianceBackup(context: ApplianceBackupContext) {
         '--file=/backup/controller-state.tar',
     ])
     assert.doesNotMatch(archivedStateFiles, /(?:^|\n)\.\/logs(?:\/|$)/u)
+    assert.doesNotMatch(
+        archivedStateFiles,
+        /(?:^|\n)\.\/(?:ddns|docker-discovery)-restore-paused(?:\s|$)/u,
+    )
     context.passed('production backups exclude the request logs from real proxy traffic')
     const archivedCrowdSecFiles = await context.command([
         'docker',
@@ -304,6 +346,7 @@ export async function verifyApplianceBackup(context: ApplianceBackupContext) {
         savedExternalApiKey,
         savedExternalConfig,
         betaBackupState,
+        beta2AutomationFixture: beta2Automation,
         backupPath,
     }
 }

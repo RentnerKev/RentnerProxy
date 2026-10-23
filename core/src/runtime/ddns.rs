@@ -1,4 +1,7 @@
 mod automation;
+#[cfg(test)]
+#[path = "../../tests/private/ddns/beta2_fixture.rs"]
+mod beta2_fixture;
 mod discovery;
 #[cfg(test)]
 #[path = "../../tests/private/ddns/fixture.rs"]
