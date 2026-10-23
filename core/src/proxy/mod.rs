@@ -97,6 +97,7 @@ pub(crate) fn validate_proxy_config(
             || !is_valid_forward_host(&host.forward_host)
             || host.forward_port == 0
             || !has_valid_http_settings(&host.http_settings)
+            || !has_valid_response_cache(host.response_cache.as_ref())
             || host.http_settings.send_timeout_seconds.is_some()
             || host.http_settings.keepalive_timeout_seconds.is_some()
             || host
@@ -566,4 +567,37 @@ fn is_dns_label(label: &str) -> bool {
         && bytes
             .iter()
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-')
+}
+
+fn has_valid_response_cache(settings: Option<&crate::models::ResponseCacheSettings>) -> bool {
+    let Some(settings) = settings else {
+        return true;
+    };
+    if !(1..=3600).contains(&settings.ttl_seconds)
+        || settings.path_prefixes.is_empty()
+        || settings.path_prefixes.len() > 16
+    {
+        return false;
+    }
+    let mut seen = HashSet::new();
+    settings.path_prefixes.iter().all(|prefix| {
+        !matches!(
+            prefix
+                .split('/')
+                .nth(1)
+                .unwrap_or_default()
+                .to_ascii_lowercase()
+                .as_str(),
+            "api" | "auth" | "admin" | "login" | "logout" | "oauth" | "session"
+        ) && (2..=256).contains(&prefix.len())
+            && prefix.starts_with('/')
+            && prefix.ends_with('/')
+            && prefix[1..prefix.len() - 1].split('/').all(|segment| {
+                !segment.is_empty()
+                    && segment
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+            })
+            && seen.insert(prefix)
+    })
 }

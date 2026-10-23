@@ -7,8 +7,14 @@ wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
 echo "${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz" | sha256sum -c -
 tar -xzf /tmp/caddy-crowdsec-bouncer.tar.gz --strip-components=1
 /bin/sh /tmp/caddy-crowdsec-http-only.sh /tmp/caddy-crowdsec-bouncer
+cd /opt/rentnerproxy-responsecache
+go mod download
+go mod verify
+go test -mod=readonly ./...
+cd /tmp/caddy-crowdsec-bouncer
 xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
+        --with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache \
         --replace github.com/hslatman/caddy-crowdsec-bouncer=/tmp/caddy-crowdsec-bouncer \
         --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1 \
         --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
@@ -24,4 +30,5 @@ printf '%s\n' "$caddy_version"
 test "${caddy_version%% *}" = "$CADDY_VERSION"
 /usr/bin/caddy list-modules | grep -Fx crowdsec
 /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec
+/usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache
 ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'

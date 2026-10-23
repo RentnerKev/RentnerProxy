@@ -1,3 +1,4 @@
+import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 import type { ProxyHostForwardScheme } from '@/config/Types/proxy-hosts-config.types.ts'
 import type { RedirectHostStatusCode } from '@/config/Types/redirect-hosts-config.types.ts'
 import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
@@ -15,6 +16,7 @@ type ProxyHostHttpSettings = Pick<
 >
 
 export interface ProxyRuntimeHost {
+    readonly responseCache?: ResponseCacheSettings
     readonly id: string
     readonly domains: ReadonlyArray<string>
     readonly forwardScheme: ProxyHostForwardScheme

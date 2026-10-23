@@ -1590,6 +1590,14 @@
                 "add": "Regel toevoegen",
                 "invalid": "Voer unieke openbare paden en een geldigheid van 1 tot 31.536.000 seconden in. Actieve regels mogen niet leeg zijn. HTML, API, authenticatie en jokertekens zijn niet toegestaan. Regels mogen niet overlappen.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Antwoordcache voor openbare bestanden",
+                "enabled": "Antwoordcache inschakelen",
+                "paths": "Openbare padprefixen (komma gescheiden, eindigend op /)",
+                "ttl": "Maximale levensduur in seconden (1–3600)",
+                "hint": "Alleen geslaagde openbare CSS-, JavaScript-, afbeeldings- en lettertypeantwoorden. Cookies, inloggegevens, queryparameters, streams en beschermde hosts omzeilen de cache. Grenzen: 1 MiB per antwoord, 64 MiB gedeeld en 1024 items.",
+                "invalid": "Gebruik 1–16 unieke padprefixen zoals /assets/ en een levensduur van 1 tot 3600 seconden."
             }
         },
         "redirectHosts": {

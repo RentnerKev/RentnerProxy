@@ -2,6 +2,7 @@
 import '@tanstack/react-start/server-only'
 
 import { asc, eq, inArray } from 'drizzle-orm'
+import { readResponseCacheSettingsMap } from './proxy-runtime-settings.ts'
 
 import {
     accessPolicyBasicAuthAccounts,
@@ -178,9 +179,13 @@ export async function readProxyRuntimeSnapshot(
 
     const httpSettings = await readProxyHttpSettings(transaction)
     const hostSettings = await readProxyHostHttpSettingsMap(transaction, [...hosts.keys()])
+    const responseCacheSettings = await readResponseCacheSettingsMap(transaction, [...hosts.keys()])
     const configuredHosts = [...hosts.values()].map((host) =>
         Object.assign({}, host, {
             httpSettings: hostSettings.get(host.id) ?? {},
+            ...(responseCacheSettings.has(host.id)
+                ? { responseCache: responseCacheSettings.get(host.id)! }
+                : {}),
         }),
     )
     const referencedCas = await readProxyRuntimeTrustedCas(transaction, configuredHosts)
@@ -246,10 +251,14 @@ export async function readProxyRuntimeHost(
         transaction,
         first.accessPolicyId === null ? [] : [first.accessPolicyId],
     )
+    const responseCache = (await readResponseCacheSettingsMap(transaction, [first.id])).get(
+        first.id,
+    )
     const accounts =
         first.accessPolicyId === null ? [] : (basicAuthAccounts.get(first.accessPolicyId) ?? [])
     return {
         id: first.id,
+        ...(responseCache ? { responseCache } : {}),
         domains: rows.flatMap((row) => (row.domain === null ? [] : [row.domain])),
         forwardScheme: first.forwardScheme,
         forwardHost: first.forwardHost,

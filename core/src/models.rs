@@ -219,6 +219,8 @@ pub(crate) struct ProxyHost {
     #[serde(default, skip_serializing_if = "ProxyHttpSettings::is_empty")]
     pub(crate) http_settings: ProxyHttpSettings,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) response_cache: Option<ResponseCacheSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) certificate_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub(crate) force_https: bool,
@@ -353,4 +355,11 @@ pub(crate) struct ProxyRuntimeStatus {
 pub(crate) enum ApplyOutcome {
     Applied,
     Unchanged,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct ResponseCacheSettings {
+    pub(crate) path_prefixes: Vec<String>,
+    pub(crate) ttl_seconds: u32,
 }

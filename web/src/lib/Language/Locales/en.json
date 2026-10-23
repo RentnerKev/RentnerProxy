@@ -1609,6 +1609,14 @@
                 "add": "Add rule",
                 "invalid": "Enter unique public asset paths or directories and freshness from 1 to 31,536,000 seconds. Enabled rules cannot be empty. HTML, API, auth paths and wildcards are not allowed. Rules must not overlap.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Public asset response cache",
+                "enabled": "Enable response cache",
+                "paths": "Public path prefixes (comma separated, ending in /)",
+                "ttl": "Maximum lifetime in seconds (1–3600)",
+                "hint": "Off by default. Only successful public CSS, JavaScript, image and font responses in these paths can be stored. Cookies, credentials, queries, streaming responses and protected hosts always bypass the cache. Limits: 1 MiB per response, 64 MiB shared payload budget and 1024 entries.",
+                "invalid": "Use 1–16 unique path prefixes such as /assets/, and a lifetime from 1 to 3600 seconds."
             }
         },
         "redirectHosts": {

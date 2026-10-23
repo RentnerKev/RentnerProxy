@@ -26,10 +26,16 @@
 !core/Cargo.lock
 !core/src/
 !core/src/**
+!core/caddy-modules/
+!core/caddy-modules/responsecache/
+!core/caddy-modules/responsecache/**
 !core/tests/
 !core/tests/**
 
 !docker/
+!docker/caddy/
+!docker/caddy/tooling/
+!docker/caddy/tooling/**
 !docker/web/
 !docker/web/**
 !docker/production/

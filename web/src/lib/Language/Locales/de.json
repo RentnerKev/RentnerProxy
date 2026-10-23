@@ -1609,6 +1609,14 @@
                 "add": "Regel hinzufügen",
                 "invalid": "Bitte eindeutige öffentliche Asset-Pfade oder Verzeichnisse und eine Gültigkeit von 1 bis 31.536.000 Sekunden angeben. Aktive Regeln dürfen nicht leer sein. HTML-, API- und Auth-Pfade sowie Platzhalter sind nicht erlaubt. Regeln dürfen sich nicht überschneiden.",
                 "pathPlaceholder": "/assets/app.a1b2.js"
+            },
+            "responseCache": {
+                "title": "Antwort-Cache für öffentliche Assets",
+                "enabled": "Antwort-Cache aktivieren",
+                "paths": "Öffentliche Pfadpräfixe (kommagetrennt, mit / am Ende)",
+                "ttl": "Maximale Lebensdauer in Sekunden (1–3600)",
+                "hint": "Standardmäßig aus. Nur erfolgreiche öffentliche CSS-, JavaScript-, Bild- und Schriftantworten in diesen Pfaden werden gespeichert. Cookies, Zugangsdaten, Query-Parameter, Streams und geschützte Hosts umgehen den Cache. Grenzen: 1 MiB je Antwort, 64 MiB gemeinsames Nutzdatenbudget und 1024 Einträge.",
+                "invalid": "1–16 eindeutige Pfadpräfixe wie /assets/ und eine Lebensdauer von 1 bis 3600 Sekunden angeben."
             }
         },
         "redirectHosts": {

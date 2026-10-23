@@ -19,6 +19,7 @@ export interface ProxyHostFormModalProps {
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
     readonly canRequestCertificate?: boolean
+    readonly canApplyResponseCache?: boolean
     readonly canAssignPolicies?: boolean
     readonly mode: 'create' | 'edit' | 'duplicate'
     readonly onOpenChange: (open: boolean) => void
@@ -45,6 +46,7 @@ export interface ProxyHostFormModalState {
     readonly guide: ProxyHostSetupGuideState
     readonly canAssignCertificates: boolean
     readonly canRequestCertificate: boolean
+    readonly canApplyResponseCache: boolean
     readonly canAssignPolicies: boolean
     readonly assignableAccessPolicies: readonly AccessPolicySummary[]
     readonly assignableAccessPoliciesLoadFailed: boolean
@@ -89,6 +91,7 @@ export type ProxyHostFormFieldsProps = Pick<
     | 'canChangeEnabled'
     | 'canAssignCertificates'
     | 'canRequestCertificate'
+    | 'canApplyResponseCache'
     | 'canAssignPolicies'
     | 'assignableAccessPolicies'
     | 'assignableAccessPoliciesLoadFailed'

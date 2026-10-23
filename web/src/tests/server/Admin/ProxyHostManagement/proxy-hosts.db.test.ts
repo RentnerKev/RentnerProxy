@@ -1,3 +1,8 @@
+import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
+import {
+    readResponseCacheSettingsMap,
+    readProxyHostHttpSettings,
+} from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { randomUUID } from 'node:crypto'
 import { bulkHostServices } from '@/server/Admin/HostBulkActions/bulk-hosts.storage.server.ts'
 import type {
@@ -2358,6 +2363,249 @@ describe('browser-cache host settings with PostgreSQL', () => {
             } finally {
                 await controller.server.stop(true)
             }
+        },
+    )
+})
+
+describe('public response cache settings with PostgreSQL', () => {
+    integrationTest(
+        'persists, preserves HTTP editor resets, revisions, audit and deletion',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('response-cache')
+            const responseCache = { pathPrefixes: ['/assets/'], ttlSeconds: 60 }
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService({ ...input, responseCache }),
+            )
+            const read = () =>
+                getAuthDatabase().transaction((transaction) =>
+                    readResponseCacheSettingsMap(transaction, [created.id]),
+                )
+            expect((await read()).get(created.id)).toEqual(responseCache)
+            const controller = startFakeController(false)
+            try {
+                const state = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                await runAsUser(owner.id, () =>
+                    saveProxyHostConfigEditorService({
+                        proxyHostId: created.id,
+                        baseRevision: state.baseRevision,
+                        settings: { proxyReadTimeoutSeconds: 45 },
+                    }),
+                )
+                expect((await read()).get(created.id)).toEqual(responseCache)
+                const next = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                await runAsUser(owner.id, () =>
+                    saveProxyHostConfigEditorService({
+                        proxyHostId: created.id,
+                        baseRevision: next.baseRevision,
+                        settings: {},
+                    }),
+                )
+                expect((await read()).get(created.id)).toEqual(responseCache)
+                const initialRevision = (
+                    await getAuthDatabase().transaction(readProxyRuntimeSnapshot)
+                ).revision
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...input,
+                        proxyHostId: created.id,
+                        forwardPort: 9090,
+                    }),
+                )
+                expect((await read()).get(created.id)).toEqual(responseCache)
+                expect((await runAsUser(owner.id, getProxyHostsService))[0]?.responseCache).toEqual(
+                    responseCache,
+                )
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...input,
+                        proxyHostId: created.id,
+                        responseCache: { ...responseCache, ttlSeconds: 30 },
+                    }),
+                )
+                expect(
+                    (await getAuthDatabase().transaction(readProxyRuntimeSnapshot)).revision,
+                ).not.toBe(initialRevision)
+                expect(
+                    (await getAuthDatabase().transaction(readProxyRuntimeSnapshot)).proxyHosts[0]
+                        ?.responseCache?.ttlSeconds,
+                ).toBe(30)
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...input,
+                        proxyHostId: created.id,
+                        responseCache: null,
+                    }),
+                )
+                expect((await read()).size).toBe(0)
+                expect(
+                    await getAuthDatabase().transaction((transaction) =>
+                        readProxyHostHttpSettings(transaction, created.id),
+                    ),
+                ).toEqual({})
+                const events = await getAuthDatabase()
+                    .select({ resource: auditEvents.resource, action: auditEvents.action })
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, created.id))
+                expect(
+                    events.filter(
+                        (event) =>
+                            event.resource === 'proxy-host-settings' && event.action === 'save',
+                    ).length,
+                ).toBeGreaterThanOrEqual(3)
+                await runAsUser(owner.id, () =>
+                    updateProxyHostService({ ...input, proxyHostId: created.id, responseCache }),
+                )
+                await runAsUser(owner.id, () => deleteProxyHostService(created.id))
+                expect((await read()).size).toBe(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+    integrationTest(
+        'requires APPLY to enable/change cache while ordinary updates preserve it',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('response-cache-permission')
+            const responseCache = { pathPrefixes: ['/assets/'], ttlSeconds: 60 }
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService({ ...input, responseCache }),
+            )
+            const role = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+                PERMISSIONS.PROXY_HOSTS_CREATE,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const limited = await createTestUser([role.key])
+            const ordinaryUpdate = await runAsUser(limited.id, () =>
+                updateProxyHostService({ ...input, proxyHostId: created.id, forwardPort: 9091 }),
+            )
+            expect(ordinaryUpdate.responseCache).toEqual(responseCache)
+            expect(
+                (await runAsUser(owner.id, () => disableProxyHostService(created.id)))
+                    .responseCache,
+            ).toEqual(responseCache)
+            expect(
+                (await runAsUser(owner.id, () => enableProxyHostService(created.id))).responseCache,
+            ).toEqual(responseCache)
+            expect(
+                (
+                    await getAuthDatabase().transaction((transaction) =>
+                        readResponseCacheSettingsMap(transaction, [created.id]),
+                    )
+                ).get(created.id),
+            ).toEqual(responseCache)
+            expect(
+                await captureError(
+                    runAsUser(limited.id, () =>
+                        updateProxyHostService({
+                            ...input,
+                            proxyHostId: created.id,
+                            responseCache: null,
+                        }),
+                    ),
+                ),
+            ).toBeInstanceOf(AuthDomainError)
+            expect(
+                await captureError(
+                    runAsUser(limited.id, () =>
+                        createProxyHostService({
+                            ...proxyHostInput('denied-response-cache'),
+                            responseCache,
+                        }),
+                    ),
+                ),
+            ).toBeInstanceOf(AuthDomainError)
+            await runAsUser(owner.id, () => deleteProxyHostService(created.id))
+        },
+    )
+})
+
+describe('combined performance settings persistence', () => {
+    integrationTest(
+        'keeps all three features through ordinary edits and independent setting changes',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('combined-performance')
+            const responseCache = { pathPrefixes: ['/assets/'], ttlSeconds: 60 }
+            const browserCache = {
+                enabled: true,
+                rules: [{ path: '/assets/', maxAgeSeconds: 3600, immutable: true }],
+            }
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService({
+                    ...input,
+                    responseCompression: 'auto',
+                    browserCache,
+                    responseCache,
+                }),
+            )
+            expect(created).toMatchObject({
+                responseCompression: 'auto',
+                browserCache,
+                responseCache,
+            })
+            const ordinary = await runAsUser(owner.id, () =>
+                updateProxyHostService({ ...input, proxyHostId: created.id, forwardPort: 9092 }),
+            )
+            expect(ordinary).toMatchObject({
+                responseCompression: 'auto',
+                browserCache,
+                responseCache,
+            })
+            const browserChanged = { ...browserCache, enabled: false }
+            const changed = await runAsUser(owner.id, () =>
+                updateProxyHostService({
+                    ...input,
+                    proxyHostId: created.id,
+                    browserCache: browserChanged,
+                    responseCompression: 'off',
+                }),
+            )
+            expect(changed).toMatchObject({
+                responseCompression: 'off',
+                browserCache: browserChanged,
+                responseCache,
+            })
+            const cacheChanged = { ...responseCache, ttlSeconds: 90 }
+            const cacheSaved = await runAsUser(owner.id, () =>
+                updateProxyHostService({
+                    ...input,
+                    proxyHostId: created.id,
+                    responseCache: cacheChanged,
+                }),
+            )
+            expect(cacheSaved).toMatchObject({
+                responseCompression: 'off',
+                browserCache: browserChanged,
+                responseCache: cacheChanged,
+            })
+            expect(
+                await runAsUser(owner.id, () => disableProxyHostService(created.id)),
+            ).toMatchObject({
+                responseCompression: 'off',
+                browserCache: browserChanged,
+                responseCache: cacheChanged,
+            })
+            expect(
+                await runAsUser(owner.id, () => enableProxyHostService(created.id)),
+            ).toMatchObject({
+                responseCompression: 'off',
+                browserCache: browserChanged,
+                responseCache: cacheChanged,
+            })
+            const snapshot = await getAuthDatabase().transaction(readProxyRuntimeSnapshot)
+            expect(snapshot.proxyHosts[0]).toMatchObject({
+                responseCache: cacheChanged,
+                httpSettings: { responseCompression: 'off', browserCache: browserChanged },
+            })
+            await runAsUser(owner.id, () => deleteProxyHostService(created.id))
         },
     )
 })

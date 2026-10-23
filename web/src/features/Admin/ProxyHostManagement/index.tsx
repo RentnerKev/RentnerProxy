@@ -168,6 +168,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     canAssignCertificates={state.canAssignCertificates}
                     canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
+                    canApplyResponseCache={state.canApply}
                     onOpenChange={handler.setCreateOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
@@ -185,6 +186,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     canAssignCertificates={state.canAssignCertificates}
                     canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
+                    canApplyResponseCache={state.canApply}
                     onOpenChange={handler.setEditorOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
