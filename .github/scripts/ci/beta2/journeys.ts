@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { runBoundedTasks } from '../../../../scripts/runtime-scale/control.ts'
+import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { verifyConcurrentTraffic } from '../../../../scripts/runtime-scale/traffic.ts'
 import type { ScaleResult } from '../../../../scripts/runtime-scale/Types/control.types.ts'
 import type { DdnsDraft } from '../../../../web/src/lib/Ddns/Types/ddns.types.ts'
@@ -564,19 +565,92 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
             `100-host concurrent round ${round + 1}: DDNS, Docker recreate, bulk, notifications and strict traffic`,
         )
     }
-    assert.ok(
-        receivers.counters.webhooks >= 3,
-        'failed webhook retry and recovery reach the controlled receiver',
+    let delivered = await authorized(getNotificationStatusService)
+    const deliveryDiagnostic = () =>
+        JSON.stringify({
+            pendingCount: delivered.pendingCount,
+            deliveries: delivered.deliveries.map((delivery) => ({
+                kind:
+                    channels.find((channel) => channel.id === delivery.channelId)?.kind ??
+                    'unknown',
+                type: delivery.type,
+                status: delivery.status,
+                code: delivery.error,
+                attempts: delivery.attempts,
+            })),
+        })
+    const assertNoTerminalFailure = () =>
+        assert.ok(
+            delivered.deliveries.every(
+                (delivery) => delivery.status !== 'failed' && delivery.status !== 'cancelled',
+            ),
+            'notification delivery terminated before recovery completed; ' + deliveryDiagnostic(),
+        )
+    // Ticks collect and deliver concurrently; a completed tick does not prove that
+    // every newly admitted delivery ran or that a durable retry deadline elapsed.
+    // Poll the real worker without changing attempts, leases or retry deadlines.
+    await waitForSmoke(
+        async () => {
+            assertNoTerminalFailure()
+            await notify()
+            delivered = await authorized(getNotificationStatusService)
+            assertNoTerminalFailure()
+            return delivered.pendingCount === 0 && delivered.deliveries.length >= 4
+        },
+        {
+            timeoutMs: 90_000,
+            intervalMs: 1_000,
+            probeFirst: true,
+            retryOnError: () => false,
+            timeoutError: () =>
+                new Error('notification queue did not drain; ' + deliveryDiagnostic()),
+        },
+    )
+    assert.equal(
+        delivered.deliveries.length,
+        4,
+        'one incident and recovery per channel; ' + deliveryDiagnostic(),
+    )
+    const incidents = delivered.incidents.filter(
+        (incident) => incident.category === 'ddns' && incident.resourceId === targetId,
+    )
+    assert.equal(incidents.length, 1, 'one DDNS outage incident; ' + deliveryDiagnostic())
+    const incident = incidents[0]!
+    assert.notEqual(incident.recoveredAt, null, 'DDNS incident recovered')
+    for (const channel of channels) {
+        assert.ok(
+            delivered.deliveries
+                .filter((delivery) => delivery.channelId === channel.id)
+                .every(
+                    (delivery) =>
+                        delivery.incidentId === incident.id &&
+                        delivery.category === 'ddns' &&
+                        delivery.resourceId === targetId,
+                ),
+            'both channel deliveries belong to the same DDNS incident; ' + deliveryDiagnostic(),
+        )
+        assert.deepEqual(
+            delivered.deliveries
+                .filter((delivery) => delivery.channelId === channel.id)
+                .map((delivery) => delivery.type)
+                .toSorted(),
+            ['incident', 'recovery'],
+            'each configured channel receives incident and recovery; ' + deliveryDiagnostic(),
+        )
+    }
+    assert.equal(
+        receivers.counters.webhooks,
+        3,
+        'failed webhook retry and recovery reach the controlled receiver; ' + deliveryDiagnostic(),
     )
     assert.equal(
         receivers.counters.smtpMessages,
         2,
-        'incident and recovery each sent once by verified SMTP',
+        'incident and recovery each sent once by verified SMTP; ' + deliveryDiagnostic(),
     )
-    const delivered = await authorized(getNotificationStatusService)
     assert.ok(
         delivered.deliveries.every((delivery) => delivery.status === 'succeeded'),
-        'notification queue fully drains after recovery',
+        'notification queue fully drains after recovery; ' + deliveryDiagnostic(),
     )
     const previousIds = (await hosts()).map((host) => host.id).toSorted()
     const beforeRestart = { ...receivers.counters }

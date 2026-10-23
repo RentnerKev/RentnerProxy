@@ -266,17 +266,23 @@ describe('Beta-2 native receiver fixtures', () => {
                 expect(await readFile(cert, 'utf8')).toContain('BEGIN CERTIFICATE')
                 const script = `
                 import {readFile} from 'node:fs/promises';
-                import {createTransport} from 'nodemailer';
                 import {createBeta2Receivers} from ${JSON.stringify(resolve('.github/scripts/ci/beta2/receivers.ts'))};
-                import {createSmtpTransportOptions} from ${JSON.stringify(resolve('web/src/server/Mail/smtp-options.ts'))};
+                import {createNotificationMailClient} from ${JSON.stringify(resolve('web/src/server/Mail/mail.service.ts'))};
                 const f=createBeta2Receivers({smtpTls:{cert:await readFile(${JSON.stringify(cert)},'utf8'),key:await readFile(${JSON.stringify(key)},'utf8')}});
-                const mail=createTransport(createSmtpTransportOptions({host:'127.0.0.1',port:f.smtpPort,secure:false,user:null,password:null,from:'fixture@beta2.invalid'}));
+                const configuration={host:'127.0.0.1',port:f.smtpPort,secure:false,user:null,password:null,from:'fixture@beta2.invalid'};
+                let mail=createNotificationMailClient(configuration);
                 try {
                     await mail.sendMail({from:'fixture@beta2.invalid',to:'fixture@beta2.invalid',subject:'Synthetic fixture',text:'Safe local message'});
                     if(f.counters.smtpMessages!==1) throw new Error('SMTP counter did not advance');
+                    mail.close();
+                    mail=createNotificationMailClient(configuration);
+                    await mail.sendMail({from:'fixture@beta2.invalid',to:['fixture@beta2.invalid'],subject:'Synthetic recovery',text:'Second independent trusted TLS connection'});
+                    if(f.counters.smtpMessages!==2) throw new Error('Second SMTP connection did not deliver');
+                    mail.close();
+                    mail=createNotificationMailClient(configuration);
                     let rejected=false;
                     try {await mail.sendMail({from:'fixture@beta2.invalid',to:'other@beta2.invalid',subject:'Denied fixture',text:'Must reject recipient'});} catch {rejected=true;}
-                    if(!rejected||f.counters.smtpMessages!==1) throw new Error('SMTP recipient gate failed');
+                    if(!rejected||f.counters.smtpMessages!==2||f.counters.deniedMutations!==1) throw new Error('SMTP recipient gate failed');
                     console.log('trusted STARTTLS fixture passed');
                 } finally {mail.close();await f.stop();}
             `

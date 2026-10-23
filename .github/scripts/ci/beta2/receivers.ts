@@ -133,6 +133,7 @@ function smtpReceiver(
     counters: Beta2ReceiverCounters,
 ) {
     const connections = new Set<Bun.Socket<Beta2SmtpState>>()
+    const retiredSessions = new WeakSet<Beta2SmtpState>()
     const reject = (socket: Bun.Socket<Beta2SmtpState>, response: string) => {
         counters.unexpectedRequests++
         counters.deniedMutations++
@@ -151,6 +152,7 @@ function smtpReceiver(
         },
         data(socket, bytes) {
             const session = socket.data
+            if (retiredSessions.has(session)) return
             session.buffer += bytes.toString()
             if (session.buffer.length > 262_144) {
                 reject(socket, '552 Fixture line too large')
@@ -185,6 +187,9 @@ function smtpReceiver(
                     )
                 } else if (line.toUpperCase() === 'STARTTLS' && !session.tls && !session.buffer) {
                     socket.write('220 Begin TLS\r\n')
+                    // upgradeTLS retains the raw callbacks for ciphertext. Its old SMTP
+                    // parser must stop before the new TLS socket receives plaintext.
+                    retiredSessions.add(session)
                     connections.delete(socket)
                     const { open: _open, ...tlsHandler } = handler
                     const [, upgraded] = socket.upgradeTLS<Beta2SmtpState>({
@@ -301,6 +306,8 @@ export function createBeta2Receivers(options: Beta2ReceiverOptions = {}): Beta2R
     const receiver = Bun.serve({
         hostname: '127.0.0.1',
         port: 0,
+        // Docker event subscriptions rotate after 65 seconds without traffic.
+        idleTimeout: 75,
         async fetch(request) {
             const url = new URL(request.url)
             const path = url.pathname
