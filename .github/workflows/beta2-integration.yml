@@ -88,5 +88,7 @@ jobs:
                   "$RENTNERPROXY_TEST_CADDY_BIN" version
             - name: Migrate isolated fixture database
               run: bun --no-env-file run db:migrate
-            - name: Run real Beta 2 journeys
+            - name: Run real Beta 2 journeys with overridden TMPDIR
+              env:
+                  TMPDIR: ${{ runner.temp }}
               run: bun --no-env-file .github/scripts/ci/beta2/run.ts

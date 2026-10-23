@@ -36,9 +36,10 @@ async fn beta2_integration_controller() {
             .bytes()
             .all(|value| value.is_ascii_hexdigit())
     );
+    // The Linux launcher owns /tmp independently of the caller's TMPDIR.
     assert_eq!(
         configuration.directory.parent(),
-        Some(std::env::temp_dir().as_path())
+        Some(std::path::Path::new("/tmp"))
     );
     assert_eq!(
         configuration
