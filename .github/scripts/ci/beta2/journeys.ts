@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { runBoundedTasks } from '../../../../scripts/runtime-scale/control.ts'
+import { drainConcurrent, runBoundedTasks } from '../../../../scripts/runtime-scale/control.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { verifyConcurrentTraffic } from '../../../../scripts/runtime-scale/traffic.ts'
 import type { ScaleResult } from '../../../../scripts/runtime-scale/Types/control.types.ts'
@@ -95,7 +95,14 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
     }
     async function traffic(trafficRoutes: ScaleResult['traffic']) {
         await verifyConcurrentTraffic(
-            { http, recordTrafficFailure: () => undefined },
+            {
+                http,
+                recordTrafficFailure: (index, status) =>
+                    console.error('Beta 2 traffic failure', {
+                        domain: index === null ? null : trafficRoutes[index]?.domain,
+                        status,
+                    }),
+            },
             trafficRoutes,
             4,
         )
@@ -537,17 +544,9 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
                 await new Promise((resolve) => setTimeout(resolve, 5))
             }
         })()
-        const [operations, requests] = await Promise.allSettled([actions, trafficRun])
-        assert.equal(
-            requests.status,
-            'fulfilled',
-            'unchanged #171 traffic assertions survive concurrent feature work',
-        )
-        assert.equal(operations.status, 'fulfilled')
-        if (operations.status === 'fulfilled') {
-            for (const result of operations.value) {
-                if (result.status === 'rejected') throw result.reason
-            }
+        const [operations] = await drainConcurrent([actions, trafficRun] as const)
+        for (const result of operations) {
+            if (result.status === 'rejected') throw result.reason
         }
         await notify()
         assert.ok(
