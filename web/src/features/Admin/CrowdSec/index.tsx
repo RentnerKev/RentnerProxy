@@ -239,10 +239,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                             </div>
                         ) : null}
 
-                        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
-                            <p className="m-0 max-w-xl text-xs leading-relaxed text-muted">
-                                {t('admin.crowdSec.configuration.retention')}
-                            </p>
+                        <div className="mt-6 flex flex-wrap items-center justify-end gap-4 border-t border-border pt-5">
                             <div className="flex flex-wrap items-center gap-3">
                                 {state.mode === 'external' ? (
                                     <button
@@ -275,30 +272,6 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                                     )}
                                 </button>
                             </div>
-                        </div>
-                    </section>
-
-                    <section
-                        className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mt-4"
-                        aria-label={t('admin.crowdSec.facts.title')}
-                    >
-                        <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
-                            {t('admin.crowdSec.facts.title')}
-                        </p>
-                        <div className="mt-4 grid gap-5 md:grid-cols-3">
-                            {(['clientIp', 'failure', 'deployment'] as const).map((item) => (
-                                <div key={item}>
-                                    <p className="text-[0.68rem] font-bold tracking-[0.12em] text-muted uppercase">
-                                        {t(`admin.crowdSec.facts.${item}.label`)}
-                                    </p>
-                                    <p className="mt-1.5 text-sm font-bold text-ink-soft">
-                                        {t(`admin.crowdSec.facts.${item}.value`)}
-                                    </p>
-                                    <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                                        {t(`admin.crowdSec.facts.${item}.description`)}
-                                    </p>
-                                </div>
-                            ))}
                         </div>
                     </section>
                 </>
