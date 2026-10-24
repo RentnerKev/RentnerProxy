@@ -120,7 +120,6 @@ export default function useUserFormModalLogic({
             isCreate,
             isPending: mutation.isPending,
             pendingSubmitLabel: t('common.saving'),
-            status: isCreate ? 'pending' : (user?.status ?? 'pending'),
             submitLabel: t('common.save'),
             title: isCreate
                 ? t('admin.users.actions.add')

@@ -14,7 +14,6 @@ export interface UserFormModalState {
     readonly isCreate: boolean
     readonly isPending: boolean
     readonly pendingSubmitLabel: string
-    readonly status: UserSummary['status']
     readonly submitLabel: string
     readonly title: string
 }
@@ -25,7 +24,7 @@ export interface UserFormModalHandler {
 
 export type UserFormFieldsProps = Pick<
     UserFormModalState,
-    'canEditRoles' | 'form' | 'formId' | 'isCreate' | 'status'
+    'canEditRoles' | 'form' | 'formId' | 'isCreate'
 > & {
     readonly roles: readonly RoleSummary[]
     readonly user?: UserSummary | undefined

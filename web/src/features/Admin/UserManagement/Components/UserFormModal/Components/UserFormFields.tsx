@@ -7,16 +7,12 @@ import { roleKeysSchema } from '../../../validation.ts'
 import type { UserFormFieldsProps } from '../Types/user-form-modal.types.ts'
 import RoleCheckboxes from './RoleCheckboxes.tsx'
 
-const statusBadgeClassName =
-    'inline-flex rounded-full bg-neutral px-[0.65rem] py-[0.32rem] text-xs font-extrabold text-muted capitalize data-[status=active]:bg-success-bg data-[status=active]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
-
 export default function UserFormFields({
     canEditRoles,
     form,
     formId,
     isCreate,
     roles,
-    status,
     user,
 }: UserFormFieldsProps) {
     const { t } = useTranslationStore()
@@ -90,22 +86,6 @@ export default function UserFormFields({
                     )
                 }}
             </form.Field>
-
-            <div className="grid gap-[0.45rem]">
-                <span className="text-[0.82rem] font-[750] text-ink-soft">
-                    {t('admin.users.form.status')}
-                </span>
-                <div className="flex min-h-12 items-center rounded-xl border border-input-border bg-surface-raised px-[0.85rem]">
-                    <span className={statusBadgeClassName} data-status={status}>
-                        {t(`admin.users.status.${status}`)}
-                    </span>
-                </div>
-                <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
-                    {isCreate
-                        ? t('admin.users.form.pendingHint')
-                        : t('admin.users.form.disabledHint')}
-                </p>
-            </div>
 
             <div className="shell:col-span-full">
                 {canEditRoles ? (
