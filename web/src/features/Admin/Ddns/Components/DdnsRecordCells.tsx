@@ -24,10 +24,20 @@ export function DdnsProxyCell({ row }: DdnsRecordCellProps) {
     const { t } = useTranslationStore()
     return (
         <span
-            className={
-                row.target.proxied ? 'text-sm font-bold text-accent-ring' : 'text-sm text-muted'
-            }
+            className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${
+                row.target.proxied
+                    ? 'border-[#ff5e1f]/35 bg-[#ff5e1f]/10 text-orange-700 dark:text-orange-300'
+                    : 'border-zinc-500/25 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300'
+            }`}
         >
+            <img
+                src="/cloudflare-cloud.svg"
+                alt=""
+                aria-hidden="true"
+                width={24}
+                height={11}
+                className={`h-auto w-6 shrink-0 ${row.target.proxied ? '' : 'opacity-70 grayscale'}`}
+            />
             {t(row.target.proxied ? 'admin.ddns.table.proxied' : 'admin.ddns.table.dnsOnly')}
         </span>
     )
