@@ -3105,7 +3105,7 @@
             "title": "Tags",
             "manage": "Manage tags",
             "description": "Organize hosts of this type with named tags. Sort the Tags column to group hosts, or select a tag in the table filters.",
-            "behavior": "Renaming keeps all assignments. Deleting removes only the tag; hosts remain. Duplicating a host copies its tags. Tags do not change routing or permissions.",
+            "new": "New tag",
             "name": "Tag name",
             "create": "Create tag",
             "rename": "Edit",

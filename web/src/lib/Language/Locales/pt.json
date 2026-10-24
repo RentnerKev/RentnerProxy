@@ -3133,7 +3133,7 @@
             "title": "Etiquetas",
             "manage": "Gerir etiquetas",
             "description": "Organize os hosts deste tipo com etiquetas. Ordene a coluna Etiquetas para os agrupar ou escolha uma etiqueta nos filtros da tabela.",
-            "behavior": "Renomear mantém as atribuições. Eliminar remove apenas a etiqueta; os hosts permanecem. Duplicar um host copia as suas etiquetas. As etiquetas não alteram o encaminhamento nem as permissões.",
+            "new": "Nova etiqueta",
             "name": "Nome da etiqueta",
             "create": "Criar etiqueta",
             "rename": "Editar",

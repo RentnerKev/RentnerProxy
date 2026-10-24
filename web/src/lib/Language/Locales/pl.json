@@ -3135,7 +3135,7 @@
             "title": "Tagi",
             "manage": "Zarządzaj tagami",
             "description": "Porządkuj hosty tego typu za pomocą tagów. Posortuj kolumnę Tagi, aby je pogrupować, lub wybierz tag w filtrach tabeli.",
-            "behavior": "Zmiana nazwy zachowuje przypisania. Usunięcie usuwa tylko tag; hosty pozostają. Duplikowanie hosta kopiuje jego tagi. Tagi nie zmieniają routingu ani uprawnień.",
+            "new": "Nowy tag",
             "name": "Nazwa tagu",
             "create": "Utwórz tag",
             "rename": "Edytuj",

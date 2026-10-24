@@ -3105,7 +3105,7 @@
             "title": "Tags",
             "manage": "Tags verwalten",
             "description": "Organisiere Hosts dieses Typs mit benannten Tags. Sortiere die Tag-Spalte zum Gruppieren oder wähle einen Tag in den Tabellenfiltern.",
-            "behavior": "Umbenennen erhält alle Zuweisungen. Löschen entfernt nur den Tag; Hosts bleiben erhalten. Beim Duplizieren werden Tags übernommen. Tags ändern weder Routing noch Berechtigungen.",
+            "new": "Neuer Tag",
             "name": "Tag-Name",
             "create": "Tag erstellen",
             "rename": "Bearbeiten",

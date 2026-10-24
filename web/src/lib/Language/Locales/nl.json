@@ -3086,7 +3086,7 @@
             "title": "Tags",
             "manage": "Tags beheren",
             "description": "Organiseer hosts van dit type met tags. Sorteer de kolom Tags om hosts te groeperen of kies een tag in de tabelfilters.",
-            "behavior": "Hernoemen behoudt alle toewijzingen. Verwijderen wist alleen de tag; hosts blijven bestaan. Een host dupliceren kopieert de tags. Tags wijzigen geen routering of rechten.",
+            "new": "Nieuwe tag",
             "name": "Tagnaam",
             "create": "Tag maken",
             "rename": "Bewerken",

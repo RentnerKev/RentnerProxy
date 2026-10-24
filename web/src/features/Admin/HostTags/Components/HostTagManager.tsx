@@ -1,7 +1,7 @@
 import { TextInput } from '@rentnerkev/inputs'
 import { CustomColorPicker, type CustomColorPickerDesign } from '@rentnerkev/picker'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
-import { Tags } from 'lucide-react'
+import { Plus, Tags } from 'lucide-react'
 import type { HostKind } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
@@ -106,7 +106,17 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                     </div>
                 ) : (
                     <div className="grid gap-4">
-                        <p className="text-sm text-muted">{t('admin.hostTags.behavior')}</p>
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                className={buttonClassName('secondary')}
+                                disabled={state.pending || Boolean(state.deleting)}
+                                onClick={handler.cancelRename}
+                            >
+                                <Plus className="size-4" aria-hidden="true" />
+                                {t('admin.hostTags.new')}
+                            </button>
+                        </div>
                         <form
                             id={state.formId}
                             className="grid items-start gap-3 sm:grid-cols-2"

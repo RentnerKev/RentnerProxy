@@ -4,6 +4,7 @@ import type { Root } from 'react-dom/client'
 import type { ReactElement } from 'react'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import { TOOLTIP_PROVIDER_PROPS } from '@/config/tooltip.config.ts'
+import { DEFAULT_HOST_TAG_COLOR } from '@/config/host-tags.config.ts'
 import type {
     HostKind,
     HostTagCatalog,
@@ -356,7 +357,7 @@ describe('localized accessible host tags', () => {
         await click(button('Tags verwalten'))
         await waitFor(() => document.querySelector('input[id$="-name"]') !== null)
         expect(document.querySelector('label')?.textContent).toContain('Tag-Name')
-        expect(document.body.textContent).toContain('Beim Duplizieren werden Tags übernommen')
+        expect(document.body.textContent).not.toContain('Beim Duplizieren werden Tags übernommen')
         const managerDialog = document.querySelector('[role="dialog"]')!
         await click(document.querySelector('button[id$="-color"]')!)
         await waitFor(() => document.querySelector('[role="dialog"][aria-modal="false"]') !== null)
@@ -411,6 +412,35 @@ describe('localized accessible host tags', () => {
         await waitFor(() => states.proxy.tags.length === 2)
         expect(states.proxy.assignments[hostId]).toBeUndefined()
         expect(states.redirect).toEqual(emptyHostTagState())
+    })
+    test('starts a new tag from an edit draft without renaming the existing tag or changing assignments', async () => {
+        states.proxy.tags[0] = { ...infra, color: '#003366' }
+        await render(<HostTagManager kind="proxy" />)
+        await click(button('Tags verwalten'))
+        await waitFor(() => document.querySelector('input[id$="-name"]') !== null)
+        await click(button('Infrastruktur bearbeiten'))
+        await input('Nicht gespeicherter Entwurf')
+        await input('#ffcc00', colorInput())
+
+        await click(button('Neuer Tag'))
+        expect(document.querySelector<HTMLInputElement>('input[id$="-name"]')?.value).toBe('')
+        expect(colorInput().value).toBe(DEFAULT_HOST_TAG_COLOR)
+        expect(mutate).not.toHaveBeenCalled()
+
+        await input('Neu angelegt')
+        await click(button('Tag erstellen'))
+        await waitFor(() => states.proxy.tags.length === 3)
+        expect(mutate).toHaveBeenLastCalledWith({
+            data: {
+                kind: 'proxy',
+                action: 'create',
+                name: 'Neu angelegt',
+                color: DEFAULT_HOST_TAG_COLOR,
+                expectedRevision: 1,
+            },
+        })
+        expect(states.proxy.tags[0]).toEqual({ ...infra, color: '#003366' })
+        expect(states.proxy.assignments[hostId]).toEqual([infra.id])
     })
     test('renders colored option and selection badges, keeps label search and keyboard multi-selection, and assigns discovered hosts', async () => {
         states.proxy.tags = [
