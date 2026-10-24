@@ -170,7 +170,9 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
                                     }
                                 />
                             </label>
-                            <div className="flex flex-wrap items-end gap-2">{resetButton}</div>
+                            <div className="col-span-full flex flex-wrap items-end justify-end gap-2 xl:col-span-1">
+                                {resetButton}
+                            </div>
                             {filterErrors.dateRange ? (
                                 <span
                                     id="audit-date-range-error"
