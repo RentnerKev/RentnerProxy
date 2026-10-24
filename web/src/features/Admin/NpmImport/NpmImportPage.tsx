@@ -1,6 +1,5 @@
 import ImportPreviewPanel from '@/shared/Imports/Components/ImportPreviewPanel.tsx'
 import ImportResultPanel from '@/shared/Imports/Components/ImportResultPanel.tsx'
-import ImportHistoryPanel from '@/shared/Imports/Components/ImportHistoryPanel.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { useNpmImportLogic } from './Hooks/useNpmImportLogic.ts'
@@ -65,7 +64,6 @@ export default function NpmImportPage() {
                 />
             ) : null}
             {state.result ? <ImportResultPanel result={state.result} /> : null}
-            {state.history.length > 0 ? <ImportHistoryPanel history={state.history} /> : null}
         </div>
     )
 }

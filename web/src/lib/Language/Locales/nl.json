@@ -693,7 +693,7 @@
                 "preview_changed": "RentnerProxy is gewijzigd sinds de preview. Analyseer het opnieuw.",
                 "import_failed": "Importeren is mislukt; de wijzigingen zijn teruggedraaid. Controleer het auditlogboek.",
                 "export_failed": "Exporteren is mislukt. Probeer het opnieuw of controleer het auditlogboek.",
-                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en bekijk de importgeschiedenis voordat je het opnieuw probeert."
+                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en de geïmporteerde configuratie voordat je het opnieuw probeert."
             }
         },
         "npmImport": {
@@ -710,7 +710,6 @@
             "apply": "Importeren bevestigen",
             "resultTitle": "Importresultaat",
             "resultSummary": "{{imported}} geïmporteerd, {{skipped}} overgeslagen, {{failed}} mislukt. Runtime: {{runtime}}.",
-            "history": "Recente imports",
             "imported": "geïmporteerd",
             "skipped": "overgeslagen",
             "failed": "mislukt",
@@ -789,7 +788,7 @@
                 "preview_changed": "De RentnerProxy-status is gewijzigd na de preview. Analyseer opnieuw voordat je importeert.",
                 "nothing_to_import": "Er is niets meer dat kan worden geïmporteerd. Analyseer de nieuwste status opnieuw.",
                 "import_failed": "Importeren is mislukt en de databasetransactie is teruggedraaid. Controleer het auditlogboek.",
-                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en bekijk de importgeschiedenis voordat je het opnieuw probeert."
+                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en de geïmporteerde configuratie voordat je het opnieuw probeert."
             }
         },
         "users": {
@@ -841,7 +840,7 @@
                 "status": "Status",
                 "pendingHint": "Nieuwe accounts blijven in afwachting totdat de uitnodiging is geaccepteerd.",
                 "disabledHint": "Schakel toegang uit via het actiemenu van de gebruiker.",
-                "roles": "Rollen",
+                "roles": "Rollengroep",
                 "rolesReadOnly": "Je kunt profielgegevens bijwerken, maar de roltoewijzingen van deze gebruiker niet wijzigen.",
                 "createDescription": "Maak het account aan, wijs de eerste toegangsrechten toe en verstuur een uitnodiging.",
                 "editDescription": "Werk accountgegevens en toegewezen rollen bij.",

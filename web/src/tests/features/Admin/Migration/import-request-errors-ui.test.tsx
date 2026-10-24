@@ -22,7 +22,7 @@ const { default: MigrationPage } = await import('@/features/Admin/Migration/Migr
 const { default: NpmImportPage } = await import('@/features/Admin/NpmImport/NpmImportPage.tsx')
 
 const uncertainty =
-    'Could not confirm the import request. Check your connection and review import history before trying again.'
+    'Could not confirm the import request. Check your connection and review the imported configuration before trying again.'
 let root: Root | null = null
 const fetchMock = spyOn(globalThis, 'fetch')
 
@@ -135,14 +135,10 @@ async function clickPreview(container: HTMLElement): Promise<void> {
 
 for (const kind of ['migration', 'npmImport'] as const) {
     describe(`${kind} import request feedback`, () => {
-        test('keeps request identity, fingerprints, newest-first history capped at twenty, and toast policy', async () => {
-            const history = Array.from({ length: 20 }, (_, index) =>
-                resultFixture(`older-${index}`),
-            )
-            fetchMock.mockResolvedValueOnce(Response.json(history))
+        test('keeps request identity, fingerprints, current results, and toast policy', async () => {
             const container = await render(kind)
             const endpoint = kind === 'migration' ? '/api/migration' : '/api/npm-import'
-            expect(fetchMock.mock.calls[0]).toEqual([endpoint, { credentials: 'same-origin' }])
+            expect(fetchMock).not.toHaveBeenCalled()
             fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
             await clickPreview(container)
             const previewCall = fetchMock.mock.calls.at(-1)!
@@ -174,14 +170,7 @@ for (const kind of ['migration', 'npmImport'] as const) {
             expect(query.get('plan')).toBe(previewFixture.planFingerprint)
             expect(query.get('source')).toBe(kind === 'migration' ? 'rentnerproxy' : null)
             expect(applyCall[1]?.body).toBe(previewCall[1]?.body)
-            const historySection = [...container.querySelectorAll('section')].find(
-                (section) => section.querySelector('h2')?.textContent === 'Recent imports',
-            )!
-            expect(historySection.querySelectorAll(':scope > ul > li')).toHaveLength(20)
-            expect(historySection.querySelector(':scope > ul > li')?.textContent).toContain(
-                'newest',
-            )
-            expect(historySection.textContent).not.toContain('older-19')
+            expect(fetchMock).toHaveBeenCalledTimes(2)
             expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('newest')
             expect(
                 container.querySelector('section[aria-labelledby="npm-preview-title"]'),
@@ -191,7 +180,7 @@ for (const kind of ['migration', 'npmImport'] as const) {
             )
             await selectFile(container, 1)
             expect(container.querySelector('[aria-live="polite"]')).toBeNull()
-            expect(historySection.textContent).toContain('newest')
+            expect(container.textContent).not.toContain('newest')
         })
 
         test('discarding a preview requires another preview before apply', async () => {
@@ -265,49 +254,21 @@ for (const kind of ['migration', 'npmImport'] as const) {
             expect(container.textContent).not.toContain('internal_stack_details')
         })
 
-        test('reloads history after a lost apply response without retrying the mutation', async () => {
+        test('reports a lost apply response and discards its preview without retrying the mutation', async () => {
             const container = await render(kind)
-            const item = {
-                kind: 'proxy-host',
-                sourceId: 1,
-                label: 'Imported after response loss',
-                domains: ['edge.example.com'],
-                status: 'ready',
-                reasons: [],
-            }
-            fetchMock.mockResolvedValueOnce(
-                Response.json({
-                    fingerprint: 'source',
-                    planFingerprint: 'plan',
-                    sourceSchema: 'fixture',
-                    items: [item],
-                    counts: { ready: 1, partial: 0, manual: 0, conflict: 0 },
-                }),
-            )
+            fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
             await clickPreview(container)
             const apply = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
                 (button) => button.textContent?.trim() === 'Confirm import',
             )!
             expect(apply).toBeDefined()
-            const result = {
-                runId: 'completed-run',
-                status: 'completed',
-                fingerprint: 'source',
-                sourceSchema: 'fixture',
-                items: [{ ...item, outcome: 'imported' }],
-                imported: 1,
-                skipped: 0,
-                failed: 0,
-                runtimeStatus: 'applied',
-            }
             fetchMock.mockRejectedValueOnce(new TypeError('response lost'))
-            fetchMock.mockResolvedValueOnce(Response.json([result]))
             await act(async () => {
                 apply.click()
                 await new Promise((resolve) => setTimeout(resolve, 20))
             })
             expect(container.querySelector('[role="alert"]')?.textContent).toContain(uncertainty)
-            expect(container.textContent).toContain('Imported after response loss')
+            expect(container.querySelector('[aria-live="polite"]')).toBeNull()
             expect(
                 container.querySelector(
                     'section[aria-labelledby="npm-preview-title"], section[aria-labelledby="migration-preview-title"]',
@@ -316,7 +277,7 @@ for (const kind of ['migration', 'npmImport'] as const) {
             expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(
                 2,
             )
-            expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBeUndefined()
+            expect(fetchMock).toHaveBeenCalledTimes(2)
         })
     })
 }

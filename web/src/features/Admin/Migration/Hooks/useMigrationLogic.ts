@@ -76,7 +76,6 @@ export function useMigrationLogic(): MigrationLogicResult {
             file: state.file,
             preview: state.preview,
             result: state.result,
-            history: state.history,
             busy: state.busy,
             error: state.error,
             source,

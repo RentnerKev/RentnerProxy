@@ -1,15 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { ImportWorkflowOptions } from '../Types/import-workflow.types.ts'
 import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.types.ts'
 import {
     ImportResponseError,
     getImportRequestErrorCode,
 } from '@/lib/Admin/Migration/importRequestErrors.ts'
-
-async function loadHistory(endpoint: string): Promise<ImportResult[]> {
-    const response = await fetch(endpoint, { credentials: 'same-origin' })
-    return response.ok ? (response.json() as Promise<ImportResult[]>) : []
-}
 
 async function upload(
     options: ImportWorkflowOptions,
@@ -37,19 +32,11 @@ async function upload(
 }
 
 export function useImportWorkflow(options: ImportWorkflowOptions) {
-    const { endpoint } = options
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState<ImportPreview | null>(null)
     const [result, setResult] = useState<ImportResult | null>(null)
-    const [history, setHistory] = useState<readonly ImportResult[]>([])
     const [busy, setBusy] = useState<'preview' | 'apply' | null>(null)
     const [error, setError] = useState<string | null>(null)
-
-    useEffect(() => {
-        void loadHistory(endpoint)
-            .then(setHistory)
-            .catch(() => undefined)
-    }, [endpoint])
 
     function selectFile(next: File | null): void {
         setFile(next)
@@ -75,7 +62,6 @@ export function useImportWorkflow(options: ImportWorkflowOptions) {
                 const next = (await upload(options, file, 'apply', preview)) as ImportResult
                 setResult(next)
                 setPreview(null)
-                setHistory((current) => [next, ...current].slice(0, 20))
                 options.onApplied?.(next)
             }
         } catch (caught) {
@@ -84,9 +70,6 @@ export function useImportWorkflow(options: ImportWorkflowOptions) {
             options.onError?.(code)
             if (mode === 'apply') {
                 setPreview(null)
-                void loadHistory(endpoint)
-                    .then(setHistory)
-                    .catch(() => undefined)
             }
         } finally {
             setBusy(null)
@@ -94,7 +77,7 @@ export function useImportWorkflow(options: ImportWorkflowOptions) {
     }
 
     return {
-        state: { file, preview, result, history, busy, error },
+        state: { file, preview, result, busy, error },
         handler: {
             selectFile,
             discardPreview: () => setPreview(null),

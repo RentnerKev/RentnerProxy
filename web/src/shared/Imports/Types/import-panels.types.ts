@@ -12,8 +12,3 @@ export interface ImportResultPanelProps {
     readonly result: ImportResult
     readonly sourceLabel?: string
 }
-
-export interface ImportHistoryPanelProps {
-    readonly history: readonly ImportResult[]
-    readonly showSource?: boolean
-}

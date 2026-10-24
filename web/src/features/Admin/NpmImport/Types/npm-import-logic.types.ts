@@ -5,7 +5,6 @@ export interface NpmImportLogicResult {
         readonly file: File | null
         readonly preview: ImportPreview | null
         readonly result: ImportResult | null
-        readonly history: readonly ImportResult[]
         readonly busy: 'preview' | 'apply' | null
         readonly error: string | null
     }

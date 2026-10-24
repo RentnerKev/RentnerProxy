@@ -714,7 +714,7 @@
                 "preview_changed": "O RentnerProxy foi alterado desde a pré-visualização. Analise novamente.",
                 "import_failed": "A importação falhou; as alterações foram revertidas. Consulte o registo de auditoria.",
                 "export_failed": "A exportação falhou. Tente novamente ou consulte o registo de auditoria.",
-                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e consulte o histórico de importações antes de tentar novamente."
+                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e a configuração importada antes de tentar novamente."
             }
         },
         "npmImport": {
@@ -731,7 +731,6 @@
             "apply": "Confirmar importação",
             "resultTitle": "Resultado da importação",
             "resultSummary": "{{imported}} importados, {{skipped}} ignorados, {{failed}} falharam. Ambiente de execução: {{runtime}}.",
-            "history": "Importações recentes",
             "imported": "importados",
             "skipped": "ignorados",
             "failed": "falharam",
@@ -810,7 +809,7 @@
                 "preview_changed": "O estado do RentnerProxy foi alterado depois da pré-visualização. Analise novamente antes de importar.",
                 "nothing_to_import": "Não há mais nada elegível para importar. Analise novamente o estado mais recente.",
                 "import_failed": "A importação falhou e a transação da base de dados foi revertida. Consulte o registo de auditoria.",
-                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e consulte o histórico de importações antes de tentar novamente."
+                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e a configuração importada antes de tentar novamente."
             }
         },
         "users": {
@@ -862,7 +861,7 @@
                 "status": "Estado",
                 "pendingHint": "As contas novas ficam pendentes até o convite ser aceite.",
                 "disabledHint": "Desative o acesso no menu de ações do utilizador.",
-                "roles": "Funções",
+                "roles": "Grupo de funções",
                 "rolesReadOnly": "Pode atualizar os dados do perfil, mas não as funções atribuídas a este utilizador.",
                 "createDescription": "Crie a conta, atribua o acesso inicial e envie um convite.",
                 "editDescription": "Atualize as informações da conta e as funções atribuídas.",

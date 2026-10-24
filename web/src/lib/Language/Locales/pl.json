@@ -716,7 +716,7 @@
                 "preview_changed": "Stan RentnerProxy uległ zmianie od czasu podglądu. Przeanalizuj go ponownie.",
                 "import_failed": "Import nie powiódł się; zmiany zostały wycofane. Sprawdź dziennik audytu.",
                 "export_failed": "Eksport nie powiódł się. Spróbuj ponownie lub sprawdź dziennik audytu.",
-                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i przejrzyj historię importów przed ponowną próbą."
+                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i zaimportowaną konfigurację przed ponowną próbą."
             }
         },
         "npmImport": {
@@ -733,7 +733,6 @@
             "apply": "Potwierdź import",
             "resultTitle": "Wynik importu",
             "resultSummary": "Zaimportowano: {{imported}}, pominięto: {{skipped}}, niepowodzenia: {{failed}}. Środowisko: {{runtime}}.",
-            "history": "Ostatnie importy",
             "imported": "zaimportowano",
             "skipped": "pominięto",
             "failed": "niepowodzenie",
@@ -812,7 +811,7 @@
                 "preview_changed": "Stan RentnerProxy uległ zmianie po wyświetleniu podglądu. Przeanalizuj go ponownie przed importem.",
                 "nothing_to_import": "Nie ma już niczego, co można zaimportować. Ponownie przeanalizuj bieżący stan.",
                 "import_failed": "Import nie powiódł się, a transakcja bazy danych została wycofana. Sprawdź dziennik audytu.",
-                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i przejrzyj historię importów przed ponowną próbą."
+                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i zaimportowaną konfigurację przed ponowną próbą."
             }
         },
         "users": {
@@ -864,7 +863,7 @@
                 "status": "Stan",
                 "pendingHint": "Nowe konta pozostają oczekujące do momentu zaakceptowania zaproszenia.",
                 "disabledHint": "Wyłącz dostęp z menu działań użytkownika.",
-                "roles": "Role",
+                "roles": "Grupa ról",
                 "rolesReadOnly": "Możesz aktualizować dane profilu, ale nie przypisania ról tego użytkownika.",
                 "createDescription": "Utwórz konto, przydziel początkowy dostęp i wyślij zaproszenie.",
                 "editDescription": "Zaktualizuj dane konta i przypisane role.",

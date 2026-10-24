@@ -712,7 +712,7 @@
                 "preview_changed": "RentnerProxy changed since preview. Analyze it again.",
                 "import_failed": "Import failed; changes were rolled back. Check the audit log.",
                 "export_failed": "Export failed. Try again or check the audit log.",
-                "request_failed": "Could not confirm the import request. Check your connection and review import history before trying again."
+                "request_failed": "Could not confirm the import request. Check your connection and review the imported configuration before trying again."
             }
         },
         "npmImport": {
@@ -729,7 +729,6 @@
             "apply": "Confirm import",
             "resultTitle": "Import result",
             "resultSummary": "{{imported}} imported, {{skipped}} skipped, {{failed}} failed. Runtime: {{runtime}}.",
-            "history": "Recent imports",
             "imported": "imported",
             "skipped": "skipped",
             "failed": "failed",
@@ -808,7 +807,7 @@
                 "preview_changed": "RentnerProxy state changed after preview. Analyze again before importing.",
                 "nothing_to_import": "Nothing remains eligible to import. Analyze the latest state again.",
                 "import_failed": "Import failed and its database transaction was rolled back. Check the audit log.",
-                "request_failed": "Could not confirm the import request. Check your connection and review import history before trying again."
+                "request_failed": "Could not confirm the import request. Check your connection and review the imported configuration before trying again."
             }
         },
         "users": {
@@ -860,7 +859,7 @@
                 "status": "Status",
                 "pendingHint": "New accounts remain pending until the invitation is accepted.",
                 "disabledHint": "Disable access from the user action menu.",
-                "roles": "Roles",
+                "roles": "Roles-Group",
                 "rolesReadOnly": "You can update profile details, but not this user’s role assignments.",
                 "createDescription": "Create the account, assign its initial access, and send an invitation.",
                 "editDescription": "Update account information and assigned roles.",

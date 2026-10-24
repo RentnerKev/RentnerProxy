@@ -714,7 +714,7 @@
                 "preview_changed": "RentnerProxy a changé depuis l'aperçu. Analysez à nouveau.",
                 "import_failed": "L'import a échoué ; les modifications ont été annulées. Consultez l'audit.",
                 "export_failed": "L'export a échoué. Réessayez ou consultez l'audit.",
-                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et consultez l’historique des imports avant de réessayer."
+                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et la configuration importée avant de réessayer."
             }
         },
         "npmImport": {
@@ -731,7 +731,6 @@
             "apply": "Confirmer l’import",
             "resultTitle": "Résultat de l’import",
             "resultSummary": "{{imported}} importés, {{skipped}} ignorés, {{failed}} échoués. État du runtime : {{runtime}}.",
-            "history": "Imports récents",
             "imported": "importés",
             "skipped": "ignorés",
             "failed": "échoués",
@@ -810,7 +809,7 @@
                 "preview_changed": "L’état de RentnerProxy a changé depuis l’aperçu. Analysez de nouveau.",
                 "nothing_to_import": "Aucun objet admissible ne reste à importer. Analysez de nouveau.",
                 "import_failed": "Import échoué ; la transaction a été annulée. Consultez le journal d’audit.",
-                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et consultez l’historique des imports avant de réessayer."
+                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et la configuration importée avant de réessayer."
             }
         },
         "users": {
@@ -865,7 +864,7 @@
                 "status": "Statut",
                 "pendingHint": "Les nouveaux comptes restent en attente jusqu’à l’acceptation de l’invitation.",
                 "disabledHint": "Désactivez l’accès depuis le menu d’actions de l’utilisateur.",
-                "roles": "Rôles",
+                "roles": "Groupe de rôles",
                 "rolesReadOnly": "Vous pouvez modifier les informations du profil, mais pas les rôles attribués à cet utilisateur.",
                 "createDescription": "Créez le compte, attribuez son accès initial et envoyez une invitation.",
                 "editDescription": "Mettez à jour les informations du compte et les rôles attribués.",

@@ -14,8 +14,6 @@ const { default: ImportPreviewPanel } =
     await import('@/shared/Imports/Components/ImportPreviewPanel.tsx')
 const { default: ImportResultPanel } =
     await import('@/shared/Imports/Components/ImportResultPanel.tsx')
-const { default: ImportHistoryPanel } =
-    await import('@/shared/Imports/Components/ImportHistoryPanel.tsx')
 let root: Root | null = null
 
 const preview: ImportPreview = {
@@ -131,21 +129,4 @@ test('result preserves optional source label, polite announcement and closed det
     expect(container.querySelector('p')?.textContent).toStartWith('Zoraxy: ')
     expect(container.querySelector('details')?.open).toBe(false)
     expect(container.textContent).toContain('example.test')
-})
-
-test('history identifies all known sources and preserves unknown source schemas only when requested', async () => {
-    const entries = ['npm-2', 'zoraxy-3', 'rentnerproxy-1', 'custom-source'].map((sourceSchema) =>
-        Object.assign({}, result, { runId: sourceSchema, sourceSchema }),
-    )
-    const container = await render(<ImportHistoryPanel history={entries} showSource />)
-    const summaries = [...container.querySelectorAll('summary')].map(
-        (summary) => summary.textContent,
-    )
-    expect(summaries[0]).toStartWith('Nginx Proxy Manager ')
-    expect(summaries[1]).toStartWith('Zoraxy ')
-    expect(summaries[2]).toStartWith('RentnerProxy ')
-    expect(summaries[3]).toStartWith('custom-source ')
-    expect([...container.querySelectorAll('details')].every((details) => !details.open)).toBe(true)
-    await act(async () => root?.render(withTestLanguage(<ImportHistoryPanel history={entries} />)))
-    expect(container.textContent).not.toContain('custom-source')
 })

@@ -1,6 +1,5 @@
 import ImportPreviewPanel from '@/shared/Imports/Components/ImportPreviewPanel.tsx'
 import ImportResultPanel from '@/shared/Imports/Components/ImportResultPanel.tsx'
-import ImportHistoryPanel from '@/shared/Imports/Components/ImportHistoryPanel.tsx'
 import type { MigrationSource } from './Types/migration.types.ts'
 import { FileInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
@@ -142,9 +141,6 @@ export default function MigrationPage() {
                     result={state.result}
                     sourceLabel={t(`admin.migration.source.${state.source}`)}
                 />
-            ) : null}
-            {state.history.length > 0 ? (
-                <ImportHistoryPanel history={state.history} showSource />
             ) : null}
         </div>
     )
