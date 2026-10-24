@@ -14,6 +14,9 @@ export const LIVE_TOPICS = [
     'dns-connections',
     'ddns',
     'docker-discovery',
+    'crowdsec-configuration',
+    'crowdsec-dashboard',
+    'forward-auth',
 ] as const
 
 export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
@@ -28,6 +31,9 @@ export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
     'dns-connections': 2_000,
     ddns: 2_000,
     'docker-discovery': 2_000,
+    'crowdsec-configuration': 2_000,
+    'crowdsec-dashboard': 2_000,
+    'forward-auth': 2_000,
 }
 
 export const LIVE_MAX_CONNECTIONS = 100

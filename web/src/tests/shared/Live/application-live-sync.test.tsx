@@ -13,6 +13,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { auditLogsQueryKeys } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
 import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
+import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useApplicationLiveSync from '@/shared/Live/Hooks/useApplicationLiveSync.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -121,6 +122,9 @@ test('refreshes active queries and marks inactive queries stale when the applica
     queryClient.setQueryData(auditLogsQueryKeys.list({}), 'websocket-owned')
     queryClient.setQueryData(auditLogsQueryKeys.actors(), 'http-owned')
     queryClient.setQueryData(foundationStatusQueryKeys.all, 'websocket-owned')
+    queryClient.setQueryData(crowdSecQueryKeys.configuration, 'websocket-owned')
+    queryClient.setQueryData(crowdSecQueryKeys.forwardAuthSummary, 'websocket-owned')
+    queryClient.setQueryData([...crowdSecQueryKeys.dashboard, { offset: 0 }], 'websocket-owned')
 
     await act(async () => {
         root.render(
@@ -146,6 +150,14 @@ test('refreshes active queries and marks inactive queries stale when the applica
     ).toBe(false)
     expect(queryClient.getQueryState(auditLogsQueryKeys.actors())?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(foundationStatusQueryKeys.all)?.isInvalidated).toBe(false)
+    expect(queryClient.getQueryState(crowdSecQueryKeys.configuration)?.isInvalidated).toBe(false)
+    expect(queryClient.getQueryState(crowdSecQueryKeys.forwardAuthSummary)?.isInvalidated).toBe(
+        false,
+    )
+    expect(
+        queryClient.getQueryCache().findAll({ queryKey: crowdSecQueryKeys.dashboard })[0]?.state
+            .isInvalidated,
+    ).toBe(false)
     expect(invalidate).not.toHaveBeenCalled()
 
     await act(async () => socket.deliver({ revision: 'r1', userVersion: 'u1' }))

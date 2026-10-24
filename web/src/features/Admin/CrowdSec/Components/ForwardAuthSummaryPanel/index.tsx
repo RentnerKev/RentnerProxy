@@ -1,9 +1,13 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useForwardAuthSummary from './Hooks/useForwardAuthSummary.ts'
 
-export default function ForwardAuthSummaryPanel() {
+export default function ForwardAuthSummaryPanel({
+    enabled = true,
+}: {
+    readonly enabled?: boolean
+}) {
     const { t } = useTranslationStore()
-    const { state } = useForwardAuthSummary()
+    const { state } = useForwardAuthSummary(enabled)
 
     return (
         <section

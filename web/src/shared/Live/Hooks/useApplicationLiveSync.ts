@@ -6,6 +6,7 @@ import { useRouter } from '@tanstack/react-router'
 import { auditLogsQueryKeys } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
 import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
+import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
 import type { LiveStatus } from '../../../lib/Live/Types/realtime-events-client.types.ts'
 
@@ -15,6 +16,9 @@ const ownWebSocketQueryPrefixes = [
     [...proxyAccessLogsQueryKeys.all, 'list'],
     [...auditLogsQueryKeys.all, 'list'],
     foundationStatusQueryKeys.all,
+    crowdSecQueryKeys.configuration,
+    crowdSecQueryKeys.dashboard,
+    crowdSecQueryKeys.forwardAuthSummary,
 ] as ReadonlyArray<ReadonlyArray<unknown>>
 
 function isApplicationLiveSnapshot(value: unknown): value is ApplicationLiveSnapshot {

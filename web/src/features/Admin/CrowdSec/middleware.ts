@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 
 import { CrowdSecDomainError } from '@/server/Admin/CrowdSec/crowdsec.errors.ts'
+import { getForwardAuthSummaryService } from '@/server/ForwardAuth/forward-auth-summary.service.ts'
 import {
     getCrowdSecConfigurationService,
     getCrowdSecDashboardService,
@@ -59,6 +60,15 @@ export const getCrowdSecConfigurationHandler = createServerFn({ method: 'GET' })
         }
     },
 )
+
+export const getForwardAuthSummaryHandler = createServerFn({ method: 'GET' }).handler(async () => {
+    noStore()
+    try {
+        return await getForwardAuthSummaryService()
+    } catch (error) {
+        throwLocalizedQueryError(error, 'admin.accessPolicies.errors.loadFailed')
+    }
+})
 
 export const getCrowdSecDashboardHandler = createServerFn({ method: 'GET' })
     .validator(crowdSecDashboardQuerySchema)

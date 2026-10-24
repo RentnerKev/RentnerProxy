@@ -1,5 +1,5 @@
 import type { CrowdSecDashboardPanelProps } from './Types/crowdsec-dashboard.types.ts'
-import { Activity, RefreshCw } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -87,23 +87,6 @@ export default function CrowdSecDashboardPanel({ configuration }: CrowdSecDashbo
                 className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                 aria-label={t('admin.crowdSec.dashboard.title')}
             >
-                {state.enabled ? (
-                    <div className="flex justify-end">
-                        <button
-                            type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft state.enabled:hover:border-accent-border state.enabled:hover:text-accent-ring"
-                            disabled={state.isFetching}
-                            onClick={handler.handleRefresh}
-                        >
-                            <RefreshCw
-                                aria-hidden="true"
-                                className={`size-4 ${state.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`}
-                            />
-                            {t('admin.crowdSec.dashboard.refresh')}
-                        </button>
-                    </div>
-                ) : null}
-
                 {!state.enabled ? (
                     <p className="mt-6 rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted">
                         {t('admin.crowdSec.dashboard.disabled')}

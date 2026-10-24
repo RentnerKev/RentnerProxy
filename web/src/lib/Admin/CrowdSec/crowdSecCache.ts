@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 export const crowdSecQueryKeys = {
     configuration: ['crowdsec', 'configuration'] as const,
     dashboard: ['crowdsec', 'dashboard'] as const,
+    forwardAuthSummary: ['security', 'forward-auth-summary'] as const,
 }
 
 export function invalidateCrowdSecConfigurationCache(queryClient: QueryClient): Promise<void> {

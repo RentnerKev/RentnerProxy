@@ -15,6 +15,12 @@ import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-conn
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
 import { getDiscoveryOverviewService } from '@/server/Admin/DockerDiscovery/discovery-management.service.ts'
 import { getProxyLiveRevisionService } from './proxy-live-revision.server.ts'
+import { getForwardAuthSummaryService } from '@/server/ForwardAuth/forward-auth-summary.service.ts'
+import { crowdSecDashboardQuerySchema } from '@/features/Admin/CrowdSec/validation.ts'
+import {
+    getCrowdSecConfigurationService,
+    getCrowdSecDashboardService,
+} from '@/server/Admin/CrowdSec/crowdsec.service.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -62,6 +68,18 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
             case 'access-policies':
                 data = await getProxyLiveRevisionService('access-policies')
                 break
+            case 'crowdsec-configuration':
+                data = await getCrowdSecConfigurationService()
+                break
+            case 'forward-auth':
+                data = await getForwardAuthSummaryService()
+                break
+            case 'crowdsec-dashboard': {
+                const query = crowdSecDashboardQuerySchema.safeParse(input)
+                if (!query.success) return new Response(null, { status: 400, headers })
+                data = await getCrowdSecDashboardService(query.data)
+                break
+            }
             case 'access-logs': {
                 const query = proxyAccessLogsQuerySchema.safeParse(input)
                 if (!query.success || query.data.offset !== 0 || query.data.snapshot) {

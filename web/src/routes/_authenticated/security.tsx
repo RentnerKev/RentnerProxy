@@ -6,5 +6,10 @@ import { requirePermissionRoute } from '@/features/Auth/route-guards.ts'
 
 export const Route = createFileRoute('/_authenticated/security')({
     beforeLoad: requirePermissionRoute(PERMISSIONS.CROWDSEC_VIEW),
-    component: SecurityDashboardPage,
+    component: SecurityRoute,
 })
+
+function SecurityRoute() {
+    const { user } = Route.useRouteContext()
+    return <SecurityDashboardPage permissions={user.permissions} />
+}

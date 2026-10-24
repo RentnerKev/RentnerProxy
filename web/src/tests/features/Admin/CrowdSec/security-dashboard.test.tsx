@@ -13,6 +13,8 @@ import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runt
 import { scenarioDescriptionKey } from '@/lib/Admin/CrowdSec/scenarioDescription.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import type { LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -25,6 +27,42 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterContextProvider } =
     await import('@tanstack/react-router')
+
+class FakeSocket extends EventTarget {
+    static instances: FakeSocket[] = []
+    static OPEN = 1
+    static CLOSED = 3
+    readyState = FakeSocket.OPEN
+    sent: string[] = []
+
+    constructor(readonly url: URL) {
+        super()
+        FakeSocket.instances.push(this)
+    }
+
+    send(value: string) {
+        this.sent.push(value)
+    }
+
+    open() {
+        this.dispatchEvent(new Event('open'))
+    }
+
+    close() {
+        this.readyState = FakeSocket.CLOSED
+        this.dispatchEvent(new Event('close'))
+    }
+
+    deliver(topic: LiveTopic, payload: unknown, query: object = {}) {
+        this.dispatchEvent(
+            new MessageEvent('message', {
+                data: JSON.stringify({ type: 'snapshot', topic, query, payload }),
+            }),
+        )
+    }
+}
+
+const originalSocket = globalThis.WebSocket
 
 const decisions: CrowdSecDecision[] = Array.from({ length: 24 }, (_, index) => ({
     id: 24 - index,
@@ -143,14 +181,26 @@ const getAccessPolicyRuntimeStatusMock = mock(async (): Promise<ProxyRuntimeSync
     state: 'synced',
 }))
 
-mock.module('@/features/Admin/AccessPolicyManagement/middleware.ts', () => ({
-    getAccessPoliciesHandler: getAccessPoliciesMock,
-    getAccessPolicyRuntimeStatusHandler: getAccessPolicyRuntimeStatusMock,
-}))
+const forwardAuthSummaryMock = mock(async () => {
+    const [policies, runtime] = await Promise.all([
+        getAccessPoliciesMock(),
+        getAccessPolicyRuntimeStatusMock(),
+    ])
+    const forwardAuthPolicies = policies.filter((policy) => policy.forwardAuth !== null)
+    return {
+        policyCount: forwardAuthPolicies.length,
+        assignedHosts: forwardAuthPolicies.reduce(
+            (total, policy) => total + policy.assignedHostCount,
+            0,
+        ),
+        runtimeState: runtime.state,
+    }
+})
 
 mock.module('@/features/Admin/CrowdSec/middleware.ts', () => ({
     getCrowdSecConfigurationHandler: configurationMock,
     getCrowdSecDashboardHandler: dashboardMock,
+    getForwardAuthSummaryHandler: forwardAuthSummaryMock,
 }))
 const { default: SecurityDashboardPage } =
     await import('@/features/Admin/CrowdSec/Components/SecurityDashboardPage/index.tsx')
@@ -194,7 +244,9 @@ async function renderDashboard(): Promise<HTMLElement> {
     return container
 }
 
-async function renderPage(): Promise<HTMLElement> {
+async function renderPage(
+    permissions: readonly string[] = [PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.ACCESS_POLICIES_VIEW],
+): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -214,7 +266,7 @@ async function renderPage(): Promise<HTMLElement> {
                     <QueryClientProvider client={queryClient!}>
                         <RouterContextProvider router={router}>
                             <main>
-                                <SecurityDashboardPage />
+                                <SecurityDashboardPage permissions={permissions} />
                             </main>
                         </RouterContextProvider>
                     </QueryClientProvider>,
@@ -226,6 +278,10 @@ async function renderPage(): Promise<HTMLElement> {
 }
 
 beforeEach(() => {
+    window.location.href = 'http://localhost:5173/security'
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+    globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket
+    FakeSocket.instances = []
     blockedMetricsAvailable = true
     configurationFetchFails = false
     configurationGate = null
@@ -233,6 +289,7 @@ beforeEach(() => {
     dashboardMock.mockClear()
     getAccessPoliciesMock.mockClear()
     getAccessPolicyRuntimeStatusMock.mockClear()
+    forwardAuthSummaryMock.mockClear()
 })
 
 test('moves configuration failures into the navbar and disables retry until recovery completes', async () => {
@@ -289,6 +346,164 @@ afterEach(async () => {
     queryClient?.clear()
     queryClient = null
     document.body.replaceChildren()
+    globalThis.WebSocket = originalSocket
+    Reflect.deleteProperty(document, 'visibilityState')
+})
+
+test('updates CrowdSec metrics and bans from socket snapshots without refresh controls or extra HTTP reads', async () => {
+    const container = await renderPage()
+    await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
+    expect(container.querySelector('a[href="/crowdsec"]')).toBeNull()
+    expect(
+        [...container.querySelectorAll('button')].some((button) =>
+            button.textContent?.includes('Refresh'),
+        ),
+    ).toBe(false)
+    const socket = FakeSocket.instances[0]!
+    await act(async () => socket.open())
+    const request = dashboardMock.mock.calls[0]![0].data
+    expect(socket.sent.map((message) => JSON.parse(message))).toContainEqual({
+        type: 'subscribe',
+        topic: 'crowdsec-dashboard',
+        query: request,
+    })
+    const initialReads = dashboardMock.mock.calls.length
+    const snapshot = await dashboardMock({ data: request })
+    dashboardMock.mockClear()
+    await act(async () =>
+        socket.deliver(
+            'crowdsec-dashboard',
+            {
+                ...snapshot,
+                collectedAt: snapshot.collectedAt + 2,
+                metrics: { ...snapshot.metrics!, blockedRequests: 9_876 },
+                decisions: {
+                    ...snapshot.decisions!,
+                    entries: [{ ...decisions[0]!, value: '198.51.100.99' }],
+                },
+            },
+            request,
+        ),
+    )
+    await waitFor(() => container.textContent?.includes('198.51.100.99') === true)
+    expect(container.textContent).toContain('9,876')
+    expect(initialReads).toBe(1)
+    expect(dashboardMock).not.toHaveBeenCalled()
+})
+
+test('recovers a failed configuration read through the socket and tracks enforcement changes', async () => {
+    configurationFetchFails = true
+    const container = await renderPage()
+    await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
+    const socket = FakeSocket.instances[0]!
+    await act(async () => {
+        socket.open()
+        socket.deliver('crowdsec-configuration', configuration)
+    })
+    await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
+    expect(container.querySelector('button[data-severity="error"]')).toBeNull()
+    expect(configurationMock).toHaveBeenCalledTimes(1)
+    await act(async () =>
+        socket.deliver('crowdsec-configuration', {
+            ...configuration,
+            mode: 'disabled',
+            runtime: { ...configuration.runtime!, mode: 'disabled', enforcementActive: false },
+        }),
+    )
+    await waitFor(() => container.querySelector('table') === null)
+    expect(socket.sent.map((message) => JSON.parse(message))).toContainEqual({
+        type: 'unsubscribe',
+        topic: 'crowdsec-dashboard',
+    })
+})
+
+test('updates Forward Auth assignments and runtime directly from the socket', async () => {
+    const container = await renderPage()
+    await waitFor(() => getAccessPoliciesMock.mock.calls.length === 1)
+    const socket = FakeSocket.instances[0]!
+    await act(async () => {
+        socket.open()
+        socket.deliver('forward-auth', { policyCount: 2, assignedHosts: 8, runtimeState: 'synced' })
+    })
+    const summary = container.querySelector('section[aria-label="Forward Auth policies"]')!
+    await waitFor(() => summary.querySelector('dd')?.textContent === '2')
+    expect([...summary.querySelectorAll('dd')].map((value) => value.textContent?.trim())).toEqual([
+        '2',
+        '8',
+        'Access policy runtime synchronized',
+    ])
+    expect(forwardAuthSummaryMock).toHaveBeenCalledTimes(1)
+})
+
+test('does not subscribe to access policies without permission', async () => {
+    const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
+    await waitFor(() => container.querySelector('table') !== null)
+    const socket = FakeSocket.instances[0]!
+    await act(async () => socket.open())
+    expect(socket.sent.map((message) => JSON.parse(message).topic)).not.toContain('forward-auth')
+    expect(getAccessPoliciesMock).not.toHaveBeenCalled()
+    expect(getAccessPolicyRuntimeStatusMock).not.toHaveBeenCalled()
+})
+
+test('keeps live configuration when a slower initial HTTP request finishes', async () => {
+    const pending = Promise.withResolvers<CrowdSecConfiguration>()
+    configurationGate = pending.promise
+    const container = await renderPage()
+    const socket = FakeSocket.instances[0]!
+    await act(async () => {
+        socket.open()
+        socket.deliver('crowdsec-configuration', { ...configuration, synchronized: false })
+    })
+    await waitFor(
+        () =>
+            queryClient?.getQueryData<CrowdSecConfiguration>(crowdSecQueryKeys.configuration)
+                ?.synchronized === false,
+    )
+    await act(async () => pending.resolve(configuration))
+    await waitFor(() => container.querySelector('table') !== null)
+    expect(
+        queryClient?.getQueryData<CrowdSecConfiguration>(crowdSecQueryKeys.configuration)
+            ?.synchronized,
+    ).toBe(false)
+})
+
+test('marks disconnected dashboard data stale and receives fresh data after resuming', async () => {
+    const container = await renderPage()
+    await waitFor(() => container.querySelector('table') !== null)
+    const request = dashboardMock.mock.calls[0]![0].data
+    const snapshot = queryClient!.getQueriesData<CrowdSecDashboard>({
+        queryKey: crowdSecQueryKeys.dashboard,
+    })[0]![1]!
+    const first = FakeSocket.instances[0]!
+    await act(async () => first.open())
+    await act(async () => first.close())
+    await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
+    expect(container.querySelector('table')).not.toBeNull()
+    await act(async () => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+        document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await act(async () => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+        document.dispatchEvent(new Event('visibilitychange'))
+    })
+    const second = FakeSocket.instances.at(-1)!
+    expect(second).not.toBe(first)
+    await act(async () => {
+        second.open()
+        second.deliver('crowdsec-configuration', configuration)
+        second.deliver(
+            'crowdsec-dashboard',
+            {
+                ...snapshot,
+                metrics: { ...snapshot.metrics!, blockedRequests: 2_222 },
+            },
+            request,
+        )
+    })
+    await waitFor(() => container.textContent?.includes('2,222') === true)
+    await waitFor(() => container.querySelector('button[data-severity]') === null)
+    expect(configurationMock).toHaveBeenCalledTimes(1)
 })
 
 test('shows the shared table, country flag and scenario explanation control', async () => {

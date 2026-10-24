@@ -14,6 +14,9 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'revision' }))
         let digestReads = 0
         let runtimeReads = 0
+        let crowdSecQuery
+        const crowdSecPermissions = []
+        const forwardAuthPermissions = []
         mock.module('./server/Auth/Core/database.server.ts', () => ({ getAuthDatabase: () => ({ execute: async () => { digestReads++; return [{ digest: 'a'.repeat(64) }] } }) }))
         mock.module('./server/Controller/proxy.server.ts', () => ({ getProxyRuntimeStatus: async () => { runtimeReads++; return { available: true, running: true, activeRevision: 'active', lastApplyAt: null } } }))
         mock.module('./server/Auth/Access/authorization.service.ts', () => ({
@@ -44,6 +47,31 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         mock.module('./server/Admin/HostTags/host-tags.service.ts', () => ({ getHostTagCatalogService: async () => { throw new Error('Bulk tags read forbidden') } }))
         mock.module('./server/Admin/AccessPolicyManagement/access-policies.service.ts', () => ({ getAccessPoliciesService: async () => { throw new Error('Bulk policy read forbidden') } }))
         mock.module('./server/ProxyRuntime/proxy-runtime.service.ts', () => ({ getProxyRuntimeStatusService: async () => { throw new Error('Full runtime snapshot forbidden') } }))
+        mock.module('./server/ForwardAuth/forward-auth-summary.service.ts', () => ({
+            getForwardAuthSummaryService: async () => {
+                const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
+                forwardAuthPermissions.push('access_policies.view')
+                await requirePermissionService('access_policies.view')
+                return { policyCount: 2, assignedHosts: 8, runtimeState: 'pending' }
+            },
+        }))
+        mock.module('./server/Admin/CrowdSec/crowdsec.service.ts', () => ({
+            getCrowdSecConfigurationService: async () => {
+                const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
+                crowdSecPermissions.push('crowdsec.view')
+                await requirePermissionService('crowdsec.view')
+                reads++
+                return { mode: 'managed', synchronized: true }
+            },
+            getCrowdSecDashboardService: async (query) => {
+                const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
+                crowdSecPermissions.push('crowdsec.view')
+                await requirePermissionService('crowdsec.view')
+                reads++
+                crowdSecQuery = query
+                return { collectedAt: 123, metrics: { blockedRequests: 42 }, decisions: { entries: [] } }
+            },
+        }))
         const { getLiveSnapshotResponse } = await import('./server/WebSockets/realtimeSnapshots.service.ts')
         async function read(topic, query = '{}', origin = 'https://proxy.example') {
             const url = new URL('https://proxy.example/api/live-snapshot')
@@ -60,6 +88,10 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         statuses.push((await read('access-logs', JSON.stringify({ status: 999 }))).status)
         statuses.push((await read('audit-logs', JSON.stringify({ actorUserId: 'invalid' }))).status)
         statuses.push((await read('foundation', ' '.repeat(4097))).status)
+        const validCrowdSecQuery = { offset: 15, limit: 15, search: '203.0.113', origin: 'CAPI', scope: 'Ip' }
+        statuses.push((await read('crowdsec-dashboard', '{}')).status)
+        statuses.push((await read('crowdsec-dashboard', JSON.stringify({ ...validCrowdSecQuery, limit: 101 }))).status)
+        statuses.push((await read('crowdsec-dashboard', JSON.stringify({ ...validCrowdSecQuery, unexpected: true }))).status)
         const rejectedReads = reads
         const response = await read('foundation')
         const cacheControl = response.headers.get('cache-control')
@@ -74,7 +106,16 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         const proxy = await (await read('proxy-hosts')).json()
         const redirect = await (await read('redirect-hosts')).json()
         const policy = await (await read('access-policies')).json()
+        const crowdSecConfigurationResponse = await read('crowdsec-configuration')
+        const crowdSecDashboardResponse = await read('crowdsec-dashboard', JSON.stringify(validCrowdSecQuery))
+        const crowdSecConfiguration = await crowdSecConfigurationResponse.json()
+        const crowdSecDashboard = await crowdSecDashboardResponse.json()
+        const forwardAuthResponse = await read('forward-auth')
+        const forwardAuth = await forwardAuthResponse.json()
         authorized = false
+        statuses.push((await read('forward-auth')).status)
+        statuses.push((await read('crowdsec-configuration')).status)
+        statuses.push((await read('crowdsec-dashboard', JSON.stringify(validCrowdSecQuery))).status)
         for (const topic of ['proxy-hosts', 'redirect-hosts', 'access-policies']) statuses.push((await read(topic)).status)
         statuses.push((await read('foundation')).status)
         statuses.push((await read('app-events')).status)
@@ -87,17 +128,17 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         }
         authorizationError = new Error('internal failure')
         statuses.push((await read('foundation')).status)
-        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, digestReads, runtimeReads, proxy, redirect, policy, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control') }))
+        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, digestReads, runtimeReads, proxy, redirect, policy, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control'), crowdSecConfiguration, crowdSecDashboard, crowdSecQuery, crowdSecPermissions, crowdSecConfigurationCache: crowdSecConfigurationResponse.headers.get('cache-control'), crowdSecDashboardCache: crowdSecDashboardResponse.headers.get('cache-control'), forwardAuth, forwardAuthPermissions, forwardAuthCache: forwardAuthResponse.headers.get('cache-control') }))
     `
     const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const result = JSON.parse(stdout)
     expect(result.statuses).toEqual([
-        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 403, 403, 403, 403, 401,
-        403, 503, 503,
+        403, 403, 400, 400, 400, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 403, 403,
+        403, 403, 403, 403, 403, 401, 403, 503, 503,
     ])
     expect(result.rejectedReads).toBe(0)
-    expect(result.reads).toBe(4)
-    expect(result.permissionChecks).toBe(20)
+    expect(result.reads).toBe(6)
+    expect(result.permissionChecks).toBe(26)
     expect(result.digestReads).toBe(3)
     expect(result.runtimeReads).toBe(3)
     expect(result.cacheControl).toBe('private, no-store')
@@ -117,6 +158,25 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     expect(result.dnsCache).toBe('private, no-store')
     expect(result.discoveryCache).toBe('private, no-store')
     expect(result.ddnsCache).toBe('private, no-store')
+    expect(result.crowdSecConfiguration).toEqual({ mode: 'managed', synchronized: true })
+    expect(result.crowdSecDashboard.metrics.blockedRequests).toBe(42)
+    expect(result.crowdSecQuery).toMatchObject({
+        offset: 15,
+        limit: 15,
+        search: '203.0.113',
+        origin: 'CAPI',
+        scope: 'Ip',
+    })
+    expect(result.crowdSecPermissions).toEqual(Array(4).fill('crowdsec.view'))
+    expect(result.crowdSecConfigurationCache).toBe('private, no-store')
+    expect(result.crowdSecDashboardCache).toBe('private, no-store')
+    expect(result.forwardAuth).toEqual({
+        policyCount: 2,
+        assignedHosts: 8,
+        runtimeState: 'pending',
+    })
+    expect(result.forwardAuthPermissions).toEqual(['access_policies.view', 'access_policies.view'])
+    expect(result.forwardAuthCache).toBe('private, no-store')
 })
 
 test('application events publish immediately, deduplicate Valkey echoes and clean up subscribers', async () => {

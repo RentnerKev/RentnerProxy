@@ -1,17 +1,22 @@
 import type { CrowdSecDashboardLogicResult } from '../Types/crowdsec-dashboard.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { CrowdSecConfiguration } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import type {
+    CrowdSecConfiguration,
+    CrowdSecDashboard,
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import type { CrowdSecDashboardQuery } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import { getCrowdSecDashboardHandler } from '../../../middleware.ts'
+import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
 
 export default function useCrowdSecDashboardLogic(
     configuration: CrowdSecConfiguration,
 ): CrowdSecDashboardLogicResult {
     const { locale } = useTranslationStore()
+    const queryClient = useQueryClient()
     const enabled =
         configuration.runtime?.enforcementActive === true ||
         (import.meta.env.DEV && configuration.mode !== 'disabled')
@@ -32,19 +37,37 @@ export default function useCrowdSecDashboardLogic(
         () => ({ offset: pageIndex * pageSize, limit: pageSize, search, origin, scope }),
         [pageIndex, pageSize, search, origin, scope],
     )
-    const query = useQuery({
-        queryKey: [
+    const queryKey = useMemo(
+        () => [
             ...crowdSecQueryKeys.dashboard,
             configuration.runtime?.mode,
             configuration.runtime?.apiUrl,
             request,
         ],
+        [configuration.runtime?.mode, configuration.runtime?.apiUrl, request],
+    )
+    const query = useQuery({
+        queryKey,
         queryFn: () => getCrowdSecDashboardHandler({ data: request }),
         enabled,
-        refetchInterval: 60_000,
-        staleTime: 15_000,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
         placeholderData: (previous) => previous,
+    })
+    const onLiveData = useCallback(
+        async (snapshot: CrowdSecDashboard) => {
+            await queryClient.cancelQueries({ queryKey, exact: true })
+            queryClient.setQueryData(queryKey, snapshot)
+        },
+        [queryClient, queryKey],
+    )
+    const liveStatus = useLiveQuery<CrowdSecDashboard>({
+        topic: 'crowdsec-dashboard',
+        query: request,
+        enabled,
+        onData: onLiveData,
     })
     const snapshot = enabled ? query.data : undefined
     useEffect(() => {
@@ -61,14 +84,13 @@ export default function useCrowdSecDashboardLogic(
             enabled,
             snapshot,
             isFetching: query.isFetching,
-            isError: query.isError,
+            isError: query.isError || liveStatus === 'disconnected',
             collectedAtDisplay: snapshot
                 ? new Date(snapshot.collectedAt * 1000).toLocaleTimeString(locale)
                 : '',
             filters: { searchInput, origin, scope, pageIndex, pageSize },
         },
         handler: {
-            handleRefresh: () => void query.refetch(),
             setSearchInput,
             setOrigin: (value: string) => {
                 setOrigin(value)

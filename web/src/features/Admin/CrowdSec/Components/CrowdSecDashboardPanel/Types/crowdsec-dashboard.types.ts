@@ -24,7 +24,6 @@ export interface CrowdSecDashboardLogicResult {
         }
     }
     readonly handler: {
-        readonly handleRefresh: () => void
         readonly setSearchInput: (value: string) => void
         readonly setOrigin: (value: string) => void
         readonly setScope: (value: CrowdSecDashboardQuery['scope']) => void
