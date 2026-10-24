@@ -165,7 +165,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                                 !canUpdate || state.isSaving || state.isReloading
                                             }
                                             invalid={!state.isValid}
-                                            describedBy="default-site-html-hint default-site-validation"
+                                            describedBy="default-site-html-hint"
                                         />
                                     </Suspense>
                                     <p id="default-site-html-hint" className="text-sm text-muted">
@@ -181,17 +181,13 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                             )}
                         </form.Field>
                     ) : null}
-                    {!state.isValid ? (
+                    {state.mode === 'redirect' && !state.isValid ? (
                         <p
                             id="default-site-validation"
                             role="alert"
                             className="text-sm text-danger-text"
                         >
-                            {t(
-                                state.mode === 'redirect'
-                                    ? 'defaultSite.errors.invalidUrl'
-                                    : 'defaultSite.errors.invalidHtml',
-                            )}
+                            {t('defaultSite.errors.invalidUrl')}
                         </p>
                     ) : null}
                     <p className="text-xs leading-relaxed text-muted">{t('defaultSite.tlsHint')}</p>

@@ -120,14 +120,6 @@ export default function DnsConnectionEditor({
                                     max: MAX_DNS_CONNECTION_ZONES,
                                 })}
                             </legend>
-                            <p className="text-sm text-muted">
-                                {t('admin.dnsConnections.form.zonesHint')}
-                            </p>
-                            {state.zones.length === 0 ? (
-                                <p className="text-sm text-muted">
-                                    {t('admin.dnsConnections.form.noZones')}
-                                </p>
-                            ) : null}
                             {state.zones.map((zone) => (
                                 <div
                                     key={zone.id}
