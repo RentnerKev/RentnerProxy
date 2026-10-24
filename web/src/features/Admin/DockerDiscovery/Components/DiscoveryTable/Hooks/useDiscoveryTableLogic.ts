@@ -74,7 +74,15 @@ export default function useDiscoveryTableLogic(
                 sortFn: 'text',
                 filterFn: (row, _id, value) => row.original.state === value,
                 enableGlobalFilter: true,
-                cell: ({ row }) => createElement(DiscoveryStatusCell, { row: row.original }),
+                cell: ({ row }) =>
+                    createElement(DiscoveryStatusCell, {
+                        row: {
+                            ...row.original,
+                            issues: row.original.issues.filter(
+                                (issue) => issue !== 'reconcile_failed',
+                            ),
+                        },
+                    }),
             },
             {
                 id: 'actions',
