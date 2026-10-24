@@ -54,6 +54,7 @@ type TableColumnFilterConfig =
           readonly searchPlaceholder?: string
           readonly noResultsLabel?: string
           readonly options: ReadonlyArray<TableFilterOption>
+          readonly renderOption?: (option: TableFilterOption) => ReactNode
       }
     | {
           readonly type: 'dateRange'

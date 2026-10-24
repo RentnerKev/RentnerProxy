@@ -2,8 +2,9 @@ import { matchesHostSearch } from '@/lib/HostTags/hostList.ts'
 import type { Translate } from '../Types/proxy-hosts-table-logic.types.ts'
 import type { ProxyHostsTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
-import { useEffect, useMemo, useState } from 'react'
+import { createElement, useEffect, useMemo, useState } from 'react'
 import useHostBulkSelection from '@/features/Admin/HostBulkActions/Hooks/useHostBulkSelection.ts'
+import HostTagBadge from '@/features/Admin/HostTags/Components/HostTagBadge.tsx'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
@@ -58,6 +59,10 @@ export default function useProxyHostsTableLogic(
         initialSorting: [{ id: 'createdAt', desc: true }],
         globalFilterFn: useMemo(() => createProxyHostGlobalFilter(t, locale), [locale, t]),
     })
+    const tagsById = useMemo(
+        () => new Map((props.remote?.tags ?? []).map((tag) => [tag.id, tag])),
+        [props.remote?.tags],
+    )
     const columnFilterConfigs = useMemo<TableColumnFilterConfigs>(
         () => ({
             domains: {
@@ -70,6 +75,10 @@ export default function useProxyHostsTableLogic(
             tags: {
                 type: 'searchableSelect',
                 placeholder: t('admin.hostTags.filter'),
+                renderOption: (option) => {
+                    const tag = tagsById.get(option.value)
+                    return tag ? createElement(HostTagBadge, { tag }) : option.label
+                },
                 options: [
                     { value: 'untagged', label: t('admin.hostTags.untagged') },
                     ...(props.remote?.tags ?? []).map((tag) => ({
@@ -98,7 +107,7 @@ export default function useProxyHostsTableLogic(
                 type: 'dateRange',
             },
         }),
-        [data, props.remote?.domains, props.remote?.tags, t],
+        [data, props.remote?.domains, props.remote?.tags, tagsById, t],
     )
 
     const clearSelection = selection.handler.clear

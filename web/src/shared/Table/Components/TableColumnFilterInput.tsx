@@ -9,7 +9,7 @@ import {
     getTableDateRangeFilterValue,
 } from '@/lib/Table/calendarFilterValue.ts'
 import useCalendarPresentation from '@/shared/Calendar/Hooks/useCalendarPresentation.ts'
-import type { TableColumnFilterInputProps } from '../Types/table.types.ts'
+import type { TableColumnFilterInputProps, TableFilterOption } from '../Types/table.types.ts'
 
 export default function TableColumnFilterInput<TData extends RowData>({
     column,
@@ -50,6 +50,15 @@ export default function TableColumnFilterInput<TData extends RowData>({
                 }}
                 searchable
                 options={[{ value: '', label: allLabel }, ...config.options]}
+                {...(config.renderOption
+                    ? {
+                          renderOption: config.renderOption,
+                          renderValue: (options: readonly TableFilterOption[]) => {
+                              const option = options[0]
+                              return option ? config.renderOption?.(option) : null
+                          },
+                      }
+                    : {})}
                 onValueChange={(value) => column.setFilterValue(value || undefined)}
             />
         )
