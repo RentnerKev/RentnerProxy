@@ -5,6 +5,7 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import { Fragment } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import ManagedDomainLink from '@/shared/Domain/ManagedDomainLink.tsx'
 import PageAlert from '@/shared/PageAlerts/PageAlert.tsx'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
 import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
@@ -17,6 +18,7 @@ import type { ProxyAccessLogEntry } from '@/lib/Admin/ProxyAccessLogs/Types/prox
 import {
     formatBytes,
     formatDuration,
+    methodClassName,
     PROXY_ACCESS_LOGS_PAGE_SIZES,
     statusClassName,
     withoutQueryString,
@@ -317,10 +319,17 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                                 </time>
                                             </td>
                                             <td className="max-w-48 [overflow-wrap:anywhere] px-4 py-[0.85rem] align-middle text-[0.78rem] font-extrabold text-ink-soft">
-                                                {entry.host}
+                                                <ManagedDomainLink
+                                                    domain={entry.host}
+                                                    className="inline-flex max-w-48 items-center wrap-anywhere rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                                                />
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle font-mono text-xs text-ink-soft">
-                                                {entry.method}
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] leading-normal font-bold ${methodClassName(entry.method)}`}
+                                                >
+                                                    {entry.method}
+                                                </span>
                                             </td>
                                             <td className="max-w-80 break-all px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 <CustomTooltip
