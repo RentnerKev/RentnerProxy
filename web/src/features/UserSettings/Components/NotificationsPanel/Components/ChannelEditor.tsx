@@ -34,6 +34,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                         {(field) => (
                             <TextInput
                                 label={t('account.notifications.name')}
+                                placeholder={t('placeholders.notificationChannelName')}
                                 required
                                 value={field.state.value}
                                 onValueChange={field.handleChange}
@@ -84,6 +85,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                                 inputMode="numeric"
                                 required
                                 label={t('account.notifications.thresholdSeconds')}
+                                placeholder={t('placeholders.notificationThreshold')}
                                 value={field.state.value}
                                 onValueChange={field.handleChange}
                                 locale={state.locale}
@@ -134,6 +136,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                                 {(field) => (
                                     <TextInput
                                         label={t('account.notifications.recipients')}
+                                        placeholder={t('placeholders.notificationRecipients')}
                                         required
                                         value={field.state.value}
                                         onValueChange={field.handleChange}
@@ -148,6 +151,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                                     {(field) => (
                                         <TextInput
                                             label={t('account.notifications.url')}
+                                            placeholder={t('placeholders.notificationWebhookUrl')}
                                             required
                                             value={field.state.value}
                                             onValueChange={field.handleChange}
@@ -160,6 +164,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                                     {(field) => (
                                         <PasswordInput
                                             label={t('account.notifications.token')}
+                                            placeholder={t('placeholders.notificationWebhookToken')}
                                             value={field.state.value}
                                             onValueChange={field.handleChange}
                                             autoComplete="new-password"
@@ -175,6 +180,7 @@ export default function ChannelEditor(props: ChannelEditorProps) {
                                         {(field) => (
                                             <TextInput
                                                 label={t('account.notifications.cidrs')}
+                                                placeholder={t('placeholders.notificationCidrs')}
                                                 value={field.state.value}
                                                 onValueChange={field.handleChange}
                                                 locale={state.locale}

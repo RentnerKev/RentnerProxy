@@ -62,6 +62,7 @@ export default function RenamePasskeyModal({
                     {t('account.passkeys.name.label')}
                 </span>
                 <TextInput
+                    placeholder={t('placeholders.passkeyName')}
                     id="passkey-name"
                     autoComplete="off"
                     maxLength={100}

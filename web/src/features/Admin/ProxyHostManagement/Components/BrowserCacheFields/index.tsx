@@ -63,6 +63,7 @@ export default function BrowserCacheFields(props: BrowserCacheFieldsProps) {
                           <NumberInput
                               type="number"
                               id={id + '-age-' + index}
+                              placeholder={t('placeholders.browserCacheMaxAge')}
                               min={1}
                               max={31536000}
                               step={1}

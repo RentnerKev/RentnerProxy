@@ -24,6 +24,7 @@ export default function CertificateImportFields({ form, isPending }: Certificate
                         </label>
                         <TextInput
                             id="certificate-import-name"
+                            placeholder={t('placeholders.certificateName')}
                             name={field.name}
                             value={field.state.value}
                             maxLength={120}
@@ -42,6 +43,7 @@ export default function CertificateImportFields({ form, isPending }: Certificate
             <PemField
                 form={form}
                 name="certificatePem"
+                placeholder={t('placeholders.certificatePem')}
                 label={t('admin.certificates.form.certificatePem')}
                 isPending={isPending}
                 required
@@ -49,6 +51,7 @@ export default function CertificateImportFields({ form, isPending }: Certificate
             <PemField
                 form={form}
                 name="privateKeyPem"
+                placeholder={t('placeholders.privateKeyPem')}
                 label={t('admin.certificates.form.privateKeyPem')}
                 isPending={isPending}
                 required
@@ -56,6 +59,7 @@ export default function CertificateImportFields({ form, isPending }: Certificate
             <PemField
                 form={form}
                 name="chainPem"
+                placeholder={t('placeholders.certificateChainPem')}
                 label={t('admin.certificates.form.chainPem')}
                 isPending={isPending}
             />
@@ -67,12 +71,14 @@ function PemField({
     form,
     name,
     label,
+    placeholder,
     isPending,
     required,
 }: {
     readonly form: CertificateImportFieldsProps['form']
     readonly name: 'certificatePem' | 'privateKeyPem' | 'chainPem'
     readonly label: string
+    readonly placeholder: string
     readonly isPending: boolean
     readonly required?: boolean
 }) {
@@ -89,6 +95,7 @@ function PemField({
                         </label>
                         <Textarea
                             id={id}
+                            placeholder={placeholder}
                             name={field.name}
                             className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-accent-border focus:outline-hidden focus:ring-[3px] focus:ring-accent-ring/20 motion-reduce:transition-none min-h-26 resize-y py-3 min-h-36 font-mono text-xs"
                             value={field.state.value ?? ''}

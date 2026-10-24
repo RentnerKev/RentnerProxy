@@ -22,6 +22,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             {t('account.password.currentPassword')}
                         </label>
                         <PasswordInput
+                            placeholder={t('placeholders.currentPassword')}
                             id={field.name}
                             name={field.name}
                             autoComplete="current-password"
@@ -44,6 +45,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             {t('account.password.newPassword')}
                         </label>
                         <PasswordInput
+                            placeholder={t('placeholders.newPassword')}
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"
@@ -70,6 +72,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             {t('account.password.confirmNewPassword')}
                         </label>
                         <PasswordInput
+                            placeholder={t('placeholders.confirmPassword')}
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"

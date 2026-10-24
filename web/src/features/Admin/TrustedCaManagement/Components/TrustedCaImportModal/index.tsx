@@ -75,6 +75,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                             </label>
                             <TextInput
                                 id={state.formId + '-name'}
+                                placeholder={t('placeholders.trustedCaName')}
                                 name={field.name}
                                 value={field.state.value}
                                 maxLength={120}
@@ -102,6 +103,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                             </label>
                             <Textarea
                                 id={state.formId + '-pem'}
+                                placeholder={t('placeholders.trustedCaPem')}
                                 name={field.name}
                                 className={
                                     'box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-accent-border focus:outline-hidden focus:ring-[3px] focus:ring-accent-ring/20 motion-reduce:transition-none min-h-26 resize-y py-3' +

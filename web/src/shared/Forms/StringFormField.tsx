@@ -6,6 +6,7 @@ import type { StringFormFieldProps } from './Types/string-form-field.types.ts'
 export default function StringFormField({
     field,
     label,
+    placeholder,
     kind = 'text',
     autoComplete,
     maxLength,
@@ -16,6 +17,7 @@ export default function StringFormField({
         id: field.name,
         name: field.name,
         autoComplete,
+        placeholder,
         maxLength,
         value: field.state.value,
         onBlur: field.handleBlur,

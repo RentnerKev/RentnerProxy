@@ -105,6 +105,7 @@ export default function TotpSetupModal({
                                     {t('account.twoFactor.setup.authenticatorCode')}
                                 </label>
                                 <TextInput
+                                    placeholder={t('placeholders.oneTimeCode')}
                                     id={field.name}
                                     name={field.name}
                                     inputMode="numeric"

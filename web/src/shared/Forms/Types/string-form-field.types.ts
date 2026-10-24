@@ -13,6 +13,7 @@ interface StringFormFieldBinding {
 export interface StringFormFieldProps {
     readonly field: StringFormFieldBinding
     readonly label: ReactNode
+    readonly placeholder: string
     readonly kind?: 'text' | 'email' | 'password'
     readonly autoComplete?: InputHTMLAttributes<HTMLInputElement>['autoComplete']
     readonly maxLength: number

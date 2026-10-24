@@ -1,8 +1,11 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { AcceptInviteFormProps } from '../Types/accept-invite-component-props.types.ts'
 
 export default function AcceptInviteForm({ state, form, handler }: AcceptInviteFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -14,6 +17,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.displayName')}
                         label="Display name"
                         kind="text"
                         autoComplete="name"
@@ -25,6 +29,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.newPassword')}
                         label="Password"
                         kind="password"
                         autoComplete="new-password"
@@ -40,6 +45,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.confirmPassword')}
                         label="Confirm password"
                         kind="password"
                         autoComplete="new-password"

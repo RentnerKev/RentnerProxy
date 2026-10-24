@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Annotation, Compartment, EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, placeholder } from '@codemirror/view'
 import { createHtmlEditorExtensions } from '../editorExtensions.ts'
 
 import { HTML_EDITOR_COLOR_PRESETS } from '@/config/html-editor.config.ts'
@@ -32,6 +32,7 @@ export function useHtmlSourceEditorLogic(
         theme: new Compartment(),
         editable: new Compartment(),
         attributes: new Compartment(),
+        placeholder: new Compartment(),
     }))
 
     useLayoutEffect(() => {
@@ -52,6 +53,7 @@ export function useHtmlSourceEditorLogic(
                     configuration.theme.of(createHtmlEditorTheme('rentnerproxy')),
                     configuration.editable.of([]),
                     configuration.attributes.of([]),
+                    configuration.placeholder.of([]),
                     EditorView.updateListener.of((update) => {
                         if (
                             update.docChanged &&
@@ -94,6 +96,7 @@ export function useHtmlSourceEditorLogic(
     useEffect(() => {
         editor.current?.dispatch({
             effects: [
+                configuration.placeholder.reconfigure(placeholder(t('placeholders.htmlSource'))),
                 configuration.editable.reconfigure([
                     EditorState.readOnly.of(props.disabled),
                     EditorView.editable.of(!props.disabled),

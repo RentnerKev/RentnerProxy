@@ -1,8 +1,11 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { PasswordResetFormProps } from '../Types/password-reset-component-props.types.ts'
 
 export default function PasswordResetForm({ state, form, handler }: PasswordResetFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -14,6 +17,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.newPassword')}
                         label="New password"
                         kind="password"
                         autoComplete="new-password"
@@ -29,6 +33,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.confirmPassword')}
                         label="Confirm new password"
                         kind="password"
                         autoComplete="new-password"

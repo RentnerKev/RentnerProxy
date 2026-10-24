@@ -57,6 +57,7 @@ export default function AccessPolicyFormFields({
                     {t('admin.accessPolicies.form.name')}
                 </label>
                 <TextInput
+                    placeholder={t('placeholders.policyName')}
                     id={`${formId}-name`}
                     name="name"
                     value={values.name}
@@ -200,6 +201,7 @@ export default function AccessPolicyFormFields({
                             {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefix')}
                         </label>
                         <TextInput
+                            placeholder={t('placeholders.forwardAuthPath')}
                             id={`${formId}-forwardAuth-gatewayPathPrefix`}
                             name="forwardAuth.gatewayPathPrefix"
                             value={values.forwardAuth.gatewayPathPrefix}
@@ -223,6 +225,7 @@ export default function AccessPolicyFormFields({
                             {t('admin.accessPolicies.form.forwardAuth.endpoint')}
                         </label>
                         <TextInput
+                            placeholder={t('placeholders.forwardAuthEndpoint')}
                             id={`${formId}-forwardAuth-endpoint`}
                             name="forwardAuth.endpoint"
                             inputMode="url"
@@ -252,6 +255,7 @@ export default function AccessPolicyFormFields({
                             {t('admin.accessPolicies.form.forwardAuth.timeout')}
                         </label>
                         <TextInput
+                            placeholder={t('placeholders.forwardAuthTimeout')}
                             id={`${formId}-forwardAuth-timeout`}
                             name="forwardAuth.timeoutSeconds"
                             inputMode="numeric"

@@ -1,8 +1,11 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { SetupFormProps } from '../Types/setup-component-props.types.ts'
 
 export default function SetupForm({ state, form, handler }: SetupFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -14,6 +17,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.displayName')}
                         label="Display name"
                         kind="text"
                         autoComplete="name"
@@ -25,6 +29,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.email')}
                         label="Email address"
                         kind="email"
                         autoComplete="email"
@@ -36,6 +41,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.newPassword')}
                         label="Password"
                         kind="password"
                         autoComplete="new-password"
@@ -51,6 +57,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.confirmPassword')}
                         label="Confirm password"
                         kind="password"
                         autoComplete="new-password"

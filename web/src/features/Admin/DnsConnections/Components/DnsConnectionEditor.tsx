@@ -53,6 +53,7 @@ export default function DnsConnectionEditor({
                             </label>
                             <TextInput
                                 id={`${state.formId}-name`}
+                                placeholder={t('placeholders.dnsConnectionName')}
                                 name="name"
                                 locale={locale}
                                 validationMode="external"
@@ -77,6 +78,11 @@ export default function DnsConnectionEditor({
                             </label>
                             <PasswordInput
                                 id={`${state.formId}-token`}
+                                placeholder={t(
+                                    state.editing
+                                        ? 'placeholders.dnsApiTokenReplacement'
+                                        : 'placeholders.dnsApiToken',
+                                )}
                                 name="apiToken"
                                 locale={locale}
                                 validationMode="external"

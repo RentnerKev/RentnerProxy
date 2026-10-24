@@ -91,6 +91,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                         {t(`admin.proxyHosts.config.${labelKey}`)}
                                         <span className="flex items-center gap-2">
                                             <NumberInput
+                                                placeholder={t(`placeholders.${key}`)}
                                                 type="number"
                                                 min={min}
                                                 max={max}

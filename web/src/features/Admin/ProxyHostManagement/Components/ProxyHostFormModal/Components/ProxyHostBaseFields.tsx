@@ -84,6 +84,7 @@ export default function ProxyHostBaseFields({
                                 value={field.state.value}
                                 disabled={isPending}
                                 inputMode="numeric"
+                                placeholder={t('placeholders.forwardPort')}
                                 maxLength={5}
                                 onBlur={field.handleBlur}
                                 onValueChange={field.handleChange}

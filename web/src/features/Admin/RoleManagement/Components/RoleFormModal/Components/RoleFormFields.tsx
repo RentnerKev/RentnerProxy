@@ -39,6 +39,7 @@ export default function RoleFormFields({
                                 {t('admin.roles.form.key')}
                             </label>
                             <TextInput
+                                placeholder={t('placeholders.roleSlug')}
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={100}
@@ -72,6 +73,7 @@ export default function RoleFormFields({
                                 {t('admin.roles.form.name')}
                             </label>
                             <TextInput
+                                placeholder={t('placeholders.roleName')}
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={100}
@@ -103,6 +105,7 @@ export default function RoleFormFields({
                                 {t('admin.roles.form.description')}
                             </label>
                             <Textarea
+                                placeholder={t('placeholders.roleDescription')}
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={500}

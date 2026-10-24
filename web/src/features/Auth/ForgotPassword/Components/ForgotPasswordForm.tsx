@@ -1,8 +1,11 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { ForgotPasswordFormProps } from '../Types/forgot-password-component-props.types.ts'
 
 export default function ForgotPasswordForm({ state, form, handler }: ForgotPasswordFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -14,6 +17,7 @@ export default function ForgotPasswordForm({ state, form, handler }: ForgotPassw
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.email')}
                         label="Email address"
                         kind="email"
                         autoComplete="email"

@@ -120,6 +120,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                     </label>
                                     <TextInput
                                         id="default-site-url"
+                                        placeholder={t('placeholders.defaultRedirectUrl')}
                                         name={field.name}
                                         value={field.state.value}
                                         onValueChange={field.handleChange}

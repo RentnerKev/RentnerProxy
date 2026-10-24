@@ -24,6 +24,7 @@ export default function CertificateRequestFields({
                         </label>
                         <TextInput
                             id="certificate-request-name"
+                            placeholder={t('placeholders.certificateName')}
                             aria-invalid={field.state.meta.errors.length > 0}
                             name={field.name}
                             value={field.state.value}
@@ -51,6 +52,9 @@ export default function CertificateRequestFields({
                         </label>
                         <Textarea
                             id="certificate-request-domains"
+                            placeholder={
+                                readOnlyDomains ? undefined : t('placeholders.certificateDomains')
+                            }
                             aria-invalid={field.state.meta.errors.length > 0}
                             name={field.name}
                             value={field.state.value.join('\n')}
@@ -146,6 +150,7 @@ export default function CertificateRequestFields({
                                         </label>
                                         <TextInput
                                             id="certificate-request-dns-zone-id"
+                                            placeholder={t('placeholders.dnsZoneId')}
                                             aria-invalid={field.state.meta.errors.length > 0}
                                             name={field.name}
                                             value={field.state.value}
@@ -176,6 +181,7 @@ export default function CertificateRequestFields({
                                         </label>
                                         <PasswordInput
                                             id="certificate-request-dns-api-token"
+                                            placeholder={t('placeholders.dnsApiToken')}
                                             aria-invalid={field.state.meta.errors.length > 0}
                                             name={field.name}
                                             type="password"
@@ -260,6 +266,7 @@ export default function CertificateRequestFields({
                         </label>
                         <EmailInput
                             id="certificate-request-contact"
+                            placeholder={t('placeholders.acmeEmail')}
                             aria-invalid={field.state.meta.errors.length > 0}
                             name={field.name}
                             type="email"

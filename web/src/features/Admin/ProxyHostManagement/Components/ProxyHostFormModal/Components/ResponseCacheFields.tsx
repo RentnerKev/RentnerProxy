@@ -39,6 +39,7 @@ export default function ResponseCacheFields({
                                 {t('admin.proxyHosts.responseCache.paths')}
                                 <TextInput
                                     id={`${formId}-response-cache-paths`}
+                                    placeholder={t('placeholders.responseCachePaths')}
                                     type="text"
                                     disabled={isPending}
                                     aria-invalid={state.invalid}
@@ -54,6 +55,7 @@ export default function ResponseCacheFields({
                                 {t('admin.proxyHosts.responseCache.ttl')}
                                 <NumberInput
                                     id={`${formId}-response-cache-ttl`}
+                                    placeholder={t('placeholders.responseCacheTtl')}
                                     type="number"
                                     min={1}
                                     max={3600}

@@ -1,3 +1,4 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { TextInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
@@ -13,6 +14,8 @@ export default function TwoFactorLoginForm({
     onToggleMode,
     normalizeCredential,
 }: TwoFactorLoginFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -35,6 +38,11 @@ export default function TwoFactorLoginForm({
                                     {mode === 'totp' ? 'Authenticator code' : 'Recovery code'}
                                 </label>
                                 <TextInput
+                                    placeholder={t(
+                                        mode === 'totp'
+                                            ? 'placeholders.oneTimeCode'
+                                            : 'placeholders.recoveryCode',
+                                    )}
                                     id={field.name}
                                     name={field.name}
                                     autoComplete={mode === 'totp' ? 'one-time-code' : 'off'}

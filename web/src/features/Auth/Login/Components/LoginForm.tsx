@@ -1,9 +1,12 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import { Link } from '@tanstack/react-router'
 import type { LoginFormProps } from '../Types/login-component-props.types.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 export default function LoginForm({ state, form, handler, onPasskeyLogin }: LoginFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             method="post"
@@ -15,6 +18,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.email')}
                         label="Email address"
                         kind="email"
                         autoComplete="username"
@@ -26,6 +30,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                 {(field) => (
                     <StringFormField
                         field={field}
+                        placeholder={t('placeholders.currentPassword')}
                         label="Password"
                         kind="password"
                         autoComplete="current-password"

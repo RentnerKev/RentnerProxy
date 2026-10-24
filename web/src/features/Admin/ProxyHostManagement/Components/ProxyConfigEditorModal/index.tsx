@@ -198,6 +198,11 @@ function HostSettingField({
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <NumberInput
                     id={inputId}
+                    placeholder={
+                        effectiveValue === undefined
+                            ? t(`placeholders.${key}`)
+                            : t('placeholders.inheritedValue', { value: effectiveValue })
+                    }
                     type="number"
                     min={min}
                     max={max}

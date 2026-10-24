@@ -25,6 +25,7 @@ export default function BasicAuthAccountFormFields({
                     {t('admin.accessPolicies.basicAuth.form.username')}
                 </label>
                 <TextInput
+                    placeholder={t('placeholders.basicAuthUsername')}
                     id={`${formId}-username`}
                     name="username"
                     value={values.username}
@@ -52,6 +53,11 @@ export default function BasicAuthAccountFormFields({
                     {t('admin.accessPolicies.basicAuth.form.password')}
                 </label>
                 <PasswordInput
+                    placeholder={t(
+                        mode === 'edit'
+                            ? 'placeholders.basicAuthPasswordEdit'
+                            : 'placeholders.basicAuthPassword',
+                    )}
                     id={`${formId}-password`}
                     name="password"
                     type="password"

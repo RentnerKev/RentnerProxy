@@ -42,6 +42,7 @@ export default function ReauthenticationModal({
                         {t('account.reauthentication.currentPassword')}
                     </span>
                     <PasswordInput
+                        placeholder={t('placeholders.currentPassword')}
                         id="reauth-password"
                         autoComplete="current-password"
                         value={value}

@@ -22,6 +22,7 @@ export function createHtmlEditorTheme(preset: HtmlEditorColorPreset) {
                     overflow: 'auto',
                 },
                 '.cm-content': { padding: '14px 0', caretColor: colors.foreground },
+                '.cm-placeholder': { color: colors.comment },
                 '.cm-line': { padding: '0 14px' },
                 '.cm-gutters': {
                     backgroundColor: colors.gutter,

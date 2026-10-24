@@ -35,6 +35,7 @@ export default function DdnsSettings(props: DdnsSettingsProps) {
                     {(field) => (
                         <NumberInput
                             name="intervalSeconds"
+                            placeholder={t('placeholders.ddnsPollInterval')}
                             label={t('admin.ddns.form.interval')}
                             description={t('admin.ddns.form.intervalHint')}
                             value={String(field.state.value)}

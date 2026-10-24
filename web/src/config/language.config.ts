@@ -37,6 +37,13 @@ export const LANGUAGE_COUNTRY_CODES: Record<AppLanguage, string> = {
 }
 
 export const PUBLIC_ENGLISH: Record<string, string> = {
+    'placeholders.displayName': 'e.g. Alex Morgan',
+    'placeholders.email': 'alex@example.com',
+    'placeholders.currentPassword': 'Enter your current password',
+    'placeholders.newPassword': 'Choose a strong, unique password',
+    'placeholders.confirmPassword': 'Repeat your new password',
+    'placeholders.oneTimeCode': '123456',
+    'placeholders.recoveryCode': 'Enter one of your saved recovery codes',
     'toast.notification': 'Notification',
     'toast.dismiss': 'Dismiss notification',
     'toast.copyError': 'Copy error message',

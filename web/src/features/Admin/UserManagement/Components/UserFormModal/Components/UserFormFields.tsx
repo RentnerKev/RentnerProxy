@@ -40,6 +40,7 @@ export default function UserFormFields({
                                 {isCreate ? ` (${t('admin.users.form.optional')})` : ''}
                             </label>
                             <TextInput
+                                placeholder={t('placeholders.displayName')}
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 autoComplete={isCreate ? 'off' : 'name'}
@@ -70,6 +71,7 @@ export default function UserFormFields({
                                 {t('admin.users.form.email')}
                             </label>
                             <EmailInput
+                                placeholder={t('placeholders.email')}
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 type="email"

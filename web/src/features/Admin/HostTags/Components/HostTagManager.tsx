@@ -129,6 +129,7 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                                         <TextInput
                                             id={state.formId + '-name'}
                                             label={t('admin.hostTags.name')}
+                                            placeholder={t('placeholders.hostTagName')}
                                             value={field.state.value}
                                             maxLength={HOST_TAG_LIMITS.nameLength}
                                             disabled={state.pending}
