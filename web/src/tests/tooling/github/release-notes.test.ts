@@ -74,6 +74,8 @@ describe('release tag validation', () => {
         expect(() => validateReleaseTag('v1.2.3', false)).not.toThrow()
         expect(() => validateReleaseTag('v1.2.3-alpha', true)).not.toThrow()
         expect(() => validateReleaseTag('v1.2.3-beta.1', true)).not.toThrow()
+        expect(() => validateReleaseTag('v1.0.0-beta.1', false)).not.toThrow()
+        expect(() => validateReleaseTag('v1.0.0-beta.2', false)).not.toThrow()
         expect(() => validateReleaseTag('v0.0.0-beta.10', true)).not.toThrow()
         expect(deriveReleaseChannel('v1.2.3')).toBe('stable')
         expect(deriveReleaseChannel('v1.2.3-alpha.1')).toBe('alpha')
@@ -406,6 +408,36 @@ describe('GitHub API integration boundary', () => {
         expect(issues).toHaveLength(102)
         expect(requestedPages).toEqual(['1', '2'])
     })
+
+    test.each(['v1.0.0-beta.1', 'v1.0.0-beta.2'])(
+        'generates beta notes for a normal GitHub release %s',
+        async (tagName) => {
+            const client = new GitHubReleaseClient(
+                'RentnerKev/RentnerProxy',
+                'test-token',
+                async () => Response.json([]),
+            )
+            const result = await generateReleaseNotes(
+                {
+                    repository: 'RentnerKev/RentnerProxy',
+                    release: {
+                        id: 10,
+                        tagName,
+                        prerelease: false,
+                        publishedAt: '2026-09-02T12:00:00Z',
+                    },
+                    channel: 'beta',
+                    image: 'ghcr.io/rentnerkev/rentnerproxy',
+                    bannerAssetName: 'release-banner.png',
+                    config,
+                },
+                client,
+            )
+            expect(result.body).toContain('Beta Pre-Release')
+            expect(result.body).toContain('ghcr.io/rentnerkev/rentnerproxy:beta')
+            expect(result.body).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
+        },
+    )
 
     test('uses a matching milestone instead of a release window', async () => {
         const issueQueries: URL[] = []

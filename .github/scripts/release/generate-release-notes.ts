@@ -5,6 +5,7 @@ import type {
 } from './Types/generate-release-notes.types.ts'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
 
 import {
     filterIssues,
@@ -149,7 +150,7 @@ export async function generateReleaseNotes(
     if (deriveReleaseChannel(input.release.tagName) !== input.channel) {
         throw new Error('Release channel does not match the release tag')
     }
-    if ((input.channel !== 'stable') !== input.release.prerelease) {
+    if (!isReleaseMetadataCompatible(input.channel, input.release.prerelease)) {
         throw new Error('Release channel and GitHub prerelease state do not match')
     }
 

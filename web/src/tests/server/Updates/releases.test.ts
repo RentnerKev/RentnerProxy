@@ -20,6 +20,15 @@ describe('application update selection', () => {
     })
     test('stable installations do not advertise prereleases', () => {
         expect(findAvailableUpdate('1.0.0', [release('v2.0.0-beta.1', true)])).toBeNull()
+        expect(findAvailableUpdate('1.0.0', [release('v2.0.0-beta.1', false)])).toBeNull()
+        expect(findAvailableUpdate('1.0.0', [release('v2.0.0-beta.1'), release('v1.0.1')])).toBe(
+            '1.0.1',
+        )
+    })
+    test('Beta 1 finds Beta 2 published as a regular GitHub release', () => {
+        expect(findAvailableUpdate('v1.0.0-beta.1', [release('v1.0.0-beta.2')])).toBe(
+            '1.0.0-beta.2',
+        )
     })
     test('enforces every edge of the alpha, beta and stable channel matrix', () => {
         for (const current of ['1.0.0-alpha.1', '1.0.0-beta.1', '1.0.0']) {
@@ -58,8 +67,8 @@ describe('application update selection', () => {
             expect(findAvailableUpdate('0.0.1-alpha.1', [release(`v${version}`, true)])).toBeNull()
         }
     })
-    test('requires GitHub prerelease metadata to agree with the official channel', () => {
-        expect(findAvailableUpdate('1.0.0-beta.1', [release('v1.0.0-beta.2')])).toBeNull()
+    test('requires alpha and stable GitHub metadata to agree with their channels', () => {
+        expect(findAvailableUpdate('1.0.0-alpha.1', [release('v1.0.0-alpha.2')])).toBeNull()
         expect(findAvailableUpdate('1.0.0-beta.1', [release('v1.0.0', true)])).toBeNull()
     })
     test('does not treat build metadata as an upgrade or downgrade', () => {

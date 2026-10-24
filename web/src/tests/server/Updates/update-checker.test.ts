@@ -108,6 +108,40 @@ describe('read-only update checker', () => {
             'https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.2',
         )
     })
+    test('verifies regular GitHub Beta 2 releases for a Beta 1 installation', async () => {
+        const data = fixture()
+        data.release.prerelease = false
+        const result = await checkerFor(data)('v1.0.0-beta.1')
+        expect(result).toMatchObject({
+            status: 'available',
+            currentChannel: 'beta',
+            latest: {
+                version: '1.0.0-beta.2',
+                tag: 'v1.0.0-beta.2',
+                channel: 'beta',
+                image: {
+                    status: 'verified',
+                    platform: 'linux/amd64',
+                    reference: `ghcr.io/rentnerkev/rentnerproxy:${data.metadata.tag}@${data.metadata.image.digest}`,
+                    digest: data.metadata.image.digest,
+                },
+                compatibility: { status: 'supported' },
+            },
+        })
+        expect(data.calls.some((url) => url.includes('/assets/99'))).toBe(true)
+        expect(data.calls.some((url) => url.includes('/manifests/'))).toBe(true)
+        expect(data.calls.some((url) => url.includes('/blobs/'))).toBe(true)
+    })
+    test('stable installations ignore higher-major beta tags published as regular releases', async () => {
+        const data = fixture('v2.0.0-beta.1')
+        data.release.prerelease = false
+        expect(await checkerFor(data)('v1.0.0')).toMatchObject({
+            status: 'current',
+            currentChannel: 'stable',
+            latest: null,
+        })
+        expect(data.calls).toHaveLength(1)
+    })
     test('does not make requests for dev, PR, invalid or unknown builds', async () => {
         const data = fixture()
         const check = checkerFor(data)
@@ -289,10 +323,11 @@ describe('read-only update checker', () => {
             Response.json([
                 { ...data.release, draft: true },
                 { ...data.release, published_at: null },
-                { ...data.release, prerelease: false },
+                { ...data.release, tag_name: 'v1.0.0-alpha.2', prerelease: false },
+                { ...data.release, tag_name: 'v1.0.0', prerelease: true },
             ]),
         )
-        expect((await checkerFor(data)('1.0.0-beta.1')).status).toBe('current')
+        expect((await checkerFor(data)('1.0.0-alpha.1')).status).toBe('current')
     })
     test('does not pretend an unsupported platform can use a verified image', async () => {
         const data = fixture()

@@ -1,3 +1,4 @@
+import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
 import type {
     ReleaseChannel,
     ReleaseNotesConfig,
@@ -66,13 +67,9 @@ export function deriveReleaseChannel(tagName: string): ReleaseChannel {
 }
 
 export function validateReleaseTag(tagName: string, prerelease: boolean): void {
-    const { prereleasePart } = parseReleaseTag(tagName)
-
-    if (prerelease && prereleasePart === undefined) {
-        throw new Error('A GitHub pre-release must use a SemVer prerelease tag')
-    }
-    if (!prerelease && prereleasePart !== undefined) {
-        throw new Error('A stable GitHub release must not use a SemVer prerelease tag')
+    const { channel } = parseReleaseTag(tagName)
+    if (typeof prerelease !== 'boolean' || !isReleaseMetadataCompatible(channel, prerelease)) {
+        throw new Error('Release channel and GitHub prerelease state do not match')
     }
 }
 

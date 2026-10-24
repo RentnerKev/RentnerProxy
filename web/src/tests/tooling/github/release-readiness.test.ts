@@ -26,6 +26,15 @@ function input(overrides: Partial<ReleaseReadinessInput> = {}): ReleaseReadiness
 }
 
 describe('versioned release readiness generation', () => {
+    test.each(['v1.0.0-beta.1', 'v1.0.0-beta.2'])(
+        'retains beta channel and upgrade policy for normal GitHub release %s',
+        (tag) => {
+            const normalRelease = buildReleaseReadiness(input({ tag, prerelease: 'false' }))
+            expect(normalRelease).toEqual(buildReleaseReadiness(input({ tag })))
+            expect(normalRelease.channel).toBe('beta')
+        },
+    )
+
     test('binds the asset to the original release and assessed immutable image', () => {
         expect(buildReleaseReadiness(input())).toEqual({
             schemaVersion: 1,
@@ -85,7 +94,12 @@ describe('versioned release readiness generation', () => {
         { tag: 'v1.0.0-beta.2\n' },
         { tag: 'v1.0.0-beta.' + '9'.repeat(129) },
         { channel: 'stable' },
-        { prerelease: 'false' },
+        { prerelease: '' },
+        { prerelease: 'False' },
+        { prerelease: '0' },
+        { prerelease: 'true\n' },
+        { tag: 'v1.0.0-alpha.1', channel: 'alpha', prerelease: 'false' },
+        { tag: 'v1.0.0', channel: 'stable', prerelease: 'true' },
         { publishedAt: '' },
         { publishedAt: '2026-02-30T12:34:56Z' },
         { publishedAt: '2026-10-19T12:34:56Z\n' },

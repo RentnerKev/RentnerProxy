@@ -27,9 +27,10 @@ case "$prerelease_part" in
         exit 1
         ;;
 esac
-expected_prerelease=true
-[[ "$expected_channel" != stable ]] || expected_prerelease=false
-if [[ "$RELEASE_CHANNEL" != "$expected_channel" || "$RELEASE_PRERELEASE" != "$expected_prerelease" ]]; then
+if [[ "$RELEASE_CHANNEL" != "$expected_channel" ||
+      ( "$RELEASE_PRERELEASE" != true && "$RELEASE_PRERELEASE" != false ) ||
+      ( "$expected_channel" == alpha && "$RELEASE_PRERELEASE" != true ) ||
+      ( "$expected_channel" == stable && "$RELEASE_PRERELEASE" != false ) ]]; then
     echo "::error::Release channel and GitHub prerelease state must match the version tag."
     exit 1
 fi

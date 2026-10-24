@@ -5,6 +5,7 @@ import type {
     ApplicationUpdateResult,
 } from '@/features/ApplicationVersion/Types/application-update.types.ts'
 import type { ReleaseReadiness } from '@/lib/ApplicationVersion/Types/release-readiness.types.ts'
+import { isReleaseMetadataCompatible } from '@/lib/ApplicationVersion/releaseMetadata.ts'
 import type {
     CachedUpdate,
     PublishedUpdateRelease,
@@ -70,7 +71,7 @@ export function findAvailableUpdate(currentVersion: string, releases: unknown): 
         if (
             release.draft ||
             !target ||
-            release.prerelease !== (target.channel !== 'stable') ||
+            !isReleaseMetadataCompatible(target.channel, release.prerelease) ||
             !isNewerEligibleRelease(current, target)
         )
             continue
@@ -112,8 +113,10 @@ async function newestPublishedRelease(
                       !entry.draft &&
                       entry.published_at !== null &&
                       parseReleaseVersion(entry.tag_name)?.version === version &&
-                      entry.prerelease ===
-                          (parseReleaseVersion(entry.tag_name)?.channel !== 'stable'),
+                      isReleaseMetadataCompatible(
+                          parseReleaseVersion(entry.tag_name)!.channel,
+                          entry.prerelease,
+                      ),
               )
             : undefined
         if (release && (latest === null || compareReleaseVersions(version!, latest.version) > 0)) {

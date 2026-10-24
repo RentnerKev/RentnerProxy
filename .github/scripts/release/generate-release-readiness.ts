@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
 
 import type { ReleaseReadiness } from '../../../web/src/lib/ApplicationVersion/Types/release-readiness.types.ts'
 import type {
@@ -24,10 +25,11 @@ export function parseReleaseReadinessInput(
     if (prerelease.some((part) => /^0[0-9]+$/.test(part))) {
         throw new Error('Numeric prerelease identifiers cannot have leading zeroes')
     }
-    const channel = prerelease[0] ?? 'stable'
+    const channel = (prerelease[0] ?? 'stable') as ReleaseReadiness['channel']
     if (
         input.channel !== channel ||
-        input.prerelease !== (channel === 'stable' ? 'false' : 'true')
+        (input.prerelease !== 'true' && input.prerelease !== 'false') ||
+        !isReleaseMetadataCompatible(channel, input.prerelease === 'true')
     ) {
         throw new Error('Release channel and prerelease state must match the tag')
     }
