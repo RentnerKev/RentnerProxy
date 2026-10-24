@@ -17,7 +17,7 @@ const badge =
 export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProps) {
     const { t } = useTranslationStore()
     return domains.length ? (
-        <div className="flex flex-wrap gap-[0.45rem]">
+        <div className="flex flex-wrap items-center gap-[0.45rem]">
             {domains.slice(0, 2).map((domain) => (
                 <ManagedDomainLink
                     className={

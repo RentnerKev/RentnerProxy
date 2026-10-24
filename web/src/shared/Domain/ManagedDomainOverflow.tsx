@@ -14,7 +14,7 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                 <button
                     type="button"
                     aria-label={ariaLabel}
-                    className="inline-flex h-12 items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-ring"
+                    className="inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-neutral px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-muted outline-hidden hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-ring"
                     onClick={handler.handleStopPropagation}
                     onKeyDown={handler.handleStopPropagation}
                     onPointerDown={handler.handleStopPropagation}
@@ -34,7 +34,7 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                     onKeyDown={handler.handleStopPropagation}
                     onPointerDown={handler.handleStopPropagation}
                 >
-                    <div className="flex flex-wrap gap-[0.45rem]">
+                    <div className="flex flex-wrap items-center gap-[0.45rem]">
                         {domains.map((domain) => (
                             <ManagedDomainLink
                                 className={

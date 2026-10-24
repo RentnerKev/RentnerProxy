@@ -45,7 +45,7 @@ export function ProxyHostDomainsCell({ domains, discovery }: ProxyHostDomainsCel
 
     return (
         <div className="grid gap-2">
-            <div className="flex flex-wrap gap-[0.45rem]">
+            <div className="flex flex-wrap items-center gap-[0.45rem]">
                 {visibleDomains.map((domain) => (
                     <DomainChip domain={domain} key={domain} />
                 ))}

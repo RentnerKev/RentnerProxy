@@ -26,7 +26,7 @@ export function CertificateDomainsCell({ domains }: { readonly domains: Readonly
     const extra = domains.slice(2)
     if (visible.length === 0) return <span className="text-muted">—</span>
     return (
-        <div className="flex flex-wrap gap-[0.45rem]">
+        <div className="flex flex-wrap items-center gap-[0.45rem]">
             {visible.map((domain) => (
                 <ManagedDomainLink
                     className={
