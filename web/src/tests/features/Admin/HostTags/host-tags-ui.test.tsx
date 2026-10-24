@@ -523,11 +523,10 @@ describe('localized accessible host tags', () => {
             />,
         )
         expect(document.body.textContent).toContain('Infrastruktur')
-        const badge = [...document.querySelectorAll<HTMLSpanElement>('span')].find(
-            (element) => element.textContent === 'Infrastruktur' && element.style.backgroundColor,
-        )!
-        expect(badge.style.backgroundColor).toBe('#003366')
-        expect(badge.style.color).toBe('#ffffff')
+        const tag = document.querySelector<HTMLSpanElement>('span[title="Infrastruktur"]')!
+        expect(
+            tag.querySelector<HTMLSpanElement>('span[aria-hidden="true"]')?.style.backgroundColor,
+        ).toBe('#003366')
         expect(
             document.querySelector('button[aria-label="Tags für redirect.example.com bearbeiten"]'),
         ).toBeNull()

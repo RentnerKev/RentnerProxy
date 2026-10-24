@@ -16,7 +16,7 @@ import type {
 } from '../../../Types/access-policy-table.types.ts'
 
 const modeBadgeClassName =
-    'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[mode=public]:bg-neutral data-[mode=public]:text-muted data-[mode=authenticated]:bg-amber-500/15 data-[mode=authenticated]:text-amber-700 data-[mode=ip-restricted]:bg-amber-500/15 data-[mode=ip-restricted]:text-amber-700 data-[mode=combined]:bg-amber-500/15 data-[mode=combined]:text-amber-700'
+    'inline-flex h-5 items-center rounded-full px-2 text-[0.66rem] font-extrabold leading-none whitespace-nowrap data-[mode=public]:bg-neutral data-[mode=public]:text-muted data-[mode=authenticated]:bg-amber-500/15 data-[mode=authenticated]:text-amber-700 data-[mode=ip-restricted]:bg-amber-500/15 data-[mode=ip-restricted]:text-amber-700 data-[mode=combined]:bg-amber-500/15 data-[mode=combined]:text-amber-700'
 
 export function AccessPolicyNameCell({ name }: AccessPolicyNameCellProps) {
     return <span className="block max-w-64 wrap-anywhere font-extrabold text-ink-soft">{name}</span>
@@ -94,7 +94,7 @@ export function AccessPolicyIpRulesCell({
 export function AccessPolicyCombinationCell({ combination }: AccessPolicyCombinationCellProps) {
     const { t } = useTranslationStore()
     return combination ? (
-        <span className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text">
+        <span className="inline-block text-xs leading-5 whitespace-nowrap text-ink-soft">
             {t(`admin.accessPolicies.combination.${combination}`)}
         </span>
     ) : (

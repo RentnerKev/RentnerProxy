@@ -45,11 +45,16 @@ export function UserRolesCell({ roleKeys }: UserRolesCellProps) {
     const visibleRoleKeys = getVisibleRoleKeys(roleKeys)
 
     return (
-        <div className="flex flex-wrap gap-[0.45rem]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {visibleRoleKeys.map((roleKey) => (
                 <span
-                    className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                    className="block max-w-48 truncate font-mono text-xs leading-5 text-muted"
                     key={roleKey}
+                    title={
+                        ['owner', 'admin', 'viewer'].includes(roleKey)
+                            ? t(`systemRoles.${roleKey}.name`)
+                            : roleKey
+                    }
                 >
                     {['owner', 'admin', 'viewer'].includes(roleKey)
                         ? t(`systemRoles.${roleKey}.name`)
