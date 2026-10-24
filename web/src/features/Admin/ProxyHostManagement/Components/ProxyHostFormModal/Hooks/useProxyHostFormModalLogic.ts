@@ -7,6 +7,7 @@ import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagemen
 import type {
     ProxyHostFormModalHandler,
     ProxyHostFormModalState,
+    ProxyHostFormTab,
 } from '../Types/proxy-host-form.types.ts'
 
 import { invalidateTrustedCaManagementCache } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
@@ -20,7 +21,7 @@ import { trustedCaManagementQueryKeys } from '@/lib/Admin/TrustedCaManagement/tr
 import { getAssignableTrustedCasHandler } from '@/features/Admin/TrustedCaManagement/middleware.ts'
 import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { getAssignableCertificatesHandler } from '@/features/Admin/CertificateManagement/middleware.ts'
-import { MAX_PROXY_HOST_DOMAINS } from '@/config/proxy-hosts.config.ts'
+import { MAX_PROXY_HOST_DOMAINS, PROXY_HOST_FORM_TABS } from '@/config/proxy-hosts.config.ts'
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
@@ -54,6 +55,14 @@ export default function useProxyHostFormModalLogic({
 }: UseProxyHostFormLogicParams) {
     const { t } = useTranslationStore()
     const formId = useId()
+    const [selectedTab, setSelectedTab] = useState<ProxyHostFormTab>('general')
+    const [validationAttempt, setValidationAttempt] = useState(0)
+    const validationFocusPending = useRef(false)
+    const revealInvalidTab = useCallback((tab: ProxyHostFormTab) => {
+        validationFocusPending.current = true
+        setSelectedTab(tab)
+        setValidationAttempt((attempt) => attempt + 1)
+    }, [])
     const [guideOpen, setGuideOpen] = useState(initialGuideOpen)
     const [guideStep, setGuideStep] = useState(0)
     const guideHeading = useRef<HTMLHeadingElement>(null)
@@ -67,12 +76,28 @@ export default function useProxyHostFormModalLogic({
         guideHeading.current?.focus({ preventScroll: true })
         formElement?.parentElement?.scrollTo({ top: 0 })
     }, [formId, guideOpen, guideStep])
-    const handleToggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
-    const handleNextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
-    const handlePreviousGuideStep = useCallback(
-        () => setGuideStep((step) => Math.max(0, step - 1)),
-        [],
-    )
+    const handleToggleGuide = useCallback(() => {
+        setGuideOpen((open) => !open)
+        if (!guideOpen)
+            setSelectedTab(
+                guideStep === 2 && (canAssignCertificates || canRequestCertificate)
+                    ? 'certificate'
+                    : 'general',
+            )
+    }, [guideOpen, guideStep, canAssignCertificates, canRequestCertificate])
+    const handleNextGuideStep = useCallback(() => {
+        const next = Math.min(2, guideStep + 1)
+        setGuideStep(next)
+        setSelectedTab(
+            next === 2 && (canAssignCertificates || canRequestCertificate)
+                ? 'certificate'
+                : 'general',
+        )
+    }, [guideStep, canAssignCertificates, canRequestCertificate])
+    const handlePreviousGuideStep = useCallback(() => {
+        setGuideStep((step) => Math.max(0, step - 1))
+        setSelectedTab('general')
+    }, [])
     const isCreate = mode !== 'edit'
     const defaultValues = getProxyHostFormValues(mode, proxyHost)
     const queryClient = useQueryClient()
@@ -203,7 +228,10 @@ export default function useProxyHostFormModalLogic({
             mutation.reset()
             if (requestNewCertificate) {
                 const errors = await certificateRequest.form.validate('submit')
-                if (Object.keys(errors).length > 0) return
+                if (Object.keys(errors).length > 0) {
+                    revealInvalidTab('certificate')
+                    return
+                }
             }
             if (mode === 'edit' && proxyHost?.enabled && !value.enabled) {
                 setPendingDisableValues({ ...value, domains: [...value.domains] })
@@ -211,8 +239,78 @@ export default function useProxyHostFormModalLogic({
             }
             await mutation.mutateAsync(value).catch(() => undefined)
         },
+        onSubmitInvalid: ({ formApi }) => {
+            const invalidFields = Object.entries(formApi.state.fieldMeta)
+                .filter(([, meta]) => (meta?.errors.length ?? 0) > 0)
+                .map(([name]) => name)
+            const tab = PROXY_HOST_FORM_TABS.find(({ fields }) =>
+                fields.some((field) =>
+                    invalidFields.some(
+                        (name) =>
+                            name === field ||
+                            name.startsWith(field + '.') ||
+                            name.startsWith(field + '['),
+                    ),
+                ),
+            )
+            revealInvalidTab(tab?.id ?? 'general')
+        },
     })
     const guideValues = useStore(form.store, (state) => state.values)
+    const fieldMeta = useStore(form.store, (state) => state.fieldMeta)
+    const certificateFieldMeta = useStore(certificateRequest.form.store, (state) => state.fieldMeta)
+    const invalidFields = Object.entries(fieldMeta)
+        .filter(([, meta]) => (meta?.errors.length ?? 0) > 0)
+        .map(([name]) => name)
+    const invalidTabs: ProxyHostFormTab[] = PROXY_HOST_FORM_TABS.filter(({ fields }) =>
+        fields.some((field) =>
+            invalidFields.some(
+                (name) =>
+                    name === field || name.startsWith(field + '.') || name.startsWith(field + '['),
+            ),
+        ),
+    ).map(({ id }) => id)
+    if (
+        requestNewCertificate &&
+        Object.values(certificateFieldMeta).some((meta) => (meta?.errors.length ?? 0) > 0) &&
+        !invalidTabs.includes('certificate')
+    )
+        invalidTabs.push('certificate')
+    const tabs = PROXY_HOST_FORM_TABS.filter(
+        ({ id }) =>
+            (id !== 'certificate' || canAssignCertificates || canRequestCertificate) &&
+            (id !== 'access' || canAssignPolicies || guideValues.forwardScheme === 'https'),
+    ).map(({ id }) => id)
+    const activeTab = tabs.includes(selectedTab) ? selectedTab : 'general'
+    useEffect(() => {
+        const element = document.getElementById(formId)
+        element?.parentElement?.scrollTo({ top: 0 })
+        if (!validationAttempt || !validationFocusPending.current) return
+        const panel = document.getElementById(`${formId}-panel-${activeTab}`)
+        const invalid = panel?.querySelector<HTMLElement>('[aria-invalid="true"]')
+        const target = invalid ?? panel
+        target?.focus({ preventScroll: true })
+        invalid?.scrollIntoView({ block: 'nearest' })
+        validationFocusPending.current = false
+    }, [formId, activeTab, validationAttempt])
+    const handleTabKeyDown: ProxyHostFormModalHandler['handleTabKeyDown'] = (event, tab) => {
+        const index = tabs.indexOf(tab)
+        const nextIndex =
+            event.key === 'ArrowRight'
+                ? (index + 1) % tabs.length
+                : event.key === 'ArrowLeft'
+                  ? (index - 1 + tabs.length) % tabs.length
+                  : event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? tabs.length - 1
+                      : null
+        if (nextIndex === null) return
+        event.preventDefault()
+        const next = tabs[nextIndex]!
+        setSelectedTab(next)
+        document.getElementById(`${formId}-tab-${next}`)?.focus({ preventScroll: true })
+    }
     const challengeType = useStore(
         certificateRequest.form.store,
         (state) => state.values.challengeType,
@@ -251,9 +349,10 @@ export default function useProxyHostFormModalLogic({
         (event) => {
             event.preventDefault()
             event.stopPropagation()
+            if (requestNewCertificate) certificateRequest.form.setFieldValue('acceptTerms', true)
             void form.handleSubmit()
         },
-        [form],
+        [form, certificateRequest.form, requestNewCertificate],
     )
     const handleBrowserCacheChange = useCallback<
         ProxyHostFormModalHandler['handleBrowserCacheChange']
@@ -271,6 +370,10 @@ export default function useProxyHostFormModalLogic({
         form,
         certificateRequestForm: certificateRequest.form,
         state: {
+            activeTab,
+            tabs,
+            invalidTabs,
+            canConfigureBrowserCache,
             guide: {
                 open: guideOpen,
                 step: guideStep,
@@ -303,7 +406,7 @@ export default function useProxyHostFormModalLogic({
             ),
             pendingSubmitLabel: t(isCreate ? 'admin.proxyHosts.form.creating' : 'common.saving'),
             submitLabel: requestNewCertificate
-                ? t('admin.certificates.actions.request')
+                ? t('admin.proxyHosts.form.requestCertificateAndSave')
                 : t(isCreate ? 'admin.proxyHosts.actions.create' : 'common.save'),
 
             canConfigureCompression,
@@ -327,6 +430,8 @@ export default function useProxyHostFormModalLogic({
             isPending: mutation.isPending,
         } satisfies Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>,
         handler: {
+            setActiveTab: setSelectedTab,
+            handleTabKeyDown,
             handleBrowserCacheChange,
             handleToggleGuide,
             handleNextGuideStep,
@@ -338,7 +443,10 @@ export default function useProxyHostFormModalLogic({
             retryAssignableAccessPolicies,
             confirmDisable,
             setDisableConfirmationOpen,
-            setRequestNewCertificate,
+            setRequestNewCertificate: (request) => {
+                certificateRequest.form.setFieldValue('acceptTerms', false)
+                setRequestNewCertificate(request)
+            },
         } satisfies ProxyHostFormModalHandler,
     }
 }

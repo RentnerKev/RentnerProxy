@@ -7,6 +7,8 @@ export interface ModalProps {
     readonly closeDisabled?: boolean
     readonly description: ReactNode
     readonly footer?: ReactNode
+    readonly fixedHeight?: boolean
+    readonly navigation?: ReactNode
     readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
     readonly onOpenChange: (open: boolean) => void
     readonly open: boolean

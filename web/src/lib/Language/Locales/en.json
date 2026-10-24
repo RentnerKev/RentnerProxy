@@ -1373,7 +1373,19 @@
                 "accessPolicyHint": "Public or unassigned hosts allow requests. Restricted modes currently deny all requests until their providers are configured.",
                 "forceHttps": "Force HTTPS",
                 "forceHttpsHint": "Redirect HTTP requests to HTTPS for this host.",
-                "forceHttpsRequiresCertificate": "Assign a usable certificate covering all domains first."
+                "forceHttpsRequiresCertificate": "Assign a usable certificate covering all domains first.",
+                "tabs": {
+                    "label": "Host settings",
+                    "general": "Basics",
+                    "certificate": "Certificate & HTTPS",
+                    "access": "Access",
+                    "caching": "Caching",
+                    "options": "Options",
+                    "hasErrors": "This section has errors. Review the highlighted fields."
+                },
+                "requestCertificateAndSave": "Request certificate and save",
+                "acmeSubmitConsent": "By choosing “Request certificate and save”, you accept the ACME terms of service.",
+                "acmeTermsLink": "Read the ACME terms"
             },
             "status": {
                 "enabled": "Enabled",

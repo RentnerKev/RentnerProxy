@@ -1375,7 +1375,19 @@
                 "accessPolicyHint": "Les hôtes publics ou non attribués autorisent les requêtes. Les modes restreints refusent actuellement toutes les requêtes jusqu’à la configuration de leurs fournisseurs.",
                 "forceHttps": "Forcer HTTPS",
                 "forceHttpsHint": "Redirigez les requêtes HTTP de cet hôte vers HTTPS.",
-                "forceHttpsRequiresCertificate": "Attribuez d’abord un certificat utilisable couvrant tous les domaines."
+                "forceHttpsRequiresCertificate": "Attribuez d’abord un certificat utilisable couvrant tous les domaines.",
+                "tabs": {
+                    "label": "Paramètres de l’hôte",
+                    "general": "Général",
+                    "certificate": "Certificat et HTTPS",
+                    "access": "Accès",
+                    "caching": "Cache",
+                    "options": "Options",
+                    "hasErrors": "Cette section contient des erreurs. Vérifiez les champs signalés."
+                },
+                "requestCertificateAndSave": "Demander le certificat et enregistrer",
+                "acmeSubmitConsent": "En choisissant « Demander le certificat et enregistrer », vous acceptez les conditions d’utilisation ACME.",
+                "acmeTermsLink": "Lire les conditions ACME"
             },
             "status": {
                 "enabled": "Activé",

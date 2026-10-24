@@ -5,5 +5,6 @@ export interface FormSubmitButtonProps {
     readonly isPending: boolean
     readonly disabled?: boolean
     readonly submitLabel: string
+    readonly submitDescriptionId?: string | undefined
     readonly pendingSubmitLabel: string
 }

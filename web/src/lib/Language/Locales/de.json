@@ -1373,7 +1373,19 @@
                 "accessPolicyHint": "Öffentliche oder nicht zugewiesene Hosts erlauben Anfragen. Eingeschränkte Modi verweigern derzeit alle Anfragen, bis ihre Anbieter konfiguriert sind.",
                 "forceHttps": "HTTPS erzwingen",
                 "forceHttpsHint": "Leite HTTP-Anfragen dieses Hosts zu HTTPS um.",
-                "forceHttpsRequiresCertificate": "Weise zuerst ein verwendbares Zertifikat zu, das alle Domains abdeckt."
+                "forceHttpsRequiresCertificate": "Weise zuerst ein verwendbares Zertifikat zu, das alle Domains abdeckt.",
+                "tabs": {
+                    "label": "Host-Einstellungen",
+                    "general": "Basis",
+                    "certificate": "Zertifikat & HTTPS",
+                    "access": "Zugriff",
+                    "caching": "Caching",
+                    "options": "Optionen",
+                    "hasErrors": "Dieser Bereich enthält Fehler. Prüfe die markierten Felder."
+                },
+                "requestCertificateAndSave": "Zertifikat anfordern und speichern",
+                "acmeSubmitConsent": "Mit „Zertifikat anfordern und speichern“ stimmst du den ACME-Nutzungsbedingungen zu.",
+                "acmeTermsLink": "ACME-Bedingungen ansehen"
             },
             "status": {
                 "enabled": "Aktiviert",

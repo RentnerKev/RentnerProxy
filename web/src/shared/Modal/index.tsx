@@ -20,6 +20,8 @@ export function Modal({
     description,
     children,
     footer,
+    fixedHeight = false,
+    navigation,
     onOpenAutoFocus,
     size = 'md',
     closeDisabled = false,
@@ -36,7 +38,7 @@ export function Modal({
                     onCloseAutoFocus={handler.handleCloseAutoFocus}
                     onEscapeKeyDown={handler.preventClose}
                     onInteractOutside={handler.preventClose}
-                    className={`fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-clip rounded-2xl border border-border bg-surface shadow-panel outline-hidden sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:w-[calc(100%-3rem)] ${contentSizeClassNames[size]} data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none`}
+                    className={`fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-clip rounded-2xl border border-border bg-surface shadow-panel outline-hidden sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:w-[calc(100%-3rem)] ${contentSizeClassNames[size]} ${fixedHeight ? 'h-[min(44rem,calc(100dvh-1rem))] sm:h-[min(44rem,calc(100dvh-3rem))]' : ''} data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none`}
                 >
                     <ToastFocusScopeBranch />
                     <header className="flex shrink-0 items-center justify-between gap-5 border-b border-border px-5 py-4 sm:px-6">
@@ -57,6 +59,11 @@ export function Modal({
                             <X aria-hidden="true" className="size-5" strokeWidth={1.8} />
                         </Dialog.Close>
                     </header>
+                    {navigation ? (
+                        <div className="shrink-0 border-b border-border bg-surface-subtle px-5 py-2 sm:px-6">
+                            {navigation}
+                        </div>
+                    ) : null}
                     {children != null ? (
                         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-ink sm:px-6">
                             {children}

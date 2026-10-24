@@ -10,6 +10,7 @@ export default function FormModalActions({
     onOpenChange,
     pendingSubmitLabel,
     submitLabel,
+    submitDescriptionId,
 }: FormModalActionsProps) {
     const { t } = useTranslationStore()
     return (
@@ -28,6 +29,7 @@ export default function FormModalActions({
                 isSubmitting={isSubmitting}
                 isPending={isPending}
                 submitLabel={submitLabel}
+                submitDescriptionId={submitDescriptionId}
                 pendingSubmitLabel={pendingSubmitLabel}
             />
         </>
