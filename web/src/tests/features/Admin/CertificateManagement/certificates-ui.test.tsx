@@ -886,6 +886,30 @@ describe('certificate management UI', () => {
         await waitForToast('success')
     })
 
+    test('standalone certificate requests retain the explicit terms checkbox', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await setValue(document.querySelector('#certificate-request-name')!, 'Consent edge')
+        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        expect(
+            document.querySelector<HTMLInputElement>('#certificate-request-terms')?.checked,
+        ).toBeFalse()
+        expect(
+            document.querySelector('#certificate-request-terms')?.getAttribute('aria-invalid'),
+        ).toBe('false')
+        await click(lastButton('Request with ACME'))
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(document.querySelector('#certificate-request-terms-error')?.textContent).toBeTruthy()
+        expect(
+            document.querySelector('#certificate-request-terms')?.getAttribute('aria-invalid'),
+        ).toBe('true')
+        expect(
+            document.querySelector('#certificate-request-terms')?.getAttribute('aria-describedby'),
+        ).toBe('certificate-request-terms-error')
+    })
+
     test('requests production ACME by default with domains, contact, and accepted terms', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)

@@ -503,6 +503,18 @@ function getCheckbox(label: string, root: ParentNode = document): HTMLInputEleme
     return checkbox!
 }
 
+function getHostTab(label: string): HTMLButtonElement {
+    const tab = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+        (candidate) => candidate.textContent?.trim().startsWith(label),
+    )
+    expect(tab).toBeDefined()
+    return tab!
+}
+
+function getHostPanel(label: string): HTMLElement {
+    return document.getElementById(getHostTab(label).getAttribute('aria-controls')!)!
+}
+
 function getMenuItem(label: string): HTMLElement {
     const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
         (candidate) => candidate.textContent?.includes(label),
@@ -1340,6 +1352,355 @@ function FormHarness({
     )
 }
 
+describe('proxy host form tabs', () => {
+    test('opens with only required routing fields and defaults to no certificate', async () => {
+        await render(
+            withQueryClient(<FormHarness mode="create" canAssignCertificates canAssignPolicies />),
+        )
+        expect(getHostTab('Basics').getAttribute('aria-selected')).toBe('true')
+        expect(getHostPanel('Basics').hidden).toBeFalse()
+        for (const label of ['Certificate & HTTPS', 'Access', 'Caching', 'Options']) {
+            expect(getHostPanel(label).hidden).toBeTrue()
+        }
+        expect(getHostPanel('Basics').querySelector('input[name="domains[0]"]')).not.toBeNull()
+        expect(getHostPanel('Basics').querySelector('input[name="forwardHost"]')).not.toBeNull()
+        expect(getHostPanel('Basics').querySelector('input[name="forwardPort"]')).not.toBeNull()
+        expect(getHostPanel('Basics').textContent).not.toContain('TLS certificate')
+        expect(getHostPanel('Basics').textContent).not.toContain('Browser cache')
+        await click(getHostTab('Certificate & HTTPS'))
+        expect(getButton('TLS certificate').textContent).toContain('No certificate')
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('navigates with arrow keys, Home and End without submitting', async () => {
+        await render(
+            withQueryClient(<FormHarness mode="create" canAssignCertificates canAssignPolicies />),
+        )
+        for (const [current, key, next] of [
+            ['Basics', 'ArrowRight', 'Certificate & HTTPS'],
+            ['Certificate & HTTPS', 'End', 'Options'],
+            ['Options', 'ArrowRight', 'Basics'],
+            ['Basics', 'ArrowLeft', 'Options'],
+            ['Options', 'Home', 'Basics'],
+        ] as const) {
+            // oxlint-disable-next-line eslint/no-await-in-loop -- Each navigation depends on the preceding selected tab.
+            await act(async () => {
+                getHostTab(current!).focus()
+                getHostTab(current!).dispatchEvent(
+                    new KeyboardEvent('keydown', { key, bubbles: true }),
+                )
+            })
+            expect(getHostTab(next!).getAttribute('aria-selected')).toBe('true')
+            expect(document.activeElement).toBe(getHostTab(next!))
+            expect(document.querySelectorAll('[role="tab"][tabindex="0"]')).toHaveLength(1)
+        }
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('keeps host, certificate and partially edited cache drafts when switching tabs', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="create"
+                    canAssignCertificates
+                    canRequestCertificate
+                    canConfigureBrowserCache
+                />,
+            ),
+        )
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'draft.example.com')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            'backend.internal',
+        )
+        await click(getHostTab('Certificate & HTTPS'))
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-name')!,
+            'Draft TLS',
+        )
+        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-dns-zone-id')!,
+            'a'.repeat(32),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')!,
+            'synthetic-dns-token',
+        )
+        await click(getHostTab('Caching'))
+        await click(getCheckbox('Enable browser-cache rules'))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')!,
+            '/assets/',
+        )
+        const age = document.querySelector<HTMLInputElement>('input[id*="-age-"]')!
+        await setControlValue(age, '')
+        await click(getHostTab('Basics'))
+        expect(document.querySelector('input[name="domains[0]"]')).toBe(domain)
+        expect(domain.value).toBe('draft.example.com')
+        await setControlValue(domain, 'updated.example.com')
+        await click(getHostTab('Certificate & HTTPS'))
+        expect(document.querySelector<HTMLInputElement>('#certificate-request-name')?.value).toBe(
+            'Draft TLS',
+        )
+        expect(
+            document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')?.value,
+        ).toBe('updated.example.com')
+        expect(
+            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')?.value,
+        ).toBe('synthetic-dns-token')
+        expect(document.querySelector('#certificate-request-terms')).toBeNull()
+        const submit = getButton('Request certificate and save')
+        const consent = document.getElementById(submit.getAttribute('aria-describedby')!)!
+        expect(consent.textContent).toContain('you accept the ACME terms')
+        expect(consent.closest('[hidden]')).toBeNull()
+        await click(getHostTab('Caching'))
+        expect(document.querySelector('input[id*="-age-"]')).toBe(age)
+        expect(age.value).toBe('')
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('reveals required routing errors from another tab and focuses the first invalid field', async () => {
+        await render(withQueryClient(<FormHarness mode="create" canAssignCertificates />))
+        await click(getHostTab('Options'))
+        await click(getButton('Create proxy host'))
+        expect(getHostPanel('Basics').hidden).toBeFalse()
+        expect(getHostTab('Basics').getAttribute('data-invalid')).toBe('true')
+        expect(document.activeElement).toBe(document.querySelector('input[name="domains[0]"]'))
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('reveals invalid hidden cache settings without losing the remaining form values', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness mode="edit" proxyHost={enabledHost} canConfigureBrowserCache />,
+            ),
+        )
+        await click(getHostTab('Caching'))
+        await click(getCheckbox('Enable browser-cache rules'))
+        await click(getHostTab('Basics'))
+        await click(getButton('Save changes'))
+        expect(getHostPanel('Caching').hidden).toBeFalse()
+        expect(getHostTab('Caching').getAttribute('data-invalid')).toBe('true')
+        expect(document.activeElement).toBe(
+            document.querySelector('input[placeholder="/assets/app.a1b2.js"]'),
+        )
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')?.value).toBe(
+            enabledHost.forwardHost,
+        )
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test.each([
+        ['paths', '/api/'],
+        ['ttl', '0'],
+    ] as const)(
+        'reveals invalid response-cache %s when saving from another tab',
+        async (control, value) => {
+            await render(
+                withQueryClient(
+                    <FormHarness
+                        mode="edit"
+                        proxyHost={{
+                            ...enabledHost,
+                            responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                        }}
+                        canApplyResponseCache
+                    />,
+                ),
+            )
+            await click(getHostTab('Caching'))
+            await setControlValue(
+                document.querySelector<HTMLInputElement>(
+                    `input[id$="-response-cache-${control}"]`,
+                )!,
+                value,
+            )
+            await click(getHostTab('Basics'))
+            await click(getButton('Save changes'))
+            expect(getHostPanel('Caching').hidden).toBeFalse()
+            expect(getHostTab('Caching').getAttribute('data-invalid')).toBe('true')
+            expect(getHostPanel('Caching').contains(document.activeElement)).toBeTrue()
+            expect(document.activeElement?.getAttribute('aria-invalid')).toBe('true')
+            expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+            await setControlValue(
+                document.querySelector<HTMLInputElement>(
+                    `input[id$="-response-cache-${control}"]`,
+                )!,
+                control === 'paths' ? '/assets/' : '120',
+            )
+            expect(getHostTab('Caching').getAttribute('data-invalid')).not.toBe('true')
+            await click(getButton('Save changes'))
+            await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+            expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+                data: {
+                    responseCache: {
+                        pathPrefixes: ['/assets/'],
+                        ttlSeconds: control === 'ttl' ? 120 : 60,
+                    },
+                },
+            })
+        },
+    )
+
+    test('can disable an invalid response cache after a rejected submission', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/api/'], ttlSeconds: 60 },
+                    }}
+                    canApplyResponseCache
+                />,
+            ),
+        )
+        await click(getButton('Save changes'))
+        expect(getHostPanel('Caching').hidden).toBeFalse()
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        await click(document.querySelector('input[id$="-response-cache"]')!)
+        expect(getHostTab('Caching').getAttribute('data-invalid')).not.toBe('true')
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: { responseCache: null },
+        })
+    })
+
+    test('reveals required upstream TLS settings without access-policy assignment permission', async () => {
+        await render(withQueryClient(<FormHarness mode="create" />))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'secure.example.com',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            '192.0.2.10',
+        )
+        await chooseSelectOption('Forward scheme', 'HTTPS')
+        await click(getButton('Create proxy host'))
+        expect(getHostPanel('Access').hidden).toBeFalse()
+        expect(document.activeElement).toBe(
+            document.querySelector('input[name="upstreamTlsServerName"]'),
+        )
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamTlsServerName"]')!,
+            'backend.internal',
+        )
+        await click(getButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: {
+                forwardScheme: 'https',
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: 'backend.internal',
+            },
+        })
+    })
+
+    test('routes invalid ACME fields back to the certificate tab when saving elsewhere', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness mode="create" canAssignCertificates canRequestCertificate />,
+            ),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'acme.example.com',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            'backend.internal',
+        )
+        await click(getHostTab('Certificate & HTTPS'))
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await click(getHostTab('Basics'))
+        await click(getButton('Request certificate and save'))
+        expect(getHostPanel('Certificate & HTTPS').hidden).toBeFalse()
+        expect(getHostTab('Certificate & HTTPS').getAttribute('data-invalid')).toBe('true')
+        expect(document.activeElement).toBe(
+            document.querySelector('#certificate-request-dns-zone-id'),
+        )
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('accepts ACME terms through the request-and-save action from any tab', async () => {
+        createProxyHostWithCertificateHandlerMock.mockResolvedValueOnce({
+            success: true,
+            message: 'admin.proxyHosts.certificateJob.messages.queued',
+            job: certificateJobFixture(),
+        })
+        await render(
+            withQueryClient(
+                <FormHarness mode="create" canAssignCertificates canRequestCertificate />,
+            ),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'acme.example.com',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            'backend.internal',
+        )
+        await click(getHostTab('Certificate & HTTPS'))
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        expect(document.querySelector('#certificate-request-terms')).toBeNull()
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        await click(getHostTab('Basics'))
+        const submit = getButton('Request certificate and save')
+        expect(
+            document.getElementById(submit.getAttribute('aria-describedby')!)?.textContent,
+        ).toContain('you accept the ACME terms')
+        await click(submit)
+        await waitFor(() => createProxyHostWithCertificateHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostWithCertificateHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: {
+                host: { domains: ['acme.example.com'] },
+                request: { acceptTerms: true, environment: 'production', challengeType: 'http-01' },
+            },
+        })
+    })
+
+    test('keeps certificate issuance behind the existing disable confirmation', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={enabledHost}
+                    canAssignCertificates
+                    canRequestCertificate
+                />,
+            ),
+        )
+        await click(getHostTab('Certificate & HTTPS'))
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        await click(getHostTab('Options'))
+        await click(document.querySelector<HTMLInputElement>('input[name="enabled"]')!)
+        await click(getButton('Request certificate and save'))
+        await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 2)
+        expect(updateProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        await click(getLastButton('Cancel'))
+        await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 1)
+        expect(updateProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="enabled"]')?.checked,
+        ).toBeFalse()
+        await click(getButton('Request certificate and save'))
+        await click(getButton('Save and disable'))
+        await waitFor(() => updateProxyHostWithCertificateHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostWithCertificateHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: { host: { enabled: false }, request: { acceptTerms: true } },
+        })
+    })
+})
+
 describe('ProxyHost form modal', () => {
     test('duplicate opens a blank domain draft and cancel clears it before ordinary creation', async () => {
         const original = structuredClone(enabledHost)
@@ -1959,7 +2320,8 @@ test('creates a proxy host and queues a certificate job with read-only host doma
         document.querySelector<HTMLInputElement>('#certificate-request-name')!,
         'App TLS',
     )
-    await click(document.querySelector('#certificate-request-terms')!)
+    expect(document.querySelector('#certificate-request-terms')).toBeNull()
+    expect(getButton('Request certificate and save').getAttribute('aria-describedby')).toBeTruthy()
     await setControlValue(
         document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
         'backend.internal',
@@ -2058,8 +2420,8 @@ test('closes an edited host form while its certificate job continues globally', 
                 ?.disabled === false,
     )
     await chooseSelectOption('TLS certificate', 'Request with ACME')
-    await waitFor(() => document.querySelector('#certificate-request-terms') !== null)
-    await click(document.querySelector('#certificate-request-terms')!)
+    await waitFor(() => document.querySelector('#certificate-request-name') !== null)
+    expect(document.querySelector('#certificate-request-terms')).toBeNull()
     await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
 
     await waitFor(() => updateProxyHostWithCertificateHandlerMock.mock.calls.length === 1)

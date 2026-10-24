@@ -4,6 +4,7 @@ export const CERTIFICATE_SOURCES = ['manual', 'acme'] as const
 export const ACME_ENVIRONMENTS = ['staging', 'production'] as const
 
 export const DEFAULT_ACME_ENVIRONMENT: AcmeEnvironment = 'production'
+export const ACME_TERMS_INFORMATION_URL = 'https://letsencrypt.org/repository/'
 export const ACME_CHALLENGE_TYPES = ['http-01', 'dns-01'] as const
 
 export const CERTIFICATE_STORED_STATUSES = ['pending', 'valid', 'failed'] as const

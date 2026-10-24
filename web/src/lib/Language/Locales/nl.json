@@ -1354,7 +1354,19 @@
                 "accessPolicyHint": "Openbare hosts of hosts zonder toewijzing staan verzoeken toe. Beperkte modi weigeren momenteel alle verzoeken totdat hun providers zijn ingesteld.",
                 "forceHttps": "HTTPS afdwingen",
                 "forceHttpsHint": "Leid HTTP-verzoeken voor deze host om naar HTTPS.",
-                "forceHttpsRequiresCertificate": "Wijs eerst een bruikbaar certificaat toe dat alle domeinen dekt."
+                "forceHttpsRequiresCertificate": "Wijs eerst een bruikbaar certificaat toe dat alle domeinen dekt.",
+                "tabs": {
+                    "label": "Hostinstellingen",
+                    "general": "Basis",
+                    "certificate": "Certificaat en HTTPS",
+                    "access": "Toegang",
+                    "caching": "Cache",
+                    "options": "Opties",
+                    "hasErrors": "Dit onderdeel bevat fouten. Controleer de gemarkeerde velden."
+                },
+                "requestCertificateAndSave": "Certificaat aanvragen en opslaan",
+                "acmeSubmitConsent": "Door «Certificaat aanvragen en opslaan» te kiezen, ga je akkoord met de ACME-gebruiksvoorwaarden.",
+                "acmeTermsLink": "ACME-voorwaarden lezen"
             },
             "status": {
                 "enabled": "Ingeschakeld",

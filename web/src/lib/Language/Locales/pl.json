@@ -1389,7 +1389,19 @@
                 "accessPolicyHint": "Hosty publiczne lub bez przypisanej zasady zezwalają na żądania. Tryby ograniczone obecnie odrzucają wszystkie żądania do czasu skonfigurowania dostawców.",
                 "forceHttps": "Wymuszaj HTTPS",
                 "forceHttpsHint": "Przekierowuj żądania HTTP tego hosta do HTTPS.",
-                "forceHttpsRequiresCertificate": "Najpierw przypisz zdatny do użycia certyfikat obejmujący wszystkie domeny."
+                "forceHttpsRequiresCertificate": "Najpierw przypisz zdatny do użycia certyfikat obejmujący wszystkie domeny.",
+                "tabs": {
+                    "label": "Ustawienia hosta",
+                    "general": "Podstawowe",
+                    "certificate": "Certyfikat i HTTPS",
+                    "access": "Dostęp",
+                    "caching": "Pamięć podręczna",
+                    "options": "Opcje",
+                    "hasErrors": "Ta sekcja zawiera błędy. Sprawdź wyróżnione pola."
+                },
+                "requestCertificateAndSave": "Uzyskaj certyfikat i zapisz",
+                "acmeSubmitConsent": "Wybierając „Uzyskaj certyfikat i zapisz”, akceptujesz warunki korzystania z ACME.",
+                "acmeTermsLink": "Przeczytaj warunki ACME"
             },
             "status": {
                 "enabled": "Włączony",

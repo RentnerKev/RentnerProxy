@@ -8,12 +8,14 @@ export default function FormSubmitButton({
     isPending,
     disabled = false,
     submitLabel,
+    submitDescriptionId,
     pendingSubmitLabel,
 }: FormSubmitButtonProps) {
     return (
         <button
             type="submit"
             form={formId}
+            aria-describedby={submitDescriptionId}
             className={buttonClassName('primary')}
             disabled={disabled || !canSubmit || isSubmitting || isPending}
         >

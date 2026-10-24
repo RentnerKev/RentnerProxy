@@ -1381,7 +1381,19 @@
                 "accessPolicyHint": "Gli host pubblici o senza assegnazione consentono le richieste. Le modalità con restrizioni negano tutte le richieste finché i relativi provider non sono configurati.",
                 "forceHttps": "Forza HTTPS",
                 "forceHttpsHint": "Reindirizza le richieste HTTP a HTTPS per questo host.",
-                "forceHttpsRequiresCertificate": "Assegna prima un certificato valido che copra tutti i domini."
+                "forceHttpsRequiresCertificate": "Assegna prima un certificato valido che copra tutti i domini.",
+                "tabs": {
+                    "label": "Impostazioni host",
+                    "general": "Generali",
+                    "certificate": "Certificato e HTTPS",
+                    "access": "Accesso",
+                    "caching": "Cache",
+                    "options": "Opzioni",
+                    "hasErrors": "Questa sezione contiene errori. Controlla i campi evidenziati."
+                },
+                "requestCertificateAndSave": "Richiedi certificato e salva",
+                "acmeSubmitConsent": "Scegliendo «Richiedi certificato e salva», accetti i termini di servizio ACME.",
+                "acmeTermsLink": "Leggi i termini ACME"
             },
             "status": {
                 "enabled": "Attivato",

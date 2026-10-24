@@ -1,6 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { Info } from 'lucide-react'
-import BrowserCacheFields from '../BrowserCacheFields/index.tsx'
+import { ACME_TERMS_INFORMATION_URL } from '@/config/certificates.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -9,7 +9,7 @@ import type { ProxyHostFormModalProps } from './Types/proxy-host-form.types.ts'
 import ProxyHostSetupGuide from './Components/ProxyHostSetupGuide.tsx'
 import ProxyHostFormFields from './Components/ProxyHostFormFields.tsx'
 import ProxyHostFormModalFooter from './Components/ProxyHostFormModalFooter.tsx'
-import HostTagSelect from '@/features/Admin/HostTags/Components/HostTagSelect.tsx'
+import ProxyHostFormTabs from './Components/ProxyHostFormTabs.tsx'
 
 export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
     const { state, handler, refs, form, certificateRequestForm } = useProxyHostFormModalLogic(props)
@@ -23,9 +23,37 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                 title={state.title}
                 description={state.description}
                 size="lg"
+                fixedHeight
                 closeDisabled={state.isPending || state.disableConfirmationOpen}
+                navigation={
+                    <ProxyHostFormTabs
+                        activeTab={state.activeTab}
+                        formId={state.formId}
+                        tabs={state.tabs}
+                        invalidTabs={state.invalidTabs}
+                        isPending={state.isPending}
+                        setActiveTab={handler.setActiveTab}
+                        handleTabKeyDown={handler.handleTabKeyDown}
+                    />
+                }
                 footer={
-                    <>
+                    <div className="contents [&_button[type=submit]]:h-auto [&_button[type=submit]]:min-h-12 [&_button[type=submit]]:py-2">
+                        {state.requestNewCertificate ? (
+                            <p
+                                id={`${state.formId}-acme-consent`}
+                                className="m-0 w-full text-xs leading-relaxed text-muted"
+                            >
+                                {t('admin.proxyHosts.form.acmeSubmitConsent')}{' '}
+                                <a
+                                    href={ACME_TERMS_INFORMATION_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-accent-ring underline underline-offset-2"
+                                >
+                                    {t('admin.proxyHosts.form.acmeTermsLink')}
+                                </a>
+                            </p>
+                        ) : null}
                         <div className="mr-auto shrink-0">
                             <CustomTooltip
                                 collisionPadding={10}
@@ -59,12 +87,12 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                             form={form}
                             onOpenChange={props.onOpenChange}
                         />
-                    </>
+                    </div>
                 }
             >
                 <form
                     id={state.formId}
-                    className="grid gap-4 shell:grid-cols-2 shell:items-start"
+                    className="grid gap-4"
                     noValidate
                     onSubmit={handler.handleSubmit}
                 >
@@ -84,26 +112,8 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         retryAssignableAccessPolicies={handler.retryAssignableAccessPolicies}
                         retryAssignableCertificates={handler.retryAssignableCertificates}
                         setRequestNewCertificate={handler.setRequestNewCertificate}
+                        handleBrowserCacheChange={handler.handleBrowserCacheChange}
                     />
-                    <form.Field name="browserCache">
-                        {(field) => (
-                            <BrowserCacheFields
-                                value={field.state.value}
-                                onChange={handler.handleBrowserCacheChange}
-                                disabled={state.isPending || !props.canConfigureBrowserCache}
-                            />
-                        )}
-                    </form.Field>
-                    <form.Field name="tagIds">
-                        {(field) => (
-                            <HostTagSelect
-                                kind="proxy"
-                                value={field.state.value ?? []}
-                                onChange={field.handleChange}
-                                disabled={state.isPending}
-                            />
-                        )}
-                    </form.Field>
                 </form>
             </Modal>
             {state.disableConfirmationOpen ? (

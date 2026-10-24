@@ -6,4 +6,5 @@ export interface FormModalActionsProps {
     readonly onOpenChange: (open: boolean) => void
     readonly pendingSubmitLabel: string
     readonly submitLabel: string
+    readonly submitDescriptionId?: string | undefined
 }

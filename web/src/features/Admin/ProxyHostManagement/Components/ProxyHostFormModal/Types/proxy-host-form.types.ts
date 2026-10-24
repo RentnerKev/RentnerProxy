@@ -1,4 +1,4 @@
-import type { FormEventHandler, RefObject } from 'react'
+import type { FormEventHandler, KeyboardEvent, RefObject } from 'react'
 import type { z } from 'zod'
 
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
@@ -7,6 +7,9 @@ import type useCertificateRequest from '@/features/Admin/CertificateManagement/H
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type useProxyHostFormModalLogic from '../Hooks/useProxyHostFormModalLogic.ts'
 import type { proxyHostFormSchema } from '../../../validation.ts'
+import type { PROXY_HOST_FORM_TABS } from '@/config/proxy-hosts.config.ts'
+
+export type ProxyHostFormTab = (typeof PROXY_HOST_FORM_TABS)[number]['id']
 
 export type ProxyHostEditorFormValues = z.input<typeof proxyHostFormSchema>
 type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
@@ -42,6 +45,10 @@ interface ProxyHostSetupGuideState {
 }
 
 export interface ProxyHostFormModalState {
+    readonly activeTab: ProxyHostFormTab
+    readonly tabs: readonly ProxyHostFormTab[]
+    readonly invalidTabs: readonly ProxyHostFormTab[]
+    readonly canConfigureBrowserCache: boolean
     readonly canConfigureCompression: boolean
     readonly guide: ProxyHostSetupGuideState
     readonly canAssignCertificates: boolean
@@ -72,6 +79,11 @@ export interface ProxyHostFormModalState {
 }
 
 export interface ProxyHostFormModalHandler {
+    readonly setActiveTab: (tab: ProxyHostFormTab) => void
+    readonly handleTabKeyDown: (
+        event: KeyboardEvent<HTMLButtonElement>,
+        tab: ProxyHostFormTab,
+    ) => void
     readonly handleBrowserCacheChange: (
         settings: NonNullable<ProxyHostEditorFormValues['browserCache']>,
     ) => void
@@ -90,6 +102,8 @@ export interface ProxyHostFormModalHandler {
 
 export type ProxyHostFormFieldsProps = Pick<
     ProxyHostFormModalState,
+    | 'activeTab'
+    | 'canConfigureBrowserCache'
     | 'canConfigureCompression'
     | 'canChangeEnabled'
     | 'canAssignCertificates'
@@ -114,6 +128,7 @@ export type ProxyHostFormFieldsProps = Pick<
 > &
     Pick<
         ProxyHostFormModalHandler,
+        | 'handleBrowserCacheChange'
         | 'addDomain'
         | 'removeDomain'
         | 'retryAssignableCertificates'
@@ -123,7 +138,7 @@ export type ProxyHostFormFieldsProps = Pick<
 
 export type ProxyHostFormModalFooterProps = Pick<
     ProxyHostFormModalState,
-    'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
+    'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel' | 'requestNewCertificate'
 > &
     Pick<ProxyHostFormModalProps, 'onOpenChange'>
 
