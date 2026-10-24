@@ -1013,7 +1013,10 @@
                 "permissionsAssigned_other": "{{count}} asignados"
             },
             "permissions": {
-                "toggle": "Activar o desactivar el permiso {{permission}}"
+                "toggle": "Activar o desactivar el permiso {{permission}}",
+                "searchLabel": "Buscar permisos",
+                "searchPlaceholder": "Buscar por nombre, clave o grupo…",
+                "noResults": "Ningún permiso coincide con tu búsqueda."
             },
             "errors": {
                 "loadFailed": "No se pudieron cargar los datos de roles.",

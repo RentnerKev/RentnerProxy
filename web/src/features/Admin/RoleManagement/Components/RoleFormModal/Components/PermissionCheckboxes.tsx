@@ -1,12 +1,13 @@
-import { CheckboxInput } from '@rentnerkev/inputs'
+import { CheckboxInput, SearchInput } from '@rentnerkev/inputs'
+import { Search } from 'lucide-react'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
-    getAvailablePermissionGroups,
     getNextSelectedPermissionKeys,
     getPermissionCheckboxInputId,
 } from '@/lib/Admin/RoleManagement/permissionCheckboxes.ts'
 import type { PermissionCheckboxesProps } from '../../../Types/role-management-component-props.types.ts'
+import usePermissionCheckboxesLogic from '../Hooks/usePermissionCheckboxesLogic.ts'
 
 export default function PermissionCheckboxes({
     availablePermissionKeys,
@@ -14,7 +15,7 @@ export default function PermissionCheckboxes({
     field,
 }: PermissionCheckboxesProps) {
     const { t } = useTranslationStore()
-    const permissionGroups = getAvailablePermissionGroups(availablePermissionKeys)
+    const { state, setter, handler } = usePermissionCheckboxesLogic({ availablePermissionKeys })
 
     return (
         <fieldset
@@ -22,8 +23,27 @@ export default function PermissionCheckboxes({
             disabled={disabled}
         >
             <legend>{t('admin.roles.form.permissions')}</legend>
-            <div className="grid gap-3 shell:grid-cols-2">
-                {permissionGroups.map((group) => (
+            <label htmlFor={state.searchId} className="mb-3 block min-w-0">
+                <span className="sr-only">{t('admin.roles.permissions.searchLabel')}</span>
+                <SearchInput
+                    id={state.searchId}
+                    type="search"
+                    icon={<Search aria-hidden="true" strokeWidth={1.8} />}
+                    value={state.search}
+                    maxLength={200}
+                    placeholder={t('admin.roles.permissions.searchPlaceholder')}
+                    onValueChange={setter.setSearch}
+                    onKeyDown={handler.handleSearchKeyDown}
+                    aria-controls={`${state.searchId}-results`}
+                />
+            </label>
+            <div id={`${state.searchId}-results`} className="grid gap-3 shell:grid-cols-2">
+                {state.permissionGroups.length === 0 ? (
+                    <output className="block text-sm text-muted shell:col-span-full">
+                        {t('admin.roles.permissions.noResults')}
+                    </output>
+                ) : null}
+                {state.permissionGroups.map((group) => (
                     <section
                         key={group.prefix}
                         aria-labelledby={`${field.name}-${group.prefix}-title`}

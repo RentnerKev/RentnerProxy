@@ -1003,7 +1003,10 @@
                 "permissionsAssigned_other": "{{count}} assigned"
             },
             "permissions": {
-                "toggle": "Toggle {{permission}} permission"
+                "toggle": "Toggle {{permission}} permission",
+                "searchLabel": "Search permissions",
+                "searchPlaceholder": "Search name, key, or group…",
+                "noResults": "No permissions match your search."
             },
             "errors": {
                 "loadFailed": "Role data could not be loaded.",

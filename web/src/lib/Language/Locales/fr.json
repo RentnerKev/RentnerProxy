@@ -1013,7 +1013,10 @@
                 "permissionsAssigned_other": "{{count}} attribuées"
             },
             "permissions": {
-                "toggle": "Activer ou désactiver la permission {{permission}}"
+                "toggle": "Activer ou désactiver la permission {{permission}}",
+                "searchLabel": "Rechercher des permissions",
+                "searchPlaceholder": "Rechercher par nom, clé ou groupe…",
+                "noResults": "Aucune permission ne correspond à votre recherche."
             },
             "errors": {
                 "loadFailed": "Les rôles n’ont pas pu être chargés.",

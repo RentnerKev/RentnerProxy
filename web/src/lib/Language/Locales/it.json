@@ -1009,7 +1009,10 @@
                 "permissionsAssigned_many": "{{count}} assegnate"
             },
             "permissions": {
-                "toggle": "Attiva o disattiva l’autorizzazione {{permission}}"
+                "toggle": "Attiva o disattiva l’autorizzazione {{permission}}",
+                "searchLabel": "Cerca autorizzazioni",
+                "searchPlaceholder": "Cerca per nome, chiave o gruppo…",
+                "noResults": "Nessuna autorizzazione corrisponde alla ricerca."
             },
             "errors": {
                 "loadFailed": "Impossibile caricare i dati dei ruoli.",

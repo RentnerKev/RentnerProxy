@@ -1015,7 +1015,10 @@
                 "permissionsAssigned_many": "Liczba przypisanych: {{count}}"
             },
             "permissions": {
-                "toggle": "Przełącz uprawnienie {{permission}}"
+                "toggle": "Przełącz uprawnienie {{permission}}",
+                "searchLabel": "Szukaj uprawnień",
+                "searchPlaceholder": "Szukaj według nazwy, klucza lub grupy…",
+                "noResults": "Żadne uprawnienia nie pasują do wyszukiwania."
             },
             "errors": {
                 "loadFailed": "Nie udało się wczytać danych ról.",

@@ -2,7 +2,11 @@ import { describe, expect, test } from 'bun:test'
 
 import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import { AVAILABLE_LANGUAGES } from '@/config/language.config.ts'
-import { getAvailablePermissionGroups } from '@/lib/Admin/RoleManagement/permissionCheckboxes.ts'
+import {
+    filterPermissionGroups,
+    getAvailablePermissionGroups,
+} from '@/lib/Admin/RoleManagement/permissionCheckboxes.ts'
+import { createTranslationStore } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 
@@ -43,6 +47,59 @@ describe('role permission groups', () => {
         expect(groups.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual(
             PERMISSION_REGISTRY.map(({ key }) => key),
         )
+    })
+
+    test('finds localized permission names regardless of case and surrounding whitespace', () => {
+        const groups = getAvailablePermissionGroups(PERMISSION_REGISTRY.map(({ key }) => key))
+        const t = createTranslationStore({
+            language: 'de',
+            resources: { de: { translation: catalogs.de } },
+        }).getTranslate('de')
+
+        const filtered = filterPermissionGroups(groups, '  PROXY-KONFIGURATION ANWENDEN  ', t)
+
+        expect(filtered.map(({ prefix }) => prefix)).toEqual(['proxy_hosts.'])
+        expect(filtered.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual([
+            'proxy_hosts.apply',
+        ])
+    })
+
+    test('finds technical permission keys with dot and colon separators', () => {
+        const groups = getAvailablePermissionGroups(PERMISSION_REGISTRY.map(({ key }) => key))
+        const t = createTranslationStore({
+            language: 'en',
+            resources: { en: { translation: catalogs.en } },
+        }).getTranslate('en')
+
+        for (const permissionKey of ['proxy_hosts.apply', 'proxy-access-logs:view'] as const) {
+            const filtered = filterPermissionGroups(groups, permissionKey.toUpperCase(), t)
+            expect(
+                filtered.flatMap(({ permissions }) => permissions.map(({ key }) => key)),
+            ).toEqual([permissionKey])
+        }
+    })
+
+    test('matches localized groups while retaining only assignable permissions in registry order', () => {
+        const groups = getAvailablePermissionGroups([
+            'proxy_hosts.apply',
+            'app.access',
+            'proxy_hosts.view',
+        ])
+        const original = structuredClone(groups)
+        const t = createTranslationStore({
+            language: 'de',
+            resources: { de: { translation: catalogs.de } },
+        }).getTranslate('de')
+
+        const filtered = filterPermissionGroups(groups, 'proxy-hosts', t)
+
+        expect(filtered.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual([
+            'proxy_hosts.view',
+            'proxy_hosts.apply',
+        ])
+        expect(groups).toEqual(original)
+        expect(filterPermissionGroups(groups, '   ', t)).toEqual(original)
+        expect(filterPermissionGroups(groups, 'no-matching-permission', t)).toEqual([])
     })
 
     test('provides a localized label for every group and permission', () => {

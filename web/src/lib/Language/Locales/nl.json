@@ -984,7 +984,10 @@
                 "permissionsAssigned_other": "{{count}} toegewezen"
             },
             "permissions": {
-                "toggle": "Recht {{permission}} omschakelen"
+                "toggle": "Recht {{permission}} omschakelen",
+                "searchLabel": "Rechten zoeken",
+                "searchPlaceholder": "Zoeken op naam, sleutel of groep…",
+                "noResults": "Geen rechten komen overeen met je zoekopdracht."
             },
             "errors": {
                 "loadFailed": "Rolgegevens konden niet worden geladen.",

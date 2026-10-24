@@ -1013,7 +1013,10 @@
                 "permissionsAssigned_many": "{{count}} atribuídas"
             },
             "permissions": {
-                "toggle": "Alternar permissão {{permission}}"
+                "toggle": "Alternar permissão {{permission}}",
+                "searchLabel": "Pesquisar permissões",
+                "searchPlaceholder": "Pesquisar por nome, chave ou grupo…",
+                "noResults": "Nenhuma permissão corresponde à pesquisa."
             },
             "errors": {
                 "loadFailed": "Não foi possível carregar os dados da função.",

@@ -1,5 +1,6 @@
 import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { Translate } from '@/shared/Language/Types/language.types.ts'
 
 import type { PermissionGroup } from './Types/permission-checkboxes.types.ts'
 
@@ -42,6 +43,27 @@ export function getAvailablePermissionGroups(
     }
 
     return [...groups.values()]
+}
+
+export function filterPermissionGroups(
+    groups: readonly PermissionGroup[],
+    search: string,
+    t: Translate,
+): readonly PermissionGroup[] {
+    const query = search.trim().toLowerCase()
+    if (!query) return groups
+
+    return groups.flatMap((group) => {
+        const groupMatches = t(group.label).toLowerCase().includes(query)
+        const permissions = group.permissions.filter(
+            (permission) =>
+                groupMatches ||
+                permission.key.toLowerCase().includes(query) ||
+                t(`permissions.${permission.key}`).toLowerCase().includes(query),
+        )
+
+        return permissions.length > 0 ? [{ ...group, permissions }] : []
+    })
 }
 
 export function getPermissionCheckboxInputId(fieldName: string, permissionKey: string): string {

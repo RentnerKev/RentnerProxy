@@ -1011,7 +1011,10 @@
                 "permissionsAssigned_other": "{{count}} zugewiesen"
             },
             "permissions": {
-                "toggle": "Berechtigung {{permission}} umschalten"
+                "toggle": "Berechtigung {{permission}} umschalten",
+                "searchLabel": "Berechtigungen durchsuchen",
+                "searchPlaceholder": "Name, Schlüssel oder Gruppe suchen…",
+                "noResults": "Keine Berechtigungen passen zu deiner Suche."
             },
             "errors": {
                 "loadFailed": "Rollendaten konnten nicht geladen werden.",
