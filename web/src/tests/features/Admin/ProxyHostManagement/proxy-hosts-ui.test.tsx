@@ -1494,6 +1494,83 @@ describe('proxy host form tabs', () => {
         expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
     })
 
+    test.each([
+        ['paths', '/api/'],
+        ['ttl', '0'],
+    ] as const)(
+        'reveals invalid response-cache %s when saving from another tab',
+        async (control, value) => {
+            await render(
+                withQueryClient(
+                    <FormHarness
+                        mode="edit"
+                        proxyHost={{
+                            ...enabledHost,
+                            responseCache: { pathPrefixes: ['/assets/'], ttlSeconds: 60 },
+                        }}
+                        canApplyResponseCache
+                    />,
+                ),
+            )
+            await click(getHostTab('Caching'))
+            await setControlValue(
+                document.querySelector<HTMLInputElement>(
+                    `input[id$="-response-cache-${control}"]`,
+                )!,
+                value,
+            )
+            await click(getHostTab('Basics'))
+            await click(getButton('Save changes'))
+            expect(getHostPanel('Caching').hidden).toBeFalse()
+            expect(getHostTab('Caching').getAttribute('data-invalid')).toBe('true')
+            expect(getHostPanel('Caching').contains(document.activeElement)).toBeTrue()
+            expect(document.activeElement?.getAttribute('aria-invalid')).toBe('true')
+            expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+            await setControlValue(
+                document.querySelector<HTMLInputElement>(
+                    `input[id$="-response-cache-${control}"]`,
+                )!,
+                control === 'paths' ? '/assets/' : '120',
+            )
+            expect(getHostTab('Caching').getAttribute('data-invalid')).not.toBe('true')
+            await click(getButton('Save changes'))
+            await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+            expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+                data: {
+                    responseCache: {
+                        pathPrefixes: ['/assets/'],
+                        ttlSeconds: control === 'ttl' ? 120 : 60,
+                    },
+                },
+            })
+        },
+    )
+
+    test('can disable an invalid response cache after a rejected submission', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        responseCache: { pathPrefixes: ['/api/'], ttlSeconds: 60 },
+                    }}
+                    canApplyResponseCache
+                />,
+            ),
+        )
+        await click(getButton('Save changes'))
+        expect(getHostPanel('Caching').hidden).toBeFalse()
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        await click(document.querySelector('input[id$="-response-cache"]')!)
+        expect(getHostTab('Caching').getAttribute('data-invalid')).not.toBe('true')
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: { responseCache: null },
+        })
+    })
+
     test('reveals required upstream TLS settings without access-policy assignment permission', async () => {
         await render(withQueryClient(<FormHarness mode="create" />))
         await setControlValue(

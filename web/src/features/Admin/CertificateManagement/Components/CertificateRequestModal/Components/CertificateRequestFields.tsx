@@ -297,6 +297,8 @@ export default function CertificateRequestFields({
                                     id="certificate-request-terms"
                                     name={field.name}
                                     type="checkbox"
+                                    aria-invalid={field.state.meta.errors.length > 0}
+                                    aria-describedby="certificate-request-terms-error"
                                     checked={field.state.value}
                                     disabled={isPending}
                                     onBlur={field.handleBlur}
