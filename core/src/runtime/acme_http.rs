@@ -22,6 +22,10 @@ use super::super::{ProxyRuntime, certificates::CertificateEnvironment};
 const MAX_ACME_REQUEST_BODY_BYTES: usize = 1 << 20;
 const MAX_ACME_RESPONSE_BODY_BYTES: usize = 1 << 20;
 
+#[cfg(test)]
+#[path = "../../tests/private/acme_http_transport.rs"]
+mod transport_tests;
+
 pub(crate) struct AcmeHttpClient {
     client: Client,
     runtime: Arc<ProxyRuntime>,

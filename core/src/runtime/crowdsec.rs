@@ -12,6 +12,10 @@ mod provider;
 mod status;
 mod supervisor;
 
+#[cfg(test)]
+#[path = "../../tests/private/crowdsec_dashboard_runtime.rs"]
+mod dashboard_runtime_tests;
+
 const MANAGED_API_URL: &str = "http://127.0.0.1:18080/";
 const DESIRED_MODE_FILE: &str = "desired-mode";
 const SUPERVISOR_STATUS_FILE: &str = "status.json";

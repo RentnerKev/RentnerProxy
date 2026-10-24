@@ -20,6 +20,9 @@ pub fn isolated_command() -> Command {
     if let Some(root) = std::env::var_os("SystemRoot") {
         command.env("SystemRoot", root);
     }
+    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
     command
 }
 
@@ -70,6 +73,28 @@ impl Controller {
 
     pub fn url(&self, path: &str) -> String {
         format!("{}{path}", self.origin)
+    }
+
+    #[cfg(unix)]
+    pub fn shutdown(&mut self) {
+        assert!(self.child.try_wait().unwrap().is_none());
+        assert!(
+            Command::new("kill")
+                .arg("-TERM")
+                .arg(self.child.id().to_string())
+                .status()
+                .unwrap()
+                .success()
+        );
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = self.child.try_wait().unwrap() {
+                assert!(status.success(), "controller must drain and exit cleanly");
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "shutdown deadline");
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 }
 

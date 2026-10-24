@@ -1,4 +1,6 @@
 mod common;
+#[path = "controller/healthcheck.rs"]
+mod healthcheck;
 
 use common::{Controller, TEST_TOKEN, isolated_command};
 use reqwest::StatusCode;
@@ -74,6 +76,11 @@ async fn controller_binary_preserves_health_authentication_and_safe_validation()
         .unwrap();
     assert_eq!(status["running"], false);
     assert_eq!(status["activeRevision"], Value::Null);
+    #[cfg(unix)]
+    {
+        let mut controller = controller;
+        controller.shutdown();
+    }
 }
 
 #[test]

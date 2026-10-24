@@ -225,7 +225,7 @@ jobs:
 
             - name: Set up Rust
               run: |
-                  rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy
+                  rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy --component llvm-tools-preview
                   rustup override set "$RUST_VERSION"
 
             - name: Restore Cargo dependency cache
@@ -242,8 +242,29 @@ jobs:
             - name: Run Clippy
               run: cargo clippy --locked --manifest-path core/Cargo.toml --all-targets --all-features -- -D warnings
 
-            - name: Run Rust tests
-              run: cargo test --locked --manifest-path core/Cargo.toml
+            - name: Install Rust coverage tool
+              run: cargo install cargo-llvm-cov --locked --version 0.9.1
+
+            - name: Run Rust tests with coverage
+              id: rust-tests
+              run: cargo llvm-cov --locked --manifest-path core/Cargo.toml --all-features --no-report
+
+            - name: Run Rust documentation tests
+              run: cargo test --locked --manifest-path core/Cargo.toml --doc
+
+            - name: Report and check Rust coverage
+              id: rust-coverage
+              if: ${{ !cancelled() && steps.rust-tests.outcome != 'skipped' }}
+              run: bash .github/scripts/ci/rust-coverage.sh
+
+            - name: Store Linux Rust coverage
+              if: ${{ !cancelled() && steps.rust-coverage.outcome != 'skipped' }}
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: rust-coverage-linux
+                  path: core/target/coverage
+                  if-no-files-found: error
+                  retention-days: 14
 
             - name: Save Cargo dependency cache
               if: github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true'

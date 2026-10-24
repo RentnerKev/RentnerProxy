@@ -69,23 +69,8 @@ impl ProxyRuntime {
 
         let deadline = Instant::now() + Duration::from_secs(60);
         loop {
-            if let Ok(file) = open_absolute_regular_file(&result_path) {
-                let mut bytes = Vec::new();
-                file.take(MAX_STATUS_BYTES + 1)
-                    .read_to_end(&mut bytes)
-                    .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
-                if bytes.len() as u64 > MAX_STATUS_BYTES {
-                    return Err(CrowdSecError::RuntimeUnavailable);
-                }
-                let result = serde_json::from_slice::<ConsoleEnrollmentResult>(&bytes)
-                    .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
-                if result.id == id {
-                    return if result.state == "pending" {
-                        Ok(())
-                    } else {
-                        Err(CrowdSecError::ConnectionFailed)
-                    };
-                }
+            if let Some(result) = read_enrollment_result(&result_path, &id)? {
+                return result;
             }
             if Instant::now() >= deadline {
                 let _ = fs::remove_file(&request_path);
@@ -95,3 +80,33 @@ impl ProxyRuntime {
         }
     }
 }
+
+fn read_enrollment_result(
+    path: &std::path::Path,
+    id: &str,
+) -> Result<Option<Result<(), CrowdSecError>>, CrowdSecError> {
+    let Ok(file) = open_absolute_regular_file(path) else {
+        return Ok(None);
+    };
+    let mut bytes = Vec::new();
+    file.take(MAX_STATUS_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+    if bytes.len() as u64 > MAX_STATUS_BYTES {
+        return Err(CrowdSecError::RuntimeUnavailable);
+    }
+    let result = serde_json::from_slice::<ConsoleEnrollmentResult>(&bytes)
+        .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+    if result.id != id {
+        return Ok(None);
+    }
+    Ok(Some(if result.state == "pending" {
+        Ok(())
+    } else {
+        Err(CrowdSecError::ConnectionFailed)
+    }))
+}
+
+#[cfg(test)]
+#[path = "../../../tests/private/crowdsec_console.rs"]
+mod tests;

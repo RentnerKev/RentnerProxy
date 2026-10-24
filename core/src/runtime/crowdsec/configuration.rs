@@ -270,3 +270,7 @@ impl ProxyRuntime {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/crowdsec_configuration.rs"]
+mod tests;

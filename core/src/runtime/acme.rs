@@ -20,6 +20,10 @@ const DNS_ORDER_TIMEOUT: Duration = Duration::from_secs(180);
 const DNS_CLEANUP_TIMEOUT: Duration = Duration::from_secs(60);
 static ACME_JOBS: Semaphore = Semaphore::const_new(4);
 
+#[cfg(test)]
+#[path = "../../tests/private/acme_runtime.rs"]
+mod tests;
+
 impl ProxyRuntime {
     pub(crate) async fn recover_dns_cleanup(self: &Arc<Self>) {
         let Ok(mut ids) = self.certificate_store.pending_dns_cleanup_ids().await else {

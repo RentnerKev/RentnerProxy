@@ -14,6 +14,11 @@ use tokio::time::timeout;
 const ACCOUNT_TIMEOUT: Duration = Duration::from_secs(20);
 const DNS_PROPAGATION_WAIT: Duration = Duration::from_secs(30);
 
+struct ChallengeRegistrations<'a> {
+    http: &'a mut Vec<(String, String)>,
+    dns: &'a mut Vec<DnsRecordIntent>,
+}
+
 impl ProxyRuntime {
     pub(super) async fn issue_acme(
         self: &Arc<Self>,
@@ -33,6 +38,33 @@ impl ProxyRuntime {
         let account = timeout(ACCOUNT_TIMEOUT, self.acme_account(id, request))
             .await
             .map_err(|_| CertificateError::AcmeFailed)??;
+        self.issue_acme_with_account(
+            id,
+            request,
+            challenges,
+            ChallengeRegistrations {
+                http: registered,
+                dns: dns_intents,
+            },
+            dns_provider,
+            account,
+        )
+        .await
+    }
+
+    async fn issue_acme_with_account(
+        &self,
+        id: &str,
+        request: &CertificateIssueRequest,
+        challenges: &ChallengeStore,
+        registrations: ChallengeRegistrations<'_>,
+        dns_provider: Option<&DnsProvider>,
+        account: instant_acme::Account,
+    ) -> Result<(String, String), CertificateError> {
+        let ChallengeRegistrations {
+            http: registered,
+            dns: dns_intents,
+        } = registrations;
         let identifiers = request
             .domains
             .iter()
@@ -176,44 +208,5 @@ fn requested_identifier(
 }
 
 #[cfg(test)]
-mod dns_authorization_tests {
-    use super::*;
-
-    #[test]
-    fn wildcard_authorization_is_not_interchangeable_with_apex_or_child() {
-        let apex = Identifier::Dns("example.com".to_owned());
-        let child = Identifier::Dns("child.example.com".to_owned());
-        let requested = vec!["*.example.com".to_owned()];
-        assert_eq!(
-            requested_identifier(&apex.authorized(true), &requested).unwrap(),
-            ("*.example.com".to_owned(), "example.com".to_owned())
-        );
-        assert!(requested_identifier(&apex.authorized(false), &requested).is_err());
-        assert!(requested_identifier(&child.authorized(false), &requested).is_err());
-        assert!(requested_identifier(&child.authorized(true), &requested).is_err());
-    }
-
-    #[test]
-    fn mixed_sans_keep_distinct_authorizations_with_one_txt_owner() {
-        let identifier = Identifier::Dns("example.com".to_owned());
-        let requested = vec!["*.example.com".to_owned(), "example.com".to_owned()];
-        let apex = requested_identifier(&identifier.authorized(false), &requested).unwrap();
-        let wildcard = requested_identifier(&identifier.authorized(true), &requested).unwrap();
-        assert_ne!(apex.0, wildcard.0);
-        assert_eq!(apex.1, wildcard.1);
-        for name in [
-            "other.com",
-            "badexample.com",
-            "example.com.other.com",
-            "*.example.com",
-        ] {
-            assert!(
-                requested_identifier(
-                    &Identifier::Dns(name.to_owned()).authorized(false),
-                    &requested
-                )
-                .is_err()
-            );
-        }
-    }
-}
+#[path = "../../../tests/private/acme_orders.rs"]
+mod dns_authorization_tests;

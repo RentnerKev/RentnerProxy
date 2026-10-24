@@ -6,6 +6,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 #[path = "caddy_shutdown.rs"]
 mod shutdown;
 
+#[cfg(unix)]
+#[path = "caddy_process.rs"]
+mod process;
+
 #[cfg(not(unix))]
 #[tokio::test]
 async fn unsupported_native_caddy_fails_before_spawn_or_tcp_control() {

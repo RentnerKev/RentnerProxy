@@ -43,11 +43,24 @@ impl ProxyRuntime {
             request.environment,
         )
         .map_err(|_| CertificateError::AcmeFailed)?;
+        self.acme_account_with_builder(
+            request,
+            directory,
+            Account::builder_with_http(Box::new(http)),
+        )
+        .await
+    }
+
+    async fn acme_account_with_builder(
+        &self,
+        request: &CertificateIssueRequest,
+        directory: String,
+        builder: instant_acme::AccountBuilder,
+    ) -> Result<Account, CertificateError> {
         let credentials = self
             .certificate_store
             .load_acme_account(request.environment)
             .await?;
-        let builder = Account::builder_with_http(Box::new(http));
 
         let pending = if let Some(credentials) = credentials {
             let stored_directory: AccountDirectory = serde_json::from_slice(&credentials)
@@ -108,6 +121,14 @@ fn acme_directory(
 ) -> Result<(String, Option<String>), CertificateError> {
     let directory = env::var("RENTNERPROXY_ACME_TEST_DIRECTORY_URL").ok();
     let root = env::var("RENTNERPROXY_ACME_TEST_ROOT_CERT").ok();
+    configured_acme_directory(environment, directory, root)
+}
+
+fn configured_acme_directory(
+    environment: CertificateEnvironment,
+    directory: Option<String>,
+    root: Option<String>,
+) -> Result<(String, Option<String>), CertificateError> {
     match (directory, root) {
         (Some(directory), Some(root)) if environment == CertificateEnvironment::Staging => {
             let uri = directory.parse::<axum::http::Uri>().ok();
@@ -138,3 +159,7 @@ fn acme_directory(
         _ => Err(CertificateError::AcmeFailed),
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/acme_accounts.rs"]
+mod tests;
