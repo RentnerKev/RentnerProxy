@@ -308,7 +308,7 @@ describe('default-site settings panel', () => {
         expect(saveSettings).toHaveBeenCalledWith({
             data: { baseRevision: 'revision-1', settings: { mode: 'welcome' } },
         })
-        expect(container.textContent).toContain('Saved mode: Welcome page')
+        expect(container.textContent).toContain('Saved: Welcome page')
         expect(container.textContent).not.toContain('Runtime application is pending')
         expect((await openPageAlerts()).textContent).toContain('Runtime application is pending')
         expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
@@ -339,7 +339,7 @@ describe('default-site settings panel', () => {
         }
         await click(
             [...container.querySelectorAll('button')].find((button) =>
-                button.textContent?.includes('Reload saved'),
+                button.textContent?.includes('Discard changes'),
             )!,
         )
         expect(container.querySelector<HTMLInputElement>('input[name="url"]')?.value).toBe(
@@ -601,6 +601,6 @@ describe('default-site settings panel', () => {
                 'section[aria-labelledby="default-site-heading"] [role="alert"]',
             ),
         ).toBeNull()
-        expect(container.textContent).toContain('Saved mode: 404 Not found')
+        expect(container.textContent).toContain('Saved: 404 Not found')
     })
 })

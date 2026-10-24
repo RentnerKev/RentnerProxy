@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
-import { Globe } from 'lucide-react'
 
 import { MAX_DEFAULT_SITE_HTML_BYTES } from '@/config/default-site.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -20,9 +19,8 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
             aria-labelledby="default-site-heading"
             className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
         >
-            <div className="flex items-start gap-3">
-                <Globe aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-text" />
-                <div>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 grow basis-64">
                     <h2
                         id="default-site-heading"
                         className="m-0 text-xl font-extrabold text-ink-soft"
@@ -33,9 +31,23 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                         {t('defaultSite.description')}
                     </p>
                 </div>
+                {state.savedMode ? (
+                    <span className="inline-flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted">
+                        <span
+                            aria-hidden="true"
+                            className="size-1.5 shrink-0 rounded-full bg-brand-text"
+                        />
+                        <span className="min-w-0 break-words">
+                            {t('defaultSite.current')}: {t(`defaultSite.modes.${state.savedMode}`)}
+                        </span>
+                    </span>
+                ) : null}
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted">{t('defaultSite.tlsHint')}</p>
-            {state.isLoading ? <output>{t('defaultSite.loading')}</output> : null}
+            {state.isLoading ? (
+                <output className="mt-5 block text-sm text-muted">
+                    {t('defaultSite.loading')}
+                </output>
+            ) : null}
             {state.loadFailed ? (
                 <PageAlert
                     severity="error"
@@ -53,13 +65,8 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     }
                 />
             ) : null}
-            {state.savedMode ? (
-                <p className="mt-4 text-sm font-bold text-ink-soft">
-                    {t('defaultSite.current')}: {t(`defaultSite.modes.${state.savedMode}`)}
-                </p>
-            ) : null}
             {state.error ? (
-                <p role="alert" className="text-danger-text">
+                <p role="alert" className="mt-4 text-sm text-danger-text">
                     {state.error}
                 </p>
             ) : null}
@@ -70,10 +77,10 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     description={t('defaultSite.pending')}
                 />
             ) : state.runtimeStatus ? (
-                <output className="block text-sm text-muted">{t('defaultSite.saved')}</output>
+                <output className="mt-4 block text-sm text-muted">{t('defaultSite.saved')}</output>
             ) : null}
             {!state.isLoading && !state.loadFailed ? (
-                <form className="mt-5 grid gap-4" onSubmit={handler.handleSubmit}>
+                <form className="mt-6 grid gap-4" onSubmit={handler.handleSubmit}>
                     <div className="grid gap-2">
                         <label
                             htmlFor="default-site-mode"
@@ -177,33 +184,47 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                             )}
                         </p>
                     ) : null}
-                    {canUpdate ? (
-                        <>
-                            <output className="block text-sm text-muted">
+                    <p className="text-xs leading-relaxed text-muted">{t('defaultSite.tlsHint')}</p>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+                        {canUpdate ? (
+                            <output
+                                aria-live="polite"
+                                className={
+                                    state.isDirty ? 'text-xs text-brand-text' : 'text-xs text-muted'
+                                }
+                            >
                                 {t(state.isDirty ? 'defaultSite.dirty' : 'defaultSite.clean')}
                             </output>
+                        ) : (
+                            <p className="text-xs text-muted">{t('defaultSite.readOnly')}</p>
+                        )}
+                        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                             <button
-                                type="submit"
-                                disabled={!state.canSave}
-                                aria-busy={state.isSaving}
-                                className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground transition-colors enabled:hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:opacity-55"
+                                type="button"
+                                onClick={handler.handleReload}
+                                disabled={
+                                    state.isSaving ||
+                                    state.isReloading ||
+                                    (canUpdate && !state.isDirty && !state.error)
+                                }
+                                className={buttonClassName(canUpdate ? 'ghost' : 'secondary')}
                             >
-                                {t(state.isSaving ? 'common.saving' : 'common.save')}
+                                {t(canUpdate ? 'defaultSite.discard' : 'defaultSite.reload')}
                             </button>
-                        </>
-                    ) : (
-                        <p className="text-sm text-muted">{t('defaultSite.readOnly')}</p>
-                    )}
+                            {canUpdate ? (
+                                <button
+                                    type="submit"
+                                    disabled={!state.canSave}
+                                    aria-busy={state.isSaving}
+                                    className={buttonClassName('primary')}
+                                >
+                                    {t(state.isSaving ? 'common.saving' : 'common.save')}
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
                 </form>
             ) : null}
-            <button
-                type="button"
-                onClick={handler.handleReload}
-                disabled={state.isSaving || state.isReloading}
-                className="mt-4 inline-flex h-12 items-center justify-center rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-bold text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:opacity-55"
-            >
-                {t('defaultSite.reload')}
-            </button>
         </section>
     )
 }
