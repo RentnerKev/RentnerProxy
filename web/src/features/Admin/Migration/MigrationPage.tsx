@@ -94,6 +94,7 @@ export default function MigrationPage() {
                     <FileInput
                         key={state.source}
                         id="migration-file"
+                        title=""
                         aria-describedby="migration-source-help"
                         type="file"
                         accept={

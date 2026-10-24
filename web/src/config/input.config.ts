@@ -9,7 +9,7 @@ export const INPUT_PROVIDER_PROPS = {
         checkbox: 'mt-[0.12rem] size-4 accent-accent',
         radio: 'size-4 accent-accent',
         range: 'w-full accent-accent',
-        file: 'block w-full text-sm text-ink file:mr-3 file:rounded-lg file:border file:border-border-strong file:bg-surface-raised file:px-3 file:py-2 file:font-semibold file:text-ink-soft hover:file:border-accent-border',
+        file: 'block w-full cursor-default text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-border-strong file:bg-surface-raised file:px-3 file:py-2 file:font-semibold file:text-ink-soft hover:file:border-accent-border disabled:file:cursor-not-allowed',
     },
     customDesign: {
         bg: 'bg-surface-raised',
