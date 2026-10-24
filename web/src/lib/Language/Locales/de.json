@@ -2181,7 +2181,8 @@
                 "resource": "Ressource",
                 "allResources": "Alle Ressourcen",
                 "from": "Von (UTC)",
-                "to": "Bis (UTC)"
+                "to": "Bis (UTC)",
+                "dateRange": "Zeitraum (Ortszeit)"
             },
             "actions": {
                 "refresh": "Aktualisieren",
@@ -3366,7 +3367,8 @@
             "sun": "So"
         },
         "hours": "Stunden",
-        "minutes": "Minuten"
+        "minutes": "Minuten",
+        "selectRange": "Zeitraum auswählen"
     },
     "userAppearance": {
         "title": "Persönliche Darstellung",

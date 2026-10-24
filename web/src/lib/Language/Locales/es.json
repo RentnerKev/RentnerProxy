@@ -2183,7 +2183,8 @@
                 "resource": "Recurso",
                 "allResources": "Todos los recursos",
                 "from": "Desde (UTC)",
-                "to": "Hasta (UTC)"
+                "to": "Hasta (UTC)",
+                "dateRange": "Periodo (hora local)"
             },
             "actions": {
                 "refresh": "Actualizar",
@@ -3368,7 +3369,8 @@
             "sun": "Dom"
         },
         "hours": "Horas",
-        "minutes": "Minutos"
+        "minutes": "Minutos",
+        "selectRange": "Seleccionar intervalo"
     },
     "userAppearance": {
         "title": "Apariencia personal",

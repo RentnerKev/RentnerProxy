@@ -10,7 +10,7 @@ import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
 import TableFilterToggle from '@/shared/Table/Components/TableFilterToggle.tsx'
 import TableLayout from '@/shared/Table/Components/TableLayout.tsx'
 import TableLoadingBody from '@/shared/Table/Components/TableLoadingBody.tsx'
-import UtcDateTimeInput from '@/shared/Forms/UtcDateTimeInput.tsx'
+import UtcDateTimeRangeInput from '@/shared/Forms/UtcDateTimeRangeInput.tsx'
 import { ActionMenu } from '@/shared/ActionMenu/index.tsx'
 import type { AuditEventDto } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import {
@@ -75,8 +75,7 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
         onActorChange,
         onActionChange,
         onResourceChange,
-        onFromChange,
-        onToChange,
+        onDateRangeChange,
         onResetFilters,
         onPreviousPage,
         onNextPage,
@@ -151,34 +150,16 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
                                     options={state.resourceOptions}
                                 />
                             </label>
-                            <label className="grid min-w-0 gap-1.5">
+                            <label className="grid w-full min-w-0 max-w-lg gap-1.5 sm:col-span-2">
                                 <span className="text-xs font-extrabold text-muted">
-                                    {t('admin.auditLogs.filters.from')}
+                                    {t('admin.auditLogs.filters.dateRange')}
                                 </span>
-                                <UtcDateTimeInput
-                                    value={filters.from}
-                                    onValueChange={onFromChange}
-                                    ariaLabel={t('admin.auditLogs.filters.from')}
+                                <UtcDateTimeRangeInput
+                                    value={{ from: filters.from, to: filters.to }}
+                                    onValueChange={onDateRangeChange}
+                                    ariaLabel={t('admin.auditLogs.filters.dateRange')}
                                     invalid={
                                         filterErrors.from !== undefined ||
-                                        filterErrors.dateRange !== undefined
-                                    }
-                                    describedBy={
-                                        filterErrors.dateRange
-                                            ? 'audit-date-range-error'
-                                            : undefined
-                                    }
-                                />
-                            </label>
-                            <label className="grid min-w-0 gap-1.5">
-                                <span className="text-xs font-extrabold text-muted">
-                                    {t('admin.auditLogs.filters.to')}
-                                </span>
-                                <UtcDateTimeInput
-                                    value={filters.to}
-                                    onValueChange={onToChange}
-                                    ariaLabel={t('admin.auditLogs.filters.to')}
-                                    invalid={
                                         filterErrors.to !== undefined ||
                                         filterErrors.dateRange !== undefined
                                     }

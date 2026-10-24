@@ -2209,7 +2209,8 @@
                 "resource": "Zasób",
                 "allResources": "Wszystkie zasoby",
                 "from": "Od (UTC)",
-                "to": "Do (UTC)"
+                "to": "Do (UTC)",
+                "dateRange": "Zakres dat (czas lokalny)"
             },
             "actions": {
                 "refresh": "Odśwież",
@@ -3396,7 +3397,8 @@
             "sun": "Niedz"
         },
         "hours": "Godziny",
-        "minutes": "Minuty"
+        "minutes": "Minuty",
+        "selectRange": "Wybierz zakres dat"
     },
     "userAppearance": {
         "title": "Osobisty wygląd",

@@ -94,12 +94,9 @@ export default function useAuditLogsLogic({
         [timestampFormatter],
     )
 
-    const updateFilter = useCallback(
-        <K extends keyof typeof emptyAuditLogsFilters>(
-            key: K,
-            value: (typeof emptyAuditLogsFilters)[K],
-        ) => {
-            const next = { ...draftFilters, [key]: value }
+    const updateFilters = useCallback(
+        (updates: Partial<typeof emptyAuditLogsFilters>) => {
+            const next = { ...draftFilters, ...updates }
             const errors = validateAuditLogsFilters(next)
             setDraftFilters(next)
             setFilterErrors(errors)
@@ -147,11 +144,10 @@ export default function useAuditLogsLogic({
             pageNumber: cursorStack.length + 1,
         },
         handler: {
-            onActionChange: (value: AuditAction | '') => updateFilter('action', value),
-            onActorChange: (value: string) => updateFilter('actorUserId', value),
-            onFromChange: (value: string) => updateFilter('from', value),
-            onResourceChange: (value: AuditResource | '') => updateFilter('resource', value),
-            onToChange: (value: string) => updateFilter('to', value),
+            onActionChange: (value: AuditAction | '') => updateFilters({ action: value }),
+            onActorChange: (value: string) => updateFilters({ actorUserId: value }),
+            onDateRangeChange: updateFilters,
+            onResourceChange: (value: AuditResource | '') => updateFilters({ resource: value }),
             nextPage,
             onToggleDetails: toggleDetails,
             previousPage,

@@ -14,8 +14,7 @@ export default function useAuditLogsTableLogic({
         filters.actorUserId.trim(),
         filters.action,
         filters.resource,
-        filters.from,
-        filters.to,
+        filters.from || filters.to,
     ].filter((value) => value.length > 0).length
     const hasActiveFilters = activeFilterCount > 0
 

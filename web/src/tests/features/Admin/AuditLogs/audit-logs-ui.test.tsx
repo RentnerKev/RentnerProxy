@@ -336,6 +336,42 @@ describe('audit log UI', () => {
         })
     })
 
+    test('filters both UTC bounds through one built-in date-time range and clears them together', async () => {
+        const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('Alice Admin') === true)
+        await click(getButton(container, 'Filters'))
+        const calendars = container.querySelectorAll<HTMLButtonElement>(
+            'button[aria-label="Period (local time)"]',
+        )
+        expect(calendars).toHaveLength(1)
+        expect(container.querySelector('input[type="time"]')).toBeNull()
+        await click(calendars[0]!)
+        const now = new Date()
+        const start = new Date(now.getFullYear(), now.getMonth(), 14)
+        const end = new Date(now.getFullYear(), now.getMonth(), 16, 23, 59, 59, 999)
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        })
+        const findDay = (value: Date) =>
+            [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find(
+                (button) => button.getAttribute('aria-label')?.includes(formatter.format(value)),
+            )!
+        await click(findDay(start))
+        await click(findDay(end))
+        await waitFor(() => getAuditEventsHandlerMock.mock.lastCall?.[0].data.to !== undefined)
+        expect(getAuditEventsHandlerMock.mock.lastCall?.[0].data).toEqual({
+            from: start.toISOString(),
+            to: end.toISOString(),
+            limit: 100,
+        })
+        await click(calendars[0]!)
+        await click(container.querySelector<HTMLButtonElement>('button[aria-label="Clear"]')!)
+        await waitFor(() => getAuditEventsHandlerMock.mock.lastCall?.[0].data.from === undefined)
+        expect(getAuditEventsHandlerMock.mock.lastCall?.[0].data).toEqual({ limit: 100 })
+    })
+
     test('shows safe event details and blocks requests without permission', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)

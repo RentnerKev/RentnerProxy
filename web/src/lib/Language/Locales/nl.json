@@ -2162,7 +2162,8 @@
                 "resource": "Bron",
                 "allResources": "Alle bronnen",
                 "from": "Van (UTC)",
-                "to": "Tot (UTC)"
+                "to": "Tot (UTC)",
+                "dateRange": "Periode (lokale tijd)"
             },
             "actions": {
                 "refresh": "Vernieuwen",
@@ -3347,7 +3348,8 @@
             "sun": "Zo"
         },
         "hours": "Uren",
-        "minutes": "Minuten"
+        "minutes": "Minuten",
+        "selectRange": "Periode selecteren"
     },
     "userAppearance": {
         "title": "Persoonlijke weergave",

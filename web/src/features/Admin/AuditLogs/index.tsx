@@ -56,8 +56,7 @@ export default function AuditLogsPage(props: AuditLogsPageProps) {
                     onActorChange={handler.onActorChange}
                     onActionChange={handler.onActionChange}
                     onResourceChange={handler.onResourceChange}
-                    onFromChange={handler.onFromChange}
-                    onToChange={handler.onToChange}
+                    onDateRangeChange={handler.onDateRangeChange}
                     onResetFilters={handler.resetFilters}
                     onPreviousPage={handler.previousPage}
                     onNextPage={handler.nextPage}

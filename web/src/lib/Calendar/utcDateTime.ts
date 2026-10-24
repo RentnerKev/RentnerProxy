@@ -14,7 +14,3 @@ export function parseUtcDateTimeValue(value: string): UtcDateTimeParts | undefin
         ? { date, time }
         : undefined
 }
-
-export function createUtcDateTimeValue(date: string, time: string): string | undefined {
-    return parseUtcDateTimeValue(`${date}T${time}`) ? `${date}T${time}` : undefined
-}

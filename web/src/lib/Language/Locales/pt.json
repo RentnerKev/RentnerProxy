@@ -2207,7 +2207,8 @@
                 "resource": "Recurso",
                 "allResources": "Todos os recursos",
                 "from": "De (UTC)",
-                "to": "Até (UTC)"
+                "to": "Até (UTC)",
+                "dateRange": "Período (hora local)"
             },
             "actions": {
                 "refresh": "Atualizar",
@@ -3394,7 +3395,8 @@
             "sun": "Dom"
         },
         "hours": "Horas",
-        "minutes": "Minutos"
+        "minutes": "Minutos",
+        "selectRange": "Selecionar período"
     },
     "userAppearance": {
         "title": "Aspeto pessoal",

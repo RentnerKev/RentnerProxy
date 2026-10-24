@@ -40,9 +40,8 @@ export interface AuditLogsLogicResult {
     readonly handler: {
         readonly onActionChange: (value: AuditAction | '') => void
         readonly onActorChange: (value: string) => void
-        readonly onFromChange: (value: string) => void
+        readonly onDateRangeChange: (value: Pick<AuditLogsFilters, 'from' | 'to'>) => void
         readonly onResourceChange: (value: AuditResource | '') => void
-        readonly onToChange: (value: string) => void
         readonly nextPage: () => void
         readonly previousPage: () => void
         readonly onToggleDetails: (eventId: string) => void

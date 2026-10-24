@@ -19,8 +19,7 @@ export interface AuditLogsTableProps {
     readonly onActorChange: (value: string) => void
     readonly onActionChange: (value: AuditAction | '') => void
     readonly onResourceChange: (value: AuditResource | '') => void
-    readonly onFromChange: (value: string) => void
-    readonly onToChange: (value: string) => void
+    readonly onDateRangeChange: (value: Pick<AuditLogsFilters, 'from' | 'to'>) => void
     readonly onResetFilters: () => void
     readonly onPreviousPage: () => void
     readonly onNextPage: () => void

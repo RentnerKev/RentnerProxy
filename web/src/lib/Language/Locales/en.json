@@ -2181,7 +2181,8 @@
                 "resource": "Resource",
                 "allResources": "All resources",
                 "from": "From (UTC)",
-                "to": "To (UTC)"
+                "to": "To (UTC)",
+                "dateRange": "Period (local time)"
             },
             "actions": {
                 "refresh": "Refresh",
@@ -3366,7 +3367,8 @@
             "sun": "Sun"
         },
         "hours": "Hours",
-        "minutes": "Minutes"
+        "minutes": "Minutes",
+        "selectRange": "Select date range"
     },
     "userAppearance": {
         "title": "Personal appearance",
