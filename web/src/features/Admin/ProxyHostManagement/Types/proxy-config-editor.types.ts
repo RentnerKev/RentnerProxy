@@ -17,6 +17,7 @@ export interface ProxyConfigEditorModalProps {
 export type ProxyConfigEditorLogicProps = ProxyConfigEditorModalProps
 
 export interface ProxyConfigEditorState {
+    readonly isValid: boolean
     readonly hasConflict: boolean
     readonly reviewedLatest: ProxyHttpSettings | null
     readonly isConflictConfirmationOpen: boolean

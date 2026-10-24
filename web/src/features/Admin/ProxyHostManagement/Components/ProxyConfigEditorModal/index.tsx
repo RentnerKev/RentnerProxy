@@ -250,6 +250,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                 closeDisabled={busy || state.isResetConfirmationOpen}
                 footer={
                     <ProxyConfigEditorActions
+                        isInvalid={!state.isValid}
                         isBlocked={state.hasConflict}
                         canEdit={props.canEdit}
                         isBusy={busy}

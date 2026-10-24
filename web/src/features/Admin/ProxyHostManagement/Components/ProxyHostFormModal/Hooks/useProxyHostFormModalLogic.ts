@@ -255,6 +255,16 @@ export default function useProxyHostFormModalLogic({
         },
         [form],
     )
+    const handleBrowserCacheChange = useCallback<
+        ProxyHostFormModalHandler['handleBrowserCacheChange']
+    >(
+        (settings) => {
+            if (!canConfigureBrowserCache || mutation.isPending) return
+            form.setFieldValue('browserCache', settings)
+            if (form.state.submissionAttempts > 0) void form.validate('submit')
+        },
+        [canConfigureBrowserCache, form, mutation.isPending],
+    )
 
     return {
         refs: { guideHeading } satisfies ProxyHostFormModalRefs,
@@ -317,6 +327,7 @@ export default function useProxyHostFormModalLogic({
             isPending: mutation.isPending,
         } satisfies Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>,
         handler: {
+            handleBrowserCacheChange,
             handleToggleGuide,
             handleNextGuideStep,
             handlePreviousGuideStep,

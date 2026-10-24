@@ -89,7 +89,7 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         {(field) => (
                             <BrowserCacheFields
                                 value={field.state.value}
-                                onChange={field.handleChange}
+                                onChange={handler.handleBrowserCacheChange}
                                 disabled={state.isPending || !props.canConfigureBrowserCache}
                             />
                         )}

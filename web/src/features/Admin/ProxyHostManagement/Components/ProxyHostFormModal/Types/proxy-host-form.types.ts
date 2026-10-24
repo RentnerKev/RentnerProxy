@@ -72,6 +72,9 @@ export interface ProxyHostFormModalState {
 }
 
 export interface ProxyHostFormModalHandler {
+    readonly handleBrowserCacheChange: (
+        settings: NonNullable<ProxyHostEditorFormValues['browserCache']>,
+    ) => void
     readonly handleToggleGuide: () => void
     readonly handleNextGuideStep: () => void
     readonly handlePreviousGuideStep: () => void

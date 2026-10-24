@@ -5,6 +5,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { ProxyConfigEditorActionsProps } from '../Types/proxy-config-editor-actions.types.ts'
 
 export default function ProxyConfigEditorActions({
+    isInvalid = false,
     isBlocked,
     canEdit,
     isBusy,
@@ -39,7 +40,7 @@ export default function ProxyConfigEditorActions({
                         type="button"
                         className={buttonClassName('primary')}
                         onClick={onSave}
-                        disabled={isBusy || isBlocked || !hasData}
+                        disabled={isBusy || isBlocked || isInvalid || !hasData}
                     >
                         <Save className="size-4" />
                         {t('admin.proxyHosts.config.save')}

@@ -495,6 +495,14 @@ function getButton(label: string): HTMLButtonElement {
     return button!
 }
 
+function getCheckbox(label: string, root: ParentNode = document): HTMLInputElement {
+    const checkbox = [...root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(
+        (input) => input.closest('label')?.textContent?.includes(label),
+    )
+    expect(checkbox).toBeDefined()
+    return checkbox!
+}
+
 function getMenuItem(label: string): HTMLElement {
     const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
         (candidate) => candidate.textContent?.includes(label),
@@ -1288,6 +1296,7 @@ describe('ProxyHost permissions and row actions', () => {
 
 function FormHarness({
     canConfigureCompression = false,
+    canConfigureBrowserCache = false,
     initialGuideOpen = false,
     canDisable = true,
     canEnable = true,
@@ -1299,6 +1308,7 @@ function FormHarness({
     proxyHost,
 }: {
     canConfigureCompression?: boolean
+    canConfigureBrowserCache?: boolean
     initialGuideOpen?: boolean
     canDisable?: boolean
     canEnable?: boolean
@@ -1313,6 +1323,7 @@ function FormHarness({
     return (
         <ProxyHostFormModal
             canConfigureCompression={canConfigureCompression}
+            canConfigureBrowserCache={canConfigureBrowserCache}
             open={open}
             initialGuideOpen={initialGuideOpen}
             mode={mode}
@@ -2181,6 +2192,131 @@ describe('Caddy proxy host configuration editor', () => {
         return document.querySelector('[role="dialog"]')!
     }
 
+    test('enables browser-cache rules without losing the configuration dialog', async () => {
+        const dialog = await openHostConfig()
+        const toggle = getCheckbox('Enable browser-cache rules', dialog)
+        expect(toggle.disabled).toBeFalse()
+        await click(toggle)
+        expect(toggle.checked).toBeTrue()
+        expect(dialog.textContent).toContain('Browser cache for public assets')
+        expect(dialog.querySelector('input[placeholder="/assets/app.a1b2.js"]')).not.toBeNull()
+        expect(getButton('Save and apply').disabled).toBeTrue()
+        expect(getButton('Restore defaults').disabled).toBeFalse()
+        await click(getButton('Save and apply'))
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('saves browser-cache paths, freshness and immutable alongside other host settings', async () => {
+        const dialog = await openHostConfig()
+        await click(getCheckbox('Enable browser-cache rules', dialog))
+        const path = dialog.querySelector<HTMLInputElement>(
+            'input[placeholder="/assets/app.a1b2.js"]',
+        )!
+        await setControlValue(path, '/static/')
+        await setControlValue(dialog.querySelector<HTMLInputElement>('input[id*="-age-"]')!, '7200')
+        await click(getCheckbox('This asset is versioned (immutable)', dialog))
+        expect(getButton('Save and apply').disabled).toBeFalse()
+        expect(dialog.querySelector('[role="alert"]')).toBeNull()
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: editorFixture.proxyHostId,
+                baseRevision: editorBaseRevision,
+                settings: {
+                    ...editorFixture.settings,
+                    browserCache: {
+                        enabled: true,
+                        rules: [{ path: '/static/', maxAgeSeconds: 7200, immutable: true }],
+                    },
+                },
+            },
+        })
+    })
+
+    test('refreshes browser-cache settings before reopening the host form', async () => {
+        const dialog = await openHostConfig()
+        await click(getCheckbox('Enable browser-cache rules', dialog))
+        await setControlValue(
+            dialog.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')!,
+            '/static/',
+        )
+        const browserCache = {
+            enabled: true,
+            rules: [{ path: '/static/', maxAgeSeconds: 3600, immutable: false }],
+        }
+        loadProxyHostPageFixture.mockResolvedValue([{ ...enabledHost, browserCache }, disabledHost])
+        await click(getButton('Save and apply'))
+        await waitFor(() => !dialog.isConnected)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Edit'))
+        await waitFor(() => document.querySelector('input[name="forwardHost"]') !== null)
+        expect(getCheckbox('Enable browser-cache rules').checked).toBeTrue()
+        expect(
+            document.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')
+                ?.value,
+        ).toBe('/static/')
+    })
+
+    test.each(['', '0', '1.5', '31536001'])(
+        'blocks invalid browser-cache freshness %j and permits correcting it',
+        async (invalidAge) => {
+            getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+                ...editorFixture,
+                settings: {
+                    browserCache: {
+                        enabled: true,
+                        rules: [{ path: '/assets/', maxAgeSeconds: 60, immutable: false }],
+                    },
+                },
+            })
+            const dialog = await openHostConfig()
+            const age = dialog.querySelector<HTMLInputElement>('input[id*="-age-"]')!
+            await setControlValue(age, invalidAge)
+            expect(age.value).toBe(invalidAge)
+            expect(age.getAttribute('aria-invalid')).toBe('true')
+            expect(
+                document
+                    .getElementById(age.getAttribute('aria-describedby')!)
+                    ?.getAttribute('role'),
+            ).toBe('alert')
+            expect(getButton('Save and apply').disabled).toBeTrue()
+            await click(getButton('Save and apply'))
+            expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+            await setControlValue(age, '31536000')
+            expect(age.getAttribute('aria-invalid')).not.toBe('true')
+            expect(dialog.querySelector('[role="alert"]')).toBeNull()
+            expect(getButton('Save and apply').disabled).toBeFalse()
+        },
+    )
+
+    test('allows disabling an unfinished browser-cache draft and saves the explicit off setting', async () => {
+        const dialog = await openHostConfig()
+        const toggle = getCheckbox('Enable browser-cache rules', dialog)
+        await click(toggle)
+        const path = dialog.querySelector<HTMLInputElement>(
+            'input[placeholder="/assets/app.a1b2.js"]',
+        )!
+        await setControlValue(path, '/api/')
+        expect(getButton('Save and apply').disabled).toBeTrue()
+        await click(toggle)
+        expect(dialog.querySelector('[role="alert"]')).toBeNull()
+        expect(dialog.querySelector('input[placeholder="/assets/app.a1b2.js"]')).toBeNull()
+        expect(getButton('Save and apply').disabled).toBeFalse()
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: editorFixture.proxyHostId,
+                baseRevision: editorBaseRevision,
+                settings: {
+                    ...editorFixture.settings,
+                    browserCache: { enabled: false, rules: [] },
+                },
+            },
+        })
+    })
+
     for (const failure of ['response', 'transport'] as const) {
         test(`shows host save ${failure} failures only in a toast`, async () => {
             if (failure === 'response') {
@@ -2841,18 +2977,20 @@ describe('integrated proxy host setup guide', () => {
     })
 })
 
-function BrowserCacheHarness() {
-    const [value, setValue] = useState<ProxyHttpSettings['browserCache']>({
-        enabled: false,
-        rules: [],
-    })
+function BrowserCacheHarness({
+    initialValue,
+}: {
+    initialValue?: ProxyHttpSettings['browserCache']
+}) {
+    const [value, setValue] = useState(initialValue)
     return <BrowserCacheFields value={value} onChange={setValue} disabled={false} />
 }
 
 describe('browser-cache rule controls', () => {
     test('keeps rule editing accessible and reports invalid or overlapping scopes', async () => {
         await render(<BrowserCacheHarness />)
-        await click(getButton('Add rule'))
+        expect(getButton('Add rule').disabled).toBeTrue()
+        await click(getCheckbox('Enable browser-cache rules'))
         expect(document.querySelector('[role="alert"]')?.textContent).toContain(
             'unique public asset paths',
         )
@@ -2874,6 +3012,84 @@ describe('browser-cache rule controls', () => {
         expect(document.querySelector('[role="alert"]')).toBeNull()
         expect(document.querySelector('input[placeholder="/assets/app.a1b2.js"]')).toBe(path)
     })
+    test('renders and edits browser-cache rules without requiring randomUUID', async () => {
+        const randomUUID = spyOn(crypto, 'randomUUID').mockImplementation(() => {
+            throw new Error('randomUUID is unavailable over insecure HTTP')
+        })
+        try {
+            await render(
+                <BrowserCacheHarness
+                    initialValue={{
+                        enabled: true,
+                        rules: [{ path: '/assets/', maxAgeSeconds: 60, immutable: false }],
+                    }}
+                />,
+            )
+            await click(getButton('Add rule'))
+            expect(
+                document.querySelectorAll('input[placeholder="/assets/app.a1b2.js"]'),
+            ).toHaveLength(2)
+            await click(getLastButton('Remove rule'))
+            await click(getCheckbox('Enable browser-cache rules'))
+            await click(getCheckbox('Enable browser-cache rules'))
+            expect(
+                document.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')
+                    ?.value,
+            ).toBe('/assets/')
+            expect(randomUUID).not.toHaveBeenCalled()
+        } finally {
+            randomUUID.mockRestore()
+        }
+    })
+    test('preserves valid rules when disabling and re-enabling browser-cache rules', async () => {
+        await render(
+            <BrowserCacheHarness
+                initialValue={{
+                    enabled: true,
+                    rules: [{ path: '/static/', maxAgeSeconds: 7200, immutable: true }],
+                }}
+            />,
+        )
+        const toggle = getCheckbox('Enable browser-cache rules')
+        await click(getButton('Add rule'))
+        await click(toggle)
+        expect(document.querySelector('input[id*="-age-"]')).toBeNull()
+        expect(getButton('Add rule').disabled).toBeTrue()
+        await click(toggle)
+        expect(document.querySelectorAll('input[placeholder="/assets/app.a1b2.js"]')).toHaveLength(
+            1,
+        )
+        expect(
+            document.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')
+                ?.value,
+        ).toBe('/static/')
+        expect(document.querySelector<HTMLInputElement>('input[id*="-age-"]')?.value).toBe('7200')
+        expect(getCheckbox('This asset is versioned (immutable)').checked).toBeTrue()
+    })
+    test('bounds browser-cache rules and preserves remaining row state when removing a rule', async () => {
+        await render(
+            <BrowserCacheHarness
+                initialValue={{
+                    enabled: true,
+                    rules: Array.from({ length: 20 }, (_, index) => ({
+                        path: `/assets/app.${index}.js`,
+                        maxAgeSeconds: 60,
+                        immutable: false,
+                    })),
+                }}
+            />,
+        )
+        const ages = document.querySelectorAll<HTMLInputElement>('input[id*="-age-"]')
+        await setControlValue(ages[1]!, '')
+        expect(getButton('Add rule').disabled).toBeTrue()
+        await click(getButton('Remove rule'))
+        expect(document.querySelectorAll('input[placeholder="/assets/app.a1b2.js"]')).toHaveLength(
+            19,
+        )
+        expect(document.querySelector('input[id*="-age-"]')).toBe(ages[1]!)
+        expect(ages[1]!.value).toBe('')
+        expect(getButton('Add rule').disabled).toBeFalse()
+    })
     test('disables controls for read-only settings', async () => {
         await render(
             <BrowserCacheFields
@@ -2891,6 +3107,100 @@ describe('browser-cache rule controls', () => {
         expect(getButton('Add rule').disabled).toBe(true)
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(
             true,
+        )
+    })
+})
+
+describe('browser-cache host form integration', () => {
+    test('enables and saves browser-cache rules from the host form', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness mode="edit" proxyHost={enabledHost} canConfigureBrowserCache />,
+            ),
+        )
+        await click(getCheckbox('Enable browser-cache rules'))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[placeholder="/assets/app.a1b2.js"]')!,
+            '/assets/',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[id*="-age-"]')!,
+            '1800',
+        )
+        await click(getCheckbox('This asset is versioned (immutable)'))
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+            data: {
+                proxyHostId: enabledHost.id,
+                browserCache: {
+                    enabled: true,
+                    rules: [{ path: '/assets/', maxAgeSeconds: 1800, immutable: true }],
+                },
+            },
+        })
+    })
+    test.each(['disable', 'correct'] as const)(
+        'recovers from invalid browser-cache rules by %s',
+        async (recovery) => {
+            await render(
+                withQueryClient(
+                    <FormHarness mode="edit" proxyHost={enabledHost} canConfigureBrowserCache />,
+                ),
+            )
+            await click(getCheckbox('Enable browser-cache rules'))
+            await click(getButton('Save changes'))
+            expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+            expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+            expect(
+                document.querySelector('input[placeholder="/assets/app.a1b2.js"]'),
+            ).not.toBeNull()
+            if (recovery === 'disable') await click(getCheckbox('Enable browser-cache rules'))
+            else
+                await setControlValue(
+                    document.querySelector<HTMLInputElement>(
+                        'input[placeholder="/assets/app.a1b2.js"]',
+                    )!,
+                    '/assets/',
+                )
+            await click(getButton('Save changes'))
+            await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+            expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
+                data: {
+                    browserCache:
+                        recovery === 'disable'
+                            ? { enabled: false, rules: [] }
+                            : {
+                                  enabled: true,
+                                  rules: [
+                                      { path: '/assets/', maxAgeSeconds: 3600, immutable: false },
+                                  ],
+                              },
+                },
+            })
+        },
+    )
+    test('preserves browser-cache settings when editing without apply permission', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{
+                        ...enabledHost,
+                        browserCache: {
+                            enabled: true,
+                            rules: [{ path: '/assets/', maxAgeSeconds: 60, immutable: true }],
+                        },
+                    }}
+                />,
+            ),
+        )
+        expect(getCheckbox('Enable browser-cache rules').disabled).toBeTrue()
+        expect(document.querySelector<HTMLInputElement>('input[id*="-age-"]')?.disabled).toBeTrue()
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]?.[0]).not.toHaveProperty(
+            'data.browserCache',
         )
     })
 })

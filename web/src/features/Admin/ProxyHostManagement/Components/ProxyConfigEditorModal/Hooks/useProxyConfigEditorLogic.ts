@@ -1,6 +1,7 @@
 import type { ProxyConfigEditorSubmission } from '../../../Types/proxy-config-editor.types.ts'
+import { proxyHostHttpSettingsSchema } from '../../../config-validation.ts'
 import useProxyConfigDraft from '../../../Hooks/useProxyConfigDraft.ts'
-import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
+import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
@@ -59,6 +60,7 @@ export default function useProxyConfigEditorLogic({
         keepDraft,
         useSaved,
     } = useProxyConfigDraft(data)
+    const isValid = proxyHostHttpSettingsSchema.safeParse(settings).success
     const setSetting = <K extends keyof ProxyHttpSettings>(key: K, value: ProxyHttpSettings[K]) => {
         if (canEdit && !query.isFetching && !saveMutation.isPending && !resetMutation.isPending)
             updateSetting(key, value)
@@ -82,11 +84,8 @@ export default function useProxyConfigEditorLogic({
         setReviewedLatest(latest.data)
     }
     const invalidate = useCallback(async () => {
-        await Promise.all([
-            queryClient.invalidateQueries({ queryKey }),
-            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
-        ])
-    }, [queryClient, queryKey])
+        await invalidateProxyHostManagementCache(queryClient)
+    }, [queryClient])
     const saveMutation = useMutation({
         mutationFn: (value: ProxyConfigEditorSubmission) =>
             saveProxyHostConfigEditorHandler({
@@ -153,6 +152,7 @@ export default function useProxyConfigEditorLogic({
     const save = useCallback(() => {
         if (
             canEdit &&
+            isValid &&
             !hasConflict &&
             !query.isFetching &&
             baseRevision !== null &&
@@ -164,6 +164,7 @@ export default function useProxyConfigEditorLogic({
         baseRevision,
         canEdit,
         hasConflict,
+        isValid,
         query.isFetching,
         resetMutation,
         saveMutation,
@@ -183,6 +184,7 @@ export default function useProxyConfigEditorLogic({
     }, [baseRevision, canEdit, hasConflict, query.isFetching, resetMutation, saveMutation])
     const state: ProxyConfigEditorState = {
         hasConflict,
+        isValid,
         reviewedLatest: reviewedLatest?.settings ?? null,
         isConflictConfirmationOpen,
         activeTab,

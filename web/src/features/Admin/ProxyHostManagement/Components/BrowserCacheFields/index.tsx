@@ -10,7 +10,7 @@ export default function BrowserCacheFields(props: BrowserCacheFieldsProps) {
     const { value, disabled } = props
     const { t } = useTranslationStore()
     const {
-        state: { id, invalid },
+        state: { id, invalid, rules },
         handler,
     } = useBrowserCacheFieldsLogic(props)
     return (
@@ -30,61 +30,73 @@ export default function BrowserCacheFields(props: BrowserCacheFieldsProps) {
                 onChange={(event) => handler.setEnabled(event.target.checked)}
             />
             {invalid ? (
-                <p role="alert" className="text-sm text-danger-text">
+                <p id={id + '-error'} role="alert" className="text-sm text-danger-text">
                     {t('admin.proxyHosts.browserCache.invalid')}
                 </p>
             ) : null}
-            {value?.rules.map((rule, index) => (
-                <div
-                    key={handler.getRuleKey(index)}
-                    className="grid gap-2 rounded-lg border border-border p-2"
-                >
-                    <label htmlFor={id + '-path-' + index}>
-                        {t('admin.proxyHosts.browserCache.path')}
-                    </label>
-                    <TextInput
-                        id={id + '-path-' + index}
-                        value={rule.path}
-                        maxLength={512}
-                        placeholder={t('admin.proxyHosts.browserCache.pathPlaceholder')}
-                        onChange={(event) =>
-                            handler.updateRule(index, { path: event.target.value })
-                        }
-                    />
-                    <label htmlFor={id + '-age-' + index}>
-                        {t('admin.proxyHosts.browserCache.age')}
-                    </label>
-                    <NumberInput
-                        type="number"
-                        id={id + '-age-' + index}
-                        min={1}
-                        max={31536000}
-                        value={String(rule.maxAgeSeconds)}
-                        onChange={(event) =>
-                            handler.updateRule(index, { maxAgeSeconds: Number(event.target.value) })
-                        }
-                    />
-                    <OptionToggle
-                        label={t('admin.proxyHosts.browserCache.immutable')}
-                        checked={rule.immutable}
-                        disabled={disabled}
-                        onChange={(event) =>
-                            handler.updateRule(index, { immutable: event.target.checked })
-                        }
-                    />
-                    <button
-                        className={buttonClassName('secondary')}
-                        type="button"
-                        onClick={() => handler.removeRule(index)}
-                    >
-                        {t('admin.proxyHosts.browserCache.remove')}
-                    </button>
-                </div>
-            ))}
+            {value?.enabled
+                ? rules.map((rule, index) => (
+                      <div
+                          key={rule.key}
+                          className="grid gap-2 rounded-lg border border-border p-2"
+                      >
+                          <label htmlFor={id + '-path-' + index}>
+                              {t('admin.proxyHosts.browserCache.path')}
+                          </label>
+                          <TextInput
+                              id={id + '-path-' + index}
+                              value={rule.path}
+                              disabled={disabled}
+                              required
+                              maxLength={512}
+                              aria-invalid={invalid}
+                              aria-describedby={invalid ? id + '-error' : id + '-help'}
+                              validationMode="external"
+                              placeholder={t('admin.proxyHosts.browserCache.pathPlaceholder')}
+                              onChange={(event) =>
+                                  handler.updateRule(index, { path: event.target.value })
+                              }
+                          />
+                          <label htmlFor={id + '-age-' + index}>
+                              {t('admin.proxyHosts.browserCache.age')}
+                          </label>
+                          <NumberInput
+                              type="number"
+                              id={id + '-age-' + index}
+                              min={1}
+                              max={31536000}
+                              step={1}
+                              value={rule.maxAgeValue}
+                              disabled={disabled}
+                              required
+                              aria-invalid={invalid}
+                              aria-describedby={invalid ? id + '-error' : id + '-help'}
+                              validationMode="external"
+                              onValueChange={(draft) => handler.setMaxAge(index, draft)}
+                          />
+                          <OptionToggle
+                              label={t('admin.proxyHosts.browserCache.immutable')}
+                              checked={rule.immutable}
+                              disabled={disabled}
+                              onChange={(event) =>
+                                  handler.updateRule(index, { immutable: event.target.checked })
+                              }
+                          />
+                          <button
+                              className={buttonClassName('secondary')}
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => handler.removeRule(index)}
+                          >
+                              {t('admin.proxyHosts.browserCache.remove')}
+                          </button>
+                      </div>
+                  ))
+                : null}
             <button
                 className={buttonClassName('secondary')}
                 type="button"
-                disabled={disabled || (value?.rules.length ?? 0) >= 20}
+                disabled={disabled || !value?.enabled || rules.length >= 20}
                 onClick={handler.addRule}
             >
                 {t('admin.proxyHosts.browserCache.add')}
