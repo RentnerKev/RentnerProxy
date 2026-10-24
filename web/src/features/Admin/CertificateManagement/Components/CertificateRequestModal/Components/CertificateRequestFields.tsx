@@ -1,8 +1,9 @@
-import { EmailInput, PasswordInput, TextInput, Textarea } from '@rentnerkev/inputs'
+import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { CertificateRequestFieldsProps } from '../Types/certificate-request-modal.types.ts'
+import CertificateDomainInputs from './CertificateDomainInputs.tsx'
 
 /** Renders the ACME certificate request fields and environment-specific guidance. */
 export default function CertificateRequestFields({
@@ -41,48 +42,11 @@ export default function CertificateRequestFields({
                     </div>
                 )}
             </form.Field>
-            <form.Field name="domains">
-                {(field) => (
-                    <div className="grid gap-[0.45rem] shell:col-span-full">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor="certificate-request-domains"
-                        >
-                            {t('admin.certificates.form.domains')}
-                        </label>
-                        <Textarea
-                            id="certificate-request-domains"
-                            placeholder={
-                                readOnlyDomains ? undefined : t('placeholders.certificateDomains')
-                            }
-                            aria-invalid={field.state.meta.errors.length > 0}
-                            name={field.name}
-                            value={field.state.value.join('\n')}
-                            disabled={isPending}
-                            readOnly={readOnlyDomains}
-                            maxLength={25_600}
-                            onBlur={field.handleBlur}
-                            onChange={(event) =>
-                                field.handleChange(event.target.value.split(/\r?\n/u))
-                            }
-                            autoCapitalize="none"
-                            autoComplete="off"
-                            spellCheck={false}
-                            aria-describedby="certificate-request-domains-hint certificate-request-domains-error"
-                        />
-                        <p
-                            id="certificate-request-domains-hint"
-                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
-                        >
-                            {t('admin.certificates.form.domainsHint')}
-                        </p>
-                        <FieldError
-                            id="certificate-request-domains-error"
-                            errors={field.state.meta.errors}
-                        />
-                    </div>
-                )}
-            </form.Field>
+            <CertificateDomainInputs
+                form={form}
+                isPending={isPending}
+                readOnlyDomains={readOnlyDomains}
+            />
             <form.Field name="challengeType">
                 {(field) => (
                     <div className="grid gap-[0.45rem]">

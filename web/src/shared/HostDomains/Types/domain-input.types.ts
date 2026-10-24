@@ -10,6 +10,7 @@ export interface DomainInputRowProps {
     readonly describedBy: string
     readonly errors: readonly unknown[]
     readonly disabled: boolean
+    readonly readOnly?: boolean
     readonly removeDisabled: boolean
     readonly removeLabel: string
     readonly onBlur: () => void
@@ -22,6 +23,7 @@ export interface DomainListFieldsetProps {
     readonly legend: string
     readonly addLabel: string
     readonly addDisabled: boolean
+    readonly readOnly?: boolean
     readonly onAdd: () => void
     readonly hint: string
     readonly hintId: string

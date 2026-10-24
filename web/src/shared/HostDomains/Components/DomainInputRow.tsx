@@ -14,6 +14,7 @@ export default function DomainInputRow({
     describedBy,
     errors,
     disabled,
+    readOnly = false,
     removeDisabled,
     removeLabel,
     onBlur,
@@ -32,6 +33,7 @@ export default function DomainInputRow({
                     value={value}
                     maxLength={1_024}
                     disabled={disabled}
+                    readOnly={readOnly}
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
@@ -41,15 +43,17 @@ export default function DomainInputRow({
                     aria-invalid={errors.length > 0}
                     aria-describedby={describedBy}
                 />
-                <button
-                    type="button"
-                    className={buttonClassName('ghost', 'mt-1 shrink-0 px-2')}
-                    aria-label={removeLabel}
-                    disabled={removeDisabled}
-                    onClick={onRemove}
-                >
-                    <Trash2 aria-hidden="true" className="size-4" />
-                </button>
+                {!readOnly ? (
+                    <button
+                        type="button"
+                        className={buttonClassName('ghost', 'mt-1 shrink-0 px-2')}
+                        aria-label={removeLabel}
+                        disabled={removeDisabled}
+                        onClick={onRemove}
+                    >
+                        <Trash2 aria-hidden="true" className="size-4" />
+                    </button>
+                ) : null}
             </div>
             <FieldError id={errorId} errors={errors} />
         </div>

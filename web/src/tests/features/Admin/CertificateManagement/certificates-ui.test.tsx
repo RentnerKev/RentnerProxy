@@ -10,6 +10,7 @@ import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { MAX_CERTIFICATE_DOMAINS } from '@/config/certificates.config.ts'
 import type {
     CertificateActionResult,
     CertificateSummary,
@@ -200,6 +201,12 @@ async function setValue(control: HTMLInputElement | HTMLTextAreaElement, value: 
         control.dispatchEvent(new Event('change', { bubbles: true }))
         await Promise.resolve()
     })
+}
+
+function certificateDomainInputs(): HTMLInputElement[] {
+    return [
+        ...document.querySelectorAll<HTMLInputElement>('input[id^="certificate-request-domain-"]'),
+    ]
 }
 
 async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<void> {
@@ -889,9 +896,9 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
         await setValue(document.querySelector('#certificate-request-name')!, 'Consent edge')
-        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'edge.example.com')
         expect(document.querySelector('#certificate-request-terms')).toBeNull()
         expect(document.body.textContent).not.toContain('I accept the ACME terms of service')
         expect(document.body.textContent).not.toContain('ACME validation needs public DNS')
@@ -918,9 +925,9 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
         await setValue(document.querySelector('#certificate-request-name')!, 'Cancelled edge')
-        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'edge.example.com')
         await click(lastButton('Cancel'))
         await waitFor(() => document.querySelector('[role=dialog]') === null)
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
@@ -931,19 +938,28 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
         expect(document.body.textContent).toContain(
             'Production issues a publicly trusted certificate for normal operation.',
         )
         await setValue(document.querySelector('#certificate-request-name')!, 'Production edge')
-        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
-        const domains = document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')!
-        for (const character of '\nwww.edge.example.com\n') {
-            // oxlint-disable-next-line eslint/no-await-in-loop -- Each keystroke must observe the preceding controlled render.
-            await setValue(domains, domains.value + character)
-            expect(domains.value.endsWith(character)).toBeTrue()
-        }
-        expect(domains.value).toBe('edge.example.com\nwww.edge.example.com\n')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'edge.example.com')
+        expect(button('Remove domain 1').disabled).toBeTrue()
+        await click(button('Add another domain'))
+        await setValue(
+            document.querySelector('#certificate-request-domain-1')!,
+            'remove.example.com',
+        )
+        await click(button('Add another domain'))
+        const lastDomain = document.querySelector<HTMLInputElement>(
+            '#certificate-request-domain-2',
+        )!
+        await setValue(lastDomain, 'www.edge.example.com')
+        await click(button('Remove domain 2'))
+        expect(document.querySelector('#certificate-request-domain-1')).toBe(lastDomain)
+        expect(lastDomain.value).toBe('www.edge.example.com')
+        await click(button('Add another domain'))
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
         await setValue(document.querySelector('#certificate-request-contact')!, 'ops@example.com')
         let finishRefresh: (() => void) | undefined
         getCertificatesHandlerMock.mockImplementationOnce(
@@ -966,6 +982,11 @@ describe('certificate management UI', () => {
         })
         try {
             await waitFor(() => finishRefresh !== undefined)
+            expect(button('Add another domain').disabled).toBeTrue()
+            expect(button('Remove domain 1').disabled).toBeTrue()
+            expect(
+                document.querySelector<HTMLInputElement>('#certificate-request-domain-0')?.disabled,
+            ).toBeTrue()
             expect(
                 document.querySelector<HTMLButtonElement>('[role=dialog] button[type=submit]')
                     ?.disabled,
@@ -977,17 +998,63 @@ describe('certificate management UI', () => {
         await waitForToast('success')
     })
 
+    test('limits certificate domain rows and allows adding again after removal', async () => {
+        await renderPage(
+            [],
+            'en',
+            <CertificateRequestModal
+                open
+                onOpenChange={() => {}}
+                onSuccess={() => {}}
+                initialDomains={Array.from(
+                    { length: MAX_CERTIFICATE_DOMAINS },
+                    (_, index) => `host-${index}.example.com`,
+                )}
+            />,
+        )
+        expect(certificateDomainInputs()).toHaveLength(MAX_CERTIFICATE_DOMAINS)
+        expect(button('Add another domain').disabled).toBeTrue()
+        await click(button('Remove domain 2'))
+        expect(certificateDomainInputs()).toHaveLength(MAX_CERTIFICATE_DOMAINS - 1)
+        expect(button('Add another domain').disabled).toBeFalse()
+        await click(button('Add another domain'))
+        expect(certificateDomainInputs()).toHaveLength(MAX_CERTIFICATE_DOMAINS)
+        expect(certificateDomainInputs()[MAX_CERTIFICATE_DOMAINS - 1]?.value).toBe('')
+        expect(button('Add another domain').disabled).toBeTrue()
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('shows every fixed host domain as read-only without domain editing actions', async () => {
+        const domains = ['app.example.com', 'www.example.com']
+        await renderPage(
+            [],
+            'en',
+            <CertificateRequestModal
+                open
+                onOpenChange={() => {}}
+                onSuccess={() => {}}
+                initialDomains={domains}
+                readOnlyDomains
+            />,
+        )
+        const inputs = certificateDomainInputs()
+        expect(inputs.map((input) => input.value)).toEqual(domains)
+        expect(inputs.every((input) => input.readOnly)).toBeTrue()
+        expect(document.body.textContent).not.toContain('Add another domain')
+        expect(document.querySelector('button[aria-label^="Remove domain"]')).toBeNull()
+    })
+
     test('keeps staging available as an explicitly selected test environment', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
         await chooseAcmeEnvironment('Staging')
         expect(document.body.textContent).toContain(
             'Staging is a test environment; certificates are not trusted by normal browsers.',
         )
         await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
-        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'edge.example.com')
         let finishRefresh: (() => void) | undefined
         getCertificatesHandlerMock.mockImplementationOnce(
             () =>
@@ -1023,12 +1090,11 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
         await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
-        await setValue(
-            document.querySelector('#certificate-request-domains')!,
-            '*.example.com\nexample.com',
-        )
+        await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
+        await click(button('Add another domain'))
+        await setValue(document.querySelector('#certificate-request-domain-1')!, 'example.com')
         await chooseDnsChallenge()
         await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
         await setValue(
@@ -1058,8 +1124,8 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
-        await setValue(document.querySelector('#certificate-request-domains')!, '*.example.com')
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+        await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
         await chooseDnsChallenge()
         await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'invalid-zone')
         await setValue(
@@ -1083,8 +1149,8 @@ describe('certificate management UI', () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
-        await setValue(document.querySelector('#certificate-request-domains')!, '*.example.com')
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+        await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
         await click(lastButton('Request with ACME'))
         await waitFor(
             () =>

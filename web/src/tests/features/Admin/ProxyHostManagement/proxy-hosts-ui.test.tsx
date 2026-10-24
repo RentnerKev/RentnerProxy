@@ -1447,7 +1447,7 @@ describe('proxy host form tabs', () => {
             'Draft TLS',
         )
         expect(
-            document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')?.value,
+            document.querySelector<HTMLInputElement>('#certificate-request-domain-0')?.value,
         ).toBe('updated.example.com')
         expect(
             document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')?.value,
@@ -2309,9 +2309,9 @@ test('creates a proxy host and queues a certificate job with read-only host doma
     )
     await blurControl(document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!)
     await chooseSelectOption('TLS certificate', 'Request with ACME')
-    await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+    await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
     expect(
-        document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')?.readOnly,
+        document.querySelector<HTMLInputElement>('#certificate-request-domain-0')?.readOnly,
     ).toBe(true)
     expect(document.querySelector<HTMLInputElement>('#certificate-request-name')?.value).toBe(
         'app.example.com',
