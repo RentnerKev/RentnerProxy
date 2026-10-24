@@ -4,7 +4,7 @@ import type { OptionToggleProps } from './Types/option-toggle.types.ts'
 
 export default function OptionToggle({ label, iconOnly = false, ...input }: OptionToggleProps) {
     return (
-        <label className="inline-flex w-fit max-w-full">
+        <label className="relative inline-flex w-fit max-w-full">
             <CheckboxInput
                 {...input}
                 aria-label={iconOnly ? label : undefined}
