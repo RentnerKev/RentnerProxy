@@ -1,0 +1,12 @@
+version: 2
+
+triggerPaths:
+    - '*'
+
+githubApp:
+    enabled: true
+    pullRequestAlertsEnabled: true
+    dependencyOverviewEnabled: true
+    projectReportsEnabled: true
+    ignoreUsers: []
+    disableCommentsAndCheckRuns: false
