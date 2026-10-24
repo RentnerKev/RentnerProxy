@@ -43,7 +43,6 @@ export default function CertificateImportFields({ form, isPending }: Certificate
                 form={form}
                 name="certificatePem"
                 label={t('admin.certificates.form.certificatePem')}
-                hint={t('admin.certificates.form.certificatePemHint')}
                 isPending={isPending}
                 required
             />
@@ -51,7 +50,6 @@ export default function CertificateImportFields({ form, isPending }: Certificate
                 form={form}
                 name="privateKeyPem"
                 label={t('admin.certificates.form.privateKeyPem')}
-                hint={t('admin.certificates.form.privateKeyPemHint')}
                 isPending={isPending}
                 required
             />
@@ -59,7 +57,6 @@ export default function CertificateImportFields({ form, isPending }: Certificate
                 form={form}
                 name="chainPem"
                 label={t('admin.certificates.form.chainPem')}
-                hint={t('admin.certificates.form.chainPemHint')}
                 isPending={isPending}
             />
         </div>
@@ -70,14 +67,12 @@ function PemField({
     form,
     name,
     label,
-    hint,
     isPending,
     required,
 }: {
     readonly form: CertificateImportFieldsProps['form']
     readonly name: 'certificatePem' | 'privateKeyPem' | 'chainPem'
     readonly label: string
-    readonly hint: string
     readonly isPending: boolean
     readonly required?: boolean
 }) {
@@ -86,7 +81,6 @@ function PemField({
             {(field) => {
                 const id = `certificate-import-${name}`
                 const errorId = `${id}-error`
-                const hintId = `${id}-hint`
                 return (
                     <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label className="text-[0.82rem] font-[750] text-ink-soft" htmlFor={id}>
@@ -105,11 +99,8 @@ function PemField({
                             autoCapitalize="off"
                             autoComplete="off"
                             spellCheck={false}
-                            aria-describedby={`${hintId} ${errorId}`}
+                            aria-describedby={errorId}
                         />
-                        <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted">
-                            {hint}
-                        </p>
                         <FieldError id={errorId} errors={field.state.meta.errors} />
                     </div>
                 )
