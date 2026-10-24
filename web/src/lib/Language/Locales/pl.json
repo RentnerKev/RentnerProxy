@@ -1187,9 +1187,7 @@
                 "productionHint": "Środowisko produkcyjne wystawia publicznie zaufany certyfikat do zwykłego użytku.",
                 "stagingHint": "Środowisko testowe — przeglądarki nie ufają tym certyfikatom.",
                 "contactEmail": "Adres e-mail do kontaktu (opcjonalnie)",
-                "contactHint": "Służy do otrzymywania powiadomień ACME, jeśli wystawca je obsługuje.",
-                "acceptTerms": "Akceptuję warunki korzystania z ACME",
-                "termsHint": "Żądania produkcyjne wymagają jawnej akceptacji."
+                "contactHint": "Służy do otrzymywania powiadomień ACME, jeśli wystawca je obsługuje."
             },
             "environment": {
                 "staging": "Testowe",
@@ -1202,7 +1200,8 @@
             "request": {
                 "title": "Zamów certyfikat ACME",
                 "description": "Zamów certyfikat dla domen publicznych za pomocą wybranego środowiska ACME.",
-                "networkHint": "Weryfikacja ACME wymaga publicznego DNS. W przypadku HTTP-01 każda domena musi być też dostępna przez port 80."
+                "submitConsent": "Klikając „{{action}}”, akceptujesz",
+                "termsLink": "warunki korzystania z ACME"
             },
             "confirm": {
                 "renewTitle": "Odnowić {{name}}?",

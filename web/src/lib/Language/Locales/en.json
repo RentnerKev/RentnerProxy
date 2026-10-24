@@ -1173,9 +1173,7 @@
                 "productionHint": "Production issues a publicly trusted certificate for normal operation.",
                 "stagingHint": "Staging is a test environment; certificates are not trusted by normal browsers.",
                 "contactEmail": "Contact email (optional)",
-                "contactHint": "Used for ACME notices when supported by the issuer.",
-                "acceptTerms": "I accept the ACME terms of service",
-                "termsHint": "Production requests require explicit acceptance."
+                "contactHint": "Used for ACME notices when supported by the issuer."
             },
             "environment": {
                 "staging": "Staging",
@@ -1188,7 +1186,8 @@
             "request": {
                 "title": "Request ACME certificate",
                 "description": "Request a certificate for public domains through the selected ACME environment.",
-                "networkHint": "ACME validation needs public DNS. HTTP-01 also requires reachable port 80 for each domain."
+                "submitConsent": "By clicking “{{action}}”, you accept the",
+                "termsLink": "ACME terms of service"
             },
             "confirm": {
                 "renewTitle": "Renew {{name}}?",

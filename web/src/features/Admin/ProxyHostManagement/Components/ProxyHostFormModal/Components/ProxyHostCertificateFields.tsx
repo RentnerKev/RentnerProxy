@@ -105,7 +105,6 @@ export default function ProxyHostCertificateFields({
                         form={certificateRequestForm}
                         isPending={isPending}
                         readOnlyDomains
-                        showTermsCheckbox={false}
                     />
                 </div>
             ) : null}

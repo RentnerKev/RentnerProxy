@@ -1,4 +1,4 @@
-import { CheckboxInput, EmailInput, PasswordInput, TextInput, Textarea } from '@rentnerkev/inputs'
+import { EmailInput, PasswordInput, TextInput, Textarea } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
@@ -9,7 +9,6 @@ export default function CertificateRequestFields({
     form,
     isPending,
     readOnlyDomains = false,
-    showTermsCheckbox = true,
 }: CertificateRequestFieldsProps) {
     const { t } = useTranslationStore()
     return (
@@ -284,43 +283,6 @@ export default function CertificateRequestFields({
                     </div>
                 )}
             </form.Field>
-            {showTermsCheckbox ? (
-                <form.Field name="acceptTerms">
-                    {(field) => (
-                        <div className="grid gap-[0.45rem] shell:col-span-full">
-                            <label
-                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
-                                htmlFor="certificate-request-terms"
-                                aria-label={t('admin.certificates.form.acceptTerms')}
-                            >
-                                <CheckboxInput
-                                    id="certificate-request-terms"
-                                    name={field.name}
-                                    type="checkbox"
-                                    aria-invalid={field.state.meta.errors.length > 0}
-                                    aria-describedby="certificate-request-terms-error"
-                                    checked={field.state.value}
-                                    disabled={isPending}
-                                    onBlur={field.handleBlur}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                />
-                                <span className="grid gap-[0.12rem]">
-                                    <span className="text-[0.78rem] text-ink-soft">
-                                        {t('admin.certificates.form.acceptTerms')}
-                                    </span>
-                                    <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
-                                        {t('admin.certificates.form.termsHint')}
-                                    </span>
-                                </span>
-                            </label>
-                            <FieldError
-                                id="certificate-request-terms-error"
-                                errors={field.state.meta.errors}
-                            />
-                        </div>
-                    )}
-                </form.Field>
-            ) : null}
         </div>
     )
 }

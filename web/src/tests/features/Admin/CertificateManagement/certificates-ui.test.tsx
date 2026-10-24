@@ -342,7 +342,6 @@ describe('certificate management UI', () => {
                 document.querySelector('#certificate-request-contact')!,
                 'ops@example.com',
             )
-            await click(document.querySelector('#certificate-request-terms')!)
             await click(lastButton('Request with ACME'))
             await waitForToast('error')
 
@@ -886,28 +885,46 @@ describe('certificate management UI', () => {
         await waitForToast('success')
     })
 
-    test('standalone certificate requests retain the explicit terms checkbox', async () => {
+    test('accepts ACME terms through the explicit request action without a checkbox or network banner', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
         await setValue(document.querySelector('#certificate-request-name')!, 'Consent edge')
         await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
-        expect(
-            document.querySelector<HTMLInputElement>('#certificate-request-terms')?.checked,
-        ).toBeFalse()
-        expect(
-            document.querySelector('#certificate-request-terms')?.getAttribute('aria-invalid'),
-        ).toBe('false')
-        await click(lastButton('Request with ACME'))
+        expect(document.querySelector('#certificate-request-terms')).toBeNull()
+        expect(document.body.textContent).not.toContain('I accept the ACME terms of service')
+        expect(document.body.textContent).not.toContain('ACME validation needs public DNS')
+        const submit = lastButton('Request with ACME')
+        const consent = document.getElementById(submit.getAttribute('aria-describedby')!)!
+        expect(consent.textContent).toContain('By clicking “Request with ACME”, you accept the')
+        expect(consent.querySelector('a')?.textContent).toBe('ACME terms of service')
+        expect(consent.querySelector('a')?.getAttribute('href')).toBe(
+            'https://letsencrypt.org/repository/',
+        )
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
-        expect(document.querySelector('#certificate-request-terms-error')?.textContent).toBeTruthy()
-        expect(
-            document.querySelector('#certificate-request-terms')?.getAttribute('aria-invalid'),
-        ).toBe('true')
-        expect(
-            document.querySelector('#certificate-request-terms')?.getAttribute('aria-describedby'),
-        ).toBe('certificate-request-terms-error')
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                name: 'Consent edge',
+                domains: ['edge.example.com'],
+                acceptTerms: true,
+            }),
+        })
+    })
+
+    test('opening and cancelling an ACME request issues no certificate', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await setValue(document.querySelector('#certificate-request-name')!, 'Cancelled edge')
+        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await click(lastButton('Cancel'))
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(requestProxyHostCertificateHandlerMock).not.toHaveBeenCalled()
     })
 
     test('requests production ACME by default with domains, contact, and accepted terms', async () => {
@@ -928,7 +945,6 @@ describe('certificate management UI', () => {
         }
         expect(domains.value).toBe('edge.example.com\nwww.edge.example.com\n')
         await setValue(document.querySelector('#certificate-request-contact')!, 'ops@example.com')
-        await click(document.querySelector('#certificate-request-terms')!)
         let finishRefresh: (() => void) | undefined
         getCertificatesHandlerMock.mockImplementationOnce(
             () =>
@@ -972,7 +988,6 @@ describe('certificate management UI', () => {
         )
         await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
         await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
-        await click(document.querySelector('#certificate-request-terms')!)
         let finishRefresh: (() => void) | undefined
         getCertificatesHandlerMock.mockImplementationOnce(
             () =>
@@ -1020,7 +1035,6 @@ describe('certificate management UI', () => {
             document.querySelector('#certificate-request-dns-api-token')!,
             'cloudflare-secret-token',
         )
-        await click(document.querySelector('#certificate-request-terms')!)
         await click(lastButton('Request with ACME'))
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
         expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
@@ -1052,7 +1066,6 @@ describe('certificate management UI', () => {
             document.querySelector('#certificate-request-dns-api-token')!,
             'token with spaces',
         )
-        await click(document.querySelector('#certificate-request-terms')!)
         await click(lastButton('Request with ACME'))
         await waitFor(
             () =>
@@ -1072,7 +1085,6 @@ describe('certificate management UI', () => {
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
         await setValue(document.querySelector('#certificate-request-domains')!, '*.example.com')
-        await click(document.querySelector('#certificate-request-terms')!)
         await click(lastButton('Request with ACME'))
         await waitFor(
             () =>

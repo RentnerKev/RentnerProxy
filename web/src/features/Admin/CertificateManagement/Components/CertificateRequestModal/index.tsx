@@ -5,6 +5,7 @@ import useCertificateRequestModalLogic from './Hooks/useCertificateRequestModalL
 import type { CertificateRequestModalProps } from './Types/certificate-request-modal.types.ts'
 import CertificateRequestFields from './Components/CertificateRequestFields.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ACME_TERMS_INFORMATION_URL } from '@/config/certificates.config.ts'
 
 export default function CertificateRequestModal(props: CertificateRequestModalProps) {
     const { state, handler, form }: CertificateRequestModalLogicResult =
@@ -20,6 +21,25 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
             closeDisabled={state.isPending}
             footer={
                 <>
+                    {!state.retryableJob ? (
+                        <p
+                            id={`${state.formId}-acme-consent`}
+                            className="m-0 w-full text-xs leading-relaxed text-muted"
+                        >
+                            {t('admin.certificates.request.submitConsent', {
+                                action: t('admin.certificates.actions.request'),
+                            })}{' '}
+                            <a
+                                href={ACME_TERMS_INFORMATION_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-accent-ring underline underline-offset-2"
+                            >
+                                {t('admin.certificates.request.termsLink')}
+                            </a>
+                            .
+                        </p>
+                    ) : null}
                     <button
                         type="button"
                         className={buttonClassName('secondary')}
@@ -37,6 +57,9 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                             <button
                                 type="submit"
                                 form={state.formId}
+                                aria-describedby={
+                                    state.retryableJob ? undefined : `${state.formId}-acme-consent`
+                                }
                                 className={buttonClassName('primary')}
                                 disabled={
                                     !canSubmit ||
@@ -56,14 +79,11 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                 </>
             }
         >
-            <div className="mb-4 rounded-xl border border-info-text/20 bg-info-bg p-3 text-sm leading-relaxed text-info-text">
-                {t('admin.certificates.request.networkHint')}
-                {state.jobStage ? (
-                    <span className="mt-2 block font-semibold">
-                        {t(`admin.certificates.operationStages.${state.jobStage}`)}
-                    </span>
-                ) : null}
-            </div>
+            {state.jobStage ? (
+                <output className="mb-4 block text-sm font-semibold text-ink-soft">
+                    {t(`admin.certificates.operationStages.${state.jobStage}`)}
+                </output>
+            ) : null}
             <form id={state.formId} noValidate onSubmit={handler.handleSubmit}>
                 <CertificateRequestFields
                     form={form}

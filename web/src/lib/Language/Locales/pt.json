@@ -1185,9 +1185,7 @@
                 "productionHint": "A produção emite um certificado de confiança pública para utilização normal.",
                 "stagingHint": "O ambiente de testes é para experimentação; os certificados não são considerados fidedignos pelos navegadores comuns.",
                 "contactEmail": "E-mail de contacto (opcional)",
-                "contactHint": "Usado para notificações ACME, quando suportado pelo emissor.",
-                "acceptTerms": "Aceito os termos de serviço ACME",
-                "termsHint": "Os pedidos de produção exigem aceitação explícita."
+                "contactHint": "Usado para notificações ACME, quando suportado pelo emissor."
             },
             "environment": {
                 "staging": "Testes",
@@ -1200,7 +1198,8 @@
             "request": {
                 "title": "Pedir certificado ACME",
                 "description": "Peça um certificado para domínios públicos através do ambiente ACME selecionado.",
-                "networkHint": "A validação ACME requer DNS público. O HTTP-01 também requer a porta 80 acessível para cada domínio."
+                "submitConsent": "Ao clicar em «{{action}}», aceita os",
+                "termsLink": "termos de serviço ACME"
             },
             "confirm": {
                 "renewTitle": "Renovar {{name}}?",

@@ -37,6 +37,7 @@ export default function useCertificateRequestModalLogic(props: CertificateReques
             handleSubmit: (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
                 event.stopPropagation()
+                if (!retryableJob) form.setFieldValue('acceptTerms', true)
                 void form.handleSubmit()
             },
         },

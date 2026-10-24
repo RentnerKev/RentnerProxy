@@ -1154,9 +1154,7 @@
                 "productionHint": "De productieomgeving geeft een openbaar vertrouwd certificaat uit voor normaal gebruik.",
                 "stagingHint": "Staging is een testomgeving; certificaten worden niet vertrouwd door normale browsers.",
                 "contactEmail": "Contact-e-mail (optioneel)",
-                "contactHint": "Wordt voor ACME-meldingen gebruikt als de uitgever dit ondersteunt.",
-                "acceptTerms": "Ik accepteer de ACME-servicevoorwaarden",
-                "termsHint": "Productieaanvragen vereisen uitdrukkelijke acceptatie."
+                "contactHint": "Wordt voor ACME-meldingen gebruikt als de uitgever dit ondersteunt."
             },
             "environment": {
                 "staging": "Testomgeving",
@@ -1169,7 +1167,8 @@
             "request": {
                 "title": "ACME-certificaat aanvragen",
                 "description": "Vraag een certificaat voor openbare domeinen aan via de gekozen ACME-omgeving.",
-                "networkHint": "ACME-validatie vereist openbare DNS. HTTP-01 vereist ook een bereikbare poort 80 voor elk domein."
+                "submitConsent": "Door op ‘{{action}}’ te klikken, accepteer je de",
+                "termsLink": "ACME-gebruiksvoorwaarden"
             },
             "confirm": {
                 "renewTitle": "{{name}} vernieuwen?",

@@ -1173,9 +1173,7 @@
                 "productionHint": "Produktion stellt ein öffentlich vertrauenswürdiges Zertifikat für den normalen Betrieb aus.",
                 "stagingHint": "Staging ist eine Testumgebung; die Zertifikate werden von normalen Browsern nicht als vertrauenswürdig eingestuft.",
                 "contactEmail": "Kontakt-E-Mail (optional)",
-                "contactHint": "Wird für ACME-Hinweise verwendet, sofern vom Aussteller unterstützt.",
-                "acceptTerms": "Ich akzeptiere die ACME-Nutzungsbedingungen",
-                "termsHint": "Produktionsanfragen erfordern eine ausdrückliche Zustimmung."
+                "contactHint": "Wird für ACME-Hinweise verwendet, sofern vom Aussteller unterstützt."
             },
             "environment": {
                 "staging": "Staging",
@@ -1188,7 +1186,8 @@
             "request": {
                 "title": "ACME-Zertifikat anfordern",
                 "description": "Fordere für öffentliche Domains über die ausgewählte ACME-Umgebung ein Zertifikat an.",
-                "networkHint": "Die ACME-Validierung benötigt öffentlichen DNS. HTTP-01 erfordert zusätzlich einen erreichbaren Port 80 für jede Domain."
+                "submitConsent": "Mit „{{action}}“ akzeptierst du die",
+                "termsLink": "ACME-Nutzungsbedingungen"
             },
             "confirm": {
                 "renewTitle": "{{name}} erneuern?",

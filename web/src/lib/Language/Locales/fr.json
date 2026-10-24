@@ -1175,9 +1175,7 @@
                 "productionHint": "L’environnement de production délivre un certificat publiquement approuvé pour un usage normal.",
                 "stagingHint": "Staging est un environnement de test ; ses certificats ne sont pas approuvés par les navigateurs ordinaires.",
                 "contactEmail": "E-mail de contact (facultatif)",
-                "contactHint": "Utilisé pour les notifications ACME lorsque l’émetteur le prend en charge.",
-                "acceptTerms": "J’accepte les conditions d’utilisation d’ACME",
-                "termsHint": "Les demandes de production exigent une acceptation explicite."
+                "contactHint": "Utilisé pour les notifications ACME lorsque l’émetteur le prend en charge."
             },
             "environment": {
                 "staging": "Staging",
@@ -1190,7 +1188,8 @@
             "request": {
                 "title": "Demander un certificat ACME",
                 "description": "Demandez un certificat pour des domaines publics via l’environnement ACME sélectionné.",
-                "networkHint": "La validation ACME nécessite un DNS public. HTTP-01 exige aussi le port 80 accessible pour chaque domaine."
+                "submitConsent": "En cliquant sur « {{action}} », vous acceptez les",
+                "termsLink": "conditions d’utilisation ACME"
             },
             "confirm": {
                 "renewTitle": "Renouveler {{name}} ?",

@@ -24,7 +24,6 @@ export interface CertificateRequestModalLogicResult {
 }
 
 export interface CertificateRequestFieldsProps {
-    readonly showTermsCheckbox?: boolean
     readonly form: CertificateRequestModalLogicResult['form']
     readonly isPending: boolean
     readonly readOnlyDomains?: boolean

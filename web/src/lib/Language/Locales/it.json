@@ -1180,9 +1180,7 @@
                 "productionHint": "L’ambiente di produzione rilascia un certificato considerato attendibile pubblicamente per il normale utilizzo.",
                 "stagingHint": "L’ambiente di test non rilascia certificati considerati attendibili dai browser comuni.",
                 "contactEmail": "Email di contatto (facoltativa)",
-                "contactHint": "Usata per le comunicazioni ACME, se supportate dall’emittente.",
-                "acceptTerms": "Accetto i termini di servizio ACME",
-                "termsHint": "Per le richieste di produzione è necessario accettare esplicitamente i termini."
+                "contactHint": "Usata per le comunicazioni ACME, se supportate dall’emittente."
             },
             "environment": {
                 "staging": "Test",
@@ -1195,7 +1193,8 @@
             "request": {
                 "title": "Richiedi certificato ACME",
                 "description": "Richiedi un certificato per domini pubblici tramite l’ambiente ACME selezionato.",
-                "networkHint": "La convalida ACME richiede DNS pubblico. HTTP-01 richiede anche che la porta 80 sia raggiungibile per ogni dominio."
+                "submitConsent": "Facendo clic su «{{action}}», accetti i",
+                "termsLink": "termini di servizio ACME"
             },
             "confirm": {
                 "renewTitle": "Rinnovare {{name}}?",
