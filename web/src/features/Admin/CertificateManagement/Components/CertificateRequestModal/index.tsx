@@ -24,7 +24,7 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                     {!state.retryableJob ? (
                         <p
                             id={`${state.formId}-acme-consent`}
-                            className="m-0 w-full text-xs leading-relaxed text-muted"
+                            className="m-0 min-w-0 flex-1 text-xs leading-relaxed text-muted max-sm:basis-full"
                         >
                             {t('admin.certificates.request.submitConsent', {
                                 action: t('admin.certificates.actions.request'),

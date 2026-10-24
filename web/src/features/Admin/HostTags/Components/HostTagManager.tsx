@@ -5,6 +5,7 @@ import { Tags } from 'lucide-react'
 import type { HostKind } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -61,6 +62,34 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                 description={t('admin.hostTags.description')}
                 size="lg"
                 closeDisabled={state.pending || Boolean(state.deleting)}
+                footer={
+                    <>
+                        <ModalCancelButton
+                            disabled={state.pending || Boolean(state.deleting)}
+                            onClick={
+                                state.editing ? handler.cancelRename : () => handler.setOpen(false)
+                            }
+                        />
+                        {!state.loading && !state.error ? (
+                            <ModalActionButton
+                                type="submit"
+                                form={state.formId}
+                                disabled={
+                                    state.pending || !state.isColorValid || Boolean(state.deleting)
+                                }
+                                aria-busy={state.pending || undefined}
+                            >
+                                {t(
+                                    state.pending
+                                        ? 'common.saving'
+                                        : state.editing
+                                          ? 'common.save'
+                                          : 'admin.hostTags.create',
+                                )}
+                            </ModalActionButton>
+                        ) : null}
+                    </>
+                }
             >
                 {state.loading ? (
                     <output>{t('common.loading')}</output>
@@ -130,7 +159,7 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                                 )}
                             </form.Field>
                             <div ref={pickerContainerRef} className="empty:hidden sm:col-span-2" />
-                            <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                            <div className="sm:col-span-2">
                                 <form.Subscribe selector={(formState) => formState.values}>
                                     {(values) => (
                                         <HostTagBadge
@@ -142,23 +171,6 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                                         />
                                     )}
                                 </form.Subscribe>
-                                <button
-                                    type="submit"
-                                    className={buttonClassName('primary', 'ml-auto')}
-                                    disabled={state.pending || !state.isColorValid}
-                                >
-                                    {t(state.editing ? 'common.save' : 'admin.hostTags.create')}
-                                </button>
-                                {state.editing ? (
-                                    <button
-                                        type="button"
-                                        className={buttonClassName('secondary')}
-                                        onClick={handler.cancelRename}
-                                        disabled={state.pending}
-                                    >
-                                        {t('common.cancel')}
-                                    </button>
-                                ) : null}
                             </div>
                         </form>
                         <ul className="grid gap-2" aria-label={t('admin.hostTags.title')}>
