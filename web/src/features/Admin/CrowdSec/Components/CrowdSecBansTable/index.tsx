@@ -23,6 +23,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
         onSearchChange,
         onOriginChange,
         onScopeChange,
+        onCountryChange,
         onPageChange,
         onPageSizeChange,
     } = props
@@ -62,7 +63,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                     activeCount={state.activeFilterCount}
                 >
                     {() => (
-                        <div className="grid items-end gap-4 sm:grid-cols-2">
+                        <div className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-muted">
                                 {t('admin.crowdSec.dashboard.origin')}
                                 <CustomSelect
@@ -87,6 +88,34 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                         )
                                     }
                                     searchable={false}
+                                />
+                            </label>
+                            <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-muted">
+                                {t('admin.crowdSec.dashboard.country')}
+                                <CustomSelect
+                                    aria-label={t('admin.crowdSec.dashboard.country')}
+                                    value={filters.country}
+                                    placeholder={t('admin.crowdSec.dashboard.allCountries')}
+                                    options={state.countryOptions}
+                                    onValueChange={onCountryChange}
+                                    renderOption={(option) => (
+                                        <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+                                            <CountryFlag code={option.value} decorative />
+                                            <span className="truncate">{option.label}</span>
+                                        </span>
+                                    )}
+                                    renderValue={(options) =>
+                                        options.map((option) => (
+                                            <span
+                                                key={option.value}
+                                                className="inline-flex min-w-0 max-w-full items-center gap-2"
+                                            >
+                                                <CountryFlag code={option.value} decorative />
+                                                <span className="truncate">{option.label}</span>
+                                            </span>
+                                        ))
+                                    }
+                                    searchable
                                 />
                             </label>
                         </div>

@@ -2,6 +2,11 @@ import { expect, test } from 'bun:test'
 
 import { createCrowdSecDemoDashboard } from '../../../../../../scripts/development/seed-crowdsec-dashboard-demo.ts'
 import countryCodeFromGeoRecord from '@/lib/Admin/CrowdSec/countryCodeFromGeoRecord.ts'
+import filterCrowdSecDashboard from '@/lib/Admin/CrowdSec/filterCrowdSecDashboard.ts'
+import type {
+    CrowdSecDashboard,
+    CrowdSecDashboardQuery,
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import {
     filterCrowdSecDemoDashboard,
     isLocalCrowdSecDemoEnvironment,
@@ -34,6 +39,7 @@ test('paginates and filters synthetic decisions without changing the stored snap
         search: 'http-probing',
         origin: 'CAPI',
         scope: 'Ip',
+        country: '',
     })
     expect(filtered.demo).toBe(true)
     expect(filtered.decisions?.total).toBe(32)
@@ -61,6 +67,7 @@ test('paginates and filters synthetic decisions without changing the stored snap
         search: 'http-probing',
         origin: 'CAPI',
         scope: 'Ip',
+        country: '',
     })
     expect(nextPage.decisions?.entries).toHaveLength(1)
 })
@@ -71,4 +78,56 @@ test('accepts country-only and GeoLite2 country records but rejects invalid code
     expect(countryCodeFromGeoRecord({ country_code: '../DE' })).toBeNull()
     expect(countryCodeFromGeoRecord({ country_code: 'de' })).toBeNull()
     expect(countryCodeFromGeoRecord(null)).toBeNull()
+})
+
+test('combines country, origin, type and search before pagination across the complete snapshot', () => {
+    const template = createCrowdSecDemoDashboard().decisions!.entries[1]!
+    const entries = [
+        ...Array.from({ length: 200 }, (_, id) => ({ ...template, id, countryCode: 'FR' })),
+        ...Array.from({ length: 5 }, (_, index) => ({
+            ...template,
+            id: 201 + index,
+            countryCode: 'DE',
+        })),
+        { ...template, id: 206, countryCode: 'DE', origin: 'other' },
+        { ...template, id: 207, countryCode: 'DE', scope: 'Range' as const },
+        { ...template, id: 208, countryCode: 'DE', scenario: 'ssh-bf' },
+        { ...template, id: 209, countryCode: null },
+    ]
+    const source: CrowdSecDashboard = {
+        collectedAt: 1,
+        metrics: null,
+        decisions: {
+            total: entries.length,
+            filteredTotal: entries.length,
+            offset: 0,
+            limit: 15,
+            availableOrigins: [template.origin, 'other'],
+            entries,
+        },
+    }
+    const query: CrowdSecDashboardQuery = {
+        offset: 2,
+        limit: 2,
+        search: 'http',
+        origin: template.origin,
+        scope: 'Ip',
+        country: 'DE',
+    }
+    const filtered = filterCrowdSecDashboard(source, query)
+    expect(filtered.decisions?.filteredTotal).toBe(5)
+    expect(filtered.decisions?.total).toBe(209)
+    expect(filtered.decisions?.entries.map(({ id }) => id)).toEqual([203, 204])
+    expect(filtered.decisions?.availableOrigins).toEqual(source.decisions!.availableOrigins)
+    expect(
+        filterCrowdSecDashboard(source, { ...query, country: '' }).decisions?.filteredTotal,
+    ).toBe(206)
+    expect(
+        filterCrowdSecDashboard(source, { ...query, country: 'US' }).decisions?.filteredTotal,
+    ).toBe(0)
+    expect(source.decisions?.entries).toHaveLength(209)
+    expect(source.decisions?.filteredTotal).toBe(209)
+    const demo = filterCrowdSecDemoDashboard(source, query)
+    expect(demo.decisions).toEqual(filtered.decisions)
+    expect(demo.demo).toBeTrue()
 })

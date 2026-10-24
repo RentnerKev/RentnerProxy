@@ -19,6 +19,7 @@ export interface CrowdSecDashboardLogicResult {
             readonly searchInput: string
             readonly origin: string
             readonly scope: CrowdSecDashboardQuery['scope']
+            readonly country: string
             readonly pageIndex: number
             readonly pageSize: number
         }
@@ -27,6 +28,7 @@ export interface CrowdSecDashboardLogicResult {
         readonly setSearchInput: (value: string) => void
         readonly setOrigin: (value: string) => void
         readonly setScope: (value: CrowdSecDashboardQuery['scope']) => void
+        readonly setCountry: (value: string) => void
         readonly setPageIndex: (value: number) => void
         readonly setPageSize: (value: number) => void
     }

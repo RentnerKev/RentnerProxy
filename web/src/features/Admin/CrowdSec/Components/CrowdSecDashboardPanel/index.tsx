@@ -186,6 +186,7 @@ export default function CrowdSecDashboardPanel({ configuration }: CrowdSecDashbo
                     onSearchChange={handler.setSearchInput}
                     onOriginChange={handler.setOrigin}
                     onScopeChange={handler.setScope}
+                    onCountryChange={handler.setCountry}
                     onPageChange={handler.setPageIndex}
                     onPageSizeChange={handler.setPageSize}
                 />

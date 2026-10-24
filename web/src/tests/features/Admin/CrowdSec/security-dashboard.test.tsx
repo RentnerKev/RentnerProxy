@@ -109,6 +109,7 @@ const dashboardMock = mock(
             (decision) =>
                 (!data.origin || decision.origin === data.origin) &&
                 (!data.scope || decision.scope === data.scope) &&
+                (!data.country || decision.countryCode === data.country) &&
                 (!search ||
                     `${decision.value} ${decision.origin} ${decision.scenario}`
                         .toLowerCase()
@@ -551,7 +552,7 @@ test('reports saved Forward Auth assignments and runtime synchronization without
     expect(summary?.textContent).not.toContain('healthy')
 })
 
-test('shows All defaults in both filter controls without a reset action', async () => {
+test('shows All defaults in all three filter controls without a reset action', async () => {
     const container = await renderDashboard()
     const toggle = container.querySelector<HTMLButtonElement>('button[aria-controls]')
     expect(toggle).not.toBeNull()
@@ -559,9 +560,10 @@ test('shows All defaults in both filter controls without a reset action', async 
     const panel = document.getElementById(toggle!.getAttribute('aria-controls')!)
     expect(panel).not.toBeNull()
     const selects = panel!.querySelectorAll('[role="combobox"]')
-    expect(selects).toHaveLength(2)
+    expect(selects).toHaveLength(3)
     expect(selects[0]?.textContent).toContain('All origins')
     expect(selects[1]?.textContent).toContain('All types')
+    expect(selects[2]?.textContent).toContain('All countries')
     expect(panel!.textContent).not.toContain('Reset filters')
 })
 
@@ -589,6 +591,73 @@ test('searches and paginates all decisions through the server request', async ()
     )
     await waitFor(() => container.textContent?.includes('203.0.113.2') === true)
     expect(container.textContent).toContain('203.0.113.2')
+})
+
+test('selecting a country resets pagination and clearing restores all bans', async () => {
+    const container = await renderDashboard()
+    const next = container.querySelector<HTMLButtonElement>('button[aria-label="Go to next page"]')!
+    await act(async () => next.click())
+    await waitFor(() => container.textContent?.includes('16–24 of 24') === true)
+    await act(async () =>
+        container.querySelector<HTMLButtonElement>('button[aria-controls]')!.click(),
+    )
+    const country = container.querySelector<HTMLElement>('[role="combobox"][aria-label="Country"]')!
+    async function selectCountry(name: string): Promise<void> {
+        await act(async () => {
+            country.focus()
+            country.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+            )
+            await new Promise((resolve) => setTimeout(resolve, 20))
+        })
+        const search = document.querySelector<HTMLInputElement>('[role="dialog"] input')!
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+                search,
+                name,
+            )
+            search.dispatchEvent(new Event('input', { bubbles: true }))
+            search.dispatchEvent(new Event('change', { bubbles: true }))
+        })
+        await waitFor(() =>
+            [...document.querySelectorAll('[role="option"]')].some(
+                (entry) => entry.textContent === name,
+            ),
+        )
+        const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+            (entry) => entry.textContent === name,
+        )!
+        expect(option).toBeDefined()
+        await act(async () => option.focus())
+        await act(async () => {
+            option.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+            )
+        })
+    }
+    const clientHeightDescriptor = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'clientHeight',
+    )
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => 256,
+    })
+    try {
+        await selectCountry('Germany')
+        await waitFor(() => container.textContent?.includes('1–1 of 1') === true)
+        expect(dashboardMock.mock.lastCall?.[0].data).toMatchObject({ country: 'DE', offset: 0 })
+        expect(country.querySelector('img')?.getAttribute('src')).toEndWith('/DE.svg')
+        expect(container.querySelector('table')?.textContent).not.toContain('2001:db8::/64')
+        await selectCountry('All countries')
+        await waitFor(() => container.textContent?.includes('1–15 of 24') === true)
+        expect(country.textContent).toContain('All countries')
+        expect(country.querySelector('img')).toBeNull()
+    } finally {
+        if (clientHeightDescriptor)
+            Object.defineProperty(HTMLElement.prototype, 'clientHeight', clientHeightDescriptor)
+        else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+    }
 })
 
 test('classifies known scenario families and leaves unknown rules generic', () => {

@@ -2380,6 +2380,8 @@
                 "allOrigins": "Todas as origens",
                 "scope": "Tipo",
                 "allScopes": "Todos os tipos",
+                "country": "País",
+                "allCountries": "Todos os países",
                 "ipScope": "Endereço IP",
                 "rangeScope": "Intervalo de rede",
                 "banItem": "bloqueios",

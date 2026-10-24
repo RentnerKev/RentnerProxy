@@ -2356,6 +2356,8 @@
                 "allOrigins": "Todos los orígenes",
                 "scope": "Tipo",
                 "allScopes": "Todos los tipos",
+                "country": "País",
+                "allCountries": "Todos los países",
                 "ipScope": "Dirección IP",
                 "rangeScope": "Rango de red",
                 "banItem": "bloqueos",

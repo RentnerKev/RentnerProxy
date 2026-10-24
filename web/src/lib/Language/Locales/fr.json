@@ -2356,6 +2356,8 @@
                 "allOrigins": "Toutes les origines",
                 "scope": "Type",
                 "allScopes": "Tous les types",
+                "country": "Pays",
+                "allCountries": "Tous les pays",
                 "ipScope": "Adresse IP",
                 "rangeScope": "Plage réseau",
                 "banItem": "bannissements",

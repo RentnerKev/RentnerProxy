@@ -95,6 +95,10 @@ export const crowdSecDashboardQuerySchema = z.strictObject({
         .max(80)
         .refine((value) => !hasControlCharacters(value)),
     scope: z.enum(['', 'Ip', 'Range']),
+    country: z
+        .string()
+        .regex(/^(?:[A-Z]{2})?$/u)
+        .default(''),
 })
 
 function hasControlCharacters(value: string): boolean {

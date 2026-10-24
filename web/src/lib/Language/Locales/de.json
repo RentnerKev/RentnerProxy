@@ -2354,6 +2354,8 @@
                 "allOrigins": "Alle Herkünfte",
                 "scope": "Typ",
                 "allScopes": "Alle Typen",
+                "country": "Land",
+                "allCountries": "Alle Länder",
                 "ipScope": "IP-Adresse",
                 "rangeScope": "Netzbereich",
                 "banItem": "Sperren",

@@ -2335,6 +2335,8 @@
                 "allOrigins": "Alle oorsprongen",
                 "scope": "Type",
                 "allScopes": "Alle typen",
+                "country": "Land",
+                "allCountries": "Alle landen",
                 "ipScope": "IP-adres",
                 "rangeScope": "Netwerkbereik",
                 "banItem": "blokkeringen",

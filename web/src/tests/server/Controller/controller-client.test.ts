@@ -46,6 +46,57 @@ function connectedExternalStatus() {
 }
 
 describe('CrowdSec controller client', () => {
+    test('requests every matching decision only for country lookup and rejects partial snapshots', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:8081'
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
+        const snapshot = {
+            collectedAt: 1_800_000_000,
+            metrics: null,
+            decisions: {
+                total: 240,
+                filteredTotal: 120,
+                offset: 0,
+                limit: 15,
+                availableOrigins: ['crowdsec'],
+                entries: Array.from({ length: 120 }, (_, id) => ({
+                    id,
+                    scope: 'Ip' as const,
+                    value: `203.0.113.${id + 1}`,
+                    origin: 'crowdsec',
+                    scenario: 'http-bf',
+                    duration: '2h',
+                    countryCode: null,
+                })),
+            },
+        }
+        const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async () =>
+            Response.json(snapshot)) as unknown as typeof fetch)
+        const query = {
+            offset: 15,
+            limit: 15,
+            search: 'http',
+            origin: 'crowdsec',
+            scope: '' as const,
+            country: 'DE',
+        }
+        try {
+            expect(await getCrowdSecDashboard(query)).toEqual(snapshot)
+            const [input, init] = fetchMock.mock.calls[0]!
+            const params = new URL(String(input)).searchParams
+            expect(params.get('include_all')).toBe('true')
+            expect(params.get('offset')).toBe('0')
+            expect(params.get('origin')).toBe('crowdsec')
+            expect(params.get('search')).toBe('http')
+            expect(params.has('country')).toBeFalse()
+            expect(init?.headers).toMatchObject({ authorization: `Bearer ${controllerToken}` })
+            expect(await getCrowdSecDashboard({ ...query, country: '' })).toBeNull()
+            snapshot.decisions.entries = snapshot.decisions.entries.slice(0, 15)
+            expect(await getCrowdSecDashboard(query)).toBeNull()
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
     test('loads a bounded dashboard snapshot through authenticated controller access', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
@@ -94,6 +145,7 @@ describe('CrowdSec controller client', () => {
                     search: '',
                     origin: '',
                     scope: '',
+                    country: '',
                 }),
             ).toEqual(snapshot)
             expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -124,6 +176,7 @@ describe('CrowdSec controller client', () => {
                     search: '',
                     origin: '',
                     scope: '',
+                    country: '',
                 }),
             ).toBeNull()
         } finally {

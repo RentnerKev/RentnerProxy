@@ -45,6 +45,7 @@ export interface CrowdSecDashboardQuery {
     readonly search: string
     readonly origin: string
     readonly scope: '' | 'Ip' | 'Range'
+    readonly country: string
 }
 
 export interface CrowdSecDecision {

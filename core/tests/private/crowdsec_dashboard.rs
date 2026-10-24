@@ -95,6 +95,7 @@ fn pages_and_filters_all_active_bans_without_undercounting() {
         search: String::new(),
         origin: String::new(),
         scope: String::new(),
+        include_all: false,
     };
     let page = snapshot_for(&data, &query).decisions.unwrap();
     assert_eq!(page.total, 55);
@@ -110,6 +111,7 @@ fn pages_and_filters_all_active_bans_without_undercounting() {
             search: "203.0.113.24".to_owned(),
             origin: "capi".to_owned(),
             scope: "Ip".to_owned(),
+            include_all: false,
         },
     )
     .decisions
@@ -128,6 +130,55 @@ fn validates_bounded_dashboard_queries() {
     query.limit = 15;
     query.search = "bad\nquery".to_owned();
     assert!(!query.validate());
+    query.search.clear();
+    query.include_all = true;
+    assert!(query.validate());
+    query.offset = 1;
+    assert!(!query.validate());
+}
+
+#[test]
+fn includes_the_complete_filtered_snapshot_for_web_country_lookup() {
+    let rows = (1..=240)
+        .map(|id| {
+            serde_json::json!({
+                "id": id,
+                "type": "ban",
+                "scope": "Ip",
+                "value": format!("203.0.113.{id}"),
+                "origin": if id % 2 == 0 { "CAPI" } else { "crowdsec" },
+                "scenario": "http-bf",
+                "duration": "2h"
+            })
+        })
+        .collect::<Vec<_>>();
+    let data = DashboardData {
+        collected_at: 1,
+        metrics: None,
+        decisions: parse_decisions(&serde_json::to_vec(&rows).unwrap()),
+    };
+    let query = CrowdSecDashboardQuery {
+        origin: "CAPI".to_owned(),
+        ..CrowdSecDashboardQuery::default()
+    };
+    let page = snapshot_for(&data, &query).decisions.unwrap();
+    assert_eq!(page.entries.len(), 15);
+
+    let all = snapshot_for(
+        &data,
+        &CrowdSecDashboardQuery {
+            include_all: true,
+            ..query
+        },
+    )
+    .decisions
+    .unwrap();
+    assert_eq!(all.total, 240);
+    assert_eq!(all.filtered_total, 120);
+    assert_eq!(all.entries.len(), 120);
+    assert_eq!(all.entries.first().unwrap().id, 240);
+    assert_eq!(all.entries.last().unwrap().id, 2);
+    assert!(all.entries.iter().all(|entry| entry.origin == "CAPI"));
 }
 
 #[test]

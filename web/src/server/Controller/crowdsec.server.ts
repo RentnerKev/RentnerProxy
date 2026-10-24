@@ -82,6 +82,17 @@ export const crowdSecDashboardSchema = z.strictObject({
         .nullable(),
 })
 
+const crowdSecDashboardSnapshotSchema = crowdSecDashboardSchema.extend({
+    decisions: crowdSecDashboardSchema.shape.decisions
+        .unwrap()
+        .extend({
+            entries: z
+                .array(crowdSecDashboardSchema.shape.decisions.unwrap().shape.entries.element)
+                .max(1_000_000),
+        })
+        .nullable(),
+})
+
 export async function enrollCrowdSecConsole(
     enrollmentKey: string,
 ): Promise<'pending' | 'connection_failed' | 'not_ready' | 'unavailable'> {
@@ -115,20 +126,31 @@ export async function getCrowdSecRuntimeStatus(): Promise<CrowdSecRuntimeStatus 
 export async function getCrowdSecDashboard(
     query: CrowdSecDashboardQuery,
 ): Promise<CrowdSecDashboard | null> {
+    const includeAll = query.country !== ''
     const params = new URLSearchParams({
-        offset: String(query.offset),
+        offset: String(includeAll ? 0 : query.offset),
         limit: String(query.limit),
         search: query.search,
         origin: query.origin,
         scope: query.scope,
     })
+    if (includeAll) params.set('include_all', 'true')
     const payload = await controllerRequest(`/internal/v1/crowdsec/dashboard?${params}`, {
         timeoutMs: CROWDSEC_DASHBOARD_TIMEOUT_MS,
-        responseLimit: 128 * 1024,
+        responseLimit: includeAll ? 32 * 1024 * 1024 : 128 * 1024,
         privileged: true,
     })
-    const result = crowdSecDashboardSchema.safeParse(payload)
-    return result.success ? result.data : null
+    const schema = includeAll ? crowdSecDashboardSnapshotSchema : crowdSecDashboardSchema
+    const result = schema.safeParse(payload)
+    if (!result.success) return null
+    const decisions = result.data.decisions
+    if (
+        includeAll &&
+        decisions &&
+        (decisions.offset !== 0 || decisions.entries.length !== decisions.filteredTotal)
+    )
+        return null
+    return result.data
 }
 
 export async function applyCrowdSecConfiguration(

@@ -24,6 +24,7 @@ export default function useCrowdSecDashboardLogic(
     const [search, setSearch] = useState('')
     const [origin, setOrigin] = useState('')
     const [scope, setScope] = useState<CrowdSecDashboardQuery['scope']>('')
+    const [country, setCountry] = useState('')
     const [pageIndex, setPageIndex] = useState(0)
     const [pageSize, setPageSize] = useState(15)
     useEffect(() => {
@@ -34,8 +35,8 @@ export default function useCrowdSecDashboardLogic(
         return () => clearTimeout(timeout)
     }, [searchInput])
     const request = useMemo<CrowdSecDashboardQuery>(
-        () => ({ offset: pageIndex * pageSize, limit: pageSize, search, origin, scope }),
-        [pageIndex, pageSize, search, origin, scope],
+        () => ({ offset: pageIndex * pageSize, limit: pageSize, search, origin, scope, country }),
+        [pageIndex, pageSize, search, origin, scope, country],
     )
     const queryKey = useMemo(
         () => [
@@ -88,7 +89,7 @@ export default function useCrowdSecDashboardLogic(
             collectedAtDisplay: snapshot
                 ? new Date(snapshot.collectedAt * 1000).toLocaleTimeString(locale)
                 : '',
-            filters: { searchInput, origin, scope, pageIndex, pageSize },
+            filters: { searchInput, origin, scope, country, pageIndex, pageSize },
         },
         handler: {
             setSearchInput,
@@ -98,6 +99,10 @@ export default function useCrowdSecDashboardLogic(
             },
             setScope: (value: CrowdSecDashboardQuery['scope']) => {
                 setScope(value)
+                setPageIndex(0)
+            },
+            setCountry: (value: string) => {
+                setCountry(value)
                 setPageIndex(0)
             },
             setPageIndex,

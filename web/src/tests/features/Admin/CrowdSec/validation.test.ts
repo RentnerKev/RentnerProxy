@@ -26,6 +26,16 @@ describe('CrowdSec configuration validation', () => {
             crowdSecDashboardQuerySchema.safeParse({ ...query, scope: 'Country' }).success,
         ).toBeFalse()
     })
+    test('accepts country codes and defaults to all countries while rejecting malformed filters', () => {
+        const query = { offset: 0, limit: 15, search: '', origin: '', scope: '' }
+        expect(crowdSecDashboardQuerySchema.parse(query).country).toBe('')
+        expect(crowdSecDashboardQuerySchema.parse({ ...query, country: 'DE' }).country).toBe('DE')
+        for (const country of ['de', 'Germany', '../DE', 'DE\n', 'D', '123']) {
+            expect(
+                crowdSecDashboardQuerySchema.safeParse({ ...query, country }).success,
+            ).toBeFalse()
+        }
+    })
     test('accepts exactly the three supported mode payloads', () => {
         expect(updateCrowdSecConfigurationSchema.parse({ mode: 'disabled' })).toEqual({
             mode: 'disabled',

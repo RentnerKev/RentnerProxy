@@ -37,6 +37,7 @@ import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mut
 import { CrowdSecDomainError } from './crowdsec.errors.ts'
 import { getLocalDemoDashboard } from './crowdsec-demo.server.ts'
 import { enrichCrowdSecCountryCodes } from './crowdsec-geoip.server.ts'
+import filterCrowdSecDashboard from '@/lib/Admin/CrowdSec/filterCrowdSecDashboard.ts'
 import { createCrowdSecReconciler } from './crowdsec-reconcile.ts'
 import {
     buildStoredCrowdSecConfiguration,
@@ -137,7 +138,8 @@ export async function getCrowdSecDashboardService(
     if (demoDashboard) return demoDashboard
     const dashboard = await getCrowdSecDashboard(parsed.data)
     if (!dashboard) throw new CrowdSecDomainError('controller_unavailable')
-    return enrichCrowdSecCountryCodes(dashboard)
+    const enriched = await enrichCrowdSecCountryCodes(dashboard)
+    return parsed.data.country ? filterCrowdSecDashboard(enriched, parsed.data) : enriched
 }
 
 export async function enrollCrowdSecConsoleService(input: {

@@ -10,6 +10,7 @@ export interface CrowdSecBansTableProps {
         readonly searchInput: string
         readonly origin: string
         readonly scope: CrowdSecDashboardQuery['scope']
+        readonly country: string
         readonly pageIndex: number
         readonly pageSize: number
     }
@@ -17,6 +18,7 @@ export interface CrowdSecBansTableProps {
     readonly onSearchChange: (value: string) => void
     readonly onOriginChange: (value: string) => void
     readonly onScopeChange: (value: CrowdSecDashboardQuery['scope']) => void
+    readonly onCountryChange: (value: string) => void
     readonly onPageChange: (page: number) => void
     readonly onPageSizeChange: (size: number) => void
 }
@@ -29,6 +31,7 @@ export interface CrowdSecBansTableLogicResult {
         readonly hasFilters: boolean
         readonly scopeOptions: readonly { readonly label: string; readonly value: string }[]
         readonly originOptions: readonly { readonly label: string; readonly value: string }[]
+        readonly countryOptions: readonly { readonly label: string; readonly value: string }[]
     }
     readonly handler: { readonly handleToggleFilters: () => void }
 }

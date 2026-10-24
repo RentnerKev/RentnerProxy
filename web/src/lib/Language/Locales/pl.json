@@ -2382,6 +2382,8 @@
                 "allOrigins": "Wszystkie źródła",
                 "scope": "Typ",
                 "allScopes": "Wszystkie typy",
+                "country": "Kraj",
+                "allCountries": "Wszystkie kraje",
                 "ipScope": "Adres IP",
                 "rangeScope": "Zakres sieci",
                 "banItem": "blokady",

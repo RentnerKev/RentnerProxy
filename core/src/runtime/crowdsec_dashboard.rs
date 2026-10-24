@@ -33,6 +33,7 @@ pub(crate) struct CrowdSecDashboardQuery {
     pub(crate) search: String,
     pub(crate) origin: String,
     pub(crate) scope: String,
+    pub(crate) include_all: bool,
 }
 
 impl Default for CrowdSecDashboardQuery {
@@ -43,6 +44,7 @@ impl Default for CrowdSecDashboardQuery {
             search: String::new(),
             origin: String::new(),
             scope: String::new(),
+            include_all: false,
         }
     }
 }
@@ -56,6 +58,7 @@ impl CrowdSecDashboardQuery {
         self.limit > 0
             && self.limit <= MAX_PAGE_SIZE
             && self.offset <= 1_000_000
+            && (!self.include_all || self.offset == 0)
             && self.search.chars().count() <= 200
             && !self.search.chars().any(char::is_control)
             && safe_label(&self.origin, 80).is_some()
@@ -184,6 +187,13 @@ fn snapshot_for(data: &DashboardData, query: &CrowdSecDashboardQuery) -> CrowdSe
                         || entry.scenario.to_ascii_lowercase().contains(&search))
             })
             .collect::<Vec<_>>();
+        // Country lookup runs in the web server. Its internal snapshot must include
+        // all matches before country filtering and pagination, bounded by the LAPI body limit.
+        let limit = if query.include_all {
+            matching.len()
+        } else {
+            query.limit
+        };
         DashboardDecisions {
             total: entries.len(),
             filtered_total: matching.len(),
@@ -199,7 +209,7 @@ fn snapshot_for(data: &DashboardData, query: &CrowdSecDashboardQuery) -> CrowdSe
             entries: matching
                 .into_iter()
                 .skip(query.offset)
-                .take(query.limit)
+                .take(limit)
                 .cloned()
                 .collect(),
         }

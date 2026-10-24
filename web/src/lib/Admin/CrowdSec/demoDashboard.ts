@@ -2,6 +2,7 @@ import type {
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
 } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import filterCrowdSecDashboard from './filterCrowdSecDashboard.ts'
 
 function isLoopbackUrl(value: string | undefined): boolean {
     if (!value) return false
@@ -24,29 +25,9 @@ export function filterCrowdSecDemoDashboard(
     source: CrowdSecDashboard,
     query: CrowdSecDashboardQuery,
 ): CrowdSecDashboard {
-    const decisions = source.decisions
-    if (!decisions) return { ...source, demo: true, collectedAt: Math.floor(Date.now() / 1_000) }
-    const search = query.search.trim().toLowerCase()
-    const matches = decisions.entries.filter(
-        (entry) =>
-            (!query.origin || entry.origin.toLowerCase() === query.origin.toLowerCase()) &&
-            (!query.scope || entry.scope === query.scope) &&
-            (!search ||
-                entry.value.toLowerCase().includes(search) ||
-                entry.origin.toLowerCase().includes(search) ||
-                entry.scenario.toLowerCase().includes(search)),
-    )
     return {
-        ...source,
+        ...filterCrowdSecDashboard(source, query),
         demo: true,
         collectedAt: Math.floor(Date.now() / 1_000),
-        decisions: {
-            ...decisions,
-            total: decisions.entries.length,
-            filteredTotal: matches.length,
-            offset: query.offset,
-            limit: query.limit,
-            entries: matches.slice(query.offset, query.offset + query.limit),
-        },
     }
 }
