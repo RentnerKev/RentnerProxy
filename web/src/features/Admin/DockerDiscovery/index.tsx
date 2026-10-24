@@ -1,4 +1,5 @@
-import { Code2, Settings2, RotateCw } from 'lucide-react'
+import { Code2, Settings2 } from 'lucide-react'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import ContentState from '@/shared/Management/ContentState.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -35,7 +36,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                                     type="button"
                                     onClick={handler.openConnection}
                                     disabled={state.locked}
-                                    className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface-raised px-3 text-sm font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
+                                    className={buttonClassName('primary')}
                                 >
                                     <Settings2 size={16} aria-hidden="true" />
                                     {t('admin.dockerDiscovery.actions.connection')}
@@ -46,88 +47,14 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                 }
             />
             {state.canView ? (
-                <div className="grid gap-6">
-                    <section
-                        aria-label={t('admin.dockerDiscovery.runtime.title')}
-                        className="grid gap-4 rounded-2xl border border-border bg-surface p-5"
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="grid min-w-0 gap-2">
-                                <h2 className="text-base font-extrabold text-ink-soft">
-                                    {t('admin.dockerDiscovery.runtime.title')}
-                                </h2>
-                                <p className="font-mono text-xs wrap-anywhere text-muted">
-                                    {state.overview?.snapshot?.configuration.settings.endpoint ??
-                                        t('admin.dockerDiscovery.runtime.notConfigured')}
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <output className="rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs font-bold text-ink-soft">
-                                    {t(`admin.dockerDiscovery.connector.${state.connectorStatus}`)}
-                                </output>
-                                {state.canManage && state.overview ? (
-                                    <button
-                                        type="button"
-                                        disabled={
-                                            state.locked ||
-                                            (state.needsActivation && !state.canEnable)
-                                        }
-                                        onClick={
-                                            state.needsActivation
-                                                ? handler.askEnable
-                                                : handler.disable
-                                        }
-                                        className="min-h-9 rounded-lg border border-border bg-surface-raised px-3 text-xs font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
-                                    >
-                                        {t(
-                                            state.needsActivation
-                                                ? 'admin.dockerDiscovery.actions.enable'
-                                                : 'admin.dockerDiscovery.actions.disable',
-                                        )}
-                                    </button>
-                                ) : null}
-                                {state.showRetry && state.canRetry ? (
-                                    <button
-                                        type="button"
-                                        onClick={handler.retry}
-                                        disabled={state.locked}
-                                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 text-xs font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
-                                    >
-                                        <RotateCw size={14} aria-hidden="true" />
-                                        {t('admin.dockerDiscovery.actions.retry')}
-                                    </button>
-                                ) : null}
-                            </div>
-                        </div>
-                        <p className="text-sm text-muted">
-                            {t(
-                                state.needsActivation
-                                    ? 'admin.dockerDiscovery.runtime.preview'
-                                    : 'admin.dockerDiscovery.runtime.active',
-                            )}
-                        </p>
-                        {state.overview?.snapshot?.status === 'paused' ? (
-                            <p className="text-sm text-muted">
-                                {t('admin.dockerDiscovery.runtime.restorePaused')}
-                            </p>
-                        ) : null}
-                        {state.overview?.management.enabled && !state.needsActivation ? (
-                            <p className="text-xs text-muted">
-                                {t(
-                                    `admin.dockerDiscovery.applied.${state.overview.management.runtimeStatus}`,
-                                )}
-                            </p>
-                        ) : null}
-                    </section>
-                    <DiscoveryTable
-                        rows={state.overview?.rows ?? []}
-                        loading={state.loading}
-                        locked={state.locked}
-                        canDetach={state.canDetach}
-                        onDetails={handler.showDetails}
-                        onDetach={handler.askDetach}
-                    />
-                </div>
+                <DiscoveryTable
+                    rows={state.overview?.rows ?? []}
+                    loading={state.loading}
+                    locked={state.locked}
+                    canDetach={state.canDetach}
+                    onDetails={handler.showDetails}
+                    onDetach={handler.askDetach}
+                />
             ) : (
                 <ContentState
                     title={t('admin.dockerDiscovery.page.title')}
@@ -137,11 +64,27 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
             {state.canManage && state.connection ? (
                 <DiscoveryConnection
                     context={state.connection}
+                    runtime={{
+                        status: state.connectorStatus,
+                        endpoint: state.overview?.snapshot?.configuration.settings.endpoint ?? '',
+                        locked: state.locked,
+                        needsActivation: state.needsActivation,
+                        canEnable: state.canEnable,
+                        canRetry: state.canRetry,
+                        showRetry: state.showRetry,
+                        appliedStatus:
+                            state.overview?.management.enabled && !state.needsActivation
+                                ? state.overview.management.runtimeStatus
+                                : null,
+                    }}
                     api={props.api}
                     pending={state.busy}
                     onClose={handler.closeConnection}
                     onSave={handler.saveConnection}
                     onDisconnect={handler.disconnect}
+                    onEnable={handler.askEnable}
+                    onDisable={handler.disable}
+                    onRetry={handler.retry}
                 />
             ) : null}
             {state.canView && state.details ? (

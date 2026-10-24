@@ -29,12 +29,26 @@ export interface DiscoveryConnectionContext {
     readonly endpoint: string
     readonly restorePaused: boolean
 }
+export interface DiscoveryConnectionRuntime {
+    readonly status: DockerDiscoverySnapshot['status']
+    readonly endpoint: string
+    readonly locked: boolean
+    readonly needsActivation: boolean
+    readonly canEnable: boolean
+    readonly canRetry: boolean
+    readonly showRetry: boolean
+    readonly appliedStatus: DiscoveryOverview['management']['runtimeStatus'] | null
+}
 export interface DiscoveryConnectionProps {
     readonly context: DiscoveryConnectionContext
+    readonly runtime: DiscoveryConnectionRuntime
     readonly api: DiscoveryApi
     readonly pending: boolean
     readonly onClose: () => void
     readonly onDisconnect: () => Promise<boolean>
+    readonly onEnable: () => void
+    readonly onDisable: () => void
+    readonly onRetry: () => void
     readonly onSave: (input: {
         endpoint: string
         connectorRevision: number
@@ -136,11 +150,19 @@ export interface DiscoveryTableLogicResult {
 }
 export interface DiscoveryConnectionLogicResult<TForm> {
     form: TForm
-    state: { formId: string; pending: boolean; testing: boolean; canSave: boolean }
+    state: {
+        formId: string
+        pending: boolean
+        testing: boolean
+        canSave: boolean
+        canToggleSynchronization: boolean
+    }
     handler: {
         test(): Promise<void>
         close(): void
         disconnect(): void
+        toggleSynchronization(): void
+        retry(): void
         submit(event: FormEvent<HTMLFormElement>): void
     }
 }

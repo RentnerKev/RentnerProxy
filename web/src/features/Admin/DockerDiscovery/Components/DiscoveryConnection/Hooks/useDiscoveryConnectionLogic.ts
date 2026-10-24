@@ -85,6 +85,12 @@ export default function useDiscoveryConnectionLogic(props: DiscoveryConnectionPr
             canSave:
                 testedEndpoint === values.endpoint.trim() &&
                 (!props.context.restorePaused || values.acknowledgeRestore),
+            canToggleSynchronization:
+                !props.pending &&
+                !isTesting &&
+                !props.runtime.locked &&
+                (!props.runtime.needsActivation ||
+                    (props.runtime.canEnable && values.endpoint.trim() === props.runtime.endpoint)),
         },
         handler: {
             test,
@@ -93,6 +99,26 @@ export default function useDiscoveryConnectionLogic(props: DiscoveryConnectionPr
             },
             disconnect: () => {
                 if (!props.pending && !testing.current) void props.onDisconnect()
+            },
+            toggleSynchronization: () => {
+                if (props.pending || testing.current || props.runtime.locked) return
+                if (props.runtime.needsActivation) {
+                    if (
+                        props.runtime.canEnable &&
+                        values.endpoint.trim() === props.runtime.endpoint
+                    )
+                        props.onEnable()
+                } else props.onDisable()
+            },
+            retry: () => {
+                if (
+                    !props.pending &&
+                    !testing.current &&
+                    !props.runtime.locked &&
+                    props.runtime.showRetry &&
+                    props.runtime.canRetry
+                )
+                    props.onRetry()
             },
             submit: (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault()

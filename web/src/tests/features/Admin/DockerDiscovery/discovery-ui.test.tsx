@@ -187,6 +187,11 @@ function button(label: string, scope: ParentNode = document): HTMLButtonElement 
     if (!item) throw new Error(`Missing button: ${label}`)
     return item
 }
+function topDialog(): HTMLElement {
+    const dialog = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)
+    if (!dialog) throw new Error('Missing dialog')
+    return dialog
+}
 async function click(element: Element) {
     await act(async () =>
         element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
@@ -304,6 +309,52 @@ describe('Docker discovery management UI', () => {
             'Detach from discovery',
         )
     })
+    test('keeps connection status and synchronization controls inside the connection modal', async () => {
+        const initial = discoveryOverview()
+        const f = fixture(initial)
+        await render(f.api)
+        expect(document.querySelector('output')).toBeNull()
+        expect(document.body.textContent).not.toContain('Docker connection')
+        expect(document.body.textContent).not.toContain('Enable synchronization')
+        expect(document.body.textContent).not.toContain('Review the candidates below')
+        expect(document.querySelector('tbody')?.textContent).toContain('app.example.com')
+        await click(button('Connection'))
+        const dialog = topDialog()
+        expect(dialog.querySelector('output')?.textContent).toBe('Connected')
+        expect(button('Enable synchronization', dialog).disabled).toBe(false)
+        await live(
+            {
+                ...initial,
+                snapshot: { ...initial.snapshot!, status: 'unavailable', stale: true },
+            },
+            f.set,
+        )
+        expect(dialog.querySelector('output')?.textContent).toBe('Unavailable')
+        expect(button('Enable synchronization', dialog).disabled).toBe(true)
+        await click(button('Cancel', dialog))
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+        expect(f.api.change).not.toHaveBeenCalled()
+        expect(f.api.connect).not.toHaveBeenCalled()
+    })
+    test('does not activate the saved endpoint while another endpoint is being edited or tested', async () => {
+        const f = fixture()
+        await render(f.api)
+        await click(button('Connection'))
+        const input = document.querySelector<HTMLInputElement>('input[name="endpoint"]')!
+        const savedEndpoint = input.value
+        await fill(input, 'http://different-docker:2375')
+        expect(button('Enable synchronization').disabled).toBe(true)
+        await click(button('Test connection'))
+        await waitFor(() => !button('Save and review candidates').disabled)
+        expect(button('Enable synchronization').disabled).toBe(true)
+        expect(f.api.change).not.toHaveBeenCalled()
+        expect(f.api.connect).not.toHaveBeenCalled()
+        await fill(input, savedEndpoint)
+        expect(button('Enable synchronization').disabled).toBe(false)
+        await click(button('Cancel'))
+        expect(f.api.change).not.toHaveBeenCalled()
+        expect(f.api.connect).not.toHaveBeenCalled()
+    })
     test('tests an endpoint before saving, invalidates a changed test and confirms restored reads', async () => {
         const initial = discoveryOverview()
         const f = fixture({ ...initial, snapshot: { ...initial.snapshot!, status: 'paused' } })
@@ -385,15 +436,16 @@ describe('Docker discovery management UI', () => {
         const initial = discoveryOverview()
         const f = fixture(initial)
         await render(f.api)
+        await click(button('Connection'))
         await click(button('Enable synchronization'))
-        const dialog = document.querySelector('[role="dialog"]')!
+        const dialog = topDialog()
         expect(dialog.textContent).toContain('1 hosts will be created and 0 updated')
         await live({ ...initial, previewToken: 'd'.repeat(64) }, f.set)
         await click(button('Enable synchronization', dialog))
         expect(f.api.change).not.toHaveBeenCalled()
-        await waitFor(() => !document.querySelector('[role="dialog"]'))
+        await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 1)
         await click(button('Enable synchronization'))
-        await click(button('Enable synchronization', document.querySelector('[role="dialog"]')!))
+        await click(button('Enable synchronization', topDialog()))
         await waitFor(
             () =>
                 f.api.change !== undefined &&
@@ -420,8 +472,9 @@ describe('Docker discovery management UI', () => {
             return { revision: 1 }
         })
         await render(f.api)
+        await click(button('Connection'))
         await click(button('Enable synchronization'))
-        const confirm = button('Enable synchronization', document.querySelector('[role="dialog"]')!)
+        const confirm = button('Enable synchronization', topDialog())
         await click(confirm)
         await click(confirm)
         expect(f.api.change).toHaveBeenCalledTimes(1)
@@ -429,7 +482,7 @@ describe('Docker discovery management UI', () => {
             release()
             await pending
         })
-        await waitFor(() => !document.querySelector('[role="dialog"]'))
+        await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 1)
     })
     test('detaches only after confirmation and retains the host as manually managed', async () => {
         const initial = discoveryOverview()
@@ -486,13 +539,14 @@ describe('Docker discovery management UI', () => {
             rows: [{ ...initial.rows[0]!, state: 'unavailable' }],
         })
         await render(f.api)
+        await click(button('Connection'))
         await click(button('Retry synchronization'))
         await waitFor(() => f.api.change !== undefined && !button('Connection').disabled)
         expect(f.api.change).toHaveBeenCalledWith({ expectedRevision: 0, action: 'retry' })
-        await click(button('Connection'))
         await click(button('Disable connection'))
         await waitFor(() => !document.querySelector('[role="dialog"]'))
         expect(f.api.change).toHaveBeenCalledWith({ expectedRevision: 1, action: 'disconnect' })
+        await click(button('Connection'))
         expect(document.body.textContent).toContain('Disconnected')
         expect(document.body.textContent).toContain('app.example.com')
     })
@@ -550,11 +604,12 @@ describe('Docker discovery management UI', () => {
             rows: [{ ...initial.rows[0]!, hostId: DISCOVERY_HOST }],
         })
         await render(f.api, [...view, PERMISSIONS.DOCKER_DISCOVERY_MANAGE])
-        expect(document.body.textContent).not.toContain('Retry synchronization')
-        expect(button('Pause synchronization').disabled).toBe(false)
         await action('Source details')
         expect(document.body.textContent).not.toContain('Detach from discovery')
         await click(document.querySelector('button[aria-label="Close dialog"]')!)
+        await click(button('Connection'))
+        expect(document.body.textContent).not.toContain('Retry synchronization')
+        expect(button('Pause synchronization').disabled).toBe(false)
         await click(button('Pause synchronization'))
         await waitFor(() => document.body.textContent?.includes('Enable synchronization') === true)
         expect(button('Enable synchronization').disabled).toBe(true)

@@ -1,5 +1,7 @@
 import { TextInput } from '@rentnerkev/inputs'
+import { RotateCw } from 'lucide-react'
 import { Modal } from '@/shared/Modal/index.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useDiscoveryConnectionLogic from './Hooks/useDiscoveryConnectionLogic.ts'
@@ -21,7 +23,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                         type="button"
                         onClick={handler.close}
                         disabled={state.pending}
-                        className="min-h-12 rounded-xl border border-danger-text bg-danger-bg px-4 py-3 text-sm font-extrabold text-danger-text disabled:opacity-50"
+                        className={buttonClassName('secondary')}
                     >
                         {t('common.cancel')}
                     </button>
@@ -29,7 +31,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                         type="submit"
                         form={state.formId}
                         disabled={state.pending || !state.canSave}
-                        className="min-h-12 rounded-xl bg-accent px-4 py-3 text-sm font-extrabold text-accent-foreground disabled:opacity-50"
+                        className={buttonClassName('primary')}
                     >
                         {t(
                             state.pending
@@ -41,6 +43,49 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
             }
         >
             <form id={state.formId} onSubmit={handler.submit} noValidate className="grid gap-5">
+                <fieldset
+                    aria-label={t('admin.dockerDiscovery.runtime.title')}
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-3"
+                >
+                    <output className="rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs font-bold text-ink-soft">
+                        {t(`admin.dockerDiscovery.connector.${props.runtime.status}`)}
+                    </output>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={!state.canToggleSynchronization}
+                            onClick={handler.toggleSynchronization}
+                            className={buttonClassName('secondary')}
+                        >
+                            {t(
+                                props.runtime.needsActivation
+                                    ? 'admin.dockerDiscovery.actions.enable'
+                                    : 'admin.dockerDiscovery.actions.disable',
+                            )}
+                        </button>
+                        {props.runtime.showRetry && props.runtime.canRetry ? (
+                            <button
+                                type="button"
+                                onClick={handler.retry}
+                                disabled={state.pending || props.runtime.locked}
+                                className={buttonClassName('secondary')}
+                            >
+                                <RotateCw size={16} aria-hidden="true" />
+                                {t('admin.dockerDiscovery.actions.retry')}
+                            </button>
+                        ) : null}
+                    </div>
+                    {props.runtime.status === 'paused' ? (
+                        <p className="m-0 w-full text-sm text-muted">
+                            {t('admin.dockerDiscovery.runtime.restorePaused')}
+                        </p>
+                    ) : null}
+                    {props.runtime.appliedStatus ? (
+                        <p className="m-0 w-full text-xs text-muted">
+                            {t(`admin.dockerDiscovery.applied.${props.runtime.appliedStatus}`)}
+                        </p>
+                    ) : null}
+                </fieldset>
                 <form.Field name="endpoint">
                     {(field) => (
                         <TextInput
