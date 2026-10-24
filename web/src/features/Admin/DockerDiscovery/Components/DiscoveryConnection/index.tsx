@@ -47,7 +47,6 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                             id={`${state.formId}-endpoint`}
                             name={field.name}
                             label={t('admin.dockerDiscovery.connection.endpoint')}
-                            description={t('admin.dockerDiscovery.connection.endpointHint')}
                             inputMode="url"
                             autoComplete="off"
                             required
