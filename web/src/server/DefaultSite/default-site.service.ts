@@ -13,7 +13,8 @@ import { createProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
-import { writeDefaultSiteSettings } from './default-site-settings.ts'
+import { readDefaultSiteSettings, writeDefaultSiteSettings } from './default-site-settings.ts'
+import { createDefaultSiteRevision } from './default-site-revision.ts'
 import { DefaultSiteError } from './default-site.errors.ts'
 
 export async function getDefaultSiteService(): Promise<DefaultSiteEditorData> {
@@ -25,10 +26,10 @@ export async function getDefaultSiteService(): Promise<DefaultSiteEditorData> {
                 actor.id,
                 PERMISSIONS.DEFAULT_SITE_VIEW,
             )
-            const snapshot = await readProxyRuntimeSnapshot(transaction)
+            const settings = await readDefaultSiteSettings(transaction)
             return {
-                baseRevision: snapshot.revision,
-                settings: snapshot.defaultSite ?? { mode: 'not-found' },
+                baseRevision: createDefaultSiteRevision(settings),
+                settings,
             }
         },
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
@@ -52,10 +53,11 @@ export async function saveDefaultSiteService(input: unknown): Promise<ProxyRunti
                 actor.id,
                 PERMISSIONS.PROXY_HOSTS_APPLY,
             )
-            const latest = await readProxyRuntimeSnapshot(transaction)
-            if (latest.revision !== parsed.baseRevision) {
+            const settings = await readDefaultSiteSettings(transaction)
+            if (createDefaultSiteRevision(settings) !== parsed.baseRevision) {
                 throw new DefaultSiteError('configuration_conflict')
             }
+            const latest = await readProxyRuntimeSnapshot(transaction)
             createProxyRuntimeSnapshot(
                 latest.proxyHosts.map((host) => Object.assign({ enabled: true }, host)),
                 latest.httpSettings,

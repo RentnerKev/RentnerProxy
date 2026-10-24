@@ -581,7 +581,7 @@ describe('default-site settings panel', () => {
         expect(saveSettings).not.toHaveBeenCalled()
     })
 
-    test('shows failed loading and allows retry', async () => {
+    test('keeps a failed load visible in the card and allows retry without opening page alerts', async () => {
         getSettings.mockRejectedValueOnce(new Error('offline'))
         const container = await renderPanel()
         expect(
@@ -589,10 +589,11 @@ describe('default-site settings panel', () => {
                 'section[aria-labelledby="default-site-heading"] [role="alert"]',
             ),
         ).toBeNull()
-        const details = await openPageAlerts()
-        expect(details.textContent).toContain('Could not load')
+        expect(container.querySelector('button[data-severity="error"]')).not.toBeNull()
+        const panel = container.querySelector('section[aria-labelledby="default-site-heading"]')!
+        expect(panel.textContent).toContain('Could not load the default site.')
         await click(
-            [...details.querySelectorAll('li button')].find((button) =>
+            [...panel.querySelectorAll('button')].find((button) =>
                 button.textContent?.includes('Try again'),
             )!,
         )

@@ -13,6 +13,17 @@ const HtmlSourceEditor = lazy(() => import('./Components/HtmlSourceEditor/index.
 export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: boolean }) {
     const { t } = useTranslationStore()
     const { state, handler, form } = useDefaultSitePanelLogic(canUpdate)
+    const retryButton = (
+        <button
+            type="button"
+            className={buttonClassName('secondary')}
+            onClick={handler.handleReload}
+            disabled={state.isReloading}
+            aria-busy={state.isReloading}
+        >
+            {t('common.retry')}
+        </button>
+    )
 
     return (
         <section
@@ -49,21 +60,20 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                 </output>
             ) : null}
             {state.loadFailed ? (
-                <PageAlert
-                    severity="error"
-                    title={t('defaultSite.title')}
-                    description={t('defaultSite.errors.loadFailed')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.handleReload}
-                            disabled={state.isReloading}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
-                />
+                <>
+                    <PageAlert
+                        severity="error"
+                        title={t('defaultSite.title')}
+                        description={t('defaultSite.errors.loadFailed')}
+                        action={retryButton}
+                    />
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+                        <p className="text-sm text-danger-text">
+                            {t('defaultSite.errors.loadFailed')}
+                        </p>
+                        {retryButton}
+                    </div>
+                </>
             ) : null}
             {state.error ? (
                 <p role="alert" className="mt-4 text-sm text-danger-text">

@@ -8,13 +8,15 @@ const serviceScript = `
     import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from './config/access-policies.config.ts'
     import { MAX_DEFAULT_SITE_HTML_BYTES } from './config/default-site.config.ts'
     import { createProxyRuntimeSnapshot, MAX_RUNTIME_PAYLOAD_BYTES } from './server/ProxyRuntime/proxy-runtime-snapshot.ts'
+    import { createDefaultSiteRevision } from './server/DefaultSite/default-site-revision.ts'
 
     let allowed = new Set()
     let transactionDenied = false
     let databaseCalls = 0
-    let revision = 'sha256:' + 'a'.repeat(64)
     let settings = { mode: 'not-found' }
+    let revision = createDefaultSiteRevision(settings)
     let runtime = createProxyRuntimeSnapshot([])
+    let runtimeError = null
     let status = 'applied'
     const writes = []
     const audits = []
@@ -43,13 +45,18 @@ const serviceScript = `
     mock.module('./server/ProxyRuntime/proxy-runtime-data.ts', () => ({
         readProxyRuntimeSnapshot: async () => {
             events.push('read')
-            return { ...runtime, revision, ...(settings.mode === 'not-found' ? {} : { defaultSite: settings }) }
+            if (runtimeError) throw runtimeError
+            return { ...runtime, ...(settings.mode === 'not-found' ? {} : { defaultSite: settings }) }
         },
     }))
     mock.module('./server/ProxyRuntime/proxy-runtime-settings.ts', () => ({
         lockProxyRuntimeSettings: async () => { events.push('lock') },
     }))
     mock.module('./server/DefaultSite/default-site-settings.ts', () => ({
+        readDefaultSiteSettings: async () => {
+            events.push('settings-read')
+            return settings
+        },
         writeDefaultSiteSettings: async (_transaction, value) => {
             events.push('write')
             writes.push(value)
@@ -88,12 +95,13 @@ const serviceScript = `
 
     events.length = 0
     assert.equal(await saveDefaultSiteService(candidate), 'applied')
-    assert.deepEqual(events, ['lock', 'default_site.update', 'proxy_hosts.apply', 'read', 'write', 'audit', 'apply'])
+    assert.deepEqual(events, ['lock', 'default_site.update', 'proxy_hosts.apply', 'settings-read', 'read', 'write', 'audit', 'apply'])
     assert.deepEqual(writes, [candidate.settings])
     assert.equal(audits[0].resource, 'proxy-runtime-settings')
     assert.equal(JSON.stringify(audits).includes(candidate.settings.html), false)
 
-    revision = 'sha256:' + 'b'.repeat(64)
+    settings = { mode: 'welcome' }
+    revision = createDefaultSiteRevision(settings)
     await assert.rejects(saveDefaultSiteService(candidate), { code: 'configuration_conflict' })
     assert.equal(writes.length, 1)
     assert.equal(reconciles.length, 1)
@@ -142,8 +150,8 @@ const serviceScript = `
     const hostCount = Math.floor((MAX_RUNTIME_PAYLOAD_BYTES - 100 - emptyBytes + 1) / (hostBytes + 1))
     assert.ok(hostCount > 0 && hostCount <= 1000)
     runtime = createProxyRuntimeSnapshot(Array.from({ length: hostCount }, (_, index) => host(index)))
-    revision = runtime.revision
     settings = { mode: 'not-found' }
+    revision = createDefaultSiteRevision(settings)
     assert.ok(canonicalBytes(runtime) + 100 <= MAX_RUNTIME_PAYLOAD_BYTES)
     const writesBeforeOverflow = writes.length
     const auditsBeforeOverflow = audits.length
@@ -156,6 +164,18 @@ const serviceScript = `
     assert.equal(audits.length, auditsBeforeOverflow)
     assert.equal(reconciles.length, appliesBeforeOverflow)
     assert.deepEqual(await getDefaultSiteService(), { baseRevision: revision, settings })
+
+    runtimeError = new Error('Invalid runtime credentials')
+    events.length = 0
+    assert.deepEqual(await getDefaultSiteService(), { baseRevision: revision, settings })
+    assert.deepEqual(events, ['default_site.view', 'settings-read'])
+    await assert.rejects(saveDefaultSiteService({
+        baseRevision: revision,
+        settings: { mode: 'welcome' },
+    }), runtimeError)
+    assert.equal(writes.length, writesBeforeOverflow)
+    assert.equal(audits.length, auditsBeforeOverflow)
+    assert.equal(reconciles.length, appliesBeforeOverflow)
     console.log('default-site-service-ok')
 `
 
