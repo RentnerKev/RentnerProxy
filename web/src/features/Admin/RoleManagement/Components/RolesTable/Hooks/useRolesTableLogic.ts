@@ -1,6 +1,7 @@
 import type { RolesTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
+import { RoleTypeCell } from '../Components/RoleTableCells.tsx'
 
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
@@ -68,10 +69,11 @@ const getColumnFilterConfigs = (t: Translate) =>
         type: {
             type: 'select' as const,
             placeholder: t('admin.roles.filters.allTypes'),
-            options: [
-                { label: t('admin.roles.type.system'), value: 'system' },
-                { label: t('admin.roles.type.custom'), value: 'custom' },
-            ],
+            options: (['system', 'custom'] as const).map((value) => ({
+                label: t(`admin.roles.type.${value}`),
+                value,
+                content: createElement(RoleTypeCell, { value }),
+            })),
         },
         createdAt: {
             type: 'dateRange' as const,

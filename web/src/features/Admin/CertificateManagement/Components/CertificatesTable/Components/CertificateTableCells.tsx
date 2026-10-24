@@ -66,15 +66,22 @@ export function CertificateStatusCell({
     const { t } = useTranslationStore()
     return (
         <div className="flex flex-wrap gap-2">
-            <span className={`${badge} ${certificateStatusClass(status)}`}>
-                {t(`admin.certificates.status.${status}`)}
-            </span>
+            <CertificateStatusBadge status={status} />
             {candidate ? (
                 <span className={`${badge} bg-info-bg text-info-text`}>
                     {t('admin.certificates.status.candidate')}
                 </span>
             ) : null}
         </div>
+    )
+}
+
+export function CertificateStatusBadge({ status }: { readonly status: CertificateStatus }) {
+    const { t } = useTranslationStore()
+    return (
+        <span className={`${badge} ${certificateStatusClass(status)}`}>
+            {t(`admin.certificates.status.${status}`)}
+        </span>
     )
 }
 

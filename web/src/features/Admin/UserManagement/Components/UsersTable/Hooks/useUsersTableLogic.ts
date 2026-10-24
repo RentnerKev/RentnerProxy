@@ -1,6 +1,7 @@
 import type { UsersTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
+import { UserStatusCell } from '../Components/UserTableCells.tsx'
 
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
@@ -67,11 +68,11 @@ export default function useUsersTableLogic({
             status: {
                 type: 'select',
                 placeholder: t('admin.users.filters.allStatuses'),
-                options: [
-                    { label: t('admin.users.status.active'), value: 'active' },
-                    { label: t('admin.users.status.pending'), value: 'pending' },
-                    { label: t('admin.users.status.disabled'), value: 'disabled' },
-                ],
+                options: ['active', 'pending', 'disabled'].map((value) => ({
+                    label: t(`admin.users.status.${value}`),
+                    value,
+                    content: createElement(UserStatusCell, { value }),
+                })),
             },
             roles: {
                 type: 'select',

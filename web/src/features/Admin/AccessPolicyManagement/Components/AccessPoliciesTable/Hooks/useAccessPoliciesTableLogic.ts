@@ -1,7 +1,8 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { AccessPoliciesTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
+import { AccessPolicyModeCell } from '../Components/AccessPolicyTableCells.tsx'
 
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
@@ -61,10 +62,13 @@ export default function useAccessPoliciesTableLogic(
             mode: {
                 type: 'select',
                 placeholder: t('admin.accessPolicies.filters.allModes'),
-                options: ['public', 'authenticated', 'ip-restricted', 'combined'].map((mode) => ({
-                    label: t(`admin.accessPolicies.mode.${mode}`),
-                    value: mode,
-                })),
+                options: (['public', 'authenticated', 'ip-restricted', 'combined'] as const).map(
+                    (mode) => ({
+                        label: t(`admin.accessPolicies.mode.${mode}`),
+                        value: mode,
+                        content: createElement(AccessPolicyModeCell, { mode }),
+                    }),
+                ),
             },
             createdAt: {
                 type: 'dateRange',

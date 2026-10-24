@@ -8,6 +8,7 @@ import {
     DdnsNameCell,
     DdnsConnectionCell,
     DdnsProxyCell,
+    DdnsProxyBadge,
     DdnsStatusCell,
     DdnsScheduleCell,
     DdnsActionsCell,
@@ -138,8 +139,16 @@ export default function useDdnsRecordsLogic({
                     column: t('admin.ddns.table.proxy'),
                 }),
                 options: [
-                    { value: 'proxied', label: t('admin.ddns.table.proxied') },
-                    { value: 'dnsOnly', label: t('admin.ddns.table.dnsOnly') },
+                    {
+                        value: 'proxied',
+                        label: t('admin.ddns.table.proxied'),
+                        content: createElement(DdnsProxyBadge, { proxied: true }),
+                    },
+                    {
+                        value: 'dnsOnly',
+                        label: t('admin.ddns.table.dnsOnly'),
+                        content: createElement(DdnsProxyBadge, { proxied: false }),
+                    },
                 ],
             },
             status: {

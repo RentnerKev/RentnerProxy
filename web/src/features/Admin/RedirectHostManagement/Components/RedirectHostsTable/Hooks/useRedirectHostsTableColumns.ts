@@ -16,6 +16,7 @@ import {
     RedirectHostDestinationCell,
     RedirectHostDomainsCell,
     RedirectHostStatusCell,
+    RedirectHostStatusCodeBadge,
 } from '../Components/RedirectHostTableCells.tsx'
 import type { RedirectHostTableActionProps } from '../../../Types/redirect-host-table.types.ts'
 const textFilter = createTrimmedIncludesStringFilter<RedirectHostSummary>()
@@ -83,7 +84,10 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                 sortFn: 'text',
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
-                cell: ({ row }) => t('admin.redirectHosts.statusCodes.' + row.original.statusCode),
+                cell: ({ row }) =>
+                    createElement(RedirectHostStatusCodeBadge, {
+                        statusCode: row.original.statusCode,
+                    }),
             },
             {
                 id: 'certificate',

@@ -1,7 +1,7 @@
 import useProxyAccessLogsTableLogic from './Hooks/useProxyAccessLogsTableLogic.ts'
 import { SearchInput } from '@rentnerkev/inputs'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
-import { CustomSelect } from '@rentnerkev/select/select'
+import TableFilterSelect from '@/shared/Table/Components/TableFilterSelect.tsx'
 import { Fragment } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -20,11 +20,11 @@ import {
     formatDuration,
     methodClassName,
     PROXY_ACCESS_LOGS_PAGE_SIZES,
-    statusClassName,
     withoutQueryString,
 } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogs.ts'
 import type { ProxyAccessLogsTableProps } from './Types/proxy-access-logs-table.types.ts'
 import ClientIpCountry from './Components/ClientIpCountry.tsx'
+import ProxyLogStatusBadge from './Components/ProxyLogStatusBadge.tsx'
 
 function logEntryKey(entry: ProxyAccessLogEntry, index: number): string {
     return `${entry.timestamp}-${entry.host}-${index}`
@@ -102,7 +102,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.host')}
                                 </span>
-                                <CustomSelect
+                                <TableFilterSelect
                                     id="proxy-log-host-filter"
                                     aria-label={t('admin.proxyAccessLogs.filters.host')}
                                     aria-describedby={
@@ -135,7 +135,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.status')}
                                 </span>
-                                <CustomSelect
+                                <TableFilterSelect
                                     aria-label={t('admin.proxyAccessLogs.filters.status')}
                                     aria-describedby={
                                         filterErrors.status ? 'proxy-log-status-error' : undefined
@@ -345,11 +345,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                                 </CustomTooltip>
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle">
-                                                <span
-                                                    className={`inline-flex rounded-full border px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold ${statusClassName(entry.status)}`}
-                                                >
-                                                    {entry.status}
-                                                </span>
+                                                <ProxyLogStatusBadge status={entry.status} />
                                             </td>
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatDuration(entry.durationMs)}

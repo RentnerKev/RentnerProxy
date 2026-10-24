@@ -64,6 +64,14 @@ export function RedirectHostDestinationCell({
         </div>
     )
 }
+export function RedirectHostStatusCodeBadge({ statusCode }: { readonly statusCode: number }) {
+    const { t } = useTranslationStore()
+    return (
+        <span className="inline-flex rounded-full border border-info-text/20 bg-info-bg px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold text-info-text">
+            {t('admin.redirectHosts.statusCodes.' + statusCode)}
+        </span>
+    )
+}
 export function RedirectHostStatusCell({ enabled }: RedirectHostStatusCellProps) {
     const { t } = useTranslationStore()
     const status = enabled ? 'enabled' : 'disabled'

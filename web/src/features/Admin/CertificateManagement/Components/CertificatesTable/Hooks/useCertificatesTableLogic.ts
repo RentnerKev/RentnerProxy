@@ -1,7 +1,11 @@
 import type { Translate } from '../Types/certificates-table-logic.types.ts'
 import type { CertificatesTableLogicResult } from '../Types/certificates-table.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
+import {
+    CertificateSourceCell,
+    CertificateStatusBadge,
+} from '../Components/CertificateTableCells.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import { createSortedUniqueFilterOptions } from '@/lib/Table/tableFilters.ts'
@@ -71,10 +75,11 @@ export default function useCertificatesTableLogic(
             source: {
                 type: 'select' as const,
                 placeholder: t('admin.certificates.filters.allSources'),
-                options: [
-                    { label: t('admin.certificates.source.manual'), value: 'manual' },
-                    { label: t('admin.certificates.source.acme'), value: 'acme' },
-                ],
+                options: (['manual', 'acme'] as const).map((source) => ({
+                    label: t(`admin.certificates.source.${source}`),
+                    value: source,
+                    content: createElement(CertificateSourceCell, { source }),
+                })),
             },
             domains: {
                 type: 'searchableSelect' as const,
@@ -88,10 +93,13 @@ export default function useCertificatesTableLogic(
             status: {
                 type: 'select' as const,
                 placeholder: t('admin.certificates.filters.allStatuses'),
-                options: ['pending', 'valid', 'expiring', 'expired', 'failed'].map((status) => ({
-                    label: t(`admin.certificates.status.${status}`),
-                    value: status,
-                })),
+                options: (['pending', 'valid', 'expiring', 'expired', 'failed'] as const).map(
+                    (status) => ({
+                        label: t(`admin.certificates.status.${status}`),
+                        value: status,
+                        content: createElement(CertificateStatusBadge, { status }),
+                    }),
+                ),
             },
         }),
         [data, t],

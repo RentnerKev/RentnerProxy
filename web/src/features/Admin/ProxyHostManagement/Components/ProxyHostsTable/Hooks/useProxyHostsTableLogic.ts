@@ -5,6 +5,7 @@ import type { FilterFn } from '@tanstack/react-table'
 import { createElement, useEffect, useMemo, useState } from 'react'
 import useHostBulkSelection from '@/features/Admin/HostBulkActions/Hooks/useHostBulkSelection.ts'
 import HostTagBadge from '@/features/Admin/HostTags/Components/HostTagBadge.tsx'
+import { ProxyHostStatusCell } from '../Components/ProxyHostTableCells.tsx'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
@@ -98,10 +99,11 @@ export default function useProxyHostsTableLogic(
             status: {
                 type: 'select',
                 placeholder: t('admin.proxyHosts.filters.allStatuses'),
-                options: [
-                    { label: t('admin.proxyHosts.status.enabled'), value: 'enabled' },
-                    { label: t('admin.proxyHosts.status.disabled'), value: 'disabled' },
-                ],
+                options: ['enabled', 'disabled'].map((value) => ({
+                    label: t(`admin.proxyHosts.status.${value}`),
+                    value,
+                    content: createElement(ProxyHostStatusCell, { enabled: value === 'enabled' }),
+                })),
             },
             createdAt: {
                 type: 'dateRange',

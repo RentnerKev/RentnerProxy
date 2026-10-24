@@ -8,6 +8,7 @@ import type {
     PaginationState,
 } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
+import type { DefaultSingleSelectProps } from '@rentnerkev/select/types'
 import type { TablePaginationControlsProps } from '../Components/TablePaginationControls/Types/table-pagination-controls.types.ts'
 
 import type { ClientTable, ClientTableFeatures } from './client-table.types.ts'
@@ -15,6 +16,15 @@ import type { ClientTable, ClientTableFeatures } from './client-table.types.ts'
 export interface TableFilterOption {
     readonly label: string
     readonly value: string
+    readonly content?: ReactNode
+}
+
+export type TableFilterSelectProps = Omit<
+    DefaultSingleSelectProps<string>,
+    'options' | 'renderOption' | 'renderValue'
+> & {
+    readonly options: ReadonlyArray<TableFilterOption>
+    readonly renderOption?: (option: TableFilterOption) => ReactNode
 }
 
 export interface DataTableLogicParams {

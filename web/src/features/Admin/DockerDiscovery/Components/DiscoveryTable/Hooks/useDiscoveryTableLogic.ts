@@ -11,6 +11,7 @@ import {
     DiscoveryDomainsCell,
     DiscoveryTargetCell,
     DiscoveryStatusCell,
+    DiscoveryStatusBadge,
     DiscoveryActionsCell,
 } from '../Components/DiscoveryCells.tsx'
 import type {
@@ -136,6 +137,7 @@ export default function useDiscoveryTableLogic(
                 options: states.map((value) => ({
                     value,
                     label: t(`admin.dockerDiscovery.states.${value}`),
+                    content: createElement(DiscoveryStatusBadge, { state: value }),
                 })),
             },
         }),

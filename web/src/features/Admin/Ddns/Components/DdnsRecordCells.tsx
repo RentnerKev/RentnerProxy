@@ -21,11 +21,14 @@ export function DdnsConnectionCell({ row }: DdnsRecordCellProps) {
     )
 }
 export function DdnsProxyCell({ row }: DdnsRecordCellProps) {
+    return <DdnsProxyBadge proxied={row.target.proxied} />
+}
+export function DdnsProxyBadge({ proxied }: { readonly proxied: boolean }) {
     const { t } = useTranslationStore()
     return (
         <span
             className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${
-                row.target.proxied
+                proxied
                     ? 'border-[#ff5e1f]/35 bg-[#ff5e1f]/10 text-orange-700 dark:text-orange-300'
                     : 'border-zinc-500/25 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300'
             }`}
@@ -36,9 +39,9 @@ export function DdnsProxyCell({ row }: DdnsRecordCellProps) {
                 aria-hidden="true"
                 width={24}
                 height={11}
-                className={`h-auto w-6 shrink-0 ${row.target.proxied ? '' : 'opacity-70 grayscale'}`}
+                className={`h-auto w-6 shrink-0 ${proxied ? '' : 'opacity-70 grayscale'}`}
             />
-            {t(row.target.proxied ? 'admin.ddns.table.proxied' : 'admin.ddns.table.dnsOnly')}
+            {t(proxied ? 'admin.ddns.table.proxied' : 'admin.ddns.table.dnsOnly')}
         </span>
     )
 }

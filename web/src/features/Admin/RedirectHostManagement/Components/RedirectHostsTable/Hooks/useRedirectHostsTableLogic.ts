@@ -4,6 +4,10 @@ import type { FilterFn } from '@tanstack/react-table'
 import { createElement, useEffect, useMemo, useState } from 'react'
 import useHostBulkSelection from '@/features/Admin/HostBulkActions/Hooks/useHostBulkSelection.ts'
 import HostTagBadge from '@/features/Admin/HostTags/Components/HostTagBadge.tsx'
+import {
+    RedirectHostStatusCell,
+    RedirectHostStatusCodeBadge,
+} from '../Components/RedirectHostTableCells.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import { createSortedUniqueFilterOptions } from '@/lib/Table/tableFilters.ts'
@@ -87,15 +91,19 @@ export default function useRedirectHostsTableLogic(
                 options: [301, 302, 307, 308].map((code) => ({
                     label: t('admin.redirectHosts.statusCodes.' + code),
                     value: String(code),
+                    content: createElement(RedirectHostStatusCodeBadge, { statusCode: code }),
                 })),
             },
             status: {
                 type: 'select',
                 placeholder: t('admin.redirectHosts.filters.allStatuses'),
-                options: [
-                    { label: t('admin.redirectHosts.status.enabled'), value: 'enabled' },
-                    { label: t('admin.redirectHosts.status.disabled'), value: 'disabled' },
-                ],
+                options: ['enabled', 'disabled'].map((value) => ({
+                    label: t(`admin.redirectHosts.status.${value}`),
+                    value,
+                    content: createElement(RedirectHostStatusCell, {
+                        enabled: value === 'enabled',
+                    }),
+                })),
             },
             createdAt: {
                 type: 'dateRange',

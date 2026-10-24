@@ -1,6 +1,6 @@
 import { TextInput } from '@rentnerkev/inputs'
 import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
-import { CustomSelect } from '@rentnerkev/select/select'
+import TableFilterSelect from './TableFilterSelect.tsx'
 import type { RowData } from '@tanstack/react-table'
 
 import { CALENDAR_CUSTOM_DESIGN, CALENDAR_TRIGGER_CLASS_NAME } from '@/config/calendar.config.ts'
@@ -9,7 +9,7 @@ import {
     getTableDateRangeFilterValue,
 } from '@/lib/Table/calendarFilterValue.ts'
 import useCalendarPresentation from '@/shared/Calendar/Hooks/useCalendarPresentation.ts'
-import type { TableColumnFilterInputProps, TableFilterOption } from '../Types/table.types.ts'
+import type { TableColumnFilterInputProps } from '../Types/table.types.ts'
 
 export default function TableColumnFilterInput<TData extends RowData>({
     column,
@@ -23,7 +23,7 @@ export default function TableColumnFilterInput<TData extends RowData>({
         const allLabel = t('table.all')
 
         return (
-            <CustomSelect
+            <TableFilterSelect
                 value={String(column.getFilterValue() ?? '')}
                 aria-label={config.placeholder ?? filterColumnLabel}
                 placeholder={config.placeholder ?? allLabel}
@@ -39,7 +39,7 @@ export default function TableColumnFilterInput<TData extends RowData>({
         const allLabel = t('table.all')
 
         return (
-            <CustomSelect
+            <TableFilterSelect
                 value={String(column.getFilterValue() ?? '')}
                 aria-label={config.placeholder ?? filterColumnLabel}
                 placeholder={config.placeholder ?? allLabel}
@@ -53,10 +53,6 @@ export default function TableColumnFilterInput<TData extends RowData>({
                 {...(config.renderOption
                     ? {
                           renderOption: config.renderOption,
-                          renderValue: (options: readonly TableFilterOption[]) => {
-                              const option = options[0]
-                              return option ? config.renderOption?.(option) : null
-                          },
                       }
                     : {})}
                 onValueChange={(value) => column.setFilterValue(value || undefined)}

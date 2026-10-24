@@ -3,6 +3,18 @@ import { ProxyHostDomainsCell } from '@/features/Admin/ProxyHostManagement/Compo
 import { formatProxyHostForward } from '@/lib/Admin/ProxyHostManagement/proxyHostTableCells.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { DiscoveryCellProps, DiscoveryTableProps } from '../../../Types/discovery-ui.types.ts'
+import type { DiscoveryRow } from '@/lib/DockerDiscovery/Types/management.types.ts'
+
+const statusColors: Record<DiscoveryRow['state'], string> = {
+    create: 'bg-info-bg text-info-text',
+    update: 'bg-info-bg text-info-text',
+    current: 'bg-success-bg text-success-text',
+    stopped: 'bg-warning-text/15 text-warning-text',
+    orphaned: 'bg-warning-text/15 text-warning-text',
+    conflicted: 'bg-danger-bg text-danger-text',
+    unavailable: 'bg-danger-bg text-danger-text',
+    detached: 'bg-neutral text-muted',
+}
 
 export function DiscoverySourceCell({ row }: DiscoveryCellProps) {
     return (
@@ -36,9 +48,7 @@ export function DiscoveryStatusCell({ row }: DiscoveryCellProps) {
     const { t } = useTranslationStore()
     return (
         <div className="grid max-w-72 justify-items-start gap-2">
-            <span className="rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs font-bold text-ink-soft">
-                {t(`admin.dockerDiscovery.states.${row.state}`)}
-            </span>
+            <DiscoveryStatusBadge state={row.state} />
             {row.issues.length ? (
                 <span className="text-xs text-muted">
                     {t(`admin.dockerDiscovery.issues.${row.issues[0]}`)}
@@ -48,6 +58,16 @@ export function DiscoveryStatusCell({ row }: DiscoveryCellProps) {
                 </span>
             ) : null}
         </div>
+    )
+}
+export function DiscoveryStatusBadge({ state }: { readonly state: DiscoveryRow['state'] }) {
+    const { t } = useTranslationStore()
+    return (
+        <span
+            className={`inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold ${statusColors[state]}`}
+        >
+            {t(`admin.dockerDiscovery.states.${state}`)}
+        </span>
     )
 }
 export function DiscoveryActionsCell({
