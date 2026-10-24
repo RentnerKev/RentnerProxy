@@ -60,8 +60,6 @@ export interface AccessPolicyFormModalState {
     }>
     readonly formId: string
     readonly isPending: boolean
-    readonly pendingSubmitLabel: string
-    readonly submitLabel: string
     readonly title: string
     readonly values: AccessPolicyFormValues
 }

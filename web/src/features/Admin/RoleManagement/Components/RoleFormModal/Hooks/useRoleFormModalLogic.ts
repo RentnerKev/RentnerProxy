@@ -108,8 +108,8 @@ export default function useRoleFormModalLogic({
             formId,
             isCreate,
             isPending: mutation.isPending,
-            pendingSubmitLabel: isCreate ? t('admin.roles.form.creating') : t('common.saving'),
-            submitLabel: isCreate ? t('admin.roles.actions.create') : t('common.save'),
+            pendingSubmitLabel: t('common.saving'),
+            submitLabel: t('common.save'),
             title: isCreate
                 ? t('admin.roles.actions.add')
                 : t('admin.roles.form.editTitle', { name: role?.name ?? t('admin.roles.item') }),

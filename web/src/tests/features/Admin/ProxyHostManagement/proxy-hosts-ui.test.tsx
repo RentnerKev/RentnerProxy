@@ -1466,7 +1466,7 @@ describe('proxy host form tabs', () => {
     test('reveals required routing errors from another tab and focuses the first invalid field', async () => {
         await render(withQueryClient(<FormHarness mode="create" canAssignCertificates />))
         await click(getHostTab('Options'))
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         expect(getHostPanel('Basics').hidden).toBeFalse()
         expect(getHostTab('Basics').getAttribute('data-invalid')).toBe('true')
         expect(document.activeElement).toBe(document.querySelector('input[name="domains[0]"]'))
@@ -1582,7 +1582,7 @@ describe('proxy host form tabs', () => {
             '192.0.2.10',
         )
         await chooseSelectOption('Forward scheme', 'HTTPS')
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         expect(getHostPanel('Access').hidden).toBeFalse()
         expect(document.activeElement).toBe(
             document.querySelector('input[name="upstreamTlsServerName"]'),
@@ -1592,7 +1592,7 @@ describe('proxy host form tabs', () => {
             document.querySelector<HTMLInputElement>('input[name="upstreamTlsServerName"]')!,
             'backend.internal',
         )
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         expect(createProxyHostHandlerMock.mock.calls[0]?.[0]).toMatchObject({
             data: {
@@ -1746,13 +1746,13 @@ describe('ProxyHost form modal', () => {
         await waitFor(() => getRows().length === 2)
         await openMenu(getButton('Open actions for app.example.com'))
         await click(getMenuItem('Duplicate proxy host'))
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => document.body.textContent?.includes('Enter a valid DNS name') ?? false)
         expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
         const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
         await setControlValue(domain, 'Copy.Example.com')
         await blurControl(domain)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
             data: {
@@ -1839,7 +1839,7 @@ describe('ProxyHost form modal', () => {
                 document.querySelector<HTMLInputElement>('input[name="forceHttps"]')?.disabled ===
                 false,
         )
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
             data: expect.objectContaining({
@@ -1875,7 +1875,7 @@ describe('ProxyHost form modal', () => {
             const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
             await setControlValue(domain, 'uncovered.example.net')
             await blurControl(domain)
-            await click(getButton('Create proxy host'))
+            await click(getButton('Save changes'))
             await waitForToast('error')
             expect(document.querySelector('[role="dialog"]')).not.toBeNull()
             expect(domain.value).toBe('uncovered.example.net')
@@ -1917,9 +1917,9 @@ describe('ProxyHost form modal', () => {
             }).subscribe(() => undefined),
         )
         const invalidate = spyOn(activeQueryClient!, 'invalidateQueries')
-        expect(getButton('Create proxy host').disabled).toBeFalse()
+        expect(getButton('Save changes').disabled).toBeFalse()
 
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
 
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
@@ -1965,7 +1965,7 @@ describe('ProxyHost form modal', () => {
         await setControlValue(forwardHost, 'backend.internal')
         await blurControl(forwardHost)
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitForToast('warning', 'Saved changes are waiting to be applied.')
         await waitFor(() => document.querySelector('[role="dialog"]') === null)
     })
@@ -1985,7 +1985,7 @@ describe('ProxyHost form modal', () => {
         await setControlValue(forwardHost, 'backend.internal')
         await blurControl(forwardHost)
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(
             () =>
                 document.body.textContent?.includes('This domain is listed more than once.') ??
@@ -1995,7 +1995,7 @@ describe('ProxyHost form modal', () => {
 
         await setControlValue(duplicateDomain, 'other.example.com')
         await blurControl(duplicateDomain)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         await waitForToast('success')
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
@@ -2025,7 +2025,7 @@ describe('ProxyHost form modal', () => {
         await setControlValue(forwardHost, 'backend.internal')
         await blurControl(forwardHost)
         await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitForToast('error')
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
         expect(document.body.textContent).not.toContain('private SQL diagnostics')
@@ -2058,7 +2058,7 @@ describe('ProxyHost form modal', () => {
     })
     test('keeps modal open and blocks invalid submission with inline validation', async () => {
         await render(withQueryClient(<FormHarness mode="create" />))
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => document.body.textContent?.includes('Enter a valid DNS name') ?? false)
         expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
@@ -2238,7 +2238,7 @@ for (const canConfigureCompression of [true, false]) {
         const upstream = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
         await setControlValue(upstream, 'backend.internal')
         await blurControl(upstream)
-        await click(getButton('Create proxy host'))
+        await click(getButton('Save changes'))
         await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
         const submitted = createProxyHostHandlerMock.mock.calls[0]?.[0] as {
             data: { responseCompression?: string }
@@ -2267,7 +2267,7 @@ test('assigns a usable certificate and enables HTTPS redirect', async () => {
     const forwardHost = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
     await setControlValue(forwardHost, 'backend.internal')
     await blurControl(forwardHost)
-    await click(getButton('Create proxy host'))
+    await click(getButton('Save changes'))
     await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
     expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
         data: {
@@ -2467,7 +2467,7 @@ describe('Caddy global proxy configuration editor', () => {
     test('saves the global automatic compression default', async () => {
         await openEditor()
         await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
-        await click(getButton('Save and apply'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 1)
         expect(saveProxyConfigEditorHandlerMock.mock.calls[0]).toEqual([
             {
@@ -2506,13 +2506,13 @@ describe('Caddy global proxy configuration editor', () => {
             await openEditor()
             const fields = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')]
             await setControlValue(fields[2]!, '120')
-            await click(getButton('Save'))
+            await click(getButton('Save changes'))
             await waitForToast('error', 'The HTTP settings could not be saved.')
             expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
                 'The HTTP settings could not be saved.',
             )
             expect(fields[2]?.value).toBe('120')
-            await click(getButton('Save'))
+            await click(getButton('Save changes'))
             await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 2)
             await waitForToast('success')
         })
@@ -2562,9 +2562,9 @@ describe('Caddy proxy host configuration editor', () => {
         expect(toggle.checked).toBeTrue()
         expect(dialog.textContent).toContain('Browser cache for public assets')
         expect(dialog.querySelector('input[placeholder="/assets/app.a1b2.js"]')).not.toBeNull()
-        expect(getButton('Save and apply').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         expect(getButton('Restore defaults').disabled).toBeFalse()
-        await click(getButton('Save and apply'))
+        await click(getButton('Save changes'))
         expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
     })
 
@@ -2577,9 +2577,9 @@ describe('Caddy proxy host configuration editor', () => {
         await setControlValue(path, '/static/')
         await setControlValue(dialog.querySelector<HTMLInputElement>('input[id*="-age-"]')!, '7200')
         await click(getCheckbox('This asset is versioned (immutable)', dialog))
-        expect(getButton('Save and apply').disabled).toBeFalse()
+        expect(getButton('Save changes').disabled).toBeFalse()
         expect(dialog.querySelector('[role="alert"]')).toBeNull()
-        await click(getButton('Save and apply'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
         expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
             data: {
@@ -2608,7 +2608,7 @@ describe('Caddy proxy host configuration editor', () => {
             rules: [{ path: '/static/', maxAgeSeconds: 3600, immutable: false }],
         }
         loadProxyHostPageFixture.mockResolvedValue([{ ...enabledHost, browserCache }, disabledHost])
-        await click(getButton('Save and apply'))
+        await click(getButton('Save changes'))
         await waitFor(() => !dialog.isConnected)
         await openMenu(getButton('Open actions for app.example.com'))
         await click(getMenuItem('Edit'))
@@ -2642,13 +2642,13 @@ describe('Caddy proxy host configuration editor', () => {
                     .getElementById(age.getAttribute('aria-describedby')!)
                     ?.getAttribute('role'),
             ).toBe('alert')
-            expect(getButton('Save and apply').disabled).toBeTrue()
-            await click(getButton('Save and apply'))
+            expect(getButton('Save changes').disabled).toBeTrue()
+            await click(getButton('Save changes'))
             expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
             await setControlValue(age, '31536000')
             expect(age.getAttribute('aria-invalid')).not.toBe('true')
             expect(dialog.querySelector('[role="alert"]')).toBeNull()
-            expect(getButton('Save and apply').disabled).toBeFalse()
+            expect(getButton('Save changes').disabled).toBeFalse()
         },
     )
 
@@ -2660,12 +2660,12 @@ describe('Caddy proxy host configuration editor', () => {
             'input[placeholder="/assets/app.a1b2.js"]',
         )!
         await setControlValue(path, '/api/')
-        expect(getButton('Save and apply').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         await click(toggle)
         expect(dialog.querySelector('[role="alert"]')).toBeNull()
         expect(dialog.querySelector('input[placeholder="/assets/app.a1b2.js"]')).toBeNull()
-        expect(getButton('Save and apply').disabled).toBeFalse()
-        await click(getButton('Save and apply'))
+        expect(getButton('Save changes').disabled).toBeFalse()
+        await click(getButton('Save changes'))
         await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
         expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
             data: {
@@ -2692,7 +2692,7 @@ describe('Caddy proxy host configuration editor', () => {
                 )
             }
             const dialog = await openHostConfig()
-            await click(getButton('Save'))
+            await click(getButton('Save changes'))
             await waitForToast('error', 'The HTTP settings could not be saved.')
             expect(dialog.textContent).not.toContain('The HTTP settings could not be saved.')
             expect(dialog.textContent).not.toContain('private transport failure')
@@ -2713,7 +2713,7 @@ describe('Caddy proxy host configuration editor', () => {
         ).toBe('override')
         await chooseSelectOption('Response compression', 'Inherit global default')
         expect(dialog.textContent).toContain('Global setting: Automatic (Zstd/Gzip).')
-        await click(getButton('Save and apply'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
         expect(saveProxyHostConfigEditorHandlerMock.mock.calls[0]).toEqual([
             {
@@ -2812,7 +2812,7 @@ describe('Caddy proxy host configuration editor', () => {
         ).toBeTrue()
         expect(
             [...dialog.querySelectorAll('button')].some((button) =>
-                button.textContent?.includes('Save and apply'),
+                button.textContent?.includes('Save changes'),
             ),
         ).toBeFalse()
         expect(dialog.textContent).not.toContain('Restore defaults')
@@ -2842,7 +2842,7 @@ describe('Caddy proxy host configuration editor', () => {
         const dialog = await openHostConfig()
         const fields = [...dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')]
         await setControlValue(fields[2]!, '120')
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
         expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
             data: {
@@ -2882,7 +2882,7 @@ describe('Caddy proxy host configuration editor', () => {
             '#proxy-host-setting-proxyReadTimeoutSeconds',
         )!
         await setControlValue(readTimeout, '120')
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitForToast(
             'error',
             'The saved configuration changed. Your draft is kept. Review the current settings before saving.',
@@ -2890,7 +2890,7 @@ describe('Caddy proxy host configuration editor', () => {
         expect(readTimeout.value).toBe('120')
         expect(dialog.isConnected).toBeTrue()
 
-        expect(getButton('Save').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         expect(getProxyHostConfigEditorHandlerMock).toHaveBeenCalledTimes(1)
         getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
             ...editorFixture,
@@ -2908,7 +2908,7 @@ describe('Caddy proxy host configuration editor', () => {
             message: 'admin.proxyHosts.runtime.savedPending',
             runtimeStatus: 'pending',
         })
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitForToast('warning', 'Saved changes are waiting to be applied.')
         await waitFor(() => !dialog.isConnected)
     })
@@ -2985,8 +2985,8 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
             dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!,
             value,
         )
-        await click(getButton('Save'))
-        await waitFor(() => getButton('Save').disabled)
+        await click(getButton('Save changes'))
+        await waitFor(() => getButton('Save changes').disabled)
         await waitFor(() => dialog.textContent?.includes('Review latest configuration') ?? false)
         return dialog
     }
@@ -3002,13 +3002,13 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
         saveMock.mockResolvedValueOnce(conflict)
         const dialog = await openEditor()
         await chooseSelectOption('Response compression', 'Automatic (Zstd/Gzip)')
-        await click(getButton('Save'))
-        await waitFor(() => getButton('Save').disabled)
+        await click(getButton('Save changes'))
+        await waitFor(() => getButton('Save changes').disabled)
         latest({ proxyReadTimeoutSeconds: 90, proxySendTimeoutSeconds: 180 })
         await review()
         expect(dialog.querySelector('table')?.textContent).toContain('Automatic (Zstd/Gzip)')
         await click(getButton('Keep my draft and use this revision'))
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveMock.mock.calls.length === 2)
         const expected = {
             baseRevision: latestRevision,
@@ -3035,7 +3035,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
         await click(getButton('Keep my draft and use this revision'))
         expect(saveMock).toHaveBeenCalledTimes(1)
         saveMock.mockResolvedValueOnce(conflict)
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveMock.mock.calls.length === 2)
         const expected = {
             baseRevision: latestRevision,
@@ -3045,7 +3045,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
             data: scope === 'host' ? { proxyHostId: enabledHost.id, ...expected } : expected,
         })
         await waitFor(() => dialog.textContent?.includes('Review latest configuration') ?? false)
-        expect(getButton('Save').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
             '120',
         )
@@ -3058,7 +3058,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
         await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 2)
         await click(getLastButton('Cancel'))
         expect(saveMock).toHaveBeenCalledTimes(1)
-        expect(getButton('Save').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         // A background update must not silently replace the values the user reviewed.
         await act(async () =>
             activeQueryClient?.setQueryData(
@@ -3075,7 +3075,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
         await click(getButton('Keep my draft and use this revision'))
         await click(getButton('Keep my edited values'))
         expect(saveMock).toHaveBeenCalledTimes(1)
-        await click(getButton('Save'))
+        await click(getButton('Save changes'))
         await waitFor(() => saveMock.mock.calls.length === 2)
         const expected = {
             baseRevision: latestRevision,
@@ -3096,7 +3096,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
         expect(dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!.value).toBe(
             '120',
         )
-        expect(getButton('Save').disabled).toBeTrue()
+        expect(getButton('Save changes').disabled).toBeTrue()
         latest({ proxyReadTimeoutSeconds: 180 })
         await review()
         await click(getButton('Use current saved settings'))
@@ -3104,7 +3104,7 @@ describe.each(['host', 'global'] as const)('%s configuration conflict recovery',
             '180',
         )
         expect(saveMock).toHaveBeenCalledTimes(1)
-        expect(getButton('Save').disabled).toBeFalse()
+        expect(getButton('Save changes').disabled).toBeFalse()
     })
     test.each([false, true])(
         'requires fresh reset confirmation after resolving a reset conflict (edited draft: %s)',
@@ -3223,7 +3223,7 @@ describe('integrated proxy host setup guide', () => {
             await blurControl(upstream)
             await click(getButton('Next step'))
             await click(getButton('Next step'))
-            await click(getButton('Create proxy host'))
+            await click(getButton('Save changes'))
             await waitForToast(
                 outcome === 'failed' ? 'error' : outcome === 'pending' ? 'warning' : 'success',
             )

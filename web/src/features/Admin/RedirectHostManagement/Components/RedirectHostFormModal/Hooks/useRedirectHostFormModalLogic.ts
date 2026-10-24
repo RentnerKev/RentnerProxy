@@ -123,8 +123,8 @@ export default function useRedirectHostFormModalLogic({
                       ? 'admin.redirectHosts.actions.add'
                       : 'admin.redirectHosts.form.editTitle',
             ),
-            pendingSubmitLabel: t(isCreate ? 'admin.redirectHosts.form.creating' : 'common.saving'),
-            submitLabel: t(isCreate ? 'admin.redirectHosts.actions.create' : 'common.save'),
+            pendingSubmitLabel: t('common.saving'),
+            submitLabel: t('common.save'),
 
             canAssignCertificates,
             canChangeEnabled: isCreate || (redirectHost?.enabled ? canDisable : canEnable),

@@ -7,7 +7,7 @@ import FieldError from '@/shared/Forms/FieldError.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useTotpSetupModalLogic from './Hooks/useTotpSetupModalLogic.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 
 export default function TotpSetupModal({
     setup,
@@ -39,51 +39,46 @@ export default function TotpSetupModal({
             footer={
                 isVerificationStep ? (
                     <>
-                        <button
+                        <ModalActionButton
                             type="button"
-                            className={buttonClassName('secondary')}
                             disabled={isPending}
                             onClick={logic.handler.back}
+                            variant="secondary"
                         >
                             {t('account.twoFactor.setup.back')}
-                        </button>
+                        </ModalActionButton>
                         <logic.form.Subscribe
                             selector={(formState) =>
                                 [formState.canSubmit, formState.isSubmitting] as const
                             }
                         >
                             {([canSubmit, isSubmitting]) => (
-                                <button
+                                <ModalActionButton
                                     type="button"
-                                    className={buttonClassName('primary')}
                                     disabled={!canSubmit || isSubmitting || isPending}
                                     onClick={() => void logic.form.handleSubmit()}
                                 >
                                     {isSubmitting || isPending
                                         ? t('account.twoFactor.setup.verifying')
                                         : t('account.twoFactor.setup.verifyAndEnable')}
-                                </button>
+                                </ModalActionButton>
                             )}
                         </logic.form.Subscribe>
                     </>
                 ) : (
                     <>
-                        <button
+                        <ModalCancelButton
                             type="button"
-                            className={buttonClassName('secondary')}
                             disabled={isPending}
                             onClick={logic.handler.close}
-                        >
-                            {t('common.cancel')}
-                        </button>
-                        <button
+                        />
+                        <ModalActionButton
                             type="button"
-                            className={buttonClassName('primary')}
                             disabled={isPending}
                             onClick={logic.handler.verify}
                         >
                             {t('account.twoFactor.setup.continue')}
-                        </button>
+                        </ModalActionButton>
                     </>
                 )
             }

@@ -404,10 +404,10 @@ export default function useProxyHostFormModalLogic({
                       ? 'admin.proxyHosts.actions.add'
                       : 'admin.proxyHosts.form.editTitle',
             ),
-            pendingSubmitLabel: t(isCreate ? 'admin.proxyHosts.form.creating' : 'common.saving'),
+            pendingSubmitLabel: t('common.saving'),
             submitLabel: requestNewCertificate
                 ? t('admin.proxyHosts.form.requestCertificateAndSave')
-                : t(isCreate ? 'admin.proxyHosts.actions.create' : 'common.save'),
+                : t('common.save'),
 
             canConfigureCompression,
             canAssignCertificates,

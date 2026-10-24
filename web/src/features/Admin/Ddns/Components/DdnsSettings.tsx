@@ -1,3 +1,4 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { NumberInput } from '@rentnerkev/inputs'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -16,22 +17,16 @@ export default function DdnsSettings(props: DdnsSettingsProps) {
             description={t('admin.ddns.settings.description')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
                         onClick={handler.close}
                         disabled={state.pending}
-                        className="h-12 rounded-xl border border-danger-text bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
+                        isPending={state.pending}
                         disabled={state.locked || state.stale}
-                        className="h-12 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground disabled:opacity-50"
-                    >
-                        {t(state.pending ? 'common.working' : 'common.save')}
-                    </button>
+                    />
                 </>
             }
         >

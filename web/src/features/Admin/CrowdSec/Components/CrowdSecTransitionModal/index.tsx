@@ -1,10 +1,10 @@
+import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import type { CrowdSecTransitionModalProps } from './Types/crowdsec-transition-modal.types.ts'
 import useCrowdSecTransitionModalLogic from './Hooks/useCrowdSecTransitionModalLogic.ts'
 import { Check, LoaderCircle } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function CrowdSecTransitionModal({
     transition,
@@ -23,13 +23,13 @@ export default function CrowdSecTransitionModal({
             closeDisabled={!state.closable}
             footer={
                 state.closable ? (
-                    <button type="button" className={buttonClassName('primary')} onClick={onClose}>
+                    <ModalActionButton type="button" variant="primary" onClick={onClose}>
                         {t(
                             transition.phase === 'delayed'
                                 ? 'admin.crowdSec.progress.continueInBackground'
                                 : 'admin.crowdSec.progress.done',
                         )}
-                    </button>
+                    </ModalActionButton>
                 ) : null
             }
         >

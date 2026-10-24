@@ -1,3 +1,4 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select'
 import { Plus, X } from 'lucide-react'
@@ -19,22 +20,16 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
             description={t('admin.ddns.editor.description')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
                         disabled={state.pending}
                         onClick={handler.close}
-                        className="h-12 rounded-xl border border-red-700/25 bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
+                        isPending={state.pending}
                         disabled={state.locked || state.stale}
-                        className="h-12 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground disabled:opacity-50"
-                    >
-                        {t(state.pending ? 'common.working' : 'common.save')}
-                    </button>
+                    />
                 </>
             }
         >

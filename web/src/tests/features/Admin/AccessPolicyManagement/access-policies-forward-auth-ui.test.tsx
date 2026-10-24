@@ -192,7 +192,7 @@ test('selects Authentik Forward Auth and saves the gateway path and identity hea
         document.querySelector<HTMLInputElement>('input[name="forwardAuth.endpoint"]')!,
         'http://auth.internal/outpost.goauthentik.io/auth/caddy/',
     )
-    await click(getButton('Create access policy'))
+    await click(getButton('Save changes'))
     await waitFor(() => createAccessPolicyHandlerMock.mock.calls.length === 1)
 
     expect(createAccessPolicyHandlerMock.mock.calls[0]?.[0]).toMatchObject({
@@ -266,7 +266,7 @@ test('creates Basic Auth with the policy in a single save and preserves the ente
     )
     await enterBasicAuthCredentials()
     expect(document.body.textContent).toContain('Basic Auth will be configured')
-    await click(getButton('Create access policy'))
+    await click(getButton('Save changes'))
     await waitFor(() => createAccessPolicyHandlerMock.mock.calls.length === 1)
     expect(createAccessPolicyHandlerMock.mock.calls[0]?.[0]).toEqual({
         data: {
@@ -288,7 +288,7 @@ test('requires both credentials before saving a Basic Auth policy', async () => 
         'Protected site',
     )
     await chooseSelectOption('Protection mode', 'Authenticated')
-    await click(getButton('Create access policy'))
+    await click(getButton('Save changes'))
     expect(createAccessPolicyHandlerMock).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Enter a username.')
     expect(document.body.textContent).toContain('Enter a password.')
@@ -296,7 +296,7 @@ test('requires both credentials before saving a Basic Auth policy', async () => 
         document.querySelector<HTMLInputElement>('input[name="username"]')!,
         'invalid:user',
     )
-    await click(getButton('Create access policy'))
+    await click(getButton('Save changes'))
     expect(createAccessPolicyHandlerMock).not.toHaveBeenCalled()
     expect(
         document
@@ -311,7 +311,7 @@ test('sets up the first Basic Auth account while editing an existing policy', as
     queryClient!.setQueryData(accountsKey, [])
     expect(queryClient!.getQueryState(accountsKey)?.isInvalidated).toBe(false)
     await enterBasicAuthCredentials()
-    await click(getButton('Save'))
+    await click(getButton('Save changes'))
     await waitFor(() => updateAccessPolicyHandlerMock.mock.calls.length === 1)
     expect(updateAccessPolicyHandlerMock.mock.calls[0]?.[0]).toMatchObject({
         data: {
@@ -328,7 +328,7 @@ test('preserves existing Basic Auth accounts when editing the policy', async () 
     await render(formModal({ ...basicAuthPolicy, basicAuthAccountCount: 1 }))
     expect(document.querySelector('input[name="password"]')).toBeNull()
     expect(document.body.textContent).toContain('The saved credentials remain active.')
-    await click(getButton('Save'))
+    await click(getButton('Save changes'))
     await waitFor(() => updateAccessPolicyHandlerMock.mock.calls.length === 1)
     expect(updateAccessPolicyHandlerMock.mock.calls[0]?.[0]).toEqual({
         data: {
@@ -347,7 +347,7 @@ test('excludes drafted credentials when switching back to a public policy', asyn
     await enterBasicAuthCredentials()
     await chooseSelectOption('Protection mode', 'Public')
     expect(document.querySelector('input[name="password"]')).toBeNull()
-    await click(getButton('Save'))
+    await click(getButton('Save changes'))
     await waitFor(() => updateAccessPolicyHandlerMock.mock.calls.length === 1)
     expect(updateAccessPolicyHandlerMock.mock.calls[0]?.[0]).toEqual({
         data: {
@@ -370,7 +370,7 @@ test('keeps the setup open with an error when saving fails', async () => {
     })
     await render(formModal(basicAuthPolicy, onSuccess))
     await enterBasicAuthCredentials()
-    await click(getButton('Save'))
+    await click(getButton('Save changes'))
     await waitFor(() => document.body.textContent?.includes('could not be saved') === true)
     expect(onSuccess).not.toHaveBeenCalled()
     expect(document.querySelector<HTMLInputElement>('input[name="username"]')?.value).toBe('kevin')
@@ -385,7 +385,7 @@ test('reports saved configuration as pending when runtime application is unavail
     })
     await render(formModal(basicAuthPolicy))
     await enterBasicAuthCredentials()
-    await click(getButton('Save'))
+    await click(getButton('Save changes'))
     await waitFor(
         () =>
             document.body.textContent?.includes(

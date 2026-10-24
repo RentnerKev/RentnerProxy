@@ -254,6 +254,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                         isBlocked={state.hasConflict}
                         canEdit={props.canEdit}
                         isBusy={busy}
+                        isSaving={state.isSaving}
                         hasData={Boolean(state.data)}
                         onOpenChange={props.onOpenChange}
                         onReset={handler.reset}

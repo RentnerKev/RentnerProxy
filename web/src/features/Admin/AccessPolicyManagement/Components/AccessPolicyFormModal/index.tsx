@@ -1,13 +1,11 @@
-import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
 import type { AccessPolicyFormModalProps } from './Types/access-policy-form.types.ts'
 import useAccessPolicyFormModalLogic from './Hooks/useAccessPolicyFormModalLogic.ts'
 import AccessPolicyFormFields from './Components/AccessPolicyFormFields.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps) {
     const { state, handler } = useAccessPolicyFormModalLogic(props)
-    const { t } = useTranslationStore()
 
     return (
         <Modal
@@ -19,22 +17,16 @@ export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps)
             closeDisabled={state.isPending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isPending}
                         onClick={() => props.onOpenChange(false)}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
-                        className={buttonClassName('primary')}
+                        isPending={state.isPending}
                         disabled={state.isPending}
-                    >
-                        {state.isPending ? state.pendingSubmitLabel : state.submitLabel}
-                    </button>
+                    />
                 </>
             }
         >

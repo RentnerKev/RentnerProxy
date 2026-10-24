@@ -1,10 +1,10 @@
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import type { CertificateRequestModalLogicResult } from './Types/certificate-request-modal.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useCertificateRequestModalLogic from './Hooks/useCertificateRequestModalLogic.ts'
 import type { CertificateRequestModalProps } from './Types/certificate-request-modal.types.ts'
 import CertificateRequestFields from './Components/CertificateRequestFields.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import { ACME_TERMS_INFORMATION_URL } from '@/config/certificates.config.ts'
 
 export default function CertificateRequestModal(props: CertificateRequestModalProps) {
@@ -40,27 +40,24 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                             .
                         </p>
                     ) : null}
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isPending}
                         onClick={handler.handleClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
+                    />
                     <form.Subscribe
                         selector={(formState) =>
                             [formState.canSubmit, formState.isSubmitting] as const
                         }
                     >
                         {([canSubmit, isSubmitting]) => (
-                            <button
+                            <ModalActionButton
                                 type="submit"
                                 form={state.formId}
                                 aria-describedby={
                                     state.retryableJob ? undefined : `${state.formId}-acme-consent`
                                 }
-                                className={buttonClassName('primary')}
+                                variant="primary"
                                 disabled={
                                     !canSubmit ||
                                     isSubmitting ||
@@ -73,7 +70,7 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                                     : state.retryableJob
                                       ? t('admin.certificates.actions.retry')
                                       : t('admin.certificates.actions.request')}
-                            </button>
+                            </ModalActionButton>
                         )}
                     </form.Subscribe>
                 </>

@@ -1,3 +1,4 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { TextInput } from '@rentnerkev/inputs'
 import { RotateCw } from 'lucide-react'
 import { Modal } from '@/shared/Modal/index.tsx'
@@ -19,26 +20,16 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
             description={t('admin.dockerDiscovery.connection.description')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
                         onClick={handler.close}
                         disabled={state.pending}
-                        className={buttonClassName('secondary')}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
+                        isPending={state.pending}
                         disabled={state.pending || !state.canSave}
-                        className={buttonClassName('primary')}
-                    >
-                        {t(
-                            state.pending
-                                ? 'common.working'
-                                : 'admin.dockerDiscovery.connection.save',
-                        )}
-                    </button>
+                    />
                 </>
             }
         >

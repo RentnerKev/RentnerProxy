@@ -2,7 +2,7 @@ import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select'
 import { Modal } from '@/shared/Modal/index.tsx'
 import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useChannelEditorLogic from '../Hooks/useChannelEditorLogic.ts'
 import type { ChannelEditorProps } from '../Types/notifications-panel.types.ts'
@@ -19,22 +19,12 @@ export default function ChannelEditor(props: ChannelEditorProps) {
             description={t('account.notifications.editorDescription')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('danger')}
                         disabled={props.pending}
                         onClick={props.onClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
-                        form={state.formId}
-                        className={buttonClassName('primary')}
-                        disabled={props.pending}
-                    >
-                        {t(props.pending ? 'common.working' : 'common.save')}
-                    </button>
+                    />
+                    <ModalSaveButton type="submit" form={state.formId} isPending={props.pending} />
                 </>
             }
         >

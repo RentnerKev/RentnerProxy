@@ -1,6 +1,10 @@
-import { RotateCcw, Save } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import {
+    ModalActionButton,
+    ModalCancelButton,
+    ModalSaveButton,
+} from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { ProxyConfigEditorActionsProps } from '../Types/proxy-config-editor-actions.types.ts'
 
@@ -9,6 +13,7 @@ export default function ProxyConfigEditorActions({
     isBlocked,
     canEdit,
     isBusy,
+    isSaving,
     hasData,
     onOpenChange,
     onReset,
@@ -17,34 +22,25 @@ export default function ProxyConfigEditorActions({
     const { t } = useTranslationStore()
     return (
         <>
-            <button
-                type="button"
-                className={buttonClassName('secondary')}
-                onClick={() => onOpenChange(false)}
-                disabled={isBusy}
-            >
-                {t('common.cancel')}
-            </button>
+            <ModalCancelButton onClick={() => onOpenChange(false)} disabled={isBusy}>
+                {canEdit ? t('common.cancel') : t('common.close')}
+            </ModalCancelButton>
             {canEdit ? (
                 <>
-                    <button
-                        type="button"
-                        className={buttonClassName('danger')}
+                    <ModalActionButton
+                        variant="danger"
                         onClick={onReset}
                         disabled={isBusy || isBlocked || !hasData}
                     >
                         <RotateCcw className="size-4" />
                         {t('admin.proxyHosts.config.resetButton')}
-                    </button>
-                    <button
+                    </ModalActionButton>
+                    <ModalSaveButton
                         type="button"
-                        className={buttonClassName('primary')}
                         onClick={onSave}
+                        isPending={isSaving}
                         disabled={isBusy || isBlocked || isInvalid || !hasData}
-                    >
-                        <Save className="size-4" />
-                        {t('admin.proxyHosts.config.save')}
-                    </button>
+                    />
                 </>
             ) : null}
         </>

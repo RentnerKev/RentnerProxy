@@ -1,3 +1,4 @@
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
@@ -20,17 +21,16 @@ export default function HostBulkModal(props: BulkHostModalProps) {
             closeDisabled={state.pending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.pending}
                         onClick={() => props.onOpenChange(false)}
                     >
-                        {t('common.closeDialog')}
-                    </button>
-                    <button
+                        {state.result ? t('common.close') : t('common.cancel')}
+                    </ModalCancelButton>
+                    <ModalActionButton
                         type="button"
-                        className={buttonClassName('secondary')}
+                        variant="secondary"
                         disabled={state.pending || !state.canPreview}
                         onClick={handler.handlePreview}
                     >
@@ -39,15 +39,15 @@ export default function HostBulkModal(props: BulkHostModalProps) {
                                 ? 'admin.bulkHosts.previewAgain'
                                 : 'admin.bulkHosts.preview',
                         )}
-                    </button>
-                    <button
+                    </ModalActionButton>
+                    <ModalActionButton
                         type="button"
-                        className={buttonClassName('primary')}
+                        variant="primary"
                         disabled={state.pending || !state.canApply}
                         onClick={handler.handleApply}
                     >
                         {t(state.pending ? 'common.loading' : 'admin.bulkHosts.apply')}
-                    </button>
+                    </ModalActionButton>
                 </>
             }
         >

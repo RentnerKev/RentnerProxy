@@ -1,3 +1,4 @@
+import { ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Copy } from 'lucide-react'
 import {
     DOCKER_DISCOVERY_GUIDE_EXAMPLES,
@@ -23,13 +24,9 @@ export default function DiscoveryGuide({
             title={t('admin.dockerDiscovery.guide.title')}
             description={t('admin.dockerDiscovery.guide.description')}
             footer={
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="min-h-11 rounded-xl border border-border bg-surface-raised px-4 py-2 text-sm font-bold text-ink-soft"
-                >
-                    {t('common.closeDialog')}
-                </button>
+                <ModalCancelButton type="button" onClick={onClose}>
+                    {t('common.close')}
+                </ModalCancelButton>
             }
         >
             <div className="grid min-w-0 gap-5 text-sm text-muted">

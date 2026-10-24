@@ -1,6 +1,5 @@
-import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { FormModalActionsProps } from './Types/form-modal-actions.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import FormSubmitButton from './FormSubmitButton.tsx'
 export default function FormModalActions({
     formId,
@@ -12,17 +11,9 @@ export default function FormModalActions({
     submitLabel,
     submitDescriptionId,
 }: FormModalActionsProps) {
-    const { t } = useTranslationStore()
     return (
         <>
-            <button
-                type="button"
-                className={buttonClassName('secondary')}
-                disabled={isPending}
-                onClick={() => onOpenChange(false)}
-            >
-                {t('common.cancel')}
-            </button>
+            <ModalCancelButton disabled={isPending} onClick={() => onOpenChange(false)} />
             <FormSubmitButton
                 formId={formId}
                 canSubmit={canSubmit}

@@ -345,7 +345,7 @@ describe('Docker discovery management UI', () => {
         await fill(input, 'http://different-docker:2375')
         expect(button('Enable synchronization').disabled).toBe(true)
         await click(button('Test connection'))
-        await waitFor(() => !button('Save and review candidates').disabled)
+        await waitFor(() => !button('Save changes').disabled)
         expect(button('Enable synchronization').disabled).toBe(true)
         expect(f.api.change).not.toHaveBeenCalled()
         expect(f.api.connect).not.toHaveBeenCalled()
@@ -361,7 +361,7 @@ describe('Docker discovery management UI', () => {
         await render(f.api)
         await click(button('Connection'))
         const input = document.querySelector<HTMLInputElement>('input[name="endpoint"]')!
-        const save = button('Save and review candidates')
+        const save = button('Save changes')
         expect(save.disabled).toBe(true)
         await fill(input, 'http://127.0.0.1:2375')
         await click(button('Test connection'))
@@ -406,7 +406,7 @@ describe('Docker discovery management UI', () => {
         expect(f.api.inspect).toHaveBeenCalledTimes(1)
         expect(JSON.stringify(feedback)).not.toContain('PRIVATE')
         expect(document.body.textContent).not.toContain('could not complete')
-        expect(button('Save and review candidates').disabled).toBe(true)
+        expect(button('Save changes').disabled).toBe(true)
     })
     test('rejects saving after another session changes the connector revision', async () => {
         const initial = discoveryOverview()

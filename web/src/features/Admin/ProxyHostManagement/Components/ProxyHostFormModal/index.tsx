@@ -1,3 +1,4 @@
+import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { Info } from 'lucide-react'
 import { ACME_TERMS_INFORMATION_URL } from '@/config/certificates.config.ts'
@@ -63,9 +64,9 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                                         : 'admin.proxyHosts.guide.open',
                                 )}
                             >
-                                <button
+                                <ModalActionButton
                                     type="button"
-                                    className="inline-flex size-12 cursor-pointer items-center justify-center rounded-xl border border-transparent text-muted transition-colors hover:border-accent-border hover:bg-accent-muted hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    variant="secondary"
                                     aria-label={t(
                                         state.guide.open
                                             ? 'admin.proxyHosts.guide.skip'
@@ -79,7 +80,7 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                                     onClick={handler.handleToggleGuide}
                                 >
                                     <Info aria-hidden="true" className="size-5" strokeWidth={1.8} />
-                                </button>
+                                </ModalActionButton>
                             </CustomTooltip>
                         </div>
                         <ProxyHostFormModalFooter

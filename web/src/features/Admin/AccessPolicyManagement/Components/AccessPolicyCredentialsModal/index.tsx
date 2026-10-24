@@ -1,3 +1,4 @@
+import { ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -22,14 +23,13 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                 size="lg"
                 closeDisabled={state.isDeleting}
                 footer={
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isDeleting}
                         onClick={() => handler.handleOpenChange(false)}
                     >
-                        {t('common.cancel')}
-                    </button>
+                        {t('common.close')}
+                    </ModalCancelButton>
                 }
             >
                 <div className="grid gap-5">

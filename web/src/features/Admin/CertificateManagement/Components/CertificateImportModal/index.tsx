@@ -1,10 +1,10 @@
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import type { CertificateImportLogicResult } from './Types/certificate-import-modal.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import type { CertificateImportModalProps } from './Types/certificate-import-modal.types.ts'
 import useCertificateImportLogic from './Hooks/useCertificateImportLogic.ts'
 import CertificateImportFields from './Components/CertificateImportFields.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function CertificateImportModal(props: CertificateImportModalProps) {
     const { state, handler, form }: CertificateImportLogicResult = useCertificateImportLogic(props)
@@ -27,24 +27,21 @@ export default function CertificateImportModal(props: CertificateImportModalProp
             closeDisabled={state.isPending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isPending}
                         onClick={handler.handleClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
+                    />
                     <form.Subscribe
                         selector={(formState) =>
                             [formState.canSubmit, formState.isSubmitting] as const
                         }
                     >
                         {([canSubmit, isSubmitting]) => (
-                            <button
+                            <ModalActionButton
                                 type="submit"
                                 form={state.formId}
-                                className={buttonClassName('primary')}
+                                variant="primary"
                                 disabled={!canSubmit || isSubmitting || state.isPending}
                             >
                                 {state.isPending || isSubmitting
@@ -54,7 +51,7 @@ export default function CertificateImportModal(props: CertificateImportModalProp
                                               ? 'admin.certificates.actions.replace'
                                               : 'admin.certificates.actions.import',
                                       )}
-                            </button>
+                            </ModalActionButton>
                         )}
                     </form.Subscribe>
                 </>

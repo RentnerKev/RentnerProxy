@@ -454,10 +454,6 @@ export default function useAccessPolicyFormModalLogic({
         state: {
             description: t('admin.accessPolicies.form.description'),
             formId,
-            pendingSubmitLabel: t(
-                isCreate ? 'admin.accessPolicies.form.creating' : 'common.saving',
-            ),
-            submitLabel: t(isCreate ? 'admin.accessPolicies.actions.create' : 'common.save'),
             title: t(
                 isCreate
                     ? 'admin.accessPolicies.actions.add'

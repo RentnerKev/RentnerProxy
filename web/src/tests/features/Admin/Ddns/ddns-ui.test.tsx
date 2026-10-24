@@ -433,7 +433,7 @@ describe('DDNS administration UI', () => {
         await submit()
         await submit()
         expect(api.apply).toHaveBeenCalledTimes(1)
-        expect(button('Working…').disabled).toBe(true)
+        expect(button('Saving…').disabled).toBe(true)
         expect(button('Cancel').disabled).toBe(true)
         await act(async () =>
             result.resolve({ success: true, value: ddnsSnapshot(approved, true, 2) }),

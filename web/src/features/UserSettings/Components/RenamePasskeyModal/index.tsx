@@ -3,7 +3,11 @@ import { TextInput } from '@rentnerkev/inputs'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useRenamePasskeyModalLogic from './Hooks/useRenamePasskeyModalLogic.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import {
+    ModalActionButton,
+    ModalCancelButton,
+    ModalSaveButton,
+} from '@/shared/Modal/Components/ModalActions.tsx'
 
 export default function RenamePasskeyModal({
     initialName,
@@ -33,26 +37,23 @@ export default function RenamePasskeyModal({
             closeDisabled={isPending}
             footer={
                 <>
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        disabled={isPending}
-                        onClick={onClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        className={buttonClassName('primary')}
-                        disabled={isPending || !logic.state.canSubmit}
-                        onClick={logic.handler.confirm}
-                    >
-                        {isPending
-                            ? t('common.saving')
-                            : mode === 'add'
-                              ? t('account.passkeys.name.continue')
-                              : t('account.passkeys.name.save')}
-                    </button>
+                    <ModalCancelButton type="button" disabled={isPending} onClick={onClose} />
+                    {mode === 'add' ? (
+                        <ModalActionButton
+                            type="button"
+                            disabled={isPending || !logic.state.canSubmit}
+                            onClick={logic.handler.confirm}
+                        >
+                            {t(isPending ? 'common.saving' : 'account.passkeys.name.continue')}
+                        </ModalActionButton>
+                    ) : (
+                        <ModalSaveButton
+                            type="button"
+                            disabled={!logic.state.canSubmit}
+                            onClick={logic.handler.confirm}
+                            isPending={isPending}
+                        />
+                    )}
                 </>
             }
         >

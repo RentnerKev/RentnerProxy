@@ -1,11 +1,9 @@
-import * as Dialog from '@radix-ui/react-dialog'
-
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 import { Modal } from '../index.tsx'
 import useConfirmDialogLogic from '../Hooks/useConfirmDialogLogic.ts'
 import type { ConfirmDialogProps } from '../Types/modal.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalActionButton, ModalCancelButton } from './ModalActions.tsx'
 
 export function ConfirmDialog({
     open,
@@ -32,27 +30,18 @@ export function ConfirmDialog({
             closeDisabled={isPending}
             footer={
                 <>
-                    <Dialog.Close
-                        type="button"
-                        disabled={isPending}
-                        className={buttonClassName('secondary')}
-                    >
+                    <ModalCancelButton disabled={isPending} onClick={() => onOpenChange(false)}>
                         {cancelLabel ?? t('common.cancel')}
-                    </Dialog.Close>
-                    <button
-                        type="button"
+                    </ModalCancelButton>
+                    <ModalActionButton
                         disabled={isPending}
                         onClick={handler.handleConfirm}
-                        className={
-                            destructive
-                                ? 'box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-red-700/25 bg-danger-bg text-danger-text enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20'
-                                : buttonClassName('primary')
-                        }
+                        variant={destructive ? 'danger' : 'primary'}
                     >
                         {isPending
                             ? (pendingLabel ?? t('common.working'))
                             : (confirmLabel ?? t('common.confirm'))}
-                    </button>
+                    </ModalActionButton>
                 </>
             }
         />

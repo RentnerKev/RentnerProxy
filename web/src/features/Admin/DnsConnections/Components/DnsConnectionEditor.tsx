@@ -1,3 +1,4 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { CheckboxInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import {
     MAX_CLOUDFLARE_API_TOKEN_LENGTH,
@@ -27,22 +28,16 @@ export default function DnsConnectionEditor({
             description={t('admin.dnsConnections.form.description')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
                         disabled={state.isPending}
                         onClick={() => handler.handleEditorOpenChange(false)}
-                        className="h-12 rounded-xl border border-danger-text bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
+                        isPending={state.isPending}
                         disabled={state.locked || state.isStale}
-                        className="h-12 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground enabled:hover:bg-accent-hover disabled:opacity-50"
-                    >
-                        {t(state.isPending ? 'common.working' : 'common.save')}
-                    </button>
+                    />
                 </>
             }
         >

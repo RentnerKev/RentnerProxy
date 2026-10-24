@@ -2,7 +2,7 @@ import type { ReauthenticationModalProps } from '../Types/reauthentication-modal
 import { PasswordInput } from '@rentnerkev/inputs'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 
 export default function ReauthenticationModal({
     open,
@@ -25,22 +25,14 @@ export default function ReauthenticationModal({
             closeDisabled={isPending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton type="button" disabled={isPending} onClick={onClose} />
+                    <ModalActionButton
                         type="button"
-                        className={buttonClassName('secondary')}
-                        disabled={isPending}
-                        onClick={onClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        className={buttonClassName('primary')}
                         disabled={isPending || !value}
                         onClick={onConfirm}
                     >
                         {t('account.reauthentication.confirm')}
-                    </button>
+                    </ModalActionButton>
                 </>
             }
         >

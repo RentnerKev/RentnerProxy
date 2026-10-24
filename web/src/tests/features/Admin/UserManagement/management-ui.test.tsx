@@ -1200,7 +1200,7 @@ describe('role form modal', () => {
         expect(nameInput).not.toBeNull()
         await setControlValue(keyInput!, 'operations')
         await setControlValue(nameInput!, 'Operations')
-        await click(getButton('Create role'))
+        await click(getButton('Save changes'))
         await waitFor(() => createRoleHandlerMock.mock.calls.length === 1)
         await waitFor(() => document.querySelector('[role="dialog"]') === null)
     })

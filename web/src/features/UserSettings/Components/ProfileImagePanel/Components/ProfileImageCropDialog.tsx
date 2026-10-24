@@ -1,11 +1,11 @@
 import { RangeInput } from '@rentnerkev/inputs'
-import { Check, RotateCcw, ZoomIn } from 'lucide-react'
+import { RotateCcw, ZoomIn } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { ProfileImageCropDialogProps } from '../Types/profile-image-crop-dialog-props.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 
 export default function ProfileImageCropDialog({ state, handler }: ProfileImageCropDialogProps) {
     const { t } = useTranslationStore()
@@ -20,25 +20,17 @@ export default function ProfileImageCropDialog({ state, handler }: ProfileImageC
             description={t('account.profileImage.crop.description')}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         onClick={() => handler.handleOpenChange(false)}
                         disabled={state.isPending}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
+                    />
+                    <ModalSaveButton
                         type="button"
-                        className={buttonClassName('primary')}
                         onClick={() => void handler.handleSave()}
                         disabled={!state.canSave}
-                    >
-                        <Check aria-hidden="true" className="size-4" />
-                        {state.isPending
-                            ? t('account.profileImage.crop.saving')
-                            : t('account.profileImage.crop.save')}
-                    </button>
+                        isPending={state.isPending}
+                    />
                 </>
             }
         >

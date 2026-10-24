@@ -1,3 +1,4 @@
+import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import type { TrustedCaImportLogicResult } from './Types/trusted-ca-import-modal.types.ts'
 import { TextInput, Textarea } from '@rentnerkev/inputs'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -5,7 +6,6 @@ import FieldError from '@/shared/Forms/FieldError.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTrustedCaImportLogic from './Hooks/useTrustedCaImportLogic.ts'
 import type { TrustedCaImportModalProps } from './Types/trusted-ca-import-modal.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
     const { state, handler, form }: TrustedCaImportLogicResult = useTrustedCaImportLogic(props)
@@ -28,24 +28,21 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
             closeDisabled={state.isPending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isPending}
                         onClick={handler.handleClose}
-                    >
-                        {t('common.cancel')}
-                    </button>
+                    />
                     <form.Subscribe
                         selector={(formState) =>
                             [formState.canSubmit, formState.isSubmitting] as const
                         }
                     >
                         {([canSubmit, isSubmitting]) => (
-                            <button
+                            <ModalActionButton
                                 type="submit"
                                 form={state.formId}
-                                className={buttonClassName('primary')}
+                                variant="primary"
                                 disabled={!canSubmit || isSubmitting || state.isPending}
                             >
                                 {t(
@@ -55,7 +52,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                                           ? 'admin.trustedCas.actions.replace'
                                           : 'admin.trustedCas.actions.import',
                                 )}
-                            </button>
+                            </ModalActionButton>
                         )}
                     </form.Subscribe>
                 </>

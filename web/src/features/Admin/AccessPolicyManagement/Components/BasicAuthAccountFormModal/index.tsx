@@ -1,9 +1,9 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useBasicAuthAccountFormLogic from './Hooks/useBasicAuthAccountFormLogic.ts'
 import type { BasicAuthAccountFormModalProps } from '../../Types/basic-auth.types.ts'
 import BasicAuthAccountFormFields from './Components/BasicAuthAccountFormFields.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function BasicAuthAccountFormModal(props: BasicAuthAccountFormModalProps) {
     const { state, handler } = useBasicAuthAccountFormLogic(props)
@@ -24,28 +24,16 @@ export default function BasicAuthAccountFormModal(props: BasicAuthAccountFormMod
             closeDisabled={state.isPending}
             footer={
                 <>
-                    <button
+                    <ModalCancelButton
                         type="button"
-                        className={buttonClassName('secondary')}
                         disabled={state.isPending}
                         onClick={() => handler.handleOpenChange(false)}
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="submit"
+                    />
+                    <ModalSaveButton
                         form={state.formId}
-                        className={buttonClassName('primary')}
+                        isPending={state.isPending}
                         disabled={state.isPending}
-                    >
-                        {state.isPending
-                            ? t('admin.accessPolicies.basicAuth.actions.saving')
-                            : t(
-                                  isCreate
-                                      ? 'admin.accessPolicies.basicAuth.actions.create'
-                                      : 'admin.accessPolicies.basicAuth.actions.save',
-                              )}
-                    </button>
+                    />
                 </>
             }
         >

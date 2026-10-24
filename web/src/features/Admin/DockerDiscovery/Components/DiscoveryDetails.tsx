@@ -1,3 +1,4 @@
+import { ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Link } from '@tanstack/react-router'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -12,13 +13,9 @@ export default function DiscoveryDetails({ row, candidate, onClose }: DiscoveryD
             title={t('admin.dockerDiscovery.actions.details')}
             description={row.sourceId}
             footer={
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="h-11 rounded-xl border border-border bg-surface-raised px-4 text-sm font-bold text-ink-soft"
-                >
-                    {t('common.closeDialog')}
-                </button>
+                <ModalCancelButton type="button" onClick={onClose}>
+                    {t('common.close')}
+                </ModalCancelButton>
             }
         >
             <dl className="grid gap-4 text-sm">

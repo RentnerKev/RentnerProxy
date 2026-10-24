@@ -1,3 +1,4 @@
+import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Tags } from 'lucide-react'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
@@ -37,14 +38,18 @@ export default function HostTagsCell(props: HostTagsCellProps) {
                     size="md"
                     closeDisabled={state.pending}
                     footer={
-                        <button
-                            type="button"
-                            className={buttonClassName('primary')}
-                            disabled={!state.ready || state.pending}
-                            onClick={handler.save}
-                        >
-                            {t('common.save')}
-                        </button>
+                        <>
+                            <ModalCancelButton
+                                disabled={state.pending}
+                                onClick={() => handler.setOpen(false)}
+                            />
+                            <ModalSaveButton
+                                type="button"
+                                disabled={!state.ready}
+                                isPending={state.pending}
+                                onClick={handler.save}
+                            />
+                        </>
                     }
                 >
                     <HostTagSelect
