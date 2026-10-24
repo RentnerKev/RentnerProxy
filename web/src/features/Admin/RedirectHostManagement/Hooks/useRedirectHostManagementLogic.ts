@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import type { RedirectHostManagementLogicResult } from '../Types/management-logic.types.ts'
 import { invalidateRedirectHostManagementRuntimeStatusCache } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -172,6 +173,7 @@ export default function useRedirectHostManagementLogic({
         },
         [disableMutation],
     )
+    useQuickAction('createRedirectHost', openCreate, canView && canCreate)
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_APPLY),

@@ -158,8 +158,8 @@
     "quickSearch": {
         "title": "Szybkie wyszukiwanie",
         "open": "Otwórz wyszukiwanie",
-        "description": "Znajdź hosty, certyfikaty, zasady dostępu lub ustawienia.",
-        "placeholder": "Szukaj według nazwy, domeny lub celu…",
+        "description": "Znajdź wpisy, strony, ustawienia lub działania.",
+        "placeholder": "Szukaj nazw, domen, stron lub działań…",
         "queryLabel": "Szukaj",
         "minQuery": "Wpisz co najmniej dwa znaki, aby wyszukać wpisy.",
         "loading": "Wyszukiwanie…",
@@ -177,7 +177,12 @@
             "proxyHosts": "Hosty proxy",
             "redirectHosts": "Hosty przekierowań",
             "certificates": "Certyfikaty",
-            "accessPolicies": "Zasady dostępu"
+            "accessPolicies": "Zasady dostępu",
+            "actions": "Działania"
+        },
+        "keywords": {
+            "create": "utwórz utworz dodaj nowy nowa",
+            "import": "importuj importować przeslij prześlij"
         }
     },
     "language": {

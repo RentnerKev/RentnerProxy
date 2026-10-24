@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import type { UserManagementLogicResult } from '../Types/management-logic.types.ts'
 import { invalidateUserManagementCache } from '@/lib/Admin/UserManagement/userManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -148,6 +149,7 @@ export default function useUserManagementLogic({
     }, [rolesQuery])
     const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
+    useQuickAction('createUser', openCreate, canCreate)
     return {
         state: {
             actorIsOwner,

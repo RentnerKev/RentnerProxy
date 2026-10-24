@@ -135,8 +135,8 @@
     "quickSearch": {
         "title": "Snel zoeken",
         "open": "Zoeken openen",
-        "description": "Zoek hosts, certificaten, toegangsbeleid of instellingen.",
-        "placeholder": "Zoeken op naam, domein of bestemming…",
+        "description": "Zoek items, pagina’s, instellingen of acties.",
+        "placeholder": "Zoek namen, domeinen, pagina’s of acties…",
         "queryLabel": "Zoeken",
         "minQuery": "Voer minimaal twee tekens in om items te zoeken.",
         "loading": "Zoeken…",
@@ -154,7 +154,12 @@
             "proxyHosts": "Proxyhosts",
             "redirectHosts": "Omleidingshosts",
             "certificates": "Certificaten",
-            "accessPolicies": "Toegangsbeleid"
+            "accessPolicies": "Toegangsbeleid",
+            "actions": "Acties"
+        },
+        "keywords": {
+            "create": "maken aanmaken toevoegen nieuw nieuwe",
+            "import": "importeren uploaden"
         }
     },
     "language": {

@@ -31,6 +31,7 @@ export interface QuickSearchLogicResult {
         readonly limit: number
     }
     readonly handler: {
+        readonly finishClose: () => void
         readonly open: () => void
         readonly focusInput: (event: PreventableEvent) => void
         readonly setOpen: (open: boolean) => void

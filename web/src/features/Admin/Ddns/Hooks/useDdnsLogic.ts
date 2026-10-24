@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { toast } from '@rentnerkev/toasts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
@@ -187,6 +188,10 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             ),
         )
     }
+    const add = () => {
+        if (!locked && canChooseConnection) setRecordEditor({ draft, revision, target: null })
+    }
+    useQuickAction('createDdnsRecord', add, !statusQuery.isPending && !connectionsQuery.isPending)
     return {
         state: {
             canView,
@@ -221,10 +226,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         },
         handler: {
             toggleRuntimeDetails: () => setRuntimeDetails((expanded) => !expanded),
-            add: () => {
-                if (!locked && canChooseConnection)
-                    setRecordEditor({ draft, revision, target: null })
-            },
+            add,
             edit: (target: DdnsTarget) => {
                 if (!locked && canManage) setRecordEditor({ draft, revision, target })
             },

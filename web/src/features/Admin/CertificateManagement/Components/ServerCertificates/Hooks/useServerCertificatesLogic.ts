@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import type { CertificateManagementLogicResult } from '../../../Types/certificate-management.types.ts'
 import { invalidateCertificateManagementCache } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
@@ -184,6 +185,16 @@ export default function useServerCertificatesLogic({
           detailsTarget)
         : null
 
+    useQuickAction(
+        'importCertificate',
+        openImport,
+        permissionSet.has(PERMISSIONS.CERTIFICATES_CREATE),
+    )
+    useQuickAction(
+        'requestCertificate',
+        openRequest,
+        permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE),
+    )
     return {
         state: {
             certificates: certificatesQuery.data ?? EMPTY_CERTIFICATES,

@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import type { ProxyHostManagementLogicResult } from '../Types/management-logic.types.ts'
 import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
@@ -284,6 +285,7 @@ export default function useProxyHostManagementLogic({
           certificateRequestTarget)
         : null
 
+    useQuickAction('createProxyHost', openCreate, canView && canCreate)
     return {
         state: {
             canApply,

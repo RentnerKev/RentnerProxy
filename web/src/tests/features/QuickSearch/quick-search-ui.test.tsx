@@ -8,6 +8,11 @@ import type {
     QuickSearchInput,
 } from '@/lib/QuickSearch/Types/quick-search.types.ts'
 import { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
+import QuickActionsProvider from '@/shared/QuickActions/Components/QuickActionsProvider.tsx'
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
+import { useQuickActions } from '@/shared/QuickActions/Hooks/useQuickActions.ts'
+import { QUICK_SEARCH_ACTIONS } from '@/config/quick-search.config.ts'
+import type { QuickSearchActionId } from '@/lib/QuickSearch/Types/quick-search.types.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -23,11 +28,18 @@ for (const [index, [path, name]] of [
     mock.module(`@/features/Admin/${path}/middleware.ts`, () => ({ [name!]: lookups[index] }))
 }
 
-const { act } = await import('react')
+const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterContextProvider } =
-    await import('@tanstack/react-router')
+const {
+    createMemoryHistory,
+    createRootRoute,
+    createRoute,
+    createRouter,
+    RouterContextProvider,
+    useRouterState,
+} = await import('@tanstack/react-router')
 const { default: QuickSearch } = await import('@/features/QuickSearch/index.tsx')
+const { Modal } = await import('@/shared/Modal/index.tsx')
 const { HotkeysProvider } = await import('@tanstack/react-hotkeys')
 
 let root: Root | null = null
@@ -52,6 +64,39 @@ const entities = [
     { id: '0198d98a-0000-7000-8000-000000000024', label: 'Example policy', detail: 'Staff access' },
 ] satisfies QuickSearchEntity[]
 
+function ActionTarget({
+    id,
+    ready,
+}: {
+    readonly id: QuickSearchActionId
+    readonly ready: boolean
+}) {
+    const [open, setOpen] = useState(false)
+    useQuickAction(id, () => setOpen(true), ready)
+    return (
+        <Modal
+            open={open}
+            onOpenChange={setOpen}
+            title={`Opened ${id}`}
+            description="Action target"
+        >
+            <input aria-label="Action field" />
+        </Modal>
+    )
+}
+function ActionTargets({ ready }: { readonly ready: boolean }) {
+    const pathname = useRouterState({ select: (state) => state.location.pathname })
+    const pending = useQuickActions()?.pending
+    return (
+        <>
+            <output data-pending-action>{pending?.id}</output>
+            {QUICK_SEARCH_ACTIONS.filter((action) => action.to === pathname).map((action) => (
+                <ActionTarget key={action.id} id={action.id} ready={ready} />
+            ))}
+        </>
+    )
+}
+
 async function mount(permissions: readonly string[] = allPermissions, platform?: 'mac') {
     const container = document.createElement('div')
     document.body.append(container)
@@ -67,17 +112,28 @@ async function mount(permissions: readonly string[] = allPermissions, platform?:
                 '/certificates',
                 '/access-policies',
                 '/account',
+                '/dns-connections',
+                '/ddns',
+                '/users',
+                '/roles',
             ].map((path) => createRoute({ getParentRoute: () => routeRoot, path })),
         ),
         history: createMemoryHistory({ initialEntries: ['/'] }),
     })
-    const update = async (nextPermissions: readonly string[], userId = 'test-user') => {
+    const update = async (
+        nextPermissions: readonly string[],
+        userId = 'test-user',
+        ready = true,
+    ) => {
         await act(async () => {
             root?.render(
                 <RouterContextProvider router={router}>
                     <QueryClientProvider client={client!}>
                         <HotkeysProvider defaultOptions={platform ? { hotkey: { platform } } : {}}>
-                            <QuickSearch userId={userId} permissions={nextPermissions} />
+                            <QuickActionsProvider key={userId} permissions={nextPermissions}>
+                                <QuickSearch userId={userId} permissions={nextPermissions} />
+                                <ActionTargets ready={ready} />
+                            </QuickActionsProvider>
                         </HotkeysProvider>
                     </QueryClientProvider>
                 </RouterContextProvider>,
@@ -141,6 +197,15 @@ function selectedText() {
     return document.getElementById(input().getAttribute('aria-activedescendant')!)?.textContent
 }
 
+async function waitFor(condition: () => boolean, deadline = Date.now() + 2_000): Promise<void> {
+    if (condition()) return
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for the action modal')
+    await act(async () => {
+        await Bun.sleep(10)
+    })
+    await waitFor(condition, deadline)
+}
+
 afterEach(async () => {
     await act(async () => {
         root?.unmount()
@@ -157,6 +222,99 @@ afterEach(async () => {
 })
 
 describe('global quick search', () => {
+    test.each([
+        ['create proxy', 'createProxyHost', '/proxy-hosts'],
+        ['create redirect', 'createRedirectHost', '/redirect-hosts'],
+        ['request acme', 'requestCertificate', '/certificates'],
+        ['import pem', 'importCertificate', '/certificates'],
+        ['import trusted ca', 'importTrustedCa', '/certificates'],
+        ['create access policy', 'createAccessPolicy', '/access-policies'],
+        ['create dns connection', 'createDnsConnection', '/dns-connections'],
+        ['create ddns record', 'createDdnsRecord', '/ddns'],
+        ['create user', 'createUser', '/users'],
+        ['create role', 'createRole', '/roles'],
+    ])('opens %s through keyboard search after closing the palette', async (term, id, pathname) => {
+        const { trigger, router } = await mount()
+        trigger.focus()
+        await click(trigger)
+        await query(term!)
+        await key(input(), 'Enter')
+        expect(router.state.location.pathname).toBe(pathname)
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(`Opened ${id}`)
+        expect(document.activeElement?.closest('[role="dialog"]')?.textContent).toContain(
+            `Opened ${id}`,
+        )
+        expect(document.querySelector('[role="combobox"]')).toBeNull()
+        await key(document.activeElement!, 'Escape')
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+        expect(document.activeElement === trigger).toBe(true)
+    })
+    test('reopens the same action on the current page and supports pointer selection', async () => {
+        const { trigger } = await mount()
+        const openAndClose = async () => {
+            await click(trigger)
+            await query('create proxy')
+            await click(document.querySelector('[role="option"]')!)
+            await waitFor(
+                () =>
+                    document
+                        .querySelector('[role="dialog"]')
+                        ?.textContent?.includes('Opened createProxyHost') === true,
+            )
+            expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+                'Opened createProxyHost',
+            )
+            await key(document.activeElement!, 'Escape')
+        }
+        await openAndClose()
+        await openAndClose()
+    })
+    test('discards a queued action if permission is revoked before the target is ready', async () => {
+        const { trigger, update } = await mount()
+        await update(allPermissions, 'test-user', false)
+        await click(trigger)
+        await query('create proxy')
+        await key(input(), 'Enter')
+        await waitFor(
+            () =>
+                document.querySelector('[data-pending-action]')?.textContent === 'createProxyHost',
+        )
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+        await update([PERMISSIONS.PROXY_HOSTS_VIEW])
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+        await update(allPermissions)
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+    })
+    test.each(['user', 'route'] as const)(
+        'discards a queued action after the %s changes',
+        async (change) => {
+            const { trigger, router, update } = await mount()
+            await update(allPermissions, 'test-user', false)
+            await click(trigger)
+            await query('create proxy')
+            await key(input(), 'Enter')
+            await waitFor(
+                () =>
+                    document.querySelector('[data-pending-action]')?.textContent ===
+                    'createProxyHost',
+            )
+            if (change === 'user') await update(allPermissions, 'other-user')
+            else {
+                await act(async () => {
+                    await router.navigate({ to: '/' })
+                    await Bun.sleep(20)
+                })
+                await act(async () => {
+                    await router.navigate({ to: '/proxy-hosts' })
+                    await Bun.sleep(20)
+                })
+                await update(allPermissions)
+            }
+            expect(document.querySelector('[role="dialog"]')).toBeNull()
+            expect(document.querySelector('[data-pending-action]')?.textContent).toBe('')
+        },
+    )
     test('loads no entities at startup and opens/focuses/closes the same dialog by button or Ctrl+K', async () => {
         const { trigger } = await mount()
         for (const lookup of lookups) expect(lookup).not.toHaveBeenCalled()

@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import type { RoleManagementLogicResult } from '../Types/management-logic.types.ts'
 import { invalidateRoleManagementCache } from '@/lib/Admin/RoleManagement/roleManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -97,6 +98,11 @@ export default function useRoleManagementLogic({
     }, [rolesQuery])
     const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
+    useQuickAction(
+        'createRole',
+        openCreate,
+        permissionSet.has(PERMISSIONS.ROLES_CREATE) && canAssignPermissions,
+    )
     return {
         state: {
             assignablePermissionKeys: permissions,

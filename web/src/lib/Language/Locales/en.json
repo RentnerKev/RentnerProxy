@@ -154,8 +154,8 @@
     "quickSearch": {
         "title": "Quick search",
         "open": "Search",
-        "description": "Find hosts, certificates, access policies or settings.",
-        "placeholder": "Search by name, domain or destination…",
+        "description": "Find entries, pages, settings or actions.",
+        "placeholder": "Search names, domains, pages or actions…",
         "queryLabel": "Search",
         "minQuery": "Enter at least two characters to search entries.",
         "loading": "Searching…",
@@ -173,7 +173,12 @@
             "proxyHosts": "Proxy hosts",
             "redirectHosts": "Redirect hosts",
             "certificates": "Certificates",
-            "accessPolicies": "Access policies"
+            "accessPolicies": "Access policies",
+            "actions": "Actions"
+        },
+        "keywords": {
+            "create": "create add new",
+            "import": "import upload"
         }
     },
     "language": {

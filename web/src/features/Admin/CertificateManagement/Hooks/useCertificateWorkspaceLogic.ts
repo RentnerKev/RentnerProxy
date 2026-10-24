@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuickActionPreparation } from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
@@ -14,6 +15,14 @@ export default function useCertificateWorkspaceLogic({
     const [selected, setSelected] = useState<'server' | 'trusted'>(
         canViewServers ? 'server' : 'trusted',
     )
+    useQuickActionPreparation((pendingAction) => {
+        if (pendingAction === 'importTrustedCa' && canViewTrustedCas) setSelected('trusted')
+        else if (
+            (pendingAction === 'importCertificate' || pendingAction === 'requestCertificate') &&
+            canViewServers
+        )
+            setSelected('server')
+    })
     const active =
         selected === 'trusted' && canViewTrustedCas
             ? 'trusted'

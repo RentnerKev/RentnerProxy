@@ -38,6 +38,7 @@ export default function QuickSearch(props: QuickSearchProps) {
                 open={state.open}
                 onOpenChange={handler.setOpen}
                 onOpenAutoFocus={handler.focusInput}
+                onClosed={handler.finishClose}
                 title={t('quickSearch.title')}
                 description={t('quickSearch.description')}
                 footer={

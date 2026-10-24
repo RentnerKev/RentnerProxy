@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { useForm } from '@tanstack/react-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, useEffect, type FormEvent } from 'react'
@@ -258,6 +259,7 @@ export default function useDnsConnectionsLogic({
             setIsPending(false)
         }
     }
+    useQuickAction('createDnsConnection', handleCreate, !connectionsQuery.isPending)
     return {
         state: {
             canManage,

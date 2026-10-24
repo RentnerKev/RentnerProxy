@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { invalidateTrustedCaManagementCache } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
 import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -55,6 +56,11 @@ export default function useTrustedCaManagementLogic({
         setImportOpen(false)
         setReplaceTarget(null)
     }, [invalidate])
+    useQuickAction(
+        'importTrustedCa',
+        () => setImportOpen(true),
+        permissions.includes(PERMISSIONS.TRUSTED_CAS_CREATE),
+    )
     return {
         state: {
             trustedCas: trustedCasQuery.data ?? EMPTY_TRUSTED_CAS,

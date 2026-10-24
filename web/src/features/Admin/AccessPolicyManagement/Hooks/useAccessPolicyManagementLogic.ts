@@ -1,3 +1,4 @@
+import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import type { ActionResult } from '../Types/access-policy-management-logic.types.ts'
 import {
     invalidateAccessPoliciesCache,
@@ -154,6 +155,11 @@ export default function useAccessPolicyManagementLogic({
         void runtimeStatusQuery.refetch()
     }, [runtimeStatusQuery])
 
+    useQuickAction(
+        'createAccessPolicy',
+        openCreate,
+        permissionSet.has(PERMISSIONS.ACCESS_POLICIES_CREATE),
+    )
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_APPLY),

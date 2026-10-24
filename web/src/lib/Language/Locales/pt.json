@@ -156,8 +156,8 @@
     "quickSearch": {
         "title": "Pesquisa rápida",
         "open": "Abrir pesquisa",
-        "description": "Encontre hosts, certificados, políticas de acesso ou definições.",
-        "placeholder": "Pesquisar por nome, domínio ou destino…",
+        "description": "Encontre entradas, páginas, definições ou ações.",
+        "placeholder": "Pesquisar nomes, domínios, páginas ou ações…",
         "queryLabel": "Pesquisar",
         "minQuery": "Introduza pelo menos dois caracteres para pesquisar entradas.",
         "loading": "A pesquisar…",
@@ -175,7 +175,12 @@
             "proxyHosts": "Hosts de proxy",
             "redirectHosts": "Hosts de redirecionamento",
             "certificates": "Certificados",
-            "accessPolicies": "Políticas de acesso"
+            "accessPolicies": "Políticas de acesso",
+            "actions": "Ações"
+        },
+        "keywords": {
+            "create": "criar adicionar novo nova",
+            "import": "importar carregar enviar"
         }
     },
     "language": {

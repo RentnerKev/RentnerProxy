@@ -10,6 +10,7 @@ export interface ModalProps {
     readonly fixedHeight?: boolean
     readonly navigation?: ReactNode
     readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
+    readonly onClosed?: (() => void) | undefined
     readonly onOpenChange: (open: boolean) => void
     readonly open: boolean
     readonly size?: ModalSize
@@ -44,6 +45,7 @@ export interface ConfirmDialogLogicResult {
 export interface UseModalLogicParams {
     readonly closeDisabled: boolean
     readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
+    readonly onClosed?: (() => void) | undefined
     readonly onOpenChange: (open: boolean) => void
 }
 export interface ModalLogicResult {

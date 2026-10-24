@@ -22,6 +22,11 @@ import {
     QUICK_SEARCH_CATEGORIES,
 } from '@/lib/QuickSearch/quickSearchNavigation.ts'
 import type { QuickSearchResult } from '@/lib/QuickSearch/Types/quick-search.types.ts'
+import {
+    canRunQuickSearchAction,
+    getQuickSearchActions,
+} from '@/lib/QuickSearch/quickSearchActions.ts'
+import { useQuickActions } from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { searchProxyHostsHandler } from '@/features/Admin/ProxyHostManagement/middleware.ts'
 import { searchRedirectHostsHandler } from '@/features/Admin/RedirectHostManagement/middleware.ts'
 import { searchCertificatesHandler } from '@/features/Admin/CertificateManagement/middleware.ts'
@@ -47,6 +52,8 @@ export default function useQuickSearchLogic({
 }: QuickSearchProps): QuickSearchLogicResult {
     const { t } = useTranslationStore()
     const navigate = useNavigate()
+    const actions = useQuickActions()
+    const handoff = useRef<{ result: QuickSearchResult; scope: string } | null>(null)
     const id = useId()
     const input = useRef<HTMLInputElement>(null)
     const [inputTarget, setInputTarget] = useState<HTMLInputElement | null>(null)
@@ -74,9 +81,10 @@ export default function useQuickSearchLogic({
     const isDebouncing = term !== debouncedQuery
 
     useEffect(() => {
+        if (!open || term === debouncedQuery) return
         const timer = window.setTimeout(() => setDebouncedQuery(term), QUICK_SEARCH_DEBOUNCE_MS)
         return () => window.clearTimeout(timer)
-    }, [term])
+    }, [debouncedQuery, open, term])
     useEffect(() => {
         selectionScope.current = scope
         return () => {
@@ -95,7 +103,10 @@ export default function useQuickSearchLogic({
             retry: false,
         })),
     })
-    const results: QuickSearchResult[] = getQuickSearchNavigation(permissions, term, t)
+    const results: QuickSearchResult[] = [
+        ...getQuickSearchActions(permissions, term, t),
+        ...getQuickSearchNavigation(permissions, term, t),
+    ]
     let hasErrors = false
     let isLoading = canSearch && isDebouncing
     for (const [index, source] of QUICK_SEARCH_CATEGORIES.entries()) {
@@ -117,7 +128,12 @@ export default function useQuickSearchLogic({
     const active = results.find((result) => result.id === highlightedId) ?? results[0]
     const activeOptionId = active ? `${id}-${active.id}` : undefined
     const groups = (
-        ['navigation', 'settings', ...QUICK_SEARCH_CATEGORIES.map((item) => item.category)] as const
+        [
+            'actions',
+            'navigation',
+            'settings',
+            ...QUICK_SEARCH_CATEGORIES.map((item) => item.category),
+        ] as const
     )
         .map((category) => ({
             category,
@@ -129,6 +145,7 @@ export default function useQuickSearchLogic({
         .filter((group) => group.results.length > 0)
 
     const changeOpen = useCallback((nextOpen: boolean) => {
+        handoff.current = null
         attempt.current += 1
         setOpeningScope(null)
         setUnavailableScope(null)
@@ -167,6 +184,8 @@ export default function useQuickSearchLogic({
         setOpeningScope(scope)
         setUnavailableScope(null)
         try {
+            if (result.actionId && !canRunQuickSearchAction(result.actionId, permissions))
+                throw new Error('unavailable')
             if (result.entityId && source) {
                 if (!permissions.includes(source.permission)) throw new Error('unavailable')
                 const current = await searchHandlers[source.category]({
@@ -181,8 +200,9 @@ export default function useQuickSearchLogic({
             } else {
                 await navigate({ to: result.to })
             }
-            if (attempt.current !== selection) return
+            if (attempt.current !== selection || selectionScope.current !== scope) return
             changeOpen(false)
+            if (result.actionId) handoff.current = { result, scope }
             onNavigate?.()
         } catch {
             if (attempt.current === selection) {
@@ -239,6 +259,12 @@ export default function useQuickSearchLogic({
             limit: QUICK_SEARCH_LIMIT,
         },
         handler: {
+            finishClose: () => {
+                const pending = handoff.current
+                handoff.current = null
+                if (pending?.scope === selectionScope.current && pending?.result.actionId)
+                    actions?.request(pending.result.actionId)
+            },
             open: openSearch,
             focusInput: (event) => {
                 event.preventDefault()
