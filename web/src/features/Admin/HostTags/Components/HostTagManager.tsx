@@ -1,7 +1,7 @@
 import { TextInput } from '@rentnerkev/inputs'
 import { CustomColorPicker, type CustomColorPickerDesign } from '@rentnerkev/picker'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
-import { Plus, Tags } from 'lucide-react'
+import { TagPlus, Tags } from 'lucide-react'
 import type { HostKind } from '@/lib/HostTags/Types/host-tags.types.ts'
 import { HOST_TAG_LIMITS } from '@/config/host-tags.config.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
@@ -106,17 +106,6 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                     </div>
                 ) : (
                     <div className="grid gap-4">
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                className={buttonClassName('secondary')}
-                                disabled={state.pending || Boolean(state.deleting)}
-                                onClick={handler.cancelRename}
-                            >
-                                <Plus className="size-4" aria-hidden="true" />
-                                {t('admin.hostTags.new')}
-                            </button>
-                        </div>
                         <form
                             id={state.formId}
                             className="grid items-start gap-3 sm:grid-cols-2"
@@ -146,29 +135,55 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                                     </div>
                                 )}
                             </form.Field>
-                            <form.Field name="color">
-                                {(field) => (
-                                    <CustomColorPicker
-                                        key={state.editing?.tag.id ?? 'create'}
-                                        id={state.formId + '-color'}
-                                        name="tagColor"
-                                        label={t('admin.hostTags.color')}
-                                        value={field.state.value}
-                                        onValueChange={field.handleChange}
-                                        onBlur={field.handleBlur}
-                                        onValidityChange={setter.setIsColorValid}
-                                        locale={state.pickerLocale}
-                                        messages={state.pickerMessages}
-                                        customDesign={pickerDesign}
-                                        portalContainer={state.pickerContainer}
-                                        classNames={{
-                                            popup: 'static! max-h-72! w-full! rounded-xl border border-border bg-surface-raised p-3',
-                                        }}
-                                        disabled={state.pending}
-                                        required
-                                    />
-                                )}
-                            </form.Field>
+                            <div className="min-w-0">
+                                <label
+                                    id={state.formId + '-color-label'}
+                                    htmlFor={state.formId + '-color'}
+                                    className="mb-2 block text-sm font-medium text-ink-soft"
+                                >
+                                    {t('admin.hostTags.color')}
+                                </label>
+                                <div className="flex items-start gap-3">
+                                    <form.Field name="color">
+                                        {(field) => (
+                                            <CustomColorPicker
+                                                key={state.editing?.tag.id ?? 'create'}
+                                                id={state.formId + '-color'}
+                                                name="tagColor"
+                                                aria-labelledby={state.formId + '-color-label'}
+                                                className="min-w-0 flex-1"
+                                                value={field.state.value}
+                                                onValueChange={field.handleChange}
+                                                onBlur={field.handleBlur}
+                                                onValidityChange={setter.setIsColorValid}
+                                                locale={state.pickerLocale}
+                                                messages={state.pickerMessages}
+                                                customDesign={pickerDesign}
+                                                portalContainer={state.pickerContainer}
+                                                classNames={{
+                                                    popup: 'static! max-h-72! w-full! rounded-xl border border-border bg-surface-raised p-3',
+                                                }}
+                                                disabled={state.pending}
+                                                required
+                                            />
+                                        )}
+                                    </form.Field>
+                                    <CustomTooltip
+                                        collisionPadding={10}
+                                        content={t('admin.hostTags.new')}
+                                    >
+                                        <button
+                                            type="button"
+                                            className={buttonClassName('secondary', 'w-12 px-0!')}
+                                            aria-label={t('admin.hostTags.new')}
+                                            disabled={state.pending || Boolean(state.deleting)}
+                                            onClick={handler.cancelRename}
+                                        >
+                                            <TagPlus className="size-5" aria-hidden="true" />
+                                        </button>
+                                    </CustomTooltip>
+                                </div>
+                            </div>
                             <div ref={pickerContainerRef} className="empty:hidden sm:col-span-2" />
                             <div className="sm:col-span-2">
                                 <form.Subscribe selector={(formState) => formState.values}>
