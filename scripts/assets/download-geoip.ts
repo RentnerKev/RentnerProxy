@@ -1,11 +1,10 @@
-import type { DownloadFetch } from './Types/download-geoip.types.ts'
+import type { DownloadFetch, GeoipAsset } from './Types/download-geoip.types.ts'
 // oxlint-disable no-await-in-loop -- Read bounded streams and retry upstream publication transitions in order.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 
-const releaseDownloads = 'https://github.com/sapics/ip-location-db/releases/download/'
-const checksumUrl = releaseDownloads + 'checksum/user-country.mmdb.sha256'
-const databaseUrl = releaseDownloads + 'latest/user-country.mmdb'
+const repositoryApi = 'https://api.github.com/repos/sapics/ip-location-db'
+const metadataUrl = repositoryApi + '/releases/tags/latest'
 const maximumDatabaseBytes = 64 * 1024 * 1024
 
 class PublicationTransition extends Error {}
@@ -59,9 +58,11 @@ async function fetchBytes(
     label: string,
     minimum: number,
     maximum: number,
+    accept = 'application/octet-stream',
 ): Promise<Uint8Array> {
     const response = await fetchAsset(url, {
-        headers: { Accept: 'application/octet-stream', 'Cache-Control': 'no-cache' },
+        // Keep Content-Length comparable to streamed bytes when fetch decodes responses.
+        headers: { Accept: accept, 'Accept-Encoding': 'identity', 'Cache-Control': 'no-cache' },
         signal: AbortSignal.timeout(60_000),
     })
     if (!response.ok) {
@@ -73,30 +74,77 @@ async function fetchBytes(
     return readBounded(response, label, minimum, maximum)
 }
 
-async function checksum(fetchAsset: DownloadFetch): Promise<string> {
-    const bytes = await fetchBytes(fetchAsset, checksumUrl, 'checksum', 84, 84)
-    const value = new TextDecoder().decode(bytes)
-    if (!/^[a-f0-9]{64}  user-country\.mmdb\n$/u.test(value))
-        throw new Error('GeoIP checksum format is invalid')
-    return value
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPositiveId(value: unknown): value is number {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
+async function latestAsset(fetchAsset: DownloadFetch): Promise<GeoipAsset> {
+    const bytes = await fetchBytes(
+        fetchAsset,
+        metadataUrl,
+        'metadata',
+        1,
+        1024 * 1024,
+        'application/vnd.github+json',
+    )
+    let release: unknown
+    try {
+        release = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    } catch {
+        throw new Error('GeoIP metadata JSON is invalid')
+    }
+    if (
+        !isRecord(release) ||
+        !isPositiveId(release.id) ||
+        release.url !== repositoryApi + '/releases/' + release.id ||
+        release.html_url !== 'https://github.com/sapics/ip-location-db/releases/tag/latest' ||
+        release.tag_name !== 'latest' ||
+        release.draft !== false ||
+        !Array.isArray(release.assets)
+    )
+        throw new Error('GeoIP release metadata is invalid')
+    const matches = release.assets.filter(
+        (asset: unknown) => isRecord(asset) && asset.name === 'user-country.mmdb',
+    )
+    const asset: unknown = matches[0]
+    if (
+        matches.length !== 1 ||
+        !isRecord(asset) ||
+        !isPositiveId(asset.id) ||
+        asset.url !== repositoryApi + '/releases/assets/' + asset.id ||
+        asset.browser_download_url !==
+            'https://github.com/sapics/ip-location-db/releases/download/latest/user-country.mmdb' ||
+        asset.state !== 'uploaded' ||
+        typeof asset.size !== 'number' ||
+        !Number.isSafeInteger(asset.size) ||
+        asset.size < 1 ||
+        asset.size > maximumDatabaseBytes ||
+        typeof asset.digest !== 'string' ||
+        !/^sha256:[a-f0-9]{64}$/u.test(asset.digest)
+    )
+        throw new Error('GeoIP asset metadata is invalid')
+    return { id: asset.id, size: asset.size, digest: asset.digest, url: asset.url }
 }
 
 export async function downloadGeoip(fetchAsset: DownloadFetch = fetch): Promise<ArrayBuffer> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
-            const before = await checksum(fetchAsset)
-            const bytes = await fetchBytes(
-                fetchAsset,
-                databaseUrl,
-                'asset',
-                1,
-                maximumDatabaseBytes,
+            const before = await latestAsset(fetchAsset)
+            const bytes = await fetchBytes(fetchAsset, before.url, 'asset', 1, before.size)
+            if (bytes.byteLength !== before.size) throw new Error('GeoIP asset size mismatch')
+            if (createHash('sha256').update(bytes).digest('hex') !== before.digest.slice(7))
+                throw new Error('GeoIP asset checksum mismatch')
+            const after = await latestAsset(fetchAsset)
+            if (
+                before.id !== after.id ||
+                before.digest !== after.digest ||
+                before.size !== after.size
             )
-            const after = await checksum(fetchAsset)
-            if (before !== after)
-                throw new PublicationTransition('GeoIP checksum changed during download')
-            if (createHash('sha256').update(bytes).digest('hex') !== before.slice(0, 64))
-                throw new PublicationTransition('GeoIP asset checksum mismatch')
+                throw new PublicationTransition('GeoIP asset changed during download')
             return bytes.buffer as ArrayBuffer
         } catch (error) {
             if (!(error instanceof PublicationTransition) || attempt === 1) throw error

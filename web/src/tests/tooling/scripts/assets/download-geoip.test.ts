@@ -3,244 +3,314 @@ import { createHash } from 'node:crypto'
 import { downloadGeoip } from '../../../../../../scripts/assets/download-geoip.ts'
 
 const database = new TextEncoder().encode('verified country database')
-const checksumUrl =
-    'https://github.com/sapics/ip-location-db/releases/download/checksum/user-country.mmdb.sha256'
-const databaseUrl =
-    'https://github.com/sapics/ip-location-db/releases/download/latest/user-country.mmdb'
-function checksum(bytes = database): string {
-    return createHash('sha256').update(bytes).digest('hex') + '  user-country.mmdb\n'
+const repositoryApi = 'https://api.github.com/repos/sapics/ip-location-db'
+const metadataUrl = repositoryApi + '/releases/tags/latest'
+const databaseUrl = repositoryApi + '/releases/assets/123'
+function metadata(bytes = database, id = 123) {
+    return {
+        id: 456,
+        url: repositoryApi + '/releases/456',
+        html_url: 'https://github.com/sapics/ip-location-db/releases/tag/latest',
+        tag_name: 'latest',
+        draft: false,
+        assets: [
+            {
+                id,
+                name: 'user-country.mmdb',
+                url: repositoryApi + '/releases/assets/' + id,
+                browser_download_url:
+                    'https://github.com/sapics/ip-location-db/releases/download/latest/user-country.mmdb',
+                state: 'uploaded',
+                size: bytes.byteLength,
+                digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex'),
+            },
+        ],
+    }
 }
 function validResponse(url: string): Response {
-    return new Response(url === checksumUrl ? checksum() : database)
+    return url === metadataUrl ? Response.json(metadata()) : new Response(database)
 }
 
-describe('GeoIP checksum download', () => {
+describe('GeoIP release asset download', () => {
     test.each([1, 64 * 1024 * 1024])(
-        'accepts the inclusive database size boundary %i',
+        'accepts inclusive database size boundary %i',
         async (length) => {
             const body = new Uint8Array(length)
             body[0] = 42
-            const snapshot = checksum(body)
-            const bytes = await downloadGeoip(
-                async (url) => new Response(url === checksumUrl ? snapshot : body),
+            const snapshot = metadata(body)
+            const bytes = await downloadGeoip(async (url) =>
+                url === metadataUrl ? Response.json(snapshot) : new Response(body),
             )
             expect(bytes.byteLength).toBe(length)
             expect(new Uint8Array(bytes)[0]).toBe(42)
         },
     )
 
-    test('does not accept an invalid final checksum even when the first snapshot matches the database', async () => {
-        let requests = 0
-        await expect(
-            downloadGeoip(async (url) => {
-                requests += 1
-                return requests === 3 ? new Response('missing') : validResponse(url)
-            }),
-        ).rejects.toThrow('GeoIP checksum size mismatch')
-        expect(requests).toBe(3)
-    })
-
-    test('binds bounded database bytes to two identical official checksum snapshots without API calls', async () => {
+    test('binds bounded bytes to an asset ID, size and digest in stable official metadata', async () => {
         const requests: string[] = []
         const bytes = await downloadGeoip(async (url, options) => {
             requests.push(url)
-            expect(new Headers(options.headers).get('Accept')).toBe('application/octet-stream')
+            expect(new Headers(options.headers).get('Accept')).toBe(
+                url === metadataUrl ? 'application/vnd.github+json' : 'application/octet-stream',
+            )
             expect(new Headers(options.headers).get('Cache-Control')).toBe('no-cache')
+            expect(new Headers(options.headers).get('Accept-Encoding')).toBe('identity')
             expect(options.signal).toBeInstanceOf(AbortSignal)
-            const body = url === checksumUrl ? checksum() : database
-            return new Response(body, { headers: { 'Content-Length': String(body.length) } })
+            expect(options).not.toHaveProperty('credentials')
+            return validResponse(url)
         })
         expect(new Uint8Array(bytes)).toEqual(database)
-        expect(requests).toEqual([checksumUrl, databaseUrl, checksumUrl])
+        expect(requests).toEqual([metadataUrl, databaseUrl, metadataUrl])
     })
 
     test.each([
-        '',
-        'a'.repeat(64) + ' user-country.mmdb\n',
-        'A'.repeat(64) + '  user-country.mmdb\n',
-        'a'.repeat(64) + '  evil-country.mmdb\n',
-        checksum().replaceAll('\n', '\r\n'),
-        checksum().trimEnd(),
-        checksum() + 'private extra line',
-        'g'.repeat(64) + '  user-country.mmdb\n',
-    ])('rejects malformed or missing checksum before fetching the database: %j', async (body) => {
+        { id: 0 },
+        { id: -1 },
+        { id: 1.5 },
+        { id: Number.MAX_SAFE_INTEGER + 1 },
+        { url: 'https://api.github.com/repos/foreign/repo/releases/assets/123' },
+        { url: databaseUrl + '?token=evil' },
+        { browser_download_url: 'https://evil.example/user-country.mmdb' },
+        { state: 'new' },
+        { name: 'evil-country.mmdb' },
+        { size: 0 },
+        { size: -1 },
+        { size: 1.5 },
+        { size: '24' },
+        { size: 67108865 },
+        { digest: null },
+        { digest: undefined },
+        { digest: '' },
+        { digest: 'sha256:' + 'A'.repeat(64) },
+        { digest: 'sha256:' + 'g'.repeat(64) },
+        { digest: 'sha512:' + 'a'.repeat(64) },
+        { digest: 'sha256:' + 'a'.repeat(63) },
+    ])('rejects invalid asset metadata before fetching bytes: %j', async (overrides) => {
+        let requests = 0
+        const release = metadata()
+        await expect(
+            downloadGeoip(async () => {
+                requests += 1
+                return Response.json({
+                    ...release,
+                    assets: [{ ...release.assets[0], ...overrides }],
+                })
+            }),
+        ).rejects.toThrow('GeoIP asset metadata is invalid')
+        expect(requests).toBe(1)
+    })
+
+    test.each([
+        null,
+        [[]],
+        {},
+        { ...metadata(), id: 0 },
+        { ...metadata(), url: 'https://api.github.com/repos/foreign/repo/releases/456' },
+        { ...metadata(), html_url: 'https://github.com/foreign/repo/releases/tag/latest' },
+        { ...metadata(), tag_name: 'other' },
+        { ...metadata(), draft: true },
+        { ...metadata(), assets: null },
+        { ...metadata(), assets: [] },
+        { ...metadata(), assets: [null] },
+        { ...metadata(), assets: [...metadata().assets, ...metadata().assets] },
+    ])('rejects malformed, foreign or duplicate release metadata: %j', async (release) => {
         let requests = 0
         await expect(
             downloadGeoip(async () => {
                 requests += 1
-                return new Response(body)
+                return Response.json(release)
             }),
-        ).rejects.toThrow('GeoIP checksum')
+        ).rejects.toThrow('metadata is invalid')
         expect(requests).toBe(1)
     })
 
-    test('rejects absent checksum or database response bodies', async () => {
-        await expect(downloadGeoip(async () => new Response(null))).rejects.toThrow(
-            'GeoIP checksum body is missing',
-        )
+    test.each(['not JSON', '{', '{} trailing', '\uFFFD'])(
+        'rejects malformed JSON: %j',
+        async (body) => {
+            await expect(downloadGeoip(async () => new Response(body))).rejects.toThrow(
+                'GeoIP metadata JSON is invalid',
+            )
+        },
+    )
+    test('rejects invalid UTF-8 metadata', async () => {
         await expect(
-            downloadGeoip(async (url) =>
-                url === checksumUrl ? validResponse(url) : new Response(null),
-            ),
-        ).rejects.toThrow('GeoIP asset body is missing')
+            downloadGeoip(async () => new Response(new Uint8Array([255]))),
+        ).rejects.toThrow('GeoIP metadata JSON is invalid')
     })
 
-    test('rejects corrupted or truncated bytes after exactly two attempts', async () => {
-        await Promise.all(
-            [database.slice(1), new Uint8Array(database.length)].map(async (body) => {
-                let requests = 0
-                await expect(
-                    downloadGeoip(async (url) => {
-                        requests += 1
-                        return url === checksumUrl ? validResponse(url) : new Response(body)
-                    }),
-                ).rejects.toThrow('GeoIP asset checksum mismatch')
-                expect(requests).toBe(6)
+    test.each([metadataUrl, databaseUrl])(
+        'rejects missing response body for %s',
+        async (missing) => {
+            await expect(
+                downloadGeoip(async (url) =>
+                    url === missing ? new Response(null) : validResponse(url),
+                ),
+            ).rejects.toThrow('body is missing')
+        },
+    )
+    test('rejects corrupted bytes without retrying immutable asset data', async () => {
+        let requests = 0
+        await expect(
+            downloadGeoip(async (url) => {
+                requests += 1
+                return url === metadataUrl
+                    ? validResponse(url)
+                    : new Response(new Uint8Array(database.length))
             }),
-        )
+        ).rejects.toThrow('GeoIP asset checksum mismatch')
+        expect(requests).toBe(2)
     })
-
     test.each(['0', '-1', '1.5', 'abc', '67108865', '9007199254740993'])(
         'rejects invalid declared database sizes: %s',
         async (length) => {
             await expect(
                 downloadGeoip(async (url) =>
-                    url === checksumUrl
+                    url === metadataUrl
                         ? validResponse(url)
                         : new Response(database, { headers: { 'Content-Length': length } }),
                 ),
             ).rejects.toThrow('GeoIP asset size is invalid')
         },
     )
-
-    test('rejects declared lengths that disagree with actual bytes and empty data', async () => {
+    test('rejects truncated bytes, empty data, mismatched lengths and metadata size headers', async () => {
+        await Promise.all(
+            [database.slice(1), new Uint8Array(0)].map(async (body) => {
+                await expect(
+                    downloadGeoip(async (url) =>
+                        url === metadataUrl ? validResponse(url) : new Response(body),
+                    ),
+                ).rejects.toThrow('GeoIP asset size mismatch')
+            }),
+        )
         await expect(
             downloadGeoip(async (url) =>
-                url === checksumUrl
+                url === metadataUrl
                     ? validResponse(url)
                     : new Response(database, {
-                          headers: { 'Content-Length': String(database.length + 1) },
+                          headers: { 'Content-Length': String(database.length - 1) },
                       }),
             ),
         ).rejects.toThrow('GeoIP asset size mismatch')
         await expect(
-            downloadGeoip(async (url) =>
-                url === checksumUrl ? validResponse(url) : new Response(''),
-            ),
-        ).rejects.toThrow('GeoIP asset size mismatch')
-        await expect(
             downloadGeoip(
-                async () => new Response(checksum(), { headers: { 'Content-Length': '85' } }),
+                async () => new Response('{}', { headers: { 'Content-Length': '1048577' } }),
             ),
-        ).rejects.toThrow('GeoIP checksum size is invalid')
-    })
-
-    test('cancels an oversized database stream before reading its unbounded remainder', async () => {
-        let pulled = 0
-        let cancelled = false
-        const chunk = new Uint8Array(1024 * 1024)
+        ).rejects.toThrow('GeoIP metadata size is invalid')
         await expect(
-            downloadGeoip(async (url) =>
-                url === checksumUrl
-                    ? validResponse(url)
-                    : new Response(
-                          new ReadableStream<Uint8Array>({
-                              pull(controller) {
-                                  pulled += 1
-                                  controller.enqueue(chunk)
-                              },
-                              cancel() {
-                                  cancelled = true
-                              },
-                          }),
-                      ),
-            ),
-        ).rejects.toThrow('GeoIP asset exceeds size limit')
-        expect(cancelled).toBeTrue()
-        expect(pulled).toBeLessThanOrEqual(66)
+            downloadGeoip(async () => new Response('{}', { headers: { 'Content-Length': '100' } })),
+        ).rejects.toThrow('GeoIP metadata size mismatch')
     })
+    test.each([metadataUrl, databaseUrl])(
+        'cancels oversized streams from %s',
+        async (oversized) => {
+            let pulled = 0
+            let cancelled = false
+            const chunk = new Uint8Array(1024 * 1024)
+            await expect(
+                downloadGeoip(async (url) =>
+                    url !== oversized
+                        ? validResponse(url)
+                        : new Response(
+                              new ReadableStream<Uint8Array>({
+                                  pull(controller) {
+                                      pulled += 1
+                                      controller.enqueue(chunk)
+                                  },
+                                  cancel() {
+                                      cancelled = true
+                                  },
+                              }),
+                          ),
+                ),
+            ).rejects.toThrow('exceeds size limit')
+            expect(cancelled).toBeTrue()
+            expect(pulled).toBeLessThanOrEqual(3)
+        },
+    )
 
-    test('refreshes the full snapshot after a mid-download checksum replacement', async () => {
+    test('refreshes metadata and downloads the new concrete ID after replacement', async () => {
         const replacement = new TextEncoder().encode('new official country database')
         let requests = 0
+        const urls: string[] = []
         const bytes = await downloadGeoip(async (url) => {
+            urls.push(url)
             requests += 1
-            return new Response(
-                url === checksumUrl
-                    ? requests === 1
-                        ? checksum()
-                        : checksum(replacement)
-                    : replacement,
-            )
+            return url === metadataUrl
+                ? Response.json(requests === 1 ? metadata() : metadata(replacement, 789))
+                : new Response(requests === 2 ? database : replacement)
         })
         expect(new Uint8Array(bytes)).toEqual(replacement)
-        expect(requests).toBe(6)
+        expect(urls).toEqual([
+            metadataUrl,
+            databaseUrl,
+            metadataUrl,
+            metadataUrl,
+            repositoryApi + '/releases/assets/789',
+            metadataUrl,
+        ])
     })
-
-    test('fails closed when checksums keep changing', async () => {
+    test('bounds retries when assets keep changing', async () => {
         let requests = 0
         await expect(
             downloadGeoip(async (url) => {
                 requests += 1
-                return new Response(
-                    url === checksumUrl && requests % 3 === 0
-                        ? 'a'.repeat(64) + '  user-country.mmdb\n'
-                        : url === checksumUrl
-                          ? checksum()
-                          : database,
-                )
+                return url === metadataUrl
+                    ? Response.json(metadata(database, requests))
+                    : new Response(database)
             }),
-        ).rejects.toThrow('GeoIP checksum changed during download')
+        ).rejects.toThrow('GeoIP asset changed during download')
         expect(requests).toBe(6)
     })
-
-    test.each([0, 1, 2])(
-        'retries a removed checksum or database once at request position %i',
-        async (position) => {
+    test('rejects malformed final metadata even after valid bytes', async () => {
+        let requests = 0
+        await expect(
+            downloadGeoip(async (url) => {
+                requests += 1
+                return requests === 3 ? Response.json({}) : validResponse(url)
+            }),
+        ).rejects.toThrow('GeoIP release metadata is invalid')
+        expect(requests).toBe(3)
+    })
+    test.each([0, 1, 2])('retries 404 once at request position %i', async (position) => {
+        let requests = 0
+        const bytes = await downloadGeoip(async (url) =>
+            requests++ === position
+                ? new Response('private error body', { status: 404 })
+                : validResponse(url),
+        )
+        expect(new Uint8Array(bytes)).toEqual(database)
+        expect(requests).toBe(position + 4)
+    })
+    test.each([metadataUrl, databaseUrl])(
+        'bounds retries when %s stays unavailable',
+        async (missing) => {
             let requests = 0
-            const bytes = await downloadGeoip(async (url) => {
-                const index = requests++
-                return index === position
-                    ? new Response('private error body', { status: 404 })
-                    : validResponse(url)
-            })
-            expect(new Uint8Array(bytes)).toEqual(database)
-            expect(requests).toBe(position + 4)
+            await expect(
+                downloadGeoip(async (url) => {
+                    requests += 1
+                    return url === missing
+                        ? new Response('private error body', { status: 404 })
+                        : validResponse(url)
+                }),
+            ).rejects.toThrow('download failed (HTTP 404)')
+            expect(requests).toBe(missing === metadataUrl ? 2 : 4)
         },
     )
-
-    test('bounds retries when the checksum or database stays unavailable', async () => {
-        await Promise.all(
-            [checksumUrl, databaseUrl].map(async (missingUrl) => {
-                let requests = 0
-                await expect(
-                    downloadGeoip(async (url) => {
-                        requests += 1
-                        return url === missingUrl
-                            ? new Response('private error body', { status: 404 })
-                            : validResponse(url)
-                    }),
-                ).rejects.toThrow('download failed (HTTP 404)')
-                expect(requests).toBe(missingUrl === checksumUrl ? 2 : 4)
-            }),
-        )
-    })
-
     test.each([403, 429, 500])(
         'does not retry other HTTP failures or expose response contents: %i',
         async (status) => {
             await Promise.all(
-                [checksumUrl, databaseUrl].map(async (failedUrl) => {
+                [metadataUrl, databaseUrl].map(async (failed) => {
                     let requests = 0
                     await expect(
                         downloadGeoip(async (url) => {
                             requests += 1
-                            return url === failedUrl
+                            return url === failed
                                 ? new Response('private error body', { status })
                                 : validResponse(url)
                         }),
                     ).rejects.toThrow('download failed (HTTP ' + status + ')')
-                    expect(requests).toBe(failedUrl === checksumUrl ? 1 : 2)
+                    expect(requests).toBe(failed === metadataUrl ? 1 : 2)
                 }),
             )
         },
