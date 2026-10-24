@@ -27,6 +27,7 @@ export function createCalendarMessages(
 
     return {
         ...defaults,
+        keyboardHelp: '',
         placeholder: t('calendar.selectDate'),
         required: t('calendar.required'),
         apply: t('calendar.apply'),
