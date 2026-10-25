@@ -76,20 +76,41 @@ async function runForwarder(): Promise<void> {
     const listener = createSocket('udp4')
     let inFlight = 0
     listener.on('message', (query, remote) => {
-        if (inFlight >= 256) return
+        if (query.length < 12 || query.length > 65_535 || inFlight >= 256) return
         inFlight += 1
-        const upstream = createSocket('udp4')
-        const timeout = setTimeout(() => upstream.close(), 4_000)
+        // Wildcard-bound UDP fixtures may reply from another host interface on Linux.
+        // TCP pins the upstream peer while preserving the loopback UDP client interface.
+        const upstream = connect(port, target, () => {
+            const length = Buffer.alloc(2)
+            length.writeUInt16BE(query.length)
+            upstream.write(Buffer.concat([length, query]))
+        })
+        let pending = Buffer.alloc(0)
+        const timeout = setTimeout(() => upstream.destroy(), 4_000)
         upstream.once('close', () => {
             clearTimeout(timeout)
             inFlight -= 1
         })
-        upstream.once('error', () => upstream.close())
-        upstream.once('message', (answer) => {
-            listener.send(answer, remote.port, remote.address)
-            upstream.close()
+        upstream.once('error', () => upstream.destroy())
+        upstream.on('data', (chunk: Buffer) => {
+            if (pending.length + chunk.length > 65_537) {
+                upstream.destroy()
+                return
+            }
+            pending = Buffer.concat([pending, chunk])
+            if (pending.length < 2) return
+            const length = pending.readUInt16BE(0)
+            if (length < 12) {
+                upstream.destroy()
+                return
+            }
+            if (pending.length < length + 2) return
+            const answer = pending.subarray(2, length + 2)
+            if (answer.readUInt16BE(0) === query.readUInt16BE(0) && (answer[2]! & 0x80) !== 0) {
+                listener.send(answer, remote.port, remote.address)
+            }
+            upstream.destroy()
         })
-        upstream.connect(port, target, () => upstream.send(query))
     })
     const tcp = createServer((client) => {
         const upstream = connect(port, target)

@@ -75,6 +75,8 @@ export function smokeProgress(suite: Suite) {
                   'http-acme',
                   'activation-recovery',
                   'dns-acme',
+                  'manual-dns',
+                  'dns-forwarder',
                   'access-policies',
                   'ip-policies',
                   'logs-and-jobs',

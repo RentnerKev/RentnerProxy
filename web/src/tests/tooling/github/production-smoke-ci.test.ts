@@ -90,6 +90,8 @@ describe('production smoke CI output boundary', () => {
         for (const [suite, source] of [
             ['production', '.github/scripts/ci/appliance/restore-safety.ts'],
             ['certificates', 'scripts/smoke/certificates/activation-recovery.ts'],
+            ['certificates', 'scripts/smoke/certificates/manual-dns.ts'],
+            ['certificates', 'scripts/smoke/certificates/dns-forwarder.ts'],
         ] as const) {
             const progress = smokeProgress(suite)
             progress.consume('AssertionError: private-value')
