@@ -17,7 +17,7 @@ describe('notification delivery', () => {
         const output = await runBunScript(
             `
             process.env.NODE_ENV = 'production'
-            process.env.RENTNERPROXY_PUBLIC_ORIGIN = ''
+            process.env.PUBLIC_ORIGIN = ''
             const { sendNotificationEmailService } = await import('./server/Mail/mail.service.ts')
             const { PAYLOAD } = await import('./tests/server/Notifications/Types/transport-test.types.ts')
             let created = 0

@@ -640,7 +640,7 @@
                 "registrationComplete": "Nie udało się dokończyć rejestracji klucza dostępu.",
                 "registrationFailed": "Rejestracja klucza dostępu nie powiodła się.",
                 "invalidDomain": "Nie można zarejestrować kluczy dostępu przy użyciu adresu IP. Podczas pracy lokalnej otwórz aplikację przez localhost lub użyj jej domeny HTTPS.",
-                "invalidRpId": "Ten adres nie pasuje do skonfigurowanej domeny kluczy dostępu. Otwórz aplikację pod skonfigurowanym adresem RENTNERPROXY_PUBLIC_ORIGIN i spróbuj ponownie.",
+                "invalidRpId": "Ten adres nie pasuje do skonfigurowanej domeny kluczy dostępu. Otwórz aplikację pod skonfigurowanym adresem PUBLIC_ORIGIN i spróbuj ponownie.",
                 "notFound": "Ten klucz dostępu już nie istnieje.",
                 "rename": "Nie udało się zapisać nazwy klucza dostępu.",
                 "remove": "Nie udało się usunąć klucza dostępu."

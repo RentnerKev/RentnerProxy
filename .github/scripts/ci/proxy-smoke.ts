@@ -61,8 +61,7 @@ await writeFile(
                                 '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
                             RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:
                                 '${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}',
-                            RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:
-                                '${RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:-}',
+                            PROXY_TRUSTED_PROXY_CIDRS: '${PROXY_TRUSTED_PROXY_CIDRS:-}',
                             RUST_LOG: '${RUST_LOG:-info}',
                         },
                         ports: [
@@ -324,12 +323,12 @@ async function runSmoke(): Promise<void> {
             '/rentnerproxy_smoke'
         process.env.DATABASE_URL = databaseUrl
         process.env.NODE_ENV = 'test'
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:5173'
+        process.env.PUBLIC_ORIGIN = 'http://localhost:5173'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = token
         process.env.APP_ENCRYPTION_KEY = appEncryptionKey
         environment.DATABASE_URL = databaseUrl
         environment.NODE_ENV = 'test'
-        environment.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:5173'
+        environment.PUBLIC_ORIGIN = 'http://localhost:5173'
         environment.APP_ENCRYPTION_KEY = appEncryptionKey
 
         const probeDatabase = new SQL(databaseUrl)
@@ -1288,7 +1287,7 @@ async function runSmoke(): Promise<void> {
             runtimeContainerId,
         ])
         assert.equal(isIP(dockerGateway), 4)
-        environment.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS = dockerGateway + '/32'
+        environment.PROXY_TRUSTED_PROXY_CIDRS = dockerGateway + '/32'
         await command([...compose, 'up', '--detach', '--force-recreate'], {
             inherit: true,
             timeoutMs: 180_000,

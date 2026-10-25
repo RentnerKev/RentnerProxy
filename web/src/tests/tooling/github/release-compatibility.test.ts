@@ -457,6 +457,7 @@ describe('historical backup dependency closure', () => {
         )
         expect(files.has(HISTORICAL_COMPATIBILITY_CONFIG)).toBe(true)
         expect(files.has('web/src/lib/ApplicationVersion/backupCompatibility.ts')).toBe(true)
+        expect(files.has('web/src/lib/Environment/deployment-environment.ts')).toBe(true)
         expect(files.has('scripts/production-backup.ts')).toBe(true)
         expect(files.has('scripts/production-restore.ts')).toBe(true)
     })

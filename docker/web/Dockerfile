@@ -28,6 +28,7 @@ RUN bun install --frozen-lockfile --production \
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
+COPY --from=build /app/web/src/lib/Environment/deployment-environment.ts ./web/src/lib/Environment/deployment-environment.ts
 COPY --from=build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstrap-secrets.ts
 COPY --from=build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts

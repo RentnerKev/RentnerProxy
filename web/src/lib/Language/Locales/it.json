@@ -638,7 +638,7 @@
                 "registrationComplete": "Impossibile completare la registrazione della passkey.",
                 "registrationFailed": "Registrazione della passkey non riuscita.",
                 "invalidDomain": "Non è possibile registrare passkey usando un indirizzo IP. Per lo sviluppo locale, apri l’app su localhost oppure usa il relativo dominio HTTPS.",
-                "invalidRpId": "Questo indirizzo non corrisponde al dominio configurato per le passkey. Apri l’app all’indirizzo RENTNERPROXY_PUBLIC_ORIGIN configurato e riprova.",
+                "invalidRpId": "Questo indirizzo non corrisponde al dominio configurato per le passkey. Apri l’app all’indirizzo PUBLIC_ORIGIN configurato e riprova.",
                 "notFound": "La passkey non esiste più.",
                 "rename": "Impossibile salvare il nome della passkey.",
                 "remove": "Impossibile rimuovere la passkey."

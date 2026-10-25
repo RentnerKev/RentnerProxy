@@ -85,7 +85,7 @@ const directory = process.env.FIXTURE_DIRECTORY, scenario = process.env.FIXTURE_
 appendFileSync(directory + '/calls', JSON.stringify(args) + '\\n')
 if (command.includes('config --format=json')) {
     if (scenario === 'source-swap') writeFileSync(directory + '/input/postgres.dump','swapped after validation')
-    console.log(JSON.stringify({ services: { rentnerproxy: { image:'fixture',environment:{ RENTNERPROXY_PUBLIC_ORIGIN:'https://proxy.test' } } } }))
+    console.log(JSON.stringify({ services: { rentnerproxy: { image:'fixture',environment:{ PUBLIC_ORIGIN:'https://proxy.test' } } } }))
 } else if (command.startsWith('image inspect ')) {
     console.log('sha256:' + 'a'.repeat(64))
 } else if (command.includes('inspect-production-restore')) {

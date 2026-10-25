@@ -43,7 +43,7 @@ const scenario = process.env.FIXTURE_SCENARIO
 appendFileSync(directory + '/calls', command + '\\n')
 const imageId = 'sha256:' + 'a'.repeat(64)
 if (command.includes('config --format=json')) {
-    console.log(JSON.stringify({ services: { rentnerproxy: { image: 'fixture-image', environment: { RENTNERPROXY_PUBLIC_ORIGIN: 'https://proxy.test' } } } }))
+    console.log(JSON.stringify({ services: { rentnerproxy: { image: 'fixture-image', environment: { PUBLIC_ORIGIN: 'https://proxy.test' } } } }))
 } else if (command.startsWith('image inspect ')) {
     console.log(JSON.stringify({ Id: imageId, Config: {} }))
 } else if (command.startsWith('container ls ')) {

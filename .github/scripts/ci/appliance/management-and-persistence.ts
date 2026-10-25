@@ -92,9 +92,7 @@ export async function verifyApplianceManagementAndPersistence(
     const environment = JSON.parse(
         await context.inspect(context.id, '{{json .Config.Env}}'),
     ) as string[]
-    assert.ok(
-        environment.includes('RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + context.trustedProxyCidrs),
-    )
+    assert.ok(environment.includes('PROXY_TRUSTED_PROXY_CIDRS=' + context.trustedProxyCidrs))
     for (const name of context.smtpNames) {
         assert.ok(
             environment.includes(

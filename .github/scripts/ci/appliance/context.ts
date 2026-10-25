@@ -44,6 +44,8 @@ for (const variable of [
     'RENTNERPROXY_APP_KEY_FILE',
     'RENTNERPROXY_CONTROLLER_TOKEN',
     'RENTNERPROXY_IMAGE',
+    'PROXY_TRUSTED_PROXY_CIDRS',
+    'PUBLIC_ORIGIN',
     'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
     'RENTNERPROXY_PUBLIC_ORIGIN',
 ]) {
@@ -362,9 +364,9 @@ export async function createApplianceSmokeContext() {
         smtpNames
             .map((name) => `${name}=${smtpEnvironment[name as keyof typeof smtpEnvironment]}`)
             .join('\n') +
-            '\nRENTNERPROXY_PUBLIC_ORIGIN=' +
+            '\nPUBLIC_ORIGIN=' +
             publicOrigin +
-            '\nRENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' +
+            '\nPROXY_TRUSTED_PROXY_CIDRS=' +
             trustedProxyCidrs +
             '\nRENTNERPROXY_IMAGE=' +
             imageTag +
@@ -423,8 +425,8 @@ export async function createApplianceSmokeContext() {
         ...commandEnvironment,
         ...smtpEnvironment,
         RENTNERPROXY_IMAGE: imageTag,
-        RENTNERPROXY_PUBLIC_ORIGIN: publicOrigin,
-        RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
+        PUBLIC_ORIGIN: publicOrigin,
+        PROXY_TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
         RENTNERPROXY_COMPOSE_FILE: temporaryComposeFile,
     }
 

@@ -567,7 +567,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                         '127.0.0.1::8443/udp',
                     ],
                     environment: {
-                        RENTNERPROXY_PUBLIC_ORIGIN: 'https://reliability.invalid',
+                        PUBLIC_ORIGIN: 'https://reliability.invalid',
                         RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: '8443',
                         RENTNERPROXY_ACME_TEST_DIRECTORY_URL: 'https://pebble:14000/dir',
                         RENTNERPROXY_ACME_TEST_ROOT_CERT: '/test/pebble.minica.pem',

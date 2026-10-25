@@ -9,7 +9,8 @@ const PROXY_STATE_DIR_ENV: &str = "RENTNERPROXY_PROXY_STATE_DIR";
 const PROXY_HTTP_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTP_PORT";
 const PROXY_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTPS_PORT";
 const PROXY_PUBLIC_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT";
-const PROXY_TRUSTED_PROXY_CIDRS_ENV: &str = "RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS";
+const PROXY_TRUSTED_PROXY_CIDRS_ENV: &str = "PROXY_TRUSTED_PROXY_CIDRS";
+const LEGACY_PROXY_TRUSTED_PROXY_CIDRS_ENV: &str = "RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS";
 const SYSTEM_CA_BUNDLE_ENV: &str = "RENTNERPROXY_SYSTEM_CA_BUNDLE";
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8081";
 const DEFAULT_PROXY_HTTP_PORT: u16 = 8_080;
@@ -210,8 +211,7 @@ impl Config {
             DEFAULT_PROXY_PUBLIC_HTTPS_PORT,
         )?;
         config.system_ca_bundle = parse_system_ca_bundle(system_ca_bundle.as_deref())?;
-        config.proxy_trusted_proxy_cidrs =
-            parse_trusted_proxy_cidrs(read_env(PROXY_TRUSTED_PROXY_CIDRS_ENV)?.as_deref())?;
+        config.proxy_trusted_proxy_cidrs = read_trusted_proxy_cidrs(read_env)?;
         Ok(config)
     }
 
@@ -275,6 +275,23 @@ impl Config {
             system_ca_bundle: PathBuf::from(DEFAULT_SYSTEM_CA_BUNDLE),
         })
     }
+}
+
+pub(crate) fn read_trusted_proxy_cidrs(
+    mut read: impl FnMut(&'static str) -> Result<Option<String>, ConfigError>,
+) -> Result<Vec<String>, ConfigError> {
+    let configured = read(PROXY_TRUSTED_PROXY_CIDRS_ENV)?;
+    let legacy = read(LEGACY_PROXY_TRUSTED_PROXY_CIDRS_ENV);
+    if !matches!(&legacy, Ok(None)) {
+        tracing::warn!(
+            "{LEGACY_PROXY_TRUSTED_PROXY_CIDRS_ENV} is deprecated. Please rename it to {PROXY_TRUSTED_PROXY_CIDRS_ENV}; {PROXY_TRUSTED_PROXY_CIDRS_ENV} takes precedence when both are set."
+        );
+    }
+    let value = match configured {
+        Some(value) => Some(value),
+        None => legacy?,
+    };
+    parse_trusted_proxy_cidrs(value.as_deref())
 }
 
 pub(crate) fn parse_trusted_proxy_cidrs(value: Option<&str>) -> Result<Vec<String>, ConfigError> {

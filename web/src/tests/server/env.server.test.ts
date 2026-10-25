@@ -41,6 +41,7 @@ const ENVIRONMENT_VARIABLES = [
     'SMTP_PORT',
     'SMTP_SECURE',
     'SMTP_USER',
+    'PUBLIC_ORIGIN',
     'RENTNERPROXY_PUBLIC_ORIGIN',
 ] as const
 const originalValues = new Map(
@@ -115,7 +116,8 @@ function configureRequiredProductionEnvironment(): void {
     )
     process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:8081'
     process.env.RENTNERPROXY_CONTROLLER_TOKEN = '0'.repeat(32)
-    process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'https://management.example.com'
+    process.env.PUBLIC_ORIGIN = 'https://management.example.com'
+    delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
     delete process.env.APP_ENCRYPTION_KEY_FILE
     delete process.env.DATABASE_URL_FILE
     delete process.env.RENTNERPROXY_CONTROLLER_TOKEN_FILE
@@ -192,31 +194,52 @@ describe('getValkeyUrl', () => {
 })
 
 describe('getPublicOrigin', () => {
+    test('accepts the legacy origin and gives the new name precedence without an invalid-value fallback', () => {
+        process.env.NODE_ENV = 'production'
+        delete process.env.PUBLIC_ORIGIN
+        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'https://legacy.example.com:8443/'
+
+        expect(getPublicOrigin()).toBe('https://legacy.example.com:8443')
+        expect(getWebAuthnConfiguration()).toMatchObject({
+            origin: 'https://legacy.example.com:8443',
+            rpId: 'legacy.example.com',
+        })
+
+        process.env.PUBLIC_ORIGIN = 'https://management.example.com'
+        expect(getPublicOrigin()).toBe('https://management.example.com')
+
+        for (const value of ['', 'http://insecure.example.com', 'invalid']) {
+            process.env.PUBLIC_ORIGIN = value
+            expect(getPublicOrigin()).toBeNull()
+            expect(getWebAuthnConfiguration()).toBeNull()
+        }
+    })
+
     test('ignores retired environment overrides and derives the exact relying party host', () => {
         process.env.NODE_ENV = 'production'
         process.env.APP_URL = 'https://retired.example.com'
         process.env.WEBAUTHN_RP_ID = 'retired.example.com'
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'https://management.example.com:8443/'
+        process.env.PUBLIC_ORIGIN = 'https://management.example.com:8443/'
 
         expect(getPublicOrigin()).toBe('https://management.example.com:8443')
         expect(getWebAuthnConfiguration()).toMatchObject({
             origin: 'https://management.example.com:8443',
             rpId: 'management.example.com',
         })
-        delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
+        delete process.env.PUBLIC_ORIGIN
         expect(getPublicOrigin()).toBeNull()
         expect(getWebAuthnConfiguration()).toBeNull()
     })
 
     test('defaults to the local web origin outside production', () => {
-        delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
+        delete process.env.PUBLIC_ORIGIN
         process.env.NODE_ENV = 'development'
 
         expect(getPublicOrigin()).toBe('http://localhost:5173')
     })
 
     test('requires an HTTPS deployment origin in production', () => {
-        delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
+        delete process.env.PUBLIC_ORIGIN
         process.env.NODE_ENV = 'production'
 
         expect(getPublicOrigin()).toBeNull()
@@ -260,6 +283,14 @@ describe('parseTrustedManagementOrigin', () => {
 })
 
 describe('production environment validation', () => {
+    test('continues accepting deployments that only configure the legacy origin', () => {
+        configureRequiredProductionEnvironment()
+        process.env.RENTNERPROXY_PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN
+        delete process.env.PUBLIC_ORIGIN
+
+        expect(() => validateProductionEnvironment()).not.toThrow()
+    })
+
     test.each([undefined, '', 'https://user:private-value@invalid.example'])(
         'fails closed with safe migration guidance for VALKEY_URL %s',
         (configured) => {
@@ -287,9 +318,9 @@ describe('production environment validation', () => {
     })
     test('requires the canonical origin and provides the Alpha 3 migration hint', () => {
         configureRequiredProductionEnvironment()
-        delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
+        delete process.env.PUBLIC_ORIGIN
 
-        expect(() => validateProductionEnvironment()).toThrow('RENTNERPROXY_PUBLIC_ORIGIN')
+        expect(() => validateProductionEnvironment()).toThrow('PUBLIC_ORIGIN')
         expect(() => validateProductionEnvironment()).toThrow('management_origin_v1')
     })
 })
@@ -368,12 +399,12 @@ describe('WebAuthn relying-party configuration', () => {
     test('rejects matching IPv4 and IPv6 origins and RP IDs', () => {
         process.env.NODE_ENV = 'development'
 
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://127.0.0.1:5173'
+        process.env.PUBLIC_ORIGIN = 'http://127.0.0.1:5173'
         expect(parseWebAuthnRpId('127.0.0.1', 'http://127.0.0.1:5173')).toBeNull()
         expect(deriveWebAuthnRpId('http://127.0.0.1:5173')).toBeNull()
         expect(getWebAuthnConfiguration()).toBeNull()
 
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://[::1]:5173'
+        process.env.PUBLIC_ORIGIN = 'http://[::1]:5173'
         expect(parseWebAuthnRpId('::1', 'http://[::1]:5173')).toBeNull()
         expect(deriveWebAuthnRpId('http://[::1]:5173')).toBeNull()
         expect(getWebAuthnConfiguration()).toBeNull()
@@ -381,7 +412,7 @@ describe('WebAuthn relying-party configuration', () => {
 
     test('derives the RP ID from the canonical public origin', () => {
         process.env.NODE_ENV = 'development'
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:3000'
+        process.env.PUBLIC_ORIGIN = 'http://localhost:3000'
 
         expect(getWebAuthnConfiguration()).toEqual({
             origin: 'http://localhost:3000',
@@ -389,17 +420,17 @@ describe('WebAuthn relying-party configuration', () => {
             rpName: 'RentnerProxy',
         })
 
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://127.0.0.1:3000'
+        process.env.PUBLIC_ORIGIN = 'http://127.0.0.1:3000'
         expect(getWebAuthnConfiguration()).toBeNull()
 
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'https://app.example'
+        process.env.PUBLIC_ORIGIN = 'https://app.example'
         expect(getWebAuthnConfiguration()).toEqual({
             origin: 'https://app.example',
             rpId: 'app.example',
             rpName: 'RentnerProxy',
         })
 
-        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'https://app.example:8443'
+        process.env.PUBLIC_ORIGIN = 'https://app.example:8443'
         expect(getWebAuthnConfiguration()).toEqual({
             origin: 'https://app.example:8443',
             rpId: 'app.example',

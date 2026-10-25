@@ -201,7 +201,7 @@ describe('security action feedback', () => {
         ],
         [
             'ERROR_INVALID_RP_ID',
-            'This address does not match the configured passkey domain. Open the app at its configured RENTNERPROXY_PUBLIC_ORIGIN and try again.',
+            'This address does not match the configured passkey domain. Open the app at its configured PUBLIC_ORIGIN and try again.',
         ],
         ['UNRECOGNIZED_BROWSER_ERROR', 'Passkey registration failed.'],
     ] as const)(

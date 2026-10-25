@@ -1,6 +1,7 @@
 import { createRuntimeFetch } from './request-context.ts'
 import { createStaticAssetFetch } from './static-assets.ts'
 import { createLiveWebSocketRuntime } from '../../web/dist/server/realtimeWebSocket.js'
+import { readDeploymentEnvironmentVariable } from '../../web/src/lib/Environment/deployment-environment.ts'
 import { fileURLToPath } from 'node:url'
 
 const { default: application } = await import('../../web/dist/server/server.js')
@@ -15,7 +16,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535 || !application?.fetch)
 
 const runtimeFetch = createRuntimeFetch(application)
 const live = createLiveWebSocketRuntime({
-    allowedOrigin: process.env.RENTNERPROXY_PUBLIC_ORIGIN ?? 'http://localhost:5173',
+    allowedOrigin: readDeploymentEnvironmentVariable('PUBLIC_ORIGIN') ?? 'http://localhost:5173',
     readSnapshot: (request) => application.fetch(request),
 })
 const staticAssetFetch = createStaticAssetFetch(clientRoot, runtimeFetch)
