@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    http::StatusCode,
+    http::{HeaderValue, StatusCode, header::CACHE_CONTROL},
     response::{IntoResponse, Response},
 };
 
@@ -138,10 +138,14 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        let mut response = (
             self.status,
             Json(serde_json::json!({ "error": self.error })),
         )
-            .into_response()
+            .into_response();
+        response
+            .headers_mut()
+            .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        response
     }
 }

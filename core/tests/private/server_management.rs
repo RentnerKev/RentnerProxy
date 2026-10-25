@@ -75,10 +75,7 @@ async fn call(
         .await
         .unwrap();
     let status = response.status();
-    if status != StatusCode::UNAUTHORIZED
-        && !uri.contains("/crowdsec/")
-        && (status.is_success() || !uri.starts_with("/internal/v1/certificates/"))
-    {
+    if status != StatusCode::UNAUTHORIZED && !uri.contains("/crowdsec/") {
         assert_eq!(
             response.headers()["cache-control"],
             "no-store",
