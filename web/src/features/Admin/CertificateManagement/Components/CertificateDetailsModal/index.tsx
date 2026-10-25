@@ -38,7 +38,12 @@ export default function CertificateDetailsModal({
     open,
 }: CertificateDetailsModalProps) {
     const { t } = useTranslationStore()
-    const { state, handler } = useCertificateDetailsModalLogic(certificate, canIssue, canRenew)
+    const { state, handler } = useCertificateDetailsModalLogic(
+        certificate,
+        canIssue,
+        canRenew,
+        open,
+    )
     return (
         <Modal
             open={open}
@@ -110,11 +115,6 @@ export default function CertificateDetailsModal({
                             <p>
                                 {t('admin.certificates.manualDns.lastChecked')}:{' '}
                                 {state.manualDns.lastCheckedAt}
-                            </p>
-                        ) : null}
-                        {state.manualDns.lastErrorCode ? (
-                            <p role="alert" className="text-danger-text">
-                                {t(`admin.certificates.errors.${state.manualDns.lastErrorCode}`)}
                             </p>
                         ) : null}
                         {state.canActOnManualDns ? (
@@ -390,16 +390,6 @@ export default function CertificateDetailsModal({
                             />
                         </dl>
                     </section>
-                ) : null}
-                {certificate.lastErrorCode ? (
-                    <p className="m-0 rounded-xl border border-red-700/25 bg-danger-bg p-3 text-sm leading-relaxed text-danger-text">
-                        {t(`admin.certificates.errors.${certificate.lastErrorCode}`)}
-                    </p>
-                ) : null}
-                {certificate.candidate?.lastErrorCode ? (
-                    <p className="m-0 rounded-xl border border-red-700/25 bg-danger-bg p-3 text-sm leading-relaxed text-danger-text">
-                        {t(`admin.certificates.errors.${certificate.candidate.lastErrorCode}`)}
-                    </p>
                 ) : null}
                 {certificate.dnsCleanupPending ? (
                     <p className="m-0 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm leading-relaxed text-amber-700">

@@ -6,7 +6,7 @@ import { Modal } from '@/shared/Modal/index.tsx'
 import type { ManualDnsSetupGuideProps } from './Types/manual-dns-setup-guide.types.ts'
 
 export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
-    const { t } = useTranslationStore()
+    const { t, locale } = useTranslationStore()
     return (
         <Modal
             open={props.open}
@@ -131,7 +131,10 @@ export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
                         {props.recordsReady && props.expiresAt ? (
                             <p className="m-0 text-xs text-muted">
                                 {t('admin.certificates.manualDns.setup.expires', {
-                                    expires: props.expiresAt,
+                                    expires: new Intl.DateTimeFormat(locale, {
+                                        dateStyle: 'medium',
+                                        timeStyle: 'short',
+                                    }).format(new Date(props.expiresAt)),
                                 })}
                             </p>
                         ) : null}

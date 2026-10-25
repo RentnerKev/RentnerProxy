@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts'
+import { useEffect, useRef } from 'react'
 import { continueManualDnsHandler, cancelManualDnsHandler } from '../../../middleware.ts'
 import { invalidateCertificateManagementCache } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import useTranslationStore, {
@@ -36,10 +37,24 @@ export default function useCertificateDetailsModalLogic(
     certificate: CertificateSummary,
     canIssue = false,
     canRenew = false,
+    open = true,
 ) {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const manualDns = certificate.currentOperation?.manualDns
+    const errorCode =
+        manualDns?.lastErrorCode ??
+        certificate.candidate?.lastErrorCode ??
+        certificate.lastErrorCode
+    const errorTime = manualDns?.lastCheckedAt ?? certificate.lastErrorAt?.getTime() ?? ''
+    const reportedError = useRef('')
+    useEffect(() => {
+        if (!open || !errorCode || errorCode === 'manual_dns_cancelled') return
+        const event = `${certificate.id}:${certificate.currentOperation?.id}:${errorCode}:${errorTime}`
+        if (reportedError.current === event) return
+        reportedError.current = event
+        toast.error(t(`admin.certificates.errors.${errorCode}`), { title: t('toast.titles.error') })
+    }, [open, certificate.id, certificate.currentOperation?.id, errorCode, errorTime, t])
     const canAct = certificate.currentOperation?.kind === 'renew' ? canRenew : canIssue
     const manualAction = useMutation({
         mutationFn: async (action: 'continue' | 'cancel') => {

@@ -1,7 +1,7 @@
 import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { generateKeyPairSync } from 'node:crypto'
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
@@ -24,7 +24,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
-const { act } = await import('react')
+const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
@@ -163,6 +163,8 @@ const { default: CertificateManagementPage } =
     await import('@/features/Admin/CertificateManagement/index.tsx')
 const { default: CertificateRequestModal } =
     await import('@/features/Admin/CertificateManagement/Components/CertificateRequestModal/index.tsx')
+const { default: ManualDnsSetupGuide } =
+    await import('@/features/Admin/CertificateManagement/Components/CertificateRequestModal/Components/ManualDnsSetupGuide/index.tsx')
 
 let activeRoot: Root | null = null
 let activeQueryClient: QueryClientInstance | null = null
@@ -1980,4 +1982,105 @@ test('manual setup ignores repeated setup clicks while the accepted request is p
             'a'.repeat(43),
     )
     expect(requestCertificateHandlerMock).toHaveBeenCalledTimes(1)
+})
+
+test.each(['en', 'de'] as const)(
+    'manual TXT guide localizes its deadline in %s',
+    async (language) => {
+        const metadata = preparedManualCertificate.currentOperation!.manualDns!
+        await renderPage(
+            [],
+            language,
+            <ManualDnsSetupGuide
+                open
+                preparing={false}
+                loading={false}
+                loadFailed={false}
+                blocked={false}
+                complete={false}
+                recordsReady
+                records={metadata.records}
+                expiresAt={metadata.expiresAt}
+                onOpenChange={() => undefined}
+                onRetry={() => undefined}
+                onDone={() => undefined}
+                onCopy={async () => undefined}
+            />,
+        )
+        const formatted = new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-DE', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }).format(new Date(metadata.expiresAt))
+        const dialog = document.querySelector('[role=dialog]')!
+        expect(dialog.textContent).toContain(formatted)
+        expect(dialog.textContent).not.toContain(metadata.expiresAt)
+        expect(dialog.querySelector<HTMLInputElement>('#manual-dns-setup-value-0')?.value).toBe(
+            metadata.records[0]!.value,
+        )
+    },
+)
+
+test('manual DNS propagation failures use one toast per check and cancellation adds no false error', async () => {
+    const failed: CertificateSummary = {
+        ...preparedManualCertificate,
+        currentOperation: {
+            ...manualOperation,
+            manualDns: {
+                ...preparedManualCertificate.currentOperation!.manualDns!,
+                lastErrorCode: 'manual_dns_not_propagated',
+                lastCheckedAt: '2026-10-25T12:34:56Z',
+            },
+        },
+    }
+    let refresh: ((value: CertificateSummary) => void) | undefined
+    function DetailsFixture() {
+        const [value, setCertificate] = useState(failed)
+        useEffect(() => {
+            refresh = setCertificate
+        }, [setCertificate])
+        return (
+            <CertificateDetailsModal
+                open
+                canRenew
+                certificate={value}
+                onOpenChange={() => undefined}
+            />
+        )
+    }
+    const errorToast = spyOn(toast, 'error')
+    try {
+        await renderPage([], 'en', <DetailsFixture />)
+        await waitForToast('error')
+        const message =
+            'Some TXT values are not publicly visible yet. Wait for propagation and check again.'
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(message)
+        expect(document.querySelector('[role=dialog] [role=alert]')).toBeNull()
+        expect(document.querySelector('[role=dialog]')?.textContent).not.toContain(message)
+        expect(errorToast).toHaveBeenCalledTimes(1)
+        await act(async () => {
+            refresh!({ ...failed, updatedAt: new Date('2026-10-25T12:35:00Z') })
+        })
+        expect(errorToast).toHaveBeenCalledTimes(1)
+        await click(button('Cancel validation'))
+        await waitFor(() => cancelManualDnsHandlerMock.mock.calls.length === 1)
+        await waitForToast('success')
+        await act(async () => {
+            refresh!({
+                ...failed,
+                currentOperation: {
+                    ...failed.currentOperation!,
+                    manualDns: {
+                        ...failed.currentOperation!.manualDns!,
+                        status: 'cancelled',
+                        lastErrorCode: 'manual_dns_cancelled',
+                        lastCheckedAt: '2026-10-25T12:36:00Z',
+                    },
+                },
+            })
+        })
+        expect(errorToast).toHaveBeenCalledTimes(1)
+        expect(document.querySelector('[role=dialog] [role=alert]')).toBeNull()
+    } finally {
+        errorToast.mockRestore()
+    }
 })
