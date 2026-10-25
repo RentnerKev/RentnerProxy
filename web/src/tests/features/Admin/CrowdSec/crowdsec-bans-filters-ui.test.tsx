@@ -63,6 +63,19 @@ async function searchOptions(value: string): Promise<void> {
         search.dispatchEvent(new Event('input', { bubbles: true }))
         search.dispatchEvent(new Event('change', { bubbles: true }))
     })
+    const deadline = Date.now() + 2_000
+    while (
+        ![...document.querySelectorAll<HTMLElement>('[role="option"]')].some(
+            (option) => option.textContent === value,
+        )
+    ) {
+        if (Date.now() > deadline)
+            throw new Error(`Country search did not render the expected option: ${value}`)
+        // oxlint-disable-next-line eslint/no-await-in-loop -- The virtualized options render asynchronously after filtering.
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20))
+        })
+    }
 }
 
 async function renderTable(

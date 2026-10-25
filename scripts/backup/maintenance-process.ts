@@ -69,7 +69,8 @@ export async function runMaintenanceProcess(
     const input = (async () => {
         if (options.input === undefined || !child.stdin) return
         for (let offset = 0; offset < options.input.length; offset += 65_536) {
-            child.stdin.write(options.input.subarray(offset, offset + 65_536))
+            // Windows pipe writes can reject asynchronously when termination closes stdin.
+            await child.stdin.write(options.input.subarray(offset, offset + 65_536))
             await child.stdin.flush()
         }
         await child.stdin.end()

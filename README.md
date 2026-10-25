@@ -12,14 +12,13 @@
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
-  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.1"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
+  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.2"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerKev/RentnerProxy" alt="MIT license"></a>
 </p>
 
 > [!IMPORTANT]
-> Public beta: breaking changes are possible. Back up your data before upgrades.
-> Beta 1 has a known issue with proxy connection resets during concurrent Caddy configuration
-> updates ([#171](https://github.com/RentnerKev/RentnerProxy/issues/171)); the issue is tracked for Beta 2.
+> Current public release: [v1.0.0-beta.2](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.2).
+> This is beta software: breaking changes are possible. Back up your data before upgrades.
 
 ## Features
 
@@ -27,12 +26,22 @@
 - Duplicate proxy and redirect hosts into a draft with new domains, using existing creation, certificate and access-policy validation. Proxy copies inherit global HTTP settings; separate per-host Config overrides are not copied.
 - Global quick search with Ctrl+K on Windows/Linux and Cmd+K on macOS, plus a mobile search control. Find authorized hosts, certificates, access policies and settings with bounded results and keyboard navigation.
 - Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
+- Cloudflare DDNS for A and AAAA records, with shared DNS connections, scheduling, retries and recovery.
+- Opt-in Docker discovery that manages proxy hosts from labeled containers.
+- Email and webhook notifications with event subscriptions and delivery status.
+- Release detection, update notifications and guided upgrades.
+- Host tags, groups, filters and permission-aware bulk actions.
+- Configurable Zstd/Gzip response compression, browser-cache rules and an optional bounded response cache for public assets.
 - Access policies with Basic Auth, Forward Auth, and IP allow/deny rules; verified HTTPS upstreams.
-- CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.
+- CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard.
 - Users, roles, permissions, TOTP, passkeys, and audit logs.
 - Personal accent colors and light/dark themes; login and public pages retain the default green.
 - Live status and access logs; English, German, Spanish, French, Italian, Portuguese, Dutch, and Polish UI.
 - Single-container appliance with Caddy, PostgreSQL, Valkey, and a Rust controller.
+
+Manual and delegated DNS-01 are planned for [v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/milestone/9)
+and are not part of Beta 2. The remaining implementation is tracked in
+[#277](https://github.com/RentnerKev/RentnerProxy/issues/277).
 
 ## Installation
 
@@ -42,8 +51,8 @@ Requirements:
 - Free ports `80/tcp`, `443/tcp`, and `443/udp`.
 - HTTPS management origin and SMTP credentials.
 
-The example pins the Beta 1 image with `RENTNERPROXY_IMAGE`:
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1`.
+The example pins the Beta 2 image with `RENTNERPROXY_IMAGE`:
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2`.
 
 Save this as `docker-compose.yml` (or use the [repository file](docker-compose.yml)):
 
@@ -77,7 +86,7 @@ volumes:
 Create `.env` beside it (see also [`.env.production.example`](.env.production.example)):
 
 ```dotenv
-RENTNERPROXY_IMAGE=ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1
+RENTNERPROXY_IMAGE=ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2
 RENTNERPROXY_PUBLIC_ORIGIN=https://management.example.com
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -148,7 +157,7 @@ Every release is also published with its exact version tag. Use an exact tag whe
 a specific release, for example:
 
 ```text
-ghcr.io/rentnerkev/rentnerproxy:v1.0.0
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2
 ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1
 ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
 ```
@@ -158,23 +167,23 @@ in that channel. `:dev` is not a release and may change at any time.
 
 ## Screenshots
 
-Desktop UI with synthetic demo data; domains, accounts, and activity are illustrative.
-All screenshots are 1920 × 1080. Click a thumbnail to view the full-size image.
+Desktop UI in dark and light mode: hosts, certificates, DDNS, security and notifications.
+Screenshots include example records and labeled demo metrics. Click a thumbnail to view the full-size image.
 
 <details open>
 <summary><strong>Dark mode</strong></summary>
 
 <table>
   <tr>
-    <td align="center"><a href="./screenshots/proxy-hosts-dark.png"><img src="./screenshots/proxy-hosts-dark.png" alt="Proxy hosts in dark mode" width="440"></a><br>Proxy hosts</td>
-    <td align="center"><a href="./screenshots/certificates-dark.png"><img src="./screenshots/certificates-dark.png" alt="Certificates in dark mode" width="440"></a><br>Certificates</td>
+    <td align="center"><a href="./screenshots/proxy-hosts-dark-v2.webp"><img src="./screenshots/proxy-hosts-dark-v2.webp" alt="Proxy hosts in dark mode with tags, groups, example domains and bulk selection." width="440"></a><br>Proxy hosts</td>
+    <td align="center"><a href="./screenshots/certificates-dark.webp"><img src="./screenshots/certificates-dark.webp" alt="Certificate management in dark mode with ACME operations, imported certificates and expiry status." width="440"></a><br>TLS certificates</td>
   </tr>
   <tr>
-    <td align="center"><a href="./screenshots/security-dashboard-dark.png"><img src="./screenshots/security-dashboard-dark.png" alt="Security dashboard in dark mode" width="440"></a><br>Security dashboard</td>
-    <td align="center"><a href="./screenshots/configuration-transfer-dark.png"><img src="./screenshots/configuration-transfer-dark.png" alt="Configuration transfer in dark mode" width="440"></a><br>Configuration transfer</td>
+    <td align="center"><a href="./screenshots/ddns-dark.webp"><img src="./screenshots/ddns-dark.webp" alt="DDNS management in dark mode with Cloudflare A and AAAA records, proxy status and paused automatic updates." width="440"></a><br>Cloudflare DDNS</td>
+    <td align="center"><a href="./screenshots/security-dashboard-dark.webp"><img src="./screenshots/security-dashboard-dark.webp" alt="Security dashboard in dark mode with labeled synthetic metrics, charts and IP bans." width="440"></a><br>Security dashboard</td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><a href="./screenshots/account-profile-dark.png"><img src="./screenshots/account-profile-dark.png" alt="Account profile in dark mode" width="440"></a><br>Account profile</td>
+    <td align="center" colspan="2"><a href="./screenshots/notifications-dark.webp"><img src="./screenshots/notifications-dark.webp" alt="Notification settings in dark mode with an email channel, event subscriptions and delivery status." width="440"></a><br>Notifications</td>
   </tr>
 </table>
 
@@ -185,15 +194,15 @@ All screenshots are 1920 × 1080. Click a thumbnail to view the full-size image.
 
 <table>
   <tr>
-    <td align="center"><a href="./screenshots/proxy-hosts-light.png"><img src="./screenshots/proxy-hosts-light.png" alt="Proxy hosts in light mode" width="440"></a><br>Proxy hosts</td>
-    <td align="center"><a href="./screenshots/certificates-light.png"><img src="./screenshots/certificates-light.png" alt="Certificates in light mode" width="440"></a><br>Certificates</td>
+    <td align="center"><a href="./screenshots/proxy-hosts-light.webp"><img src="./screenshots/proxy-hosts-light.webp" alt="Proxy hosts in light mode with colored tags, host status, search and filtering." width="440"></a><br>Proxy hosts</td>
+    <td align="center"><a href="./screenshots/certificates-light.webp"><img src="./screenshots/certificates-light.webp" alt="Certificate management in light mode with domains, certificate sources and ACME status." width="440"></a><br>TLS certificates</td>
   </tr>
   <tr>
-    <td align="center"><a href="./screenshots/security-dashboard-light.png"><img src="./screenshots/security-dashboard-light.png" alt="Security dashboard in light mode" width="440"></a><br>Security dashboard</td>
-    <td align="center"><a href="./screenshots/configuration-transfer-light.png"><img src="./screenshots/configuration-transfer-light.png" alt="Configuration transfer in light mode" width="440"></a><br>Configuration transfer</td>
+    <td align="center"><a href="./screenshots/ddns-light.webp"><img src="./screenshots/ddns-light.webp" alt="DDNS management in light mode with Cloudflare A and AAAA records, proxy status and paused automatic updates." width="440"></a><br>Cloudflare DDNS</td>
+    <td align="center"><a href="./screenshots/redirect-hosts-light.webp"><img src="./screenshots/redirect-hosts-light.webp" alt="Redirect management in light mode with host tags, a 301 redirect, HTTPS status and pagination." width="440"></a><br>Redirect hosts</td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><a href="./screenshots/account-appearance-light.png"><img src="./screenshots/account-appearance-light.png" alt="Account appearance settings in light mode" width="440"></a><br>Account appearance</td>
+    <td align="center" colspan="2"><a href="./screenshots/notifications-light.webp"><img src="./screenshots/notifications-light.webp" alt="Notification settings in light mode with an enabled channel and successful test deliveries." width="440"></a><br>Notifications</td>
   </tr>
 </table>
 

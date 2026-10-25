@@ -30,6 +30,17 @@ describe('maintenance process deadline includes all I/O', () => {
         expect(result.stopped).toBe(true)
     })
 
+    test('fails closed when the child exits before consuming input', async () => {
+        const result = await runMaintenanceProcess(child('process.exit(0)'), {
+            cwd,
+            timeoutMs: 5_000,
+            input: new Uint8Array(4 * 1024 * 1024),
+        })
+        expect(result.failed).toBe(true)
+        expect(result.timedOut).toBe(false)
+        expect(result.stopped).toBe(true)
+    })
+
     test.skipIf(process.platform === 'win32')(
         'bounds inherited pipes even when the command itself exits successfully',
         async () => {
