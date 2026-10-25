@@ -132,7 +132,12 @@ async function waitFor(condition: () => boolean): Promise<void> {
     }
     await poll()
 }
-async function render(api: DdnsApi, manage = true, viewConnections = manage) {
+async function render(
+    api: DdnsApi,
+    manage = true,
+    viewConnections = manage,
+    waitUntilLoaded = true,
+) {
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const container = document.createElement('div')
     document.body.append(container)
@@ -160,7 +165,8 @@ async function render(api: DdnsApi, manage = true, viewConnections = manage) {
             ),
         ),
     )
-    await waitFor(() => !document.body.textContent?.includes('Loading DDNS configuration'))
+    if (waitUntilLoaded)
+        await waitFor(() => !document.body.textContent?.includes('Loading DDNS configuration'))
 }
 function button(label: string, scope: ParentNode = document) {
     const result = [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
@@ -222,58 +228,93 @@ async function action(label: string, target = 'example.com (A)') {
     )
 }
 describe('DDNS administration UI', () => {
-    test('new live targets refresh provider bindings for a manager without DNS connection visibility', async () => {
-        const { api } = fixture(ddnsSnapshot(approved, true))
-        let context = await api.providers()
-        const providers = mock(async () => context)
-        api.providers = providers
-        await render(api, true, false)
-        await waitFor(() => providers.mock.calls.length === 1)
-        const connectionId = '01900000-0000-7000-8000-000000000099'
-        const newTarget = ddnsTarget({
-            id: '01900000-0000-7000-8000-000000000098',
-            connectionId,
-            name: 'new.example.com',
-        })
-        context = {
-            ...context,
-            bindings: [...context.bindings, { connectionId, provider: 'cloudflare' }],
-        }
-        await act(async () => {
-            client.setQueryData(
-                DDNS_QUERY_KEYS.status,
-                ddnsSnapshot(ddnsSettings([...approved.targets, newTarget]), true, 2),
-            )
-        })
-        await waitFor(() => providers.mock.calls.length >= 2)
+    test('provider bindings wait for the initial status before loading', async () => {
+        const snapshot = ddnsSnapshot(approved, true)
+        const { api } = fixture(snapshot)
+        const status = Promise.withResolvers<typeof snapshot>()
+        api.status = mock(() => status.promise)
+        await render(api, true, false, false)
+        await waitFor(() => (api.status as ReturnType<typeof mock>).mock.calls.length === 1)
+        expect(api.providers).not.toHaveBeenCalled()
+        await act(async () => status.resolve(snapshot))
         await waitFor(
             () =>
-                document.querySelector('button[aria-label="Actions for new.example.com (A)"]') !==
-                null,
+                document.querySelector('button[aria-label="Actions for example.com (A)"]') !== null,
         )
-        await action('Edit', 'new.example.com (A)')
-        const proxied = document.querySelector<HTMLInputElement>('input[name="proxied"]')!
-        expect(proxied.disabled).toBe(false)
-        await click(proxied)
-        await submit()
-        await waitFor(() => document.querySelector('[role="dialog"]') === null)
-        expect(api.apply).toHaveBeenCalledWith(
-            expect.objectContaining({
-                expectedRevision: 2,
-                draft: expect.objectContaining({
-                    targets: expect.arrayContaining([
-                        expect.objectContaining({
-                            connectionId,
-                            name: 'new.example.com',
-                            proxied: false,
-                        }),
-                    ]),
-                }),
-            }),
+        await action('Edit')
+        await waitFor(
+            () =>
+                document.querySelector<HTMLInputElement>('input[name="proxied"]')?.disabled ===
+                false,
         )
-        expect(api.connections).not.toHaveBeenCalled()
-        expect(document.body.textContent).not.toContain('Fixture Cloudflare')
+        expect(api.providers).toHaveBeenCalledTimes(1)
     })
+
+    test.each([false, true])(
+        'new live targets refresh provider bindings without connection visibility (old request pending: %s)',
+        async (pending) => {
+            const { api } = fixture(ddnsSnapshot(approved, true))
+            let context = await api.providers()
+            const originalContext = context
+            const oldRequest = Promise.withResolvers<typeof context>()
+            let calls = 0
+            const providers = mock(async () => {
+                calls += 1
+                if (pending && calls === 1) return oldRequest.promise
+                return context
+            })
+            api.providers = providers
+            await render(api, true, false)
+            await waitFor(() => providers.mock.calls.length === 1)
+            const connectionId = '01900000-0000-7000-8000-000000000099'
+            const newTarget = ddnsTarget({
+                id: '01900000-0000-7000-8000-000000000098',
+                connectionId,
+                name: 'new.example.com',
+            })
+            context = {
+                ...context,
+                bindings: [...context.bindings, { connectionId, provider: 'cloudflare' }],
+            }
+            await act(async () => {
+                client.setQueryData(
+                    DDNS_QUERY_KEYS.status,
+                    ddnsSnapshot(ddnsSettings([...approved.targets, newTarget]), true, 2),
+                )
+            })
+            await waitFor(() => providers.mock.calls.length >= 2)
+            await act(async () => oldRequest.resolve(originalContext))
+            await waitFor(
+                () =>
+                    document.querySelector(
+                        'button[aria-label="Actions for new.example.com (A)"]',
+                    ) !== null,
+            )
+            await action('Edit', 'new.example.com (A)')
+            const proxied = document.querySelector<HTMLInputElement>('input[name="proxied"]')!
+            await waitFor(() => !proxied.disabled)
+            expect(proxied.disabled).toBe(false)
+            await click(proxied)
+            await submit()
+            await waitFor(() => document.querySelector('[role="dialog"]') === null)
+            expect(api.apply).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    expectedRevision: 2,
+                    draft: expect.objectContaining({
+                        targets: expect.arrayContaining([
+                            expect.objectContaining({
+                                connectionId,
+                                name: 'new.example.com',
+                                proxied: false,
+                            }),
+                        ]),
+                    }),
+                }),
+            )
+            expect(api.connections).not.toHaveBeenCalled()
+            expect(document.body.textContent).not.toContain('Fixture Cloudflare')
+        },
+    )
 
     test('saved target proxy metadata remains editable without DNS connection visibility', async () => {
         const { api } = fixture(ddnsSnapshot(approved, true))
@@ -319,6 +360,8 @@ describe('DDNS administration UI', () => {
         }))
         await render(api)
         await click(button('Add records'))
+        expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
+        expect(button('Save changes').disabled).toBe(true)
         await select(0, 'Fixture Cloudflare')
         expect(document.querySelector<HTMLInputElement>('input[name="proxied"]')?.disabled).toBe(
             true,

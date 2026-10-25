@@ -34,7 +34,7 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
             }
         >
             <form id={state.formId} onSubmit={handler.submit} className="grid gap-5">
-                {!state.operationSupported ? (
+                {state.operationUnavailable ? (
                     <p role="alert" className="text-sm text-danger-text">
                         {t('admin.dnsConnections.providers.unavailable')}
                     </p>

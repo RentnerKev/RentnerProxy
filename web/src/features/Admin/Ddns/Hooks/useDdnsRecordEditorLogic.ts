@@ -76,6 +76,7 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
             : supportsDdns(provider, values.recordType)
     const operationSupported = recordTypeAvailable && supportsProxyOption(provider, values.proxied)
+    const operationUnavailable = !!values.connectionId && !operationSupported
     const connectionOptions = props.connections
         .filter((item) => {
             const available = dnsProviderForId(props.providers, item.provider)
@@ -135,6 +136,7 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             stale: props.stale,
             locked: props.locked || !operationSupported,
             operationSupported,
+            operationUnavailable,
             savedRecordType: props.editor.target?.recordType,
             recordTypeAvailable,
             proxyAvailable: provider?.capabilities.proxyOptions === 'cloudflare',
