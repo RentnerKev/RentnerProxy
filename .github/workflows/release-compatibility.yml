@@ -27,28 +27,6 @@ on:
     push:
         branches:
             - main
-        paths:
-            - '.github/workflows/release-compatibility.yml'
-            - 'scripts/production-backup.ts'
-            - 'scripts/backup/**'
-            - 'scripts/production-restore.ts'
-            - '.github/scripts/ci/release-compatibility/**'
-            - '.github/scripts/ci/fixtures/**'
-            - 'scripts/compatibility/**'
-            - 'scripts/smoke/**'
-            - 'scripts/assets/**'
-            - 'docker/**'
-            - '.dockerignore'
-            - 'docker-compose.yml'
-            - 'package.json'
-            - 'bun.lock'
-            - 'bunfig.toml'
-            - 'core/Cargo.*'
-            - 'core/src/**'
-            - 'web/src/**'
-            - 'web/public/**'
-            - 'vite.config.ts'
-            - 'tsconfig*.json'
     workflow_dispatch:
         inputs:
             source:

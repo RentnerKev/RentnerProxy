@@ -22,6 +22,25 @@ import { runSmokeProcess } from '../../../../../scripts/smoke/process.ts'
 import { fileURLToPath } from 'node:url'
 
 const beta1 = publishedRelease('beta.1')
+
+test('collects exact-revision publication evidence even for documentation-only main commits', async () => {
+    const workflow = Bun.YAML.parse(
+        await readFile(
+            new URL('../../../../../.github/workflows/release-compatibility.yml', import.meta.url),
+            'utf8',
+        ),
+    ) as {
+        on: {
+            push: { branches: string[]; paths?: string[]; 'paths-ignore'?: string[] }
+            pull_request: { paths: string[] }
+        }
+    }
+    expect(workflow.on.push.branches).toContain('main')
+    expect(workflow.on.push).not.toHaveProperty('paths')
+    expect(workflow.on.push).not.toHaveProperty('paths-ignore')
+    expect(workflow.on.pull_request.paths).toContain('web/src/**')
+})
+
 const beta2 = {
     version: 'v1.0.0-beta.2',
     revision: '7ffc45dc99b02b00008e097d91224176596cbc6f',
