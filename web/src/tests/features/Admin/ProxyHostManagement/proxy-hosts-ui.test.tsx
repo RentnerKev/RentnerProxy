@@ -248,6 +248,15 @@ const getCertificateDnsProviders = mock(async () => {
     ]
 })
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    getCertificatesHandler: mock(async () => []),
+    continueManualDnsHandler: mock(async () => ({
+        success: true as const,
+        message: 'admin.certificates.manualDns.checking',
+    })),
+    cancelManualDnsHandler: mock(async () => ({
+        success: true as const,
+        message: 'admin.certificates.manualDns.cancelled',
+    })),
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,

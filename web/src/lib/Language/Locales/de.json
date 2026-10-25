@@ -1284,10 +1284,24 @@
                 "trusted": "Vertrauenswürdige CAs"
             },
             "manualDns": {
+                "setup": {
+                    "action": "TXT-Einträge einrichten",
+                    "title": "TXT-Einträge einrichten",
+                    "description": "Füge die TXT-Einträge bei deinem DNS-Anbieter hinzu und speichere deine Änderungen. Wähle Fertig und danach Zertifikat anfordern im Hauptdialog, um DNS zu prüfen und fortzufahren.",
+                    "preparing": "Anforderung wird bei der Zertifizierungsstelle vorbereitet…",
+                    "loading": "TXT-Einträge werden geladen…",
+                    "dnsInstructions": "Öffne die DNS-Einstellungen deiner Domain und füge einen Eintrag hinzu. Wähle TXT als Eintragstyp und trage jeden unten angezeigten Namen und Wert ein.",
+                    "ownerHint": "Manche Anbieter ergänzen die Domain automatisch. Gib den Namen so ein, dass der vollständige Name dem angezeigten TXT-Namen entspricht.",
+                    "valuesHint": "Mehrere Werte können denselben Namen haben. Füge jeden Wert hinzu und behalte andere vorhandene TXT-Werte bei.",
+                    "finish": "Fertig",
+                    "retry": "TXT-Einträge erneut laden",
+                    "reused": "Die Zertifizierungsstelle hat eine bestehende Autorisierung wiederverwendet. Es sind keine TXT-Einträge nötig. Wähle Fertig und fahre im Hauptdialog fort.",
+                    "blocked": "Schließe die Anleitung und prüfe die aktuelle Zertifikatsvalidierung.",
+                    "expires": "TXT-Einträge laufen am {{expires}} ab"
+                },
                 "mode": "DNS-Validierung",
                 "provider": "Automatisch (Provider-API)",
                 "manual": "Manuelle TXT-Einträge",
-                "renewalHint": "Jede Erneuerung braucht deine Mithilfe: neue TXT-Werte veröffentlichen und die Validierung fortsetzen.",
                 "title": "Manuelle DNS-Validierung",
                 "instructions": "Lege jeden gezeigten TXT-Wert unter dem exakten Namen an. Mehrere Werte können denselben Namen haben. Bestehende Werte erhalten.",
                 "expires": "Gültig bis",

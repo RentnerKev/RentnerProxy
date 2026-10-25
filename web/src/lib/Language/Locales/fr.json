@@ -1286,10 +1286,24 @@
                 "trusted": "AC de confiance"
             },
             "manualDns": {
+                "setup": {
+                    "action": "Configurer les enregistrements TXT",
+                    "title": "Configurer les enregistrements TXT",
+                    "description": "Ajoute les enregistrements TXT chez ton fournisseur DNS et enregistre les modifications. Sélectionne Terminé, puis Demander un certificat dans la fenêtre principale pour vérifier le DNS et continuer.",
+                    "preparing": "Préparation de la demande auprès de l’autorité de certification…",
+                    "loading": "Chargement des enregistrements TXT…",
+                    "dnsInstructions": "Ouvre les paramètres DNS de ton domaine et ajoute un enregistrement. Choisis le type TXT, puis saisis chaque nom et valeur ci-dessous.",
+                    "ownerHint": "Certains fournisseurs ajoutent automatiquement le domaine. Adapte le nom à ton fournisseur pour que le nom complet corresponde au nom TXT affiché.",
+                    "valuesHint": "Plusieurs valeurs peuvent partager un nom. Ajoute chaque valeur et conserve les autres valeurs TXT existantes.",
+                    "finish": "Terminé",
+                    "retry": "Recharger les enregistrements TXT",
+                    "reused": "L’autorité de certification a réutilisé une autorisation existante. Aucun enregistrement TXT n’est nécessaire. Sélectionne Terminé, puis continue dans la fenêtre principale.",
+                    "blocked": "Ferme le guide et vérifie la validation actuelle du certificat.",
+                    "expires": "Les enregistrements TXT expirent le {{expires}}"
+                },
                 "mode": "Validation DNS",
                 "provider": "Automatique (API du fournisseur)",
                 "manual": "Enregistrements TXT manuels",
-                "renewalHint": "Chaque renouvellement demande votre aide : publiez les nouvelles valeurs TXT puis poursuivez la validation.",
                 "title": "Validation DNS manuelle",
                 "instructions": "Créez chaque valeur TXT au nom exact indiqué. Plusieurs valeurs peuvent partager un nom. Conservez les valeurs existantes.",
                 "expires": "Expiration",

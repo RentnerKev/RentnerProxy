@@ -1300,10 +1300,24 @@
                 "trusted": "Zaufane urzędy certyfikacji"
             },
             "manualDns": {
+                "setup": {
+                    "action": "Skonfiguruj rekordy TXT",
+                    "title": "Skonfiguruj rekordy TXT",
+                    "description": "Dodaj rekordy TXT u dostawcy DNS i zapisz zmiany. Wybierz Gotowe, a następnie Zamów certyfikat w głównym oknie, aby sprawdzić DNS i kontynuować.",
+                    "preparing": "Przygotowywanie żądania w urzędzie certyfikacji…",
+                    "loading": "Wczytywanie rekordów TXT…",
+                    "dnsInstructions": "Otwórz ustawienia DNS domeny i dodaj rekord. Wybierz typ TXT, a następnie wpisz każdą nazwę i wartość podaną poniżej.",
+                    "ownerHint": "Niektórzy dostawcy automatycznie dodają domenę. Wpisz nazwę zgodnie z wymaganiami dostawcy, aby pełna nazwa odpowiadała wyświetlanej nazwie TXT.",
+                    "valuesHint": "Kilka wartości może mieć tę samą nazwę. Dodaj każdą wartość i zachowaj inne istniejące wartości TXT.",
+                    "finish": "Gotowe",
+                    "retry": "Wczytaj rekordy TXT ponownie",
+                    "reused": "Urząd certyfikacji użył istniejącej autoryzacji. Rekordy TXT nie są potrzebne. Wybierz Gotowe i kontynuuj w głównym oknie.",
+                    "blocked": "Zamknij instrukcję i sprawdź bieżącą walidację certyfikatu.",
+                    "expires": "Rekordy TXT wygasają {{expires}}"
+                },
                 "mode": "Walidacja DNS",
                 "provider": "Automatyczna (API dostawcy)",
                 "manual": "Ręczne rekordy TXT",
-                "renewalHint": "Każde odnowienie wymaga Twojej pomocy: opublikuj nowe wartości TXT i kontynuuj walidację.",
                 "title": "Ręczna walidacja DNS",
                 "instructions": "Utwórz każdą wartość TXT pod dokładnie podaną nazwą. Wiele wartości może mieć tę samą nazwę. Zachowaj istniejące wartości.",
                 "expires": "Wygasa",

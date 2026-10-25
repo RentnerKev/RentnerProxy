@@ -1284,10 +1284,24 @@
                 "trusted": "Trusted CAs"
             },
             "manualDns": {
+                "setup": {
+                    "action": "Set up TXT records",
+                    "title": "Set up TXT records",
+                    "description": "Add the TXT records at your DNS provider and save your changes. Select Done, then Request certificate in the main dialog to check DNS and continue.",
+                    "preparing": "Preparing the request with the certificate authority…",
+                    "loading": "Loading the TXT records…",
+                    "dnsInstructions": "Open your domain’s DNS settings and add a record. Choose TXT as the record type, then enter each owner and value shown below.",
+                    "ownerHint": "Some providers append the domain automatically. Enter the owner as required by your provider so the final full name matches the displayed TXT owner.",
+                    "valuesHint": "Several values may share the same owner. Add every value and keep unrelated existing TXT values.",
+                    "finish": "Done",
+                    "retry": "Retry loading TXT records",
+                    "reused": "The certificate authority reused an existing authorization. No TXT records are needed. Select Done, then continue in the main dialog.",
+                    "blocked": "Close the guide and review the current certificate validation.",
+                    "expires": "TXT records expire at {{expires}}"
+                },
                 "mode": "DNS validation",
                 "provider": "Automatic (provider API)",
                 "manual": "Manual TXT records",
-                "renewalHint": "Every renewal needs your help: publish fresh TXT records and continue validation.",
                 "title": "Manual DNS validation",
                 "instructions": "Create every TXT value below at its exact owner. Several values may share one owner. Preserve existing values.",
                 "expires": "Expires at",

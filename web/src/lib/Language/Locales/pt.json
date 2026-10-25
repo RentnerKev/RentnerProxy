@@ -1298,10 +1298,24 @@
                 "trusted": "ACs fidedignas"
             },
             "manualDns": {
+                "setup": {
+                    "action": "Configurar registos TXT",
+                    "title": "Configurar registos TXT",
+                    "description": "Adiciona os registos TXT no teu fornecedor DNS e guarda as alterações. Seleciona Concluído e depois Pedir certificado na janela principal para verificar o DNS e continuar.",
+                    "preparing": "A preparar o pedido com a autoridade de certificação…",
+                    "loading": "A carregar os registos TXT…",
+                    "dnsInstructions": "Abre as definições DNS do teu domínio e adiciona um registo. Escolhe TXT como tipo e introduz cada nome e valor apresentado abaixo.",
+                    "ownerHint": "Alguns fornecedores acrescentam o domínio automaticamente. Introduz o nome conforme o teu fornecedor para que o nome completo corresponda ao nome TXT apresentado.",
+                    "valuesHint": "Vários valores podem partilhar o mesmo nome. Adiciona cada valor e mantém os outros valores TXT existentes.",
+                    "finish": "Concluído",
+                    "retry": "Recarregar os registos TXT",
+                    "reused": "A autoridade de certificação reutilizou uma autorização existente. Não são necessários registos TXT. Seleciona Concluído e continua na janela principal.",
+                    "blocked": "Fecha o guia e verifica a validação atual do certificado.",
+                    "expires": "Os registos TXT expiram em {{expires}}"
+                },
                 "mode": "Validação DNS",
                 "provider": "Automática (API do fornecedor)",
                 "manual": "Registos TXT manuais",
-                "renewalHint": "Cada renovação precisa da sua ajuda: publique novos valores TXT e continue a validação.",
                 "title": "Validação DNS manual",
                 "instructions": "Crie cada valor TXT no nome exato indicado. Vários valores podem partilhar um nome. Preserve os valores existentes.",
                 "expires": "Expira em",

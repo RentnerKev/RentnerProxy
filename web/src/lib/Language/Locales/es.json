@@ -1286,10 +1286,24 @@
                 "trusted": "CA de confianza"
             },
             "manualDns": {
+                "setup": {
+                    "action": "Configurar registros TXT",
+                    "title": "Configurar registros TXT",
+                    "description": "Añade los registros TXT en tu proveedor DNS y guarda los cambios. Selecciona Listo y luego Solicitar certificado en el diálogo principal para comprobar DNS y continuar.",
+                    "preparing": "Preparando la solicitud con la autoridad de certificación…",
+                    "loading": "Cargando los registros TXT…",
+                    "dnsInstructions": "Abre la configuración DNS de tu dominio y añade un registro. Elige TXT como tipo e introduce cada nombre y valor que se muestra abajo.",
+                    "ownerHint": "Algunos proveedores añaden el dominio automáticamente. Introduce el nombre según tu proveedor para que el nombre completo coincida con el nombre TXT mostrado.",
+                    "valuesHint": "Varios valores pueden compartir un nombre. Añade todos los valores y conserva los demás valores TXT existentes.",
+                    "finish": "Listo",
+                    "retry": "Volver a cargar los registros TXT",
+                    "reused": "La autoridad de certificación ha reutilizado una autorización existente. No se necesitan registros TXT. Selecciona Listo y continúa en el diálogo principal.",
+                    "blocked": "Cierra la guía y revisa la validación actual del certificado.",
+                    "expires": "Los registros TXT caducan el {{expires}}"
+                },
                 "mode": "Validación DNS",
                 "provider": "Automática (API del proveedor)",
                 "manual": "Registros TXT manuales",
-                "renewalHint": "Cada renovación necesita tu ayuda: publica nuevos valores TXT y continúa la validación.",
                 "title": "Validación DNS manual",
                 "instructions": "Crea cada valor TXT en el nombre exacto indicado. Varios valores pueden compartir un nombre. Conserva los valores existentes.",
                 "expires": "Caduca",

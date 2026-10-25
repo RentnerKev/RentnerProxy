@@ -1265,10 +1265,24 @@
                 "trusted": "Vertrouwde CA’s"
             },
             "manualDns": {
+                "setup": {
+                    "action": "TXT-records instellen",
+                    "title": "TXT-records instellen",
+                    "description": "Voeg de TXT-records toe bij je DNS-provider en sla de wijzigingen op. Kies Gereed en vervolgens Certificaat aanvragen in het hoofdvenster om DNS te controleren en door te gaan.",
+                    "preparing": "Aanvraag voorbereiden bij de certificaatautoriteit…",
+                    "loading": "TXT-records laden…",
+                    "dnsInstructions": "Open de DNS-instellingen van je domein en voeg een record toe. Kies TXT als recordtype en voer elke onderstaande naam en waarde in.",
+                    "ownerHint": "Sommige providers voegen het domein automatisch toe. Voer de naam volgens je provider in zodat de volledige naam overeenkomt met de getoonde TXT-naam.",
+                    "valuesHint": "Meerdere waarden kunnen dezelfde naam hebben. Voeg elke waarde toe en behoud andere bestaande TXT-waarden.",
+                    "finish": "Gereed",
+                    "retry": "TXT-records opnieuw laden",
+                    "reused": "De certificaatautoriteit heeft een bestaande autorisatie hergebruikt. Er zijn geen TXT-records nodig. Kies Gereed en ga verder in het hoofdvenster.",
+                    "blocked": "Sluit de handleiding en controleer de huidige certificaatvalidatie.",
+                    "expires": "TXT-records verlopen op {{expires}}"
+                },
                 "mode": "DNS-validatie",
                 "provider": "Automatisch (provider-API)",
                 "manual": "Handmatige TXT-records",
-                "renewalHint": "Elke vernieuwing vereist je hulp: publiceer nieuwe TXT-waarden en ga verder met de validatie.",
                 "title": "Handmatige DNS-validatie",
                 "instructions": "Maak elke TXT-waarde aan bij de exact getoonde naam. Meerdere waarden kunnen dezelfde naam hebben. Behoud bestaande waarden.",
                 "expires": "Verloopt op",

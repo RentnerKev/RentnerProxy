@@ -178,7 +178,7 @@ export default function CertificateDetailsModal({
                                 certificate.source === 'acme'
                                     ? t(
                                           certificate.currentOperation?.dnsMode === 'manual'
-                                              ? 'admin.certificates.manualDns.renewalHint'
+                                              ? 'admin.certificates.manualDns.manual'
                                               : 'admin.certificates.details.autoRenewAcme',
                                       )
                                     : t('admin.certificates.details.autoRenewManual')
