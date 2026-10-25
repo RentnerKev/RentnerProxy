@@ -1628,6 +1628,7 @@ test('manual request opens its own details while preparing and refreshes delayed
     await click(lastButton('Request with ACME'))
     await waitFor(() => document.body.textContent?.includes('Preparing the ACME order') === true)
     expect(document.querySelector('[role=dialog]')?.textContent).toContain(pending.name)
+    expect(getCertificatesHandlerMock).toHaveBeenCalledTimes(2)
     const waiting = { ...pending, currentOperation: { ...manualOperation, kind: 'issue' as const } }
     await act(async () => {
         activeQueryClient!.setQueryData(certificateManagementQueryKeys.all, [certificate, waiting])
@@ -1661,4 +1662,42 @@ test('certificate detail selection from a binding-job link opens after its metad
         await click(close)
         expect(document.querySelector('[role=dialog]')).toBeNull()
     }
+})
+
+test('a successful certificate request stays successful when its follow-up list refresh fails', async () => {
+    let accepted = false
+    getCertificatesHandlerMock.mockImplementation(async () => {
+        if (accepted) throw new Error('follow-up list unavailable')
+        return [certificate]
+    })
+    requestCertificateHandlerMock.mockImplementation(async () => {
+        accepted = true
+        return {
+            success: true,
+            message: 'admin.certificates.messages.requested',
+            certificateId: '0198d98a-0000-7000-8000-000000000001',
+        }
+    })
+    await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+    await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+    await click(button('Request with ACME'))
+    await setValue(document.querySelector('#certificate-request-name')!, 'Accepted manual edge')
+    await setValue(certificateDomainInputs()[0]!, 'example.com')
+    await click(document.querySelector('[aria-label="ACME challenge"]')!)
+    await waitFor(() => !!document.querySelector('[role=option]'))
+    await click(
+        [...document.querySelectorAll('[role=option]')].find((option) =>
+            option.textContent?.includes('Manual TXT records'),
+        )!,
+    )
+    await click(lastButton('Request with ACME'))
+    await waitForToast('success')
+    await waitFor(() => document.querySelector('#certificate-request-name') === null)
+    expect(requestCertificateHandlerMock).toHaveBeenCalledTimes(1)
+    expect(getCertificatesHandlerMock).toHaveBeenCalledTimes(2)
+    expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
+    expect(document.querySelector('.rentnerproxy-toast-success')).not.toBeNull()
+    expect(activeQueryClient!.getQueryState(certificateManagementQueryKeys.all)?.status).toBe(
+        'error',
+    )
 })

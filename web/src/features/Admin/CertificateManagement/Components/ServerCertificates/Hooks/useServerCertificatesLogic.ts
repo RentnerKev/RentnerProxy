@@ -185,16 +185,16 @@ export default function useServerCertificatesLogic({
     }, [deleteMutation, deleteTarget])
     const handleFormSuccess = useCallback(
         async (certificateId?: string) => {
-            await invalidateCertificateQueries()
+            // The mutation already succeeded; refresh failures remain query errors.
+            await invalidateCertificateQueries().catch(() => undefined)
             setImportOpen(false)
             setReplaceTarget(null)
             setRequestOpen(false)
             if (certificateId) {
-                const data = await queryClient.fetchQuery({
-                    queryKey: certificateManagementQueryKeys.all,
-                    queryFn: () => getCertificatesHandler(),
-                })
-                const created = data.find((certificate) => certificate.id === certificateId)
+                const data = queryClient.getQueryData<CertificateSummary[]>(
+                    certificateManagementQueryKeys.all,
+                )
+                const created = data?.find((certificate) => certificate.id === certificateId)
                 if (created) setDetailsTarget(created)
             }
         },

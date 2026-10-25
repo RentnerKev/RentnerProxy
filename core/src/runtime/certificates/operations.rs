@@ -295,7 +295,7 @@ pub(crate) fn journal_is_valid(index: &CertificateIndex) -> bool {
     })
 }
 
-fn known_error_code(code: &str) -> bool {
+pub(super) fn known_error_code(code: &str) -> bool {
     matches!(
         code,
         "invalid_certificate"

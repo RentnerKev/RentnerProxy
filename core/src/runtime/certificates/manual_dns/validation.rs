@@ -49,19 +49,10 @@ pub(in crate::runtime::certificates) fn manual_order_is_valid(
             .last_checked_at
             .as_deref()
             .is_some_and(|value| timestamp(value).is_none())
-        || order.last_error_code.as_deref().is_some_and(|value| {
-            !matches!(
-                value,
-                "manual_dns_not_propagated"
-                    | "manual_dns_lookup_failed"
-                    | "manual_dns_expired"
-                    | "manual_dns_cancelled"
-                    | "manual_dns_order_invalid"
-                    | "acme_failed"
-                    | "certificate_store_unavailable"
-                    | "runtime_apply_failed"
-            )
-        })
+        || order
+            .last_error_code
+            .as_deref()
+            .is_some_and(|value| !super::super::operations::known_error_code(value))
     {
         return false;
     }

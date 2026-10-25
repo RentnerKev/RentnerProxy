@@ -62,6 +62,47 @@ describe('manual DNS controller backup state', () => {
             expect(() => validateManualDnsBackupState(terminal, certificateId)).not.toThrow()
         }
     })
+    test('preserves safe terminal error codes through backup and restore', () => {
+        for (const error of [
+            'invalid_certificate',
+            'key_mismatch',
+            'certificate_expired',
+            'domain_mismatch',
+            'certificate_not_found',
+            'certificate_in_use',
+            'operation_in_progress',
+            'acme_terms_required',
+            'acme_domain_invalid',
+            'acme_failed',
+            'acme_dns_required',
+            'dns_provider_invalid',
+            'dns_provider_unavailable',
+            'dns_provider_unauthorized',
+            'dns_cleanup_failed',
+            'dns_credentials_unavailable',
+            'manual_dns_not_propagated',
+            'manual_dns_lookup_failed',
+            'manual_dns_expired',
+            'manual_dns_cancelled',
+            'manual_dns_order_invalid',
+            'runtime_apply_failed',
+            'certificate_store_unavailable',
+        ]) {
+            const failed = certificate()
+            const snapshot = {
+                ...failed,
+                acme: {
+                    ...failed.acme,
+                    manualOrder: {
+                        ...failed.acme.manualOrder,
+                        phase: 'failed',
+                        lastErrorCode: error,
+                    },
+                },
+            }
+            expect(() => validateManualDnsBackupState(snapshot, certificateId)).not.toThrow()
+        }
+    })
     test('rejects mixed provider state and operation/account/reference confusion', () => {
         const initial = certificate()
         const changes = [

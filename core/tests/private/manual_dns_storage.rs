@@ -637,6 +637,62 @@ async fn failed_park_keeps_the_worker_lease_until_its_error_handler_releases_it(
 }
 
 #[tokio::test]
+async fn terminal_failure_codes_remain_valid_after_persistence_and_restart() {
+    for error in [
+        CertificateError::InvalidCertificate,
+        CertificateError::KeyMismatch,
+        CertificateError::CertificateExpired,
+        CertificateError::DomainMismatch,
+        CertificateError::NotFound,
+        CertificateError::InUse,
+        CertificateError::OperationInProgress,
+        CertificateError::TermsRequired,
+        CertificateError::AcmeDomainInvalid,
+        CertificateError::AcmeFailed,
+        CertificateError::AcmeDnsRequired,
+        CertificateError::DnsProviderInvalid,
+        CertificateError::DnsProviderUnavailable,
+        CertificateError::DnsProviderUnauthorized,
+        CertificateError::DnsCleanupFailed,
+        CertificateError::DnsCredentialsUnavailable,
+        CertificateError::ManualDnsNotPropagated,
+        CertificateError::ManualDnsLookupFailed,
+        CertificateError::ManualDnsExpired,
+        CertificateError::ManualDnsCancelled,
+        CertificateError::ManualDnsOrderInvalid,
+        CertificateError::RuntimeApplyFailed,
+        CertificateError::StoreUnavailable,
+    ] {
+        let fixture = Fixture::new().await;
+        let order = fixture.begin(false).await;
+        fixture
+            .store
+            .store_manual_dns_order(ID, order.clone())
+            .await
+            .unwrap();
+        fixture
+            .store
+            .finish_manual_dns_failed(ID, &order.operation_id, error)
+            .await
+            .unwrap();
+        let restarted = CertificateStore::new(fixture.directory.clone());
+        restarted.initialize().await.unwrap();
+        let metadata = restarted.get(ID).await.unwrap();
+        assert_eq!(metadata.operation, CertificateOperation::Idle);
+        assert_eq!(metadata.last_error_code.as_deref(), Some(error.code()));
+        let restored = restarted
+            .load_manual_dns_order(ID)
+            .await
+            .unwrap()
+            .unwrap()
+            .1;
+        assert!(restored.phase.is_terminal());
+        assert_eq!(restored.last_error_code.as_deref(), Some(error.code()));
+        assert!(restored.private_key_pem.is_none() && restored.csr_der.is_none());
+    }
+}
+
+#[tokio::test]
 async fn public_metadata_excludes_persisted_order_url_account_key_and_csr() {
     let fixture = Fixture::new().await;
     let order = with_csr(fixture.begin(false).await, issue_request().domains);

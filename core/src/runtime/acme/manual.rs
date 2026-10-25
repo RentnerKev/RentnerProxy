@@ -14,8 +14,8 @@ use super::{
 use crate::runtime::{
     CertificateMetadata, CertificateOperationStage, ProxyRuntime,
     certificates::{
-        CertificateError, CertificateIssueRequest, ManualDnsActionRequest, ManualDnsOrder,
-        ManualDnsPhase, ManualDnsRecord,
+        CertificateError, CertificateIssueRequest, CertificateOperation, ManualDnsActionRequest,
+        ManualDnsOrder, ManualDnsPhase, ManualDnsRecord,
     },
     manual_dns_propagation,
 };
@@ -165,24 +165,46 @@ impl ProxyRuntime {
                 }
             }
             Err(error) => {
+                let Ok(metadata) = self.certificate_store.get(id).await else {
+                    return;
+                };
+                if metadata.operation == CertificateOperation::Idle
+                    || metadata
+                        .current_operation
+                        .is_none_or(|operation| operation.id != operation_id)
+                {
+                    return;
+                }
+                let saved = match self.certificate_store.load_manual_dns_order(id).await {
+                    Ok(saved) => saved,
+                    Err(_) => return,
+                };
+                if saved
+                    .as_ref()
+                    .is_some_and(|(_, order)| order.operation_id != operation_id)
+                {
+                    return;
+                }
+                if saved.is_none()
+                    && matches!(
+                        error,
+                        CertificateError::AcmeFailed | CertificateError::StoreUnavailable
+                    )
+                {
+                    self.certificate_store.finish_failed(id, error).await;
+                    return;
+                }
                 let recoverable = !matches!(
                     error,
                     CertificateError::ManualDnsExpired | CertificateError::ManualDnsOrderInvalid
-                ) && self
-                    .certificate_store
-                    .load_manual_dns_order(id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .is_some_and(|(_, order)| {
-                        order.operation_id == operation_id
-                            && matches!(
-                                order.phase,
-                                ManualDnsPhase::CheckingDns
-                                    | ManualDnsPhase::Validating
-                                    | ManualDnsPhase::Finalizing
-                            )
-                    });
+                ) && saved.is_some_and(|(_, order)| {
+                    matches!(
+                        order.phase,
+                        ManualDnsPhase::CheckingDns
+                            | ManualDnsPhase::Validating
+                            | ManualDnsPhase::Finalizing
+                    )
+                });
                 if recoverable {
                     let _ = self
                         .certificate_store
