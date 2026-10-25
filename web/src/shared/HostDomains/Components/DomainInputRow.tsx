@@ -13,6 +13,7 @@ export default function DomainInputRow({
     placeholder,
     describedBy,
     errors,
+    showInlineErrors = true,
     disabled,
     readOnly = false,
     removeDisabled,
@@ -55,7 +56,7 @@ export default function DomainInputRow({
                     </button>
                 ) : null}
             </div>
-            <FieldError id={errorId} errors={errors} />
+            {showInlineErrors ? <FieldError id={errorId} errors={errors} /> : null}
         </div>
     )
 }

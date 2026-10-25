@@ -14,6 +14,7 @@ export default function DomainListFieldset({
     hintId,
     errorId,
     errors,
+    showInlineErrors = true,
 }: DomainListFieldsetProps) {
     return (
         <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
@@ -33,7 +34,7 @@ export default function DomainListFieldset({
             <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2">
                 {hint}
             </p>
-            <FieldError id={errorId} errors={errors} />
+            {showInlineErrors ? <FieldError id={errorId} errors={errors} /> : null}
         </fieldset>
     )
 }

@@ -45,12 +45,8 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                         disabled={state.isPending}
                         onClick={handler.handleClose}
                     />
-                    <form.Subscribe
-                        selector={(formState) =>
-                            [formState.canSubmit, formState.isSubmitting] as const
-                        }
-                    >
-                        {([canSubmit, isSubmitting]) => (
+                    <form.Subscribe selector={(formState) => formState.isSubmitting}>
+                        {(isSubmitting) => (
                             <ModalActionButton
                                 type="submit"
                                 form={state.formId}
@@ -59,7 +55,6 @@ export default function CertificateRequestModal(props: CertificateRequestModalPr
                                 }
                                 variant="primary"
                                 disabled={
-                                    !canSubmit ||
                                     isSubmitting ||
                                     state.isPending ||
                                     (state.jobActive && !state.retryableJob)

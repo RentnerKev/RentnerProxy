@@ -1186,11 +1186,12 @@ describe('certificate management UI', () => {
         })
     })
 
-    test('shows inline DNS provider validation errors before requesting', async () => {
+    test('shows provider validation toasts and allows correction and resubmission', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+        await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
         await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
         await chooseDnsChallenge()
         await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'invalid-zone')
@@ -1199,33 +1200,85 @@ describe('certificate management UI', () => {
             'token with spaces',
         )
         await click(lastButton('Request with ACME'))
-        await waitFor(
-            () =>
-                document.body.textContent?.includes(
-                    'Enter a 32-character lowercase Cloudflare zone ID.',
-                ) === true,
+        await waitForToast('error')
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Enter a 32-character lowercase Cloudflare zone ID.',
         )
-        expect(document.body.textContent).toContain(
+        expect(document.querySelector('form [role="alert"]')).toBeNull()
+        expect(document.querySelector('#certificate-request-dns-zone-id-error')).toBeNull()
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        await act(() => toast.dismissAll())
+        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
+        expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
+        expect(lastButton('Request with ACME').disabled).toBeFalse()
+        await click(lastButton('Request with ACME'))
+        await waitForToast('error')
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
             'Enter a valid Cloudflare API token without whitespace.',
         )
+        expect(document.querySelector('#certificate-request-dns-api-token-error')).toBeNull()
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        await setValue(
+            document.querySelector('#certificate-request-dns-api-token')!,
+            'fixture-token',
+        )
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
     })
 
-    test('shows an inline DNS-01 requirement for HTTP wildcard requests', async () => {
+    test('shows the DNS-01 requirement as a toast for HTTP wildcard requests', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+        await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
         await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
         await click(lastButton('Request with ACME'))
-        await waitFor(
-            () =>
-                document.body.textContent?.includes(
-                    'Wildcard names require the DNS-01 challenge.',
-                ) === true,
+        await waitForToast('error')
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Wildcard names require the DNS-01 challenge.',
         )
+        expect(document.querySelector('form [role="alert"]')).toBeNull()
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
     })
+
+    test.each(['localhost', '192.0.2.1', 'app.demo.test'])(
+        'reports invalid ACME domain %s only in a toast and accepts a corrected domain',
+        async (domain) => {
+            await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+            await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+            await click(button('Request with ACME'))
+            await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+            await setValue(document.querySelector('#certificate-request-name')!, 'Local ACME test')
+            await setValue(document.querySelector('#certificate-request-domain-0')!, domain)
+            expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
+            await click(lastButton('Request with ACME'))
+            await waitForToast('error')
+            expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                'Use a public DNS domain.',
+            )
+            expect(document.querySelector('#certificate-request-domain-0-error')).toBeNull()
+            expect(document.querySelector('#certificate-request-domains-error')).toBeNull()
+            expect(document.querySelector('form [role="alert"]')).toBeNull()
+            expect(
+                document
+                    .querySelector('#certificate-request-domain-0')
+                    ?.getAttribute('aria-invalid'),
+            ).toBe('true')
+            expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+            await act(() => toast.dismissAll())
+            await click(lastButton('Request with ACME'))
+            await waitForToast('error')
+            expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+            await setValue(
+                document.querySelector('#certificate-request-domain-0')!,
+                'acme-test.example.com',
+            )
+            await click(lastButton('Request with ACME'))
+            await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        },
+    )
 })
 
 describe('trusted CA management UI', () => {
@@ -1472,6 +1525,10 @@ test('requests manual DNS without reading the provider catalogue or collecting c
         )!,
     )
     expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
+    expect(document.querySelector('#certificate-request-challengeType-hint')).toBeNull()
+    expect(document.body.textContent).not.toContain(
+        'All names must belong to the same Cloudflare zone.',
+    )
     expect(document.body.textContent).toContain('Every renewal needs your help')
     expect(getCertificateDnsProviders).not.toHaveBeenCalled()
     await click(lastButton('Request with ACME'))

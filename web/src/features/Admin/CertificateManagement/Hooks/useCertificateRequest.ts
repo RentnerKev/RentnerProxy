@@ -6,6 +6,7 @@ import { DEFAULT_ACME_ENVIRONMENT } from '@/config/certificates.config.ts'
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { supportsDns01 } from '@/lib/DnsConnections/dnsProviders.ts'
+import getFieldErrorMessage, { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import { requestCertificateHandler, getCertificateDnsProvidersHandler } from '../middleware.ts'
 import {
     requestProxyHostCertificateHandler,
@@ -70,8 +71,21 @@ export default function useCertificateRequest({
         contactEmail: '',
         acceptTerms: false,
     }
+    const reportValidationError = useCallback(
+        (values: CertificateRequestFormValues) => {
+            const issue = getValidationIssue(certificateRequestFormSchema, values)
+            toast.error(
+                getFieldErrorMessage(issue ? [issue] : [], t) ?? t('validation.invalidValue'),
+                {
+                    title: t('toast.titles.error'),
+                },
+            )
+        },
+        [t],
+    )
     const form = useForm({
         defaultValues,
+        onSubmitInvalid: ({ value }) => reportValidationError(value),
         onSubmit: async ({ value }) => {
             if (isPending) return
             setIsPending(true)
@@ -135,5 +149,13 @@ export default function useCertificateRequest({
         },
         validators: retryableJob ? {} : { onSubmit: certificateRequestFormSchema },
     })
-    return { form, formId, isPending, getRequestInput, readOnlyDomains, retryableJob }
+    return {
+        form,
+        formId,
+        isPending,
+        getRequestInput,
+        reportValidationError,
+        readOnlyDomains,
+        retryableJob,
+    }
 }

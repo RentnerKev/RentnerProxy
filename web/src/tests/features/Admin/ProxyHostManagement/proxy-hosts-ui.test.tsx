@@ -1449,7 +1449,11 @@ describe('proxy host form tabs', () => {
         )
         await click(getButton('Request certificate and save'))
         expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
-        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'DNS provider capabilities are unavailable',
+        )
+        expect(document.querySelector('form [role="alert"]')).toBeNull()
         expect(document.body.textContent).not.toContain('catalogue-secret')
     })
 

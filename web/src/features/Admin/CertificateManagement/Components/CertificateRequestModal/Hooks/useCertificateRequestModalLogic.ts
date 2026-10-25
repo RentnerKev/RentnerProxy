@@ -38,7 +38,8 @@ export default function useCertificateRequestModalLogic(props: CertificateReques
                 event.preventDefault()
                 event.stopPropagation()
                 if (!retryableJob) form.setFieldValue('acceptTerms', true)
-                void form.handleSubmit()
+                // Revalidate array-level errors after a child domain has been corrected.
+                void Promise.resolve(form.validate('submit')).then(() => form.handleSubmit())
             },
         },
         form,
