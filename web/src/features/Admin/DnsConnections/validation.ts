@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { dnsProviderIdSchema } from '@/lib/DnsConnections/validation.ts'
 import {
     MAX_CLOUDFLARE_API_TOKEN_LENGTH,
     MAX_DNS_CONNECTION_NAME_LENGTH,
@@ -22,6 +23,7 @@ const zoneIds = z
 
 export const saveDnsConnectionSchema = z
     .strictObject({
+        provider: dnsProviderIdSchema.optional(),
         connectionId: connectionId.optional(),
         expectedRevision: z.number().int().min(0).max(4_294_967_295),
         name: z
@@ -62,6 +64,7 @@ export const saveDnsConnectionSchema = z
 
 export const testDnsConnectionSchema = z
     .strictObject({
+        provider: dnsProviderIdSchema.optional(),
         connectionId: connectionId.optional(),
         apiToken: apiToken.optional(),
         zoneIds: zoneIds.optional(),

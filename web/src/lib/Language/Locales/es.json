@@ -2639,6 +2639,12 @@
             "downloadFailed": "No se pudo descargar el informe. Comprueba tus permisos e inténtalo de nuevo."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "Proveedor DNS",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Funciones compatibles (los permisos del token se comprueban por separado).",
+                "unavailable": "Las funciones DNS no están disponibles o no admiten esta operación. Comprueba la conexión del controlador e inténtalo de nuevo."
+            },
             "page": {
                 "eyebrow": "Administración",
                 "title": "Conexiones DNS",

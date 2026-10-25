@@ -2665,6 +2665,12 @@
             "downloadFailed": "Não foi possível descarregar o relatório. Verifique as permissões e tente novamente."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "Fornecedor DNS",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Funções suportadas (as permissões do token são verificadas separadamente).",
+                "unavailable": "As funções DNS estão indisponíveis ou não suportam esta operação. Verifique a ligação ao controlador e tente novamente."
+            },
             "page": {
                 "eyebrow": "Administração",
                 "title": "Ligações DNS",

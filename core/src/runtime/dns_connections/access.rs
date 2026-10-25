@@ -6,6 +6,7 @@ use tokio::sync::MutexGuard;
 pub(in crate::runtime) struct RecordAccess<'a> {
     _state: MutexGuard<'a, Option<Registry>>,
     pub(in crate::runtime) zone_name: String,
+    pub(in crate::runtime) provider: crate::runtime::dns::capabilities::ProviderId,
     pub(in crate::runtime) token: String,
     pub(in crate::runtime) endpoint: &'a str,
 }
@@ -30,10 +31,12 @@ impl Store {
             .ok_or(Error::ZoneNotPermitted)?
             .name
             .clone();
+        let provider = super::resolve_provider(None, Some(entry))?;
         let token = self.decrypt(entry)?;
         Ok(RecordAccess {
             _state: state,
             zone_name,
+            provider,
             token,
             endpoint: self.endpoint(),
         })

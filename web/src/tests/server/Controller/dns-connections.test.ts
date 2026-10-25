@@ -3,6 +3,7 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { createDnsConnectionsController } from '@/server/Controller/dns-connections.server.ts'
 import { dnsConnectionMetadataSchema } from '@/server/Controller/dns-connections.validation.ts'
 import { controllerRequest } from '@/server/Controller/transport.server.ts'
+import { readFile } from 'node:fs/promises'
 
 const originalUrl = process.env.RENTNERPROXY_CONTROLLER_URL
 const originalToken = process.env.RENTNERPROXY_CONTROLLER_TOKEN
@@ -35,6 +36,44 @@ function metadata() {
     }
 }
 describe('DNS connection controller boundary', () => {
+    test('reads the bounded authoritative provider catalogue without altering connection metadata', async () => {
+        const expected: unknown = JSON.parse(
+            await readFile(
+                new URL(
+                    '../../../../../core/tests/fixtures/dns-provider-catalog.json',
+                    import.meta.url,
+                ),
+                'utf8',
+            ),
+        )
+        const controller = createDnsConnectionsController(async (path, options) => {
+            expect(path).toBe('/internal/v1/dns/providers')
+            expect(options).toMatchObject({
+                privileged: true,
+                confidential: true,
+                responseLimit: 16_384,
+            })
+            return expected
+        })
+        expect(await controller.providers()).toEqual([
+            {
+                id: 'cloudflare',
+                capabilities: {
+                    zoneDiscovery: true,
+                    txtCreate: true,
+                    txtCleanup: true,
+                    addressRecordTypes: ['A', 'AAAA'],
+                    proxyOptions: 'cloudflare',
+                },
+            },
+        ])
+    })
+    test('rejects unknown provider descriptors and sanitizes catalogue failures', async () => {
+        const controller = createDnsConnectionsController(async () => ({
+            providers: [{ id: 'external-plugin', capabilities: {} }],
+        }))
+        await expect(controller.providers()).rejects.toThrow('controller_unavailable')
+    })
     test('requires bearer authentication even on loopback before fetching', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:18081'
         delete process.env.RENTNERPROXY_CONTROLLER_TOKEN
@@ -44,6 +83,9 @@ describe('DNS connection controller boundary', () => {
         fetchSpy = fetchMock
         expect(
             await controllerRequest('/internal/v1/dns/connections', { timeoutMs: 1_000 }),
+        ).toBeNull()
+        expect(
+            await controllerRequest('/internal/v1/dns/providers', { timeoutMs: 1_000 }),
         ).toBeNull()
         expect(fetchMock).not.toHaveBeenCalled()
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'a'.repeat(64)

@@ -2,10 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type {
-    CloudflareZone,
-    DnsConnection,
-} from '@/lib/DnsConnections/Types/dns-connections.types.ts'
+import type { DnsZone, DnsConnection } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import type {
@@ -33,10 +30,25 @@ const connection: DnsConnection = {
     updatedAt: '2026-10-01T00:00:00Z',
 }
 let connections: readonly DnsConnection[] = []
+let providersFail = false
+const provider = {
+    id: 'cloudflare' as const,
+    capabilities: {
+        zoneDiscovery: true,
+        txtCreate: true,
+        txtCleanup: true,
+        addressRecordTypes: ['A', 'AAAA'] as const,
+        proxyOptions: 'cloudflare' as const,
+    },
+}
+const getProviders = mock(async () => {
+    if (providersFail) throw new Error('offline')
+    return [provider]
+})
 let queryFails = false
 let testFails = false
 let saveFails = false
-let availableZones: readonly CloudflareZone[] = [firstZone, secondZone]
+let availableZones: readonly DnsZone[] = [firstZone, secondZone]
 const getConnections = mock(async () => {
     if (queryFails) throw new Error('offline')
     return connections
@@ -66,6 +78,7 @@ const deleteConnection = mock(async (_input: unknown) => ({
 }))
 mock.module('@/features/Admin/DnsConnections/middleware.ts', () => ({
     getDnsConnectionsHandler: getConnections,
+    getDnsConnectionProvidersHandler: getProviders,
     testDnsConnectionHandler: testConnection,
     saveDnsConnectionHandler: saveConnection,
     deleteDnsConnectionHandler: deleteConnection,
@@ -159,6 +172,8 @@ beforeEach(() => {
         return () => spy.mockRestore()
     })
     connections = []
+    providersFail = false
+    getProviders.mockClear()
     queryFails = false
     testFails = false
     saveFails = false
@@ -175,6 +190,29 @@ afterEach(async () => {
 })
 
 describe('Cloudflare DNS connection management', () => {
+    test('catalogue failure blocks token testing and saving without exposing credentials', async () => {
+        connections = [connection]
+        providersFail = true
+        await renderPage()
+        await click(button('Edit'))
+        await input('apiToken', 'catalogue-secret')
+        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        expect(button('Test read access and load zones').disabled).toBe(true)
+        expect(button('Save changes').disabled).toBe(true)
+        await submit()
+        expect(testConnection).not.toHaveBeenCalled()
+        expect(saveConnection).not.toHaveBeenCalled()
+        expect(document.body.textContent).not.toContain('catalogue-secret')
+        expect(
+            JSON.stringify(
+                queryClient
+                    .getQueryCache()
+                    .getAll()
+                    .map((query) => query.state.data),
+            ),
+        ).not.toContain('catalogue-secret')
+    })
+
     test('a delayed save cannot replace newer metadata even when the follow-up list read fails', async () => {
         connections = [connection]
         const result = Promise.withResolvers<{
@@ -241,6 +279,8 @@ describe('Cloudflare DNS connection management', () => {
         expect(button('Cancel').disabled).toBe(false)
         await submit()
         expect(saveConnection).not.toHaveBeenCalled()
+        providersFail = false
+        getProviders.mockClear()
         queryFails = false
         await act(async () => {
             await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
@@ -359,6 +399,7 @@ describe('Cloudflare DNS connection management', () => {
         await click(button('Test read access and load zones'))
         await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 2)
         expect(testConnection.mock.calls[0]?.[0].data).toEqual({
+            provider: 'cloudflare',
             connectionId: connection.id,
             apiToken: 'new-zone-only-token',
             zoneIds: [],
@@ -448,6 +489,8 @@ describe('Cloudflare DNS connection management', () => {
         expect(
             feedback.some((message) => String(message).includes('controller is unavailable')),
         ).toBe(true)
+        providersFail = false
+        getProviders.mockClear()
         queryFails = false
         await waitFor(() => document.body.textContent?.includes('No DNS connections yet') === true)
         expect(document.body.textContent).not.toContain('Reload connections')

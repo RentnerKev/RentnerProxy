@@ -1,4 +1,5 @@
 pub(super) mod api;
+pub(crate) mod capabilities;
 mod config;
 pub(super) mod encryption;
 mod models;

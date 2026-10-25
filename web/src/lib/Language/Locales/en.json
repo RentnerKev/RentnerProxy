@@ -2804,6 +2804,12 @@
             }
         },
         "dnsConnections": {
+            "providers": {
+                "label": "DNS provider",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Supported features (token permissions are checked separately).",
+                "unavailable": "DNS provider capabilities are unavailable or do not support this operation. Check the controller connection, then try again."
+            },
             "page": {
                 "eyebrow": "Administration",
                 "title": "DNS connections",

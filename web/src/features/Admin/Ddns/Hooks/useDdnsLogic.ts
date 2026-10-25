@@ -39,6 +39,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
     const [isPending, setIsPending] = useState(false)
     const [runtimeDetails, setRuntimeDetails] = useState(false)
     const pending = useRef(false)
+    const previousBindingIdentity = useRef<string | null>(null)
     const statusQuery = useQuery({
         queryKey: DDNS_QUERY_KEYS.status,
         queryFn: api.status,
@@ -51,6 +52,13 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         enabled: canChooseConnection,
         retry: false,
     })
+    const providersQuery = useQuery({
+        queryKey: DDNS_QUERY_KEYS.providers,
+        queryFn: api.providers,
+        enabled: canManage,
+        retry: false,
+    })
+    useQueryRecovery(providersQuery, canManage)
     useQueryRecovery(statusQuery, canView)
     useQueryRecovery(connectionsQuery, canChooseConnection)
     useLiveInvalidation({
@@ -82,6 +90,23 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         }
     }, [connectionsQuery.isError, t])
     const snapshot = statusQuery.data
+    const bindingIdentity = snapshot
+        ? [
+              ...new Set(
+                  snapshot.configuration?.settings.targets.map((target) => target.connectionId) ??
+                      [],
+              ),
+          ]
+              .toSorted()
+              .join(',')
+        : null
+    useEffect(() => {
+        if (!canManage || bindingIdentity === null) return
+        const previous = previousBindingIdentity.current
+        previousBindingIdentity.current = bindingIdentity
+        if (previous !== null && previous !== bindingIdentity)
+            void queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.providers })
+    }, [bindingIdentity, canManage, queryClient])
     const settings = snapshot?.configuration?.settings
     const revision = snapshot?.configuration?.revision ?? 0
     const draft = editableDdnsRecordDraft(ddnsDraft(settings))
@@ -140,7 +165,9 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                 ),
                 { title: t('toast.titles.error') },
             )
-            void queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+            void Promise.all(
+                DDNS_LIVE_QUERY_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+            )
         } finally {
             pending.current = false
             setIsPending(false)
@@ -160,6 +187,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         setDeletion(null)
         toast.success(t(message), { title: t('toast.titles.success') })
         void queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        void queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.providers })
     }
     async function apply(
         candidate: DdnsDraft,
@@ -207,6 +235,8 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             settings,
             rows,
             connections: connectionsQuery.data ?? [],
+            providers: providersQuery.isError ? [] : (providersQuery.data?.providers ?? []),
+            providerBindings: providersQuery.isError ? [] : (providersQuery.data?.bindings ?? []),
             recordEditor,
             settingsEditor,
             deleteTarget: deletion?.target ?? null,
@@ -318,7 +348,11 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                         toast[partial ? 'warning' : 'success'](t(message), {
                             title: t(partial ? 'toast.titles.warning' : 'toast.titles.success'),
                         })
-                        await queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+                        await Promise.all(
+                            DDNS_LIVE_QUERY_KEYS.map((queryKey) =>
+                                queryClient.invalidateQueries({ queryKey }),
+                            ),
+                        )
                     })
             },
         },

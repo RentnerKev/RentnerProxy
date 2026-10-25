@@ -5,6 +5,7 @@ mod references;
 mod tests;
 mod validation;
 
+pub(crate) use super::dns::capabilities::{ProviderId, catalog as provider_catalog};
 use super::{
     clock::utc_now,
     dns::{EncryptedDnsConfig, encryption},
@@ -185,6 +186,7 @@ impl Store {
                 })
                 .transpose()?
         };
+        let provider = resolve_provider(request.provider, entry.as_ref())?;
         let selected = request.zone_ids.unwrap_or_else(|| {
             entry
                 .as_ref()
@@ -196,7 +198,7 @@ impl Store {
             Some(token) => token,
             None => self.decrypt(entry.as_ref().ok_or(Error::TokenRequired)?)?,
         };
-        let zones = validation::permitted(self.endpoint(), &token).await?;
+        let zones = validation::permitted(provider, self.endpoint(), &token).await?;
         select(&zones, &selected)?;
         // A test against a stored credential must not silently describe a stale revision.
         if let Some(entry) = entry {
@@ -233,6 +235,7 @@ impl Store {
                 .find(|e| e.metadata.id == id)
                 .cloned()
         };
+        let provider = resolve_provider(request.provider, old.as_ref())?;
         if old.as_ref().is_some_and(|e| {
             e.metadata
                 .references
@@ -245,7 +248,7 @@ impl Store {
             Some(token) => token.clone(),
             None => self.decrypt(old.as_ref().ok_or(Error::TokenRequired)?)?,
         };
-        let permitted = validation::permitted(self.endpoint(), &token).await?;
+        let permitted = validation::permitted(provider, self.endpoint(), &token).await?;
         let zones = select(&permitted, &request.zone_ids)?;
         let revision = request
             .expected_revision
@@ -282,7 +285,7 @@ impl Store {
         }
         let metadata = Metadata {
             id: id.clone(),
-            provider: "cloudflare".into(),
+            provider: provider.as_str().into(),
             ownership: "instance".into(),
             name: request.name,
             created_by_user_id: old
@@ -357,6 +360,22 @@ impl Store {
         })
     }
 }
+fn resolve_provider(
+    requested: Option<ProviderId>,
+    existing: Option<&Entry>,
+) -> Result<ProviderId, Error> {
+    let stored = existing
+        .map(|entry| ProviderId::parse(&entry.metadata.provider).ok_or(Error::InvalidInput))
+        .transpose()?;
+    if requested
+        .zip(stored)
+        .is_some_and(|(requested, stored)| requested != stored)
+    {
+        return Err(Error::InvalidInput);
+    }
+    Ok(stored.or(requested).unwrap_or_default())
+}
+
 fn check_revision(registry: &Registry, id: &str, revision: u32) -> Result<(), Error> {
     match registry.connections.iter().find(|e| e.metadata.id == id) {
         Some(e) if e.metadata.revision == revision => Ok(()),

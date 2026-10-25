@@ -1,3 +1,4 @@
+import useCertificateDnsProviders from '../../../Hooks/useCertificateDnsProviders.ts'
 import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -12,6 +13,7 @@ export default function CertificateRequestFields({
     readOnlyDomains = false,
 }: CertificateRequestFieldsProps) {
     const { t } = useTranslationStore()
+    const { dnsProviders, dnsAvailable } = useCertificateDnsProviders()
     return (
         <div className="grid gap-4">
             <form.Field name="name">
@@ -103,6 +105,21 @@ export default function CertificateRequestFields({
                             <p className="m-0 text-sm leading-relaxed text-info-text">
                                 {t('admin.certificates.form.dnsProviderHint')}
                             </p>
+                            <CustomSelect
+                                label={t('admin.dnsConnections.providers.label')}
+                                value={dnsProviders[0]?.id ?? null}
+                                options={dnsProviders.map((provider) => ({
+                                    value: provider.id,
+                                    label: t(`admin.dnsConnections.providers.${provider.id}`),
+                                }))}
+                                onValueChange={() => undefined}
+                                disabled
+                            />
+                            {!dnsAvailable ? (
+                                <p role="alert" className="text-sm text-danger-text">
+                                    {t('admin.dnsConnections.providers.unavailable')}
+                                </p>
+                            ) : null}
                             <form.Field name="dnsZoneId">
                                 {(field) => (
                                     <div className="grid gap-[0.45rem]">

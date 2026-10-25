@@ -68,6 +68,12 @@ impl fmt::Debug for DnsProviderConfig {
 }
 
 impl DnsProviderConfig {
+    pub(crate) fn provider_id(&self) -> super::capabilities::ProviderId {
+        match self {
+            Self::Cloudflare { .. } => super::capabilities::ProviderId::Cloudflare,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn cloudflare(
         zone_id: impl Into<String>,

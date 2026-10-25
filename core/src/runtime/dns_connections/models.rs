@@ -67,6 +67,7 @@ pub(crate) struct Metadata {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct SaveRequest {
+    pub(crate) provider: Option<crate::runtime::dns::capabilities::ProviderId>,
     pub(crate) expected_revision: u32,
     pub(crate) name: String,
     pub(crate) api_token: Option<String>,
@@ -76,6 +77,7 @@ pub(crate) struct SaveRequest {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct TestRequest {
+    pub(crate) provider: Option<crate::runtime::dns::capabilities::ProviderId>,
     pub(crate) connection_id: Option<String>,
     pub(crate) api_token: Option<String>,
     pub(crate) zone_ids: Option<Vec<String>>,

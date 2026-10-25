@@ -2667,6 +2667,12 @@
             "downloadFailed": "Nie udało się pobrać raportu. Sprawdź uprawnienia i spróbuj ponownie."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "Dostawca DNS",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Obsługiwane funkcje (uprawnienia tokena są sprawdzane osobno).",
+                "unavailable": "Funkcje DNS są niedostępne lub nie obsługują tej operacji. Sprawdź połączenie z kontrolerem i spróbuj ponownie."
+            },
             "page": {
                 "eyebrow": "Administracja",
                 "title": "Połączenia DNS",

@@ -1,3 +1,5 @@
+import type { DdnsProviderContext } from './ddns-ui.types.ts'
+import type { DnsProviderDescriptor } from '@/lib/DnsConnections/Types/dns-provider.types.ts'
 import type { DdnsDraft, DdnsTarget } from '@/lib/Ddns/Types/ddns.types.ts'
 import type { DnsConnection } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 export interface DdnsRecordEditorContext {
@@ -11,6 +13,8 @@ export interface DdnsDeletionContext {
 }
 export interface DdnsRecordEditorProps {
     readonly editor: DdnsRecordEditorContext
+    readonly providers: readonly DnsProviderDescriptor[]
+    readonly providerBindings: DdnsProviderContext['bindings']
     readonly connections: readonly DnsConnection[]
     readonly canChooseConnection: boolean
     readonly pending: boolean

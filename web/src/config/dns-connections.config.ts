@@ -3,6 +3,8 @@ export const MAX_DNS_CONNECTION_NAME_LENGTH = 100
 export const MAX_DNS_CONNECTION_ZONES = 50
 export const MAX_CLOUDFLARE_AVAILABLE_ZONES = 500
 export const MAX_CLOUDFLARE_API_TOKEN_LENGTH = 512
+export const DNS_PROVIDER_IDS = ['cloudflare'] as const
+export const MAX_DNS_PROVIDERS = 8
 
 export const DNS_CONNECTION_PROVIDER_RATE_LIMIT = {
     limit: 10,

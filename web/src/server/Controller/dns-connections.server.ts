@@ -9,6 +9,7 @@ import type {
 } from './Types/dns-connections.types.ts'
 import { DnsConnectionDomainError } from '@/server/Admin/DnsConnections/dns-connections.errors.ts'
 import { controllerRequest } from './transport.server.ts'
+import { dnsProviderCatalogSchema } from '@/lib/DnsConnections/validation.ts'
 import {
     dnsConnectionControllerErrorSchema,
     dnsConnectionMetadataSchema,
@@ -36,6 +37,12 @@ export function createDnsConnectionsController(
         acceptErrorResponse: true,
     } as const
     return {
+        async providers() {
+            return decode(
+                await request('/internal/v1/dns/providers', { ...options, responseLimit: 16_384 }),
+                dnsProviderCatalogSchema,
+            ).providers
+        },
         async list() {
             return decode(
                 await request('/internal/v1/dns/connections', options),

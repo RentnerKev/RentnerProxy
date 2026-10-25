@@ -2639,6 +2639,12 @@
             "downloadFailed": "Le rapport n’a pas pu être téléchargé. Vérifiez vos permissions et réessayez."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "Fournisseur DNS",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Fonctions prises en charge (les autorisations du jeton sont vérifiées séparément).",
+                "unavailable": "Les fonctions DNS sont indisponibles ou incompatibles. Vérifiez la connexion au contrôleur puis réessayez."
+            },
             "page": {
                 "eyebrow": "Administration",
                 "title": "Connexions DNS",

@@ -42,6 +42,7 @@ function setup(
             return { id: actorId }
         }),
         controller: {
+            providers: mock(async () => []),
             list: mock(async () => [connection]),
             save: mock(async () => connection),
             delete: mock(async () => {}),

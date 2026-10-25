@@ -4,6 +4,7 @@ use super::{
     validation,
 };
 use crate::runtime::dns::api::CloudflareResponse;
+use crate::runtime::dns::capabilities::{AddressRecordType, Operation, ProviderId, ProxyOptions};
 use reqwest::{Client, Method, Url};
 use serde::Deserialize;
 use std::{collections::BTreeSet, net::IpAddr};
@@ -33,6 +34,7 @@ impl Record {
 }
 
 pub(super) struct Provider<'a> {
+    provider: ProviderId,
     client: Client,
     base: Url,
     token: &'a str,
@@ -40,12 +42,25 @@ pub(super) struct Provider<'a> {
 }
 impl<'a> Provider<'a> {
     pub(super) fn new(
+        provider: ProviderId,
+        client: Client,
+        endpoint: &str,
+        token: &'a str,
+        deadline: Instant,
+    ) -> Result<Self, Failure> {
+        match provider {
+            ProviderId::Cloudflare => Self::cloudflare(client, endpoint, token, deadline),
+        }
+    }
+
+    fn cloudflare(
         client: Client,
         endpoint: &str,
         token: &'a str,
         deadline: Instant,
     ) -> Result<Self, Failure> {
         Ok(Self {
+            provider: ProviderId::Cloudflare,
             client,
             base: Url::parse(endpoint).map_err(|_| Error::ProviderUnavailable)?,
             token,
@@ -85,6 +100,7 @@ impl<'a> Provider<'a> {
             .map_err(|_| Error::ProviderUnavailable.into())
     }
     pub(super) async fn records(&self, target: &Target) -> Result<Vec<Record>, Failure> {
+        self.validate_operation(target)?;
         let mut url = self.url(target, "")?;
         // Read all types at the exact owner, so CNAME and duplicate A/AAAA
         // conflicts are detected without ever modifying TXT or other records.
@@ -138,6 +154,7 @@ impl<'a> Provider<'a> {
         address: IpAddr,
         record: Option<&Record>,
     ) -> Result<Record, Failure> {
+        self.validate_operation(target)?;
         let (method, url, body) = if let Some(record) = record {
             (
                 Method::PATCH,
@@ -183,6 +200,22 @@ impl<'a> Provider<'a> {
             return Err(Error::WriteUnconfirmed.into());
         }
         Ok(written)
+    }
+
+    fn validate_operation(&self, target: &Target) -> Result<(), Failure> {
+        let record_type = match target.record_type {
+            RecordType::A => AddressRecordType::A,
+            RecordType::Aaaa => AddressRecordType::Aaaa,
+        };
+        // `proxied` is a Cloudflare option even when explicitly false.
+        if !self.provider.supports(Operation::AddressUpdate {
+            record_type,
+            proxy_options: ProxyOptions::Cloudflare,
+        }) || !self.provider.valid_zone_id(&target.zone_id)
+        {
+            return Err(Error::InvalidInput.into());
+        }
+        Ok(())
     }
 }
 pub(super) fn marker(target: &Target) -> String {

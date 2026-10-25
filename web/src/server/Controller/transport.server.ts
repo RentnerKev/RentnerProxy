@@ -44,6 +44,7 @@ export async function controllerRequest(
         | `/internal/v1/certificates/events${string}`
         | '/internal/v1/trusted-cas/validate'
         | '/internal/v1/dns/connections'
+        | '/internal/v1/dns/providers'
         | `/internal/v1/discovery/docker/${'status' | 'config' | 'inspect'}`
         | `/internal/v1/dns/connections/${string}`
         | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
@@ -63,7 +64,9 @@ export async function controllerRequest(
     const isCertificateRequest =
         path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
     const isDnsConnectionRequest =
-        path === '/internal/v1/dns/connections' || path.startsWith('/internal/v1/dns/connections/')
+        path === '/internal/v1/dns/providers' ||
+        path === '/internal/v1/dns/connections' ||
+        path.startsWith('/internal/v1/dns/connections/')
     const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
     const isDiscoveryRequest = path.startsWith('/internal/v1/discovery/docker/')
     if (

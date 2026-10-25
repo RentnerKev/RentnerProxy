@@ -3,10 +3,7 @@ use crate::proxy::{is_canonical_domain, is_canonical_uuid_v7};
 use std::{collections::BTreeSet, net::IpAddr};
 
 pub(super) fn provider_id(id: &str) -> bool {
-    id.len() == 32
-        && id
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
+    crate::runtime::dns::capabilities::ProviderId::Cloudflare.valid_address_record_id(id)
 }
 pub(super) fn name(name: &str) -> bool {
     name.len() <= 253 && is_canonical_domain(name.strip_prefix("*.").unwrap_or(name))

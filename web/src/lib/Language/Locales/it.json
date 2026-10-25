@@ -2652,6 +2652,12 @@
             "downloadFailed": "Impossibile scaricare il rapporto. Controlla le autorizzazioni e riprova."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "Provider DNS",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Funzioni supportate (i permessi del token vengono verificati separatamente).",
+                "unavailable": "Le funzioni DNS non sono disponibili o non supportano questa operazione. Verifica la connessione al controller e riprova."
+            },
             "page": {
                 "eyebrow": "Amministrazione",
                 "title": "Connessioni DNS",

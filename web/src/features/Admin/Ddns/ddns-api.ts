@@ -1,5 +1,6 @@
 import {
     getDdnsStatusHandler,
+    getDdnsProvidersHandler,
     getDdnsConnectionsHandler,
     previewDdnsHandler,
     saveDdnsHandler,
@@ -11,6 +12,7 @@ import {
 import type { DdnsApi } from './Types/ddns-ui.types.ts'
 export const ddnsApi: DdnsApi = {
     apply: (data) => applyDdnsHandler({ data }),
+    providers: () => getDdnsProvidersHandler(),
     status: () => getDdnsStatusHandler(),
     connections: () => getDdnsConnectionsHandler(),
     preview: (data) => previewDdnsHandler({ data }),

@@ -34,6 +34,11 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
             }
         >
             <form id={state.formId} onSubmit={handler.submit} className="grid gap-5">
+                {!state.operationSupported ? (
+                    <p role="alert" className="text-sm text-danger-text">
+                        {t('admin.dnsConnections.providers.unavailable')}
+                    </p>
+                ) : null}
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                     <CustomSelect
                         value={state.connectionId || null}
@@ -61,6 +66,11 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
                         <a href="/dns-connections" className="font-bold text-accent-ring underline">
                             {t('shell.dnsConnections')}
                         </a>
+                    </p>
+                ) : null}
+                {!state.recordTypeAvailable && state.savedRecordType ? (
+                    <p className="text-sm text-muted">
+                        {t('admin.ddns.editor.recordType')}: {state.savedRecordType}
                     </p>
                 ) : null}
                 <form.Field name="recordType">
@@ -134,7 +144,7 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
                                 name="proxied"
                                 checked={field.state.value}
                                 onChange={(event) => field.handleChange(event.target.checked)}
-                                disabled={state.pending}
+                                disabled={state.pending || !state.proxyAvailable}
                                 onBlur={field.handleBlur}
                             />
                         )}

@@ -1,4 +1,5 @@
 import type { controllerRequest } from '../transport.server.ts'
+import type { DnsProviderDescriptor } from '@/lib/DnsConnections/Types/dns-provider.types.ts'
 import type { SaveDnsConnectionInput } from '@/features/Admin/DnsConnections/Types/validation.types.ts'
 import type { TestDnsConnectionInput } from '@/features/Admin/DnsConnections/Types/validation.types.ts'
 import type {
@@ -14,6 +15,7 @@ export type SaveControllerDnsConnectionInput = Omit<SaveDnsConnectionInput, 'con
 }
 
 export interface DnsConnectionsController {
+    readonly providers: () => Promise<readonly DnsProviderDescriptor[]>
     readonly list: () => Promise<readonly DnsConnection[]>
     readonly test: (input: TestDnsConnectionInput) => Promise<DnsConnectionTestResult>
     readonly save: (id: string, input: SaveControllerDnsConnectionInput) => Promise<DnsConnection>

@@ -41,6 +41,7 @@ async fn fixture() -> (Store, tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
 }
 fn request(revision: u32) -> SaveRequest {
     SaveRequest {
+        provider: None,
         expected_revision: revision,
         name: "Cloudflare primary".into(),
         api_token: Some("secret-fixture-token".into()),
@@ -114,6 +115,7 @@ async fn multizone_encryption_rotation_restart_and_redaction() {
     restarted.endpoint = store.endpoint.clone();
     let result = restarted
         .test(TestRequest {
+            provider: None,
             connection_id: Some(ID.into()),
             api_token: None,
             zone_ids: None,
@@ -285,6 +287,17 @@ async fn routes_require_bearer_even_without_controller_token_and_reject_oversize
     let runtime = ProxyRuntime::new(RuntimeSettings::new(directory(), 8080), None);
     let app = app_with_state(AppState::new(runtime.clone(), None));
     let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/dns/providers")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 401);
+    let response = app
         .oneshot(
             Request::builder()
                 .uri("/internal/v1/dns/connections")
@@ -306,6 +319,26 @@ async fn routes_require_bearer_even_without_controller_token_and_reject_oversize
     .controller_token
     .unwrap();
     let app = app_with_state(AppState::new(runtime, Some(token)));
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/dns/providers")
+                .header("authorization", "Bearer 0123456789abcdef0123456789abcdef")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+    let golden: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/dns-provider-catalog.json"
+    ))
+    .unwrap();
+    assert_eq!(payload, golden);
     let response = app
         .clone()
         .oneshot(
@@ -334,6 +367,112 @@ async fn routes_require_bearer_even_without_controller_token_and_reject_oversize
     assert_eq!(response.headers()["cache-control"], "no-store");
     let body = to_bytes(response.into_body(), 1024).await.unwrap();
     assert_eq!(&body[..], b"{\"error\":\"invalid_input\"}");
+}
+
+#[tokio::test]
+async fn unknown_provider_requests_never_reach_storage_or_network() {
+    use crate::{
+        runtime::{ProxyRuntime, RuntimeSettings},
+        server::{AppState, app_with_state},
+    };
+    use axum::{
+        body::{Body, to_bytes},
+        http::Request,
+    };
+    use tower::ServiceExt;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = calls.clone();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+    let router = axum::Router::new().fallback(move || {
+        observed.fetch_add(1, Ordering::SeqCst);
+        async { axum::http::StatusCode::INTERNAL_SERVER_ERROR }
+    });
+    let task = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let path = directory();
+    let mut runtime = ProxyRuntime::new(RuntimeSettings::new(path.clone(), 8080), None);
+    Arc::get_mut(&mut runtime).unwrap().dns_connections = Store::fixture(path, endpoint);
+    let token = crate::config::Config::from_values(
+        None,
+        Some("0123456789abcdef0123456789abcdef"),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap()
+    .controller_token
+    .unwrap();
+    let app = app_with_state(AppState::new(runtime.clone(), Some(token)));
+    for provider in ["manual", "unknown", "Cloudflare", "cloudflare "] {
+        for (method, uri, body) in [
+            (
+                "POST",
+                "/internal/v1/dns/connections/test".to_owned(),
+                serde_json::json!({"provider":provider,"apiToken":"fixture-token"}),
+            ),
+            (
+                "PUT",
+                format!("/internal/v1/dns/connections/{ID}"),
+                serde_json::json!({"provider":provider,"expectedRevision":0,"name":"Fixture","apiToken":"fixture-token","zoneIds":[zone_id('a')],"actorUserId":USER}),
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(uri)
+                        .header("authorization", "Bearer 0123456789abcdef0123456789abcdef")
+                        .body(Body::from(body.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), 400);
+            assert_eq!(
+                &to_bytes(response.into_body(), 1024).await.unwrap()[..],
+                b"{\"error\":\"invalid_input\"}"
+            );
+        }
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert!(runtime.dns_connections.state.lock().await.is_none());
+    task.abort();
+}
+
+#[tokio::test]
+async fn provider_resolution_preserves_registry_v1_and_rejects_unknown_stored_provider() {
+    let (store, task, _) = fixture().await;
+    let mut input = request(0);
+    input.provider = Some(ProviderId::Cloudflare);
+    store.save(ID.into(), input).await.unwrap();
+    let bytes = state_dir(&store.path)
+        .unwrap()
+        .read_file(FILE, MAX_BYTES)
+        .unwrap();
+    let mut registry: Registry = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(registry.version, 1);
+    let entry = &mut registry.connections[0];
+    assert_eq!(
+        resolve_provider(None, Some(entry)),
+        Ok(ProviderId::Cloudflare)
+    );
+    assert_eq!(
+        resolve_provider(Some(ProviderId::Cloudflare), Some(entry)),
+        Ok(ProviderId::Cloudflare)
+    );
+    let metadata = serde_json::to_value(&entry.metadata).unwrap();
+    assert!(metadata.get("capabilities").is_none());
+    assert_eq!(metadata["provider"], "cloudflare");
+    assert_eq!(store.decrypt(entry).unwrap(), "secret-fixture-token");
+    entry.metadata.provider = "unknown".into();
+    assert_eq!(
+        resolve_provider(Some(ProviderId::Cloudflare), Some(entry)),
+        Err(Error::InvalidInput)
+    );
+    assert!(validation::metadata(&entry.metadata).is_err());
+    task.abort();
 }
 
 #[test]
@@ -413,6 +552,7 @@ async fn failures_preserve_state_and_clock_rollback_keeps_timestamp_order() {
     assert!(matches!(
         wrong_key
             .test(TestRequest {
+                provider: None,
                 connection_id: Some(ID.into()),
                 api_token: None,
                 zone_ids: None
