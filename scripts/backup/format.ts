@@ -1,4 +1,5 @@
 import { metadataSchema } from './validation.ts'
+import { supportedBackupFormatLabel } from '../../web/src/lib/ApplicationVersion/backupCompatibility.ts'
 import { validateDnsConnectionsBackup } from './dns-connections.ts'
 import type { BackupMetadata } from './Types/format.types.ts'
 import type {
@@ -12,7 +13,10 @@ import { readFileRange } from './artifact-file.ts'
 
 export function parseBackupMetadata(value: unknown): BackupMetadata {
     const result = metadataSchema.safeParse(value)
-    if (!result.success) throw new Error('unsupported or invalid backup metadata (supported: v4)')
+    if (!result.success)
+        throw new Error(
+            `unsupported or invalid backup metadata (supported: ${supportedBackupFormatLabel()})`,
+        )
     return result.data
 }
 

@@ -4,6 +4,10 @@ import { Database } from 'bun:sqlite'
 import { createDecipheriv, createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import {
+    isSupportedBackupVersion,
+    supportedBackupFormatLabel,
+} from '../../web/src/lib/ApplicationVersion/backupCompatibility.ts'
 import type {
     BackupCertificateJobRow,
     BackupCrowdSecSettingRow,
@@ -69,9 +73,11 @@ export function decryptBackupSecret(
     }
 }
 
+const unsupportedBackupVersion = `unsupported backup metadata version (supported: ${supportedBackupFormatLabel()})`
+
 export function assertSupportedBackupVersion(metadata: unknown): void {
-    if (!isRecord(metadata) || metadata.version !== 4) {
-        throw new Error('unsupported backup metadata version (supported: v4)')
+    if (!isRecord(metadata) || !isSupportedBackupVersion(metadata.version)) {
+        throw new Error(unsupportedBackupVersion)
     }
 }
 
@@ -276,7 +282,7 @@ if (import.meta.main) {
         const failures: Readonly<Record<string, string>> = {
             'unsupported backup database version': 'database_version',
             'backup migration history is incompatible with the target image': 'migration_history',
-            'unsupported backup metadata version (supported: v4)': 'database_version',
+            [unsupportedBackupVersion]: 'database_version',
             'invalid encrypted backup secret': 'application_key',
             'invalid encrypted notification backup configuration': 'application_key',
             'backup application key cannot decrypt persisted secrets': 'application_key',

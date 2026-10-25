@@ -27,39 +27,18 @@ on:
     push:
         branches:
             - main
-        paths:
-            - '.github/workflows/release-compatibility.yml'
-            - 'scripts/production-backup.ts'
-            - 'scripts/backup/**'
-            - 'scripts/production-restore.ts'
-            - '.github/scripts/ci/release-compatibility/**'
-            - '.github/scripts/ci/fixtures/**'
-            - 'scripts/compatibility/**'
-            - 'scripts/smoke/**'
-            - 'scripts/assets/**'
-            - 'docker/**'
-            - '.dockerignore'
-            - 'docker-compose.yml'
-            - 'package.json'
-            - 'bun.lock'
-            - 'bunfig.toml'
-            - 'core/Cargo.*'
-            - 'core/src/**'
-            - 'web/src/**'
-            - 'web/public/**'
-            - 'vite.config.ts'
-            - 'tsconfig*.json'
     workflow_dispatch:
         inputs:
             source:
-                description: Source image (all runs fresh and the beta baseline)
+                description: Source image (all verifies the complete supported source matrix)
                 required: true
-                default: beta.1
+                default: all
                 type: choice
                 options:
                     - all
                     - fresh
-                    - beta.1
+                    - oldest
+                    - previous
 
 permissions:
     contents: read
@@ -78,26 +57,30 @@ jobs:
         timeout-minutes: 5
         outputs:
             sources: ${{ steps.select.outputs.sources }}
+            complete: ${{ steps.select.outputs.complete }}
         steps:
+            - name: Check out target history
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
             - id: select
               name: Select immutable source releases
               env:
                   EVENT_NAME: ${{ github.event_name }}
                   REQUESTED_SOURCE: ${{ inputs.source }}
-              run: |
-                  if [ "$EVENT_NAME" = push ] || [ "$EVENT_NAME" = pull_request ]; then
-                    sources='["fresh","beta.1"]'
-                  elif [ "$EVENT_NAME" = workflow_dispatch ] && [ "$REQUESTED_SOURCE" = all ]; then
-                    sources='["fresh","beta.1"]'
-                  elif [ "$EVENT_NAME" = workflow_dispatch ]; then
-                    case "${REQUESTED_SOURCE:-beta.1}" in
-                      fresh|beta.1) sources="[\"${REQUESTED_SOURCE:-beta.1}\"]" ;;
-                      *) exit 1 ;;
-                    esac
-                  else
-                    exit 1
-                  fi
-                  echo "sources=$sources" >> "$GITHUB_OUTPUT"
+                  GH_TOKEN: ${{ github.token }}
+              run: bun --no-env-file .github/scripts/ci/release-compatibility/select-sources.ts
 
     release-compatibility:
         needs: select-sources
@@ -106,7 +89,7 @@ jobs:
             max-parallel: 3
             matrix:
                 source: ${{ fromJSON(needs.select-sources.outputs.sources) }}
-        name: ${{ matrix.source }} to target
+        name: ${{ matrix.source.role }} to target
         runs-on: ubuntu-latest
         timeout-minutes: 90
         steps:
@@ -127,5 +110,20 @@ jobs:
 
             - name: Run published-image upgrade compatibility
               env:
-                  SOURCE_ID: ${{ matrix.source }}
-              run: bun --no-env-file --no-orphans .github/scripts/ci/release-compatibility/run.ts "$SOURCE_ID"
+                  COMPATIBILITY_SOURCE: ${{ toJSON(matrix.source) }}
+                  GH_TOKEN: ${{ github.token }}
+              run: bun --no-env-file --no-orphans .github/scripts/ci/release-compatibility/run.ts
+
+    compatibility-verified:
+        name: Compatibility verified
+        needs: [select-sources, release-compatibility]
+        if: ${{ always() }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 1
+        steps:
+            - name: Require complete successful compatibility matrix
+              env:
+                  SELECTION_RESULT: ${{ needs.select-sources.result }}
+                  MATRIX_RESULT: ${{ needs.release-compatibility.result }}
+                  COMPLETE: ${{ needs.select-sources.outputs.complete }}
+              run: test "$SELECTION_RESULT" = success && test "$MATRIX_RESULT" = success && test "$COMPLETE" = true

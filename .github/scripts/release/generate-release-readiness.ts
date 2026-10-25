@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
+import { getReadinessUpgrade } from '../../../web/src/lib/ApplicationVersion/upgradeCompatibility.ts'
+import { RELEASE_IMAGE, RELEASE_REPOSITORY } from '../../../web/src/config/compatibility.config.ts'
 
 import type { ReleaseReadiness } from '../../../web/src/lib/ApplicationVersion/Types/release-readiness.types.ts'
 import type {
@@ -11,8 +13,8 @@ export function parseReleaseReadinessInput(
     input: ReleaseReadinessInput,
 ): ValidatedReleaseReadinessInput {
     if (
-        input.repository.toLowerCase() !== 'rentnerkev/rentnerproxy' ||
-        input.image !== 'ghcr.io/rentnerkev/rentnerproxy'
+        input.repository.toLowerCase() !== RELEASE_REPOSITORY.toLowerCase() ||
+        input.image !== RELEASE_IMAGE
     ) {
         throw new Error('Readiness is restricted to the official repository and image')
     }
@@ -48,17 +50,6 @@ export function parseReleaseReadinessInput(
         throw new Error('Invalid assessed image digest')
     if (input.platforms !== 'linux/amd64') throw new Error('Unsupported assessed image platforms')
 
-    // Only the tested major-one beta/stable update family may opt into the beta-one policy.
-    // Within 1.0.0, SemVer beta.2 is the first supported target; beta.2.* sorts after it.
-    const betaAtLeastTwo =
-        prerelease[0] === 'beta' &&
-        prerelease[1] !== undefined &&
-        (!/^[0-9]+$/.test(prerelease[1]) || BigInt(prerelease[1]) >= 2n)
-    const automaticUpgrade =
-        version[1] === '1' &&
-        channel !== 'alpha' &&
-        (version[2] !== '0' || version[3] !== '0' || channel === 'stable' || betaAtLeastTwo)
-
     return {
         releaseId: Number(input.releaseId),
         tag: input.tag,
@@ -66,7 +57,6 @@ export function parseReleaseReadinessInput(
         publishedAt: input.publishedAt,
         revision: input.revision,
         digest: input.digest,
-        automaticUpgrade,
     }
 }
 
@@ -80,13 +70,11 @@ export function buildReleaseReadiness(input: ReleaseReadinessInput): ReleaseRead
         publishedAt: validated.publishedAt,
         revision: validated.revision,
         image: {
-            repository: 'ghcr.io/rentnerkev/rentnerproxy',
+            repository: RELEASE_IMAGE,
             digest: validated.digest,
             platforms: ['linux/amd64'],
         },
-        upgrade: validated.automaticUpgrade
-            ? { policy: 'beta1-appliance-v1', minimumVersion: 'v1.0.0-beta.1' }
-            : { policy: 'manual-review', minimumVersion: null },
+        upgrade: getReadinessUpgrade(validated.tag),
     }
 }
 

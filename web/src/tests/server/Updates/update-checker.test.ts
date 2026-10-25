@@ -3,7 +3,8 @@ import { describe, expect, test } from 'bun:test'
 
 import type { ReleaseReadiness } from '@/lib/ApplicationVersion/Types/release-readiness.types.ts'
 import { createUpdateChecker } from '@/server/Updates/releases.service.ts'
-import { getUpgradeCompatibility, parseReleaseReadiness } from '@/server/Updates/readiness.ts'
+import { getUpgradeCompatibility } from '@/lib/ApplicationVersion/upgradeCompatibility.ts'
+import { parseReleaseReadiness } from '@/server/Updates/readiness.ts'
 
 const publication = '2026-10-18T12:00:00Z'
 const revision = 'a'.repeat(40)
@@ -241,6 +242,7 @@ describe('read-only update checker', () => {
                 { publishedAt: '2026-10-19T12:00:00Z' },
                 { schemaVersion: 2 },
                 { revision: 'bad' },
+                { generation: 'appliance-v2' },
             ].map(async (mutation) => {
                 const data = fixture()
                 Object.assign(data.metadata, mutation)

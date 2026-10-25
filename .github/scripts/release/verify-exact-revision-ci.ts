@@ -14,7 +14,11 @@ export const REQUIRED_CI_JOBS = [
 ] as const
 const REPOSITORY = 'rentnerkev/rentnerproxy'
 const API_PATH = `/repos/${REPOSITORY}/actions`
-const WORKFLOW_PATH = '.github/workflows/ci.yml'
+export const REQUIRED_COMPATIBILITY_JOBS = ['Compatibility verified'] as const
+const REQUIRED_WORKFLOWS = [
+    { filename: 'ci.yml', jobs: REQUIRED_CI_JOBS },
+    { filename: 'release-compatibility.yml', jobs: REQUIRED_COMPATIBILITY_JOBS },
+] as const
 const MAX_PAGES = 10
 const MAX_ITEMS = 1_000
 export const MAX_CI_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -173,11 +177,16 @@ async function pages<T extends { readonly id: number }>(
     return fail()
 }
 
-function latest(runs: readonly ReleaseCiRun[], workflowId: number, revision: string): ReleaseCiRun {
+function latest(
+    runs: readonly ReleaseCiRun[],
+    workflowId: number,
+    workflowPath: string,
+    revision: string,
+): ReleaseCiRun {
     const trusted = runs.filter(
         (run) =>
             run.workflowId === workflowId &&
-            run.path === WORKFLOW_PATH &&
+            run.path === workflowPath &&
             run.repository === REPOSITORY &&
             run.headRepository === REPOSITORY &&
             run.sha === revision &&
@@ -198,6 +207,56 @@ function unchanged(before: ReleaseCiRun, after: ReleaseCiRun): void {
     successful(after)
 }
 
+async function verifyWorkflow(
+    get: (path: string) => Promise<unknown>,
+    revision: string,
+    filename: string,
+    requiredJobs: readonly string[],
+): Promise<() => Promise<void>> {
+    const workflowPath = `.github/workflows/${filename}`
+    const workflow = record(await get(`${API_PATH}/workflows/${filename}`))
+    const workflowId = integer(workflow.id)
+    if (workflow.path !== workflowPath || workflow.state !== 'active') return fail()
+    const runPath = `${API_PATH}/workflows/${workflowId}/runs?head_sha=${revision}&branch=main`
+    const candidate = latest(
+        await pages(get, runPath, 'workflow_runs', parseRun),
+        workflowId,
+        workflowPath,
+        revision,
+    )
+    successful(candidate)
+    unchanged(candidate, parseRun(await get(`${API_PATH}/runs/${candidate.id}`)))
+    // The attempt-specific endpoint is the fence; job.run_attempt is not a documented required field.
+    const jobs = await pages(
+        get,
+        `${API_PATH}/runs/${candidate.id}/attempts/${candidate.attempt}/jobs`,
+        'jobs',
+        parseJob,
+    )
+    if (jobs.some((job) => job.runId !== candidate.id || job.sha !== revision)) return fail()
+    for (const name of requiredJobs) {
+        const matching = jobs.filter((job) => job.name === name)
+        if (
+            matching.length !== 1 ||
+            matching[0]?.status !== 'completed' ||
+            matching[0]?.conclusion !== 'success'
+        )
+            return fail()
+    }
+    return async () => {
+        unchanged(
+            candidate,
+            latest(
+                await pages(get, runPath, 'workflow_runs', parseRun),
+                workflowId,
+                workflowPath,
+                revision,
+            ),
+        )
+        unchanged(candidate, parseRun(await get(`${API_PATH}/runs/${candidate.id}`)))
+    }
+}
+
 export async function verifyExactRevisionCi(
     repositoryName: string,
     revision: string,
@@ -208,39 +267,15 @@ export async function verifyExactRevisionCi(
         if (repositoryName.toLowerCase() !== REPOSITORY) return fail()
         sha(revision)
         const get = (path: string) => abortable(() => getJson(path, signal), signal)
-        const workflow = record(await get(`${API_PATH}/workflows/ci.yml`))
-        const workflowId = integer(workflow.id)
-        if (workflow.path !== WORKFLOW_PATH || workflow.state !== 'active') return fail()
-        const runPath = `${API_PATH}/workflows/${workflowId}/runs?head_sha=${revision}&branch=main`
-        const candidate = latest(
-            await pages(get, runPath, 'workflow_runs', parseRun),
-            workflowId,
-            revision,
-        )
-        successful(candidate)
-        unchanged(candidate, parseRun(await get(`${API_PATH}/runs/${candidate.id}`)))
-        // The attempt-specific endpoint is the fence; job.run_attempt is not a documented required field.
-        const jobs = await pages(
-            get,
-            `${API_PATH}/runs/${candidate.id}/attempts/${candidate.attempt}/jobs`,
-            'jobs',
-            parseJob,
-        )
-        if (jobs.some((job) => job.runId !== candidate.id || job.sha !== revision)) return fail()
-        for (const name of REQUIRED_CI_JOBS) {
-            const matching = jobs.filter((job) => job.name === name)
-            if (
-                matching.length !== 1 ||
-                matching[0]?.status !== 'completed' ||
-                matching[0]?.conclusion !== 'success'
-            )
-                return fail()
+        const rechecks: (() => Promise<void>)[] = []
+        for (const required of REQUIRED_WORKFLOWS) {
+            // oxlint-disable-next-line no-await-in-loop -- Verify each workflow under the shared deadline.
+            rechecks.push(await verifyWorkflow(get, revision, required.filename, required.jobs))
         }
-        unchanged(
-            candidate,
-            latest(await pages(get, runPath, 'workflow_runs', parseRun), workflowId, revision),
-        )
-        unchanged(candidate, parseRun(await get(`${API_PATH}/runs/${candidate.id}`)))
+        for (const recheck of rechecks) {
+            // oxlint-disable-next-line no-await-in-loop -- Recheck all selected workflows after all jobs were verified.
+            await recheck()
+        }
     } catch {
         return fail()
     }

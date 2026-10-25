@@ -4,6 +4,7 @@ import {
     createCiGetJson,
     MAX_CI_RESPONSE_BYTES,
     REQUIRED_CI_JOBS,
+    REQUIRED_COMPATIBILITY_JOBS,
     verifyExactRevisionCi,
 } from '../../../../../.github/scripts/release/verify-exact-revision-ci.ts'
 import type { CiGetJson } from '../../../../../.github/scripts/release/Types/exact-revision-ci.types.ts'
@@ -40,6 +41,17 @@ function job(name: string, id: number, overrides: Record<string, unknown> = {}) 
     }
 }
 function fixture() {
+    const compatibility = {
+        runs: [
+            run({ id: 40, workflow_id: 30, path: '.github/workflows/release-compatibility.yml' }),
+        ],
+        finalRuns: null as ReturnType<typeof run>[] | null,
+        details: [] as ReturnType<typeof run>[],
+        jobs: REQUIRED_COMPATIBILITY_JOBS.map((name, index) =>
+            job(name, index + 1, { run_id: 40 }),
+        ),
+        workflow: { id: 30, path: '.github/workflows/release-compatibility.yml', state: 'active' },
+    }
     const state = {
         runs: [run()],
         finalRuns: null as ReturnType<typeof run>[] | null,
@@ -49,11 +61,33 @@ function fixture() {
     }
     const paths: string[] = []
     let listings = 0
+    let compatibilityListings = 0
     const getJson: CiGetJson = async (path) => {
         paths.push(path)
         if (path === `${prefix}/workflows/ci.yml`) return state.workflow
         const url = new URL('https://api.github.com' + path)
         const page = Number(url.searchParams.get('page'))
+        if (path === `${prefix}/workflows/release-compatibility.yml`) return compatibility.workflow
+        if (url.pathname === `${prefix}/workflows/30/runs`) {
+            if (page === 1) compatibilityListings++
+            const runs =
+                compatibilityListings === 1 || !compatibility.finalRuns
+                    ? compatibility.runs
+                    : compatibility.finalRuns
+            return {
+                total_count: runs.length,
+                workflow_runs: runs.slice((page - 1) * 100, page * 100),
+            }
+        }
+        if (url.pathname === `${prefix}/runs/40`)
+            return (
+                compatibility.details.shift() ?? compatibility.runs.find((value) => value.id === 40)
+            )
+        if (url.pathname === `${prefix}/runs/40/attempts/3/jobs`)
+            return {
+                total_count: compatibility.jobs.length,
+                jobs: compatibility.jobs.slice((page - 1) * 100, page * 100),
+            }
         if (url.pathname === `${prefix}/workflows/10/runs`) {
             if (page === 1) listings++
             const runs = listings === 1 || !state.finalRuns ? state.runs : state.finalRuns
@@ -71,7 +105,7 @@ function fixture() {
             }
         throw new Error('Unexpected fixture request')
     }
-    return { state, paths, getJson }
+    return { state, compatibility, paths, getJson }
 }
 
 test.each(['push', 'workflow_dispatch'])(
@@ -80,13 +114,11 @@ test.each(['push', 'workflow_dispatch'])(
         const data = fixture()
         data.state.runs = [run({ event })]
         await verifyExactRevisionCi(repository, revision, data.getJson)
-        expect(data.paths).toEqual([
+        expect(data.paths.slice(0, 4)).toEqual([
             `${prefix}/workflows/ci.yml`,
             `${prefix}/workflows/10/runs?head_sha=${revision}&branch=main&per_page=100&page=1`,
             `${prefix}/runs/20`,
             `${prefix}/runs/20/attempts/3/jobs?per_page=100&page=1`,
-            `${prefix}/workflows/10/runs?head_sha=${revision}&branch=main&per_page=100&page=1`,
-            `${prefix}/runs/20`,
         ])
         expect(data.paths.some((path) => /status=|event=/.test(path))).toBe(false)
     },
@@ -224,7 +256,7 @@ test('paginates all runs and attempt jobs before success, and repeats the comple
     )
     await verifyExactRevisionCi(repository, revision, data.getJson)
     expect(data.paths.filter((path) => path.includes('/workflows/10/runs?')).length).toBe(6)
-    expect(data.paths.filter((path) => path.includes('/attempts/3/jobs?')).length).toBe(3)
+    expect(data.paths.filter((path) => path.includes('/runs/20/attempts/3/jobs?')).length).toBe(3)
 })
 
 test.each([
@@ -417,3 +449,125 @@ test.each(['fetch', 'body'])(
     },
     1_000,
 )
+
+test.each(['missing', 'skipped', 'failure', 'partial', 'duplicate', 'wrong-sha', 'wrong-run'])(
+    'rejects compatibility aggregate %s',
+    async (mode) => {
+        const data = fixture()
+        if (mode === 'missing' || mode === 'partial')
+            data.compatibility.jobs = [job('Upgrade old beta', 50, { run_id: 40 })]
+        if (mode === 'skipped' || mode === 'failure') data.compatibility.jobs[0]!.conclusion = mode
+        if (mode === 'duplicate')
+            data.compatibility.jobs.push(job('Compatibility verified', 51, { run_id: 40 }))
+        if (mode === 'wrong-sha') data.compatibility.jobs[0]!.head_sha = 'b'.repeat(40)
+        if (mode === 'wrong-run') data.compatibility.jobs[0]!.run_id = 20
+        await expect(verifyExactRevisionCi(repository, revision, data.getJson)).rejects.toThrow(
+            CI_GATE_ERROR,
+        )
+    },
+)
+
+test.each([
+    { head_branch: 'feature' },
+    { event: 'pull_request' },
+    { head_repository: null },
+    { repository: { full_name: 'attacker/repo' } },
+    { head_sha: 'b'.repeat(40) },
+    { workflow_id: 99 },
+    { path: '.github/workflows/ci.yml' },
+    { status: 'in_progress', conclusion: null },
+    { conclusion: 'failure' },
+])('rejects untrusted or incomplete compatibility run %j', async (changed) => {
+    const data = fixture()
+    Object.assign(data.compatibility.runs[0]!, changed)
+    await expect(verifyExactRevisionCi(repository, revision, data.getJson)).rejects.toThrow(
+        CI_GATE_ERROR,
+    )
+})
+
+test('rejects missing compatibility workflow runs', async () => {
+    const data = fixture()
+    data.compatibility.runs = []
+    await expect(verifyExactRevisionCi(repository, revision, data.getJson)).rejects.toThrow(
+        CI_GATE_ERROR,
+    )
+})
+
+test.each(['latest-failed', 'new-run', 'rerun', 'detail-rerun'])(
+    'fences compatibility %s without falling back to old success',
+    async (mode) => {
+        const data = fixture()
+        const newer = {
+            ...data.compatibility.runs[0]!,
+            id: 41,
+            run_number: 3,
+            conclusion: 'failure',
+        }
+        if (mode === 'latest-failed') data.compatibility.runs.push(newer)
+        if (mode === 'new-run') data.compatibility.finalRuns = [...data.compatibility.runs, newer]
+        if (mode === 'rerun')
+            data.compatibility.finalRuns = [{ ...data.compatibility.runs[0]!, run_attempt: 4 }]
+        if (mode === 'detail-rerun')
+            data.compatibility.details = [
+                data.compatibility.runs[0]!,
+                { ...data.compatibility.runs[0]!, run_attempt: 4 },
+            ]
+        await expect(verifyExactRevisionCi(repository, revision, data.getJson)).rejects.toThrow(
+            CI_GATE_ERROR,
+        )
+    },
+)
+
+test('paginates compatibility runs and jobs completely and rescans after both workflows', async () => {
+    const data = fixture()
+    const compatible = data.compatibility.runs[0]!
+    data.compatibility.runs.unshift(
+        ...Array.from({ length: 200 }, (_, index) => ({
+            ...compatible,
+            id: 100 + index,
+            run_number: 100 + index,
+            event: 'pull_request',
+        })),
+    )
+    data.compatibility.jobs.unshift(
+        ...Array.from({ length: 200 }, (_, index) =>
+            job(`optional-${index}`, 100 + index, { run_id: 40 }),
+        ),
+    )
+    await verifyExactRevisionCi(repository, revision, data.getJson)
+    expect(data.paths.filter((path) => path.includes('/workflows/30/runs?')).length).toBe(6)
+    expect(data.paths.filter((path) => path.includes('/runs/40/attempts/3/jobs?')).length).toBe(3)
+    expect(data.paths.lastIndexOf(`${prefix}/runs/20`)).toBeGreaterThan(
+        data.paths.indexOf(`${prefix}/runs/40/attempts/3/jobs?per_page=100&page=3`),
+    )
+})
+
+test.each([{ path: '.github/workflows/ci.yml' }, { state: 'disabled_manually' }, { id: 0 }])(
+    'rejects an unbound compatibility workflow %j',
+    async (changed) => {
+        const data = fixture()
+        Object.assign(data.compatibility.workflow, changed)
+        await expect(verifyExactRevisionCi(repository, revision, data.getJson)).rejects.toThrow(
+            CI_GATE_ERROR,
+        )
+    },
+)
+
+test.each(['runs', 'jobs'])('rejects incomplete compatibility %s listings', async (mode) => {
+    const data = fixture()
+    const getJson: CiGetJson = (path, signal) =>
+        (
+            mode === 'runs'
+                ? path.includes('/workflows/30/runs?')
+                : path.includes('/runs/40/attempts/3/jobs?')
+        )
+            ? Promise.resolve(
+                  mode === 'runs'
+                      ? { total_count: 2, workflow_runs: data.compatibility.runs }
+                      : { total_count: 2, jobs: data.compatibility.jobs },
+              )
+            : data.getJson(path, signal)
+    await expect(verifyExactRevisionCi(repository, revision, getJson)).rejects.toThrow(
+        CI_GATE_ERROR,
+    )
+})

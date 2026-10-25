@@ -8,3 +8,8 @@ export interface PublishedRelease {
 }
 
 export type PublishedReleaseKey = keyof typeof PUBLISHED_RELEASES
+
+export interface CompatibilitySource {
+    readonly role: 'fresh' | 'oldest' | 'previous'
+    readonly release: PublishedRelease | null
+}
