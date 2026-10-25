@@ -204,6 +204,10 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         ));
     let connections = Router::new()
         .route(
+            "/internal/v1/dns/providers",
+            get(handlers::dns_connections::providers),
+        )
+        .route(
             "/internal/v1/dns/connections",
             get({
                 let state = state.clone();

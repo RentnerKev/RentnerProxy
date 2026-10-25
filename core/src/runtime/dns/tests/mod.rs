@@ -32,6 +32,8 @@ fn config_json_is_tagged_and_debug_redacts_token() {
 #[test]
 fn config_deserialization_rejects_bad_zone_and_token() {
     for value in [
+        json!({"type":"unknown","zoneId":"0123456789abcdef0123456789abcdef","apiToken":"x"}),
+        json!({"type":"cloudflare","zoneId":"0123456789abcdef0123456789abcdef","apiToken":"x","proxyOptions":"unknown"}),
         json!({"type":"cloudflare","zoneId":"0123456789ABCDEF0123456789abcdef","apiToken":"x"}),
         json!({"type":"cloudflare","zoneId":"0123456789abcdef0123456789abcde","apiToken":"x"}),
         json!({"type":"cloudflare","zoneId":"0123456789abcdef0123456789abcdef","apiToken":"x y"}),

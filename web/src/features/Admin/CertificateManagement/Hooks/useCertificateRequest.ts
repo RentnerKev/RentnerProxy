@@ -1,3 +1,4 @@
+import useCertificateDnsProviders from './useCertificateDnsProviders.ts'
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
@@ -31,6 +32,7 @@ export default function useCertificateRequest({
 }: CertificateRequestInputs) {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
+    const { dnsAvailable } = useCertificateDnsProviders()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
     const [idempotencyKey] = useState(() => crypto.randomUUID())
@@ -42,9 +44,12 @@ export default function useCertificateRequest({
                 certificateJob.lastErrorCode !== null)),
     )
     const getRequestInput = useCallback(
-        (value: Parameters<typeof certificateRequestInputFromForm>[0]) =>
-            requestCertificateInputSchema.parse(certificateRequestInputFromForm(value)),
-        [],
+        (value: Parameters<typeof certificateRequestInputFromForm>[0]) => {
+            if (value.challengeType === 'dns-01' && !dnsAvailable)
+                throw new Error('admin.dnsConnections.providers.unavailable')
+            return requestCertificateInputSchema.parse(certificateRequestInputFromForm(value))
+        },
+        [dnsAvailable],
     )
     const defaultValues: CertificateRequestFormValues = {
         name: initialName ?? '',
@@ -60,6 +65,12 @@ export default function useCertificateRequest({
         defaultValues,
         onSubmit: async ({ value }) => {
             if (isPending) return
+            if (!retryableJob && value.challengeType === 'dns-01' && !dnsAvailable) {
+                toast.error(t('admin.dnsConnections.providers.unavailable'), {
+                    title: t('toast.titles.error'),
+                })
+                return
+            }
             setIsPending(true)
             try {
                 if (!retryableJob && proxyHostId && !expectedUpdatedAt) {

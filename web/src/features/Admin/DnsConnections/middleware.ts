@@ -1,3 +1,4 @@
+import { getDnsProvidersService } from '@/server/Admin/DnsConnections/dns-providers.service.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import { DnsConnectionDomainError } from '@/server/Admin/DnsConnections/dns-connections.errors.ts'
@@ -87,3 +88,14 @@ export const deleteDnsConnectionHandler = createServerFn({ method: 'POST' })
             return failure(error)
         }
     })
+
+export const getDnsConnectionProvidersHandler = createServerFn({ method: 'GET' }).handler(
+    async () => {
+        noStore()
+        try {
+            return await getDnsProvidersService('connections')
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.dnsConnections.providers.unavailable')
+        }
+    },
+)

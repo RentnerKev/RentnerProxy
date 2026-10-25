@@ -87,7 +87,23 @@ const deleteCertificateHandlerMock = mock(async (): Promise<CertificateActionRes
     runtimeStatus: 'applied' as const,
 }))
 
+const dnsProvider = {
+    id: 'cloudflare' as const,
+    capabilities: {
+        zoneDiscovery: true,
+        txtCreate: true,
+        txtCleanup: true,
+        addressRecordTypes: ['A', 'AAAA'] as const,
+        proxyOptions: 'cloudflare' as const,
+    },
+}
+let dnsProvidersUnavailable = false
+const getCertificateDnsProviders = mock(async () => {
+    if (dnsProvidersUnavailable) throw new Error('offline')
+    return [dnsProvider]
+})
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getCertificatesHandler: getCertificatesHandlerMock,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     importCertificateHandler: importCertificateHandlerMock,
@@ -272,6 +288,8 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 }
 
 beforeEach(() => {
+    dnsProvidersUnavailable = false
+    getCertificateDnsProviders.mockClear()
     toast.dismissAll()
     requestProxyHostCertificateHandlerMock.mockClear()
     retryCertificateJobHandlerMock.mockClear()
@@ -1084,6 +1102,41 @@ describe('certificate management UI', () => {
         }
         await waitFor(() => document.querySelector('[role=dialog]') === null)
         await waitForToast('success')
+    })
+
+    test('catalogue failure blocks DNS-01 while HTTP-01 remains usable', async () => {
+        dnsProvidersUnavailable = true
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+        await setValue(
+            document.querySelector('#certificate-request-name')!,
+            'Offline DNS catalogue',
+        )
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
+        await chooseDnsChallenge()
+        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
+        await setValue(
+            document.querySelector('#certificate-request-dns-api-token')!,
+            'catalogue-secret-token',
+        )
+        await click(lastButton('Request with ACME'))
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        expect(document.body.textContent).not.toContain('catalogue-secret-token')
+        await click(document.querySelector('[aria-label="ACME challenge"]')!)
+        await waitFor(() => !!document.querySelector('[role="option"]'))
+        await click(
+            [...document.querySelectorAll('[role="option"]')].find((option) =>
+                option.textContent?.includes('HTTP-01'),
+            )!,
+        )
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({ challengeType: 'http-01' }),
+        })
     })
 
     test('forwards DNS-01 wildcard requests with Cloudflare credentials', async () => {

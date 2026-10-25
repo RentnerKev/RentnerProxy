@@ -1,7 +1,7 @@
 import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { toast } from '@rentnerkev/toasts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     DDNS_QUERY_KEYS,
     DDNS_LIVE_QUERY_KEYS,
@@ -51,6 +51,22 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         enabled: canChooseConnection,
         retry: false,
     })
+    const snapshot = statusQuery.data
+    const bindingIdentity = [
+        ...new Set(
+            snapshot?.configuration?.settings.targets.map((target) => target.connectionId) ?? [],
+        ),
+    ]
+        .toSorted()
+        .join(',')
+    const canLoadProviders = canManage && statusQuery.isSuccess
+    const providersQuery = useQuery({
+        queryKey: [...DDNS_QUERY_KEYS.providers, bindingIdentity],
+        queryFn: api.providers,
+        enabled: canLoadProviders,
+        retry: false,
+    })
+    useQueryRecovery(providersQuery, canLoadProviders)
     useQueryRecovery(statusQuery, canView)
     useQueryRecovery(connectionsQuery, canChooseConnection)
     useLiveInvalidation({
@@ -81,10 +97,9 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             })
         }
     }, [connectionsQuery.isError, t])
-    const snapshot = statusQuery.data
     const settings = snapshot?.configuration?.settings
     const revision = snapshot?.configuration?.revision ?? 0
-    const draft = editableDdnsRecordDraft(ddnsDraft(settings))
+    const draft = useMemo(() => editableDdnsRecordDraft(ddnsDraft(settings)), [settings])
     const available = !!snapshot && !statusQuery.isError
     const locked = isPending || !available || !!snapshot?.inFlight
     const editorRevision = recordEditor?.revision ?? settingsEditor?.revision
@@ -122,72 +137,117 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                         : (status?.lastResult?.status ?? 'notAttempted'),
         }
     })
-    async function run(operation: () => Promise<void>) {
-        if (pending.current || !canManage) return
-        pending.current = true
-        setIsPending(true)
-        try {
-            await operation()
-        } catch (error) {
-            const message = error instanceof Error ? error.message : ''
-            toast.error(
-                t(
-                    /^(admin\.ddns\.(errors|validation|recordErrors)\.[a-zA-Z_]+|errors\.[a-zA-Z_]+)$/u.test(
-                        message,
-                    )
-                        ? message
-                        : 'admin.ddns.errors.requestFailed',
+    const run = useCallback(
+        async (operation: () => Promise<void>) => {
+            if (pending.current || !canManage) return
+            pending.current = true
+            setIsPending(true)
+            try {
+                await operation()
+            } catch (error) {
+                const message = error instanceof Error ? error.message : ''
+                toast.error(
+                    t(
+                        /^(admin\.ddns\.(errors|validation|recordErrors)\.[a-zA-Z_]+|errors\.[a-zA-Z_]+)$/u.test(
+                            message,
+                        )
+                            ? message
+                            : 'admin.ddns.errors.requestFailed',
+                    ),
+                    { title: t('toast.titles.error') },
+                )
+                void Promise.all(
+                    DDNS_LIVE_QUERY_KEYS.map((queryKey) =>
+                        queryClient.invalidateQueries({ queryKey }),
+                    ),
+                )
+            } finally {
+                pending.current = false
+                setIsPending(false)
+            }
+        },
+        [canManage, t, queryClient],
+    )
+    const accept = useCallback(
+        async (updated: DdnsSnapshot, message: string) => {
+            await queryClient.cancelQueries({ queryKey: DDNS_QUERY_KEYS.status }, { revert: false })
+            queryClient.setQueryData<DdnsSnapshot>(DDNS_QUERY_KEYS.status, (current) => {
+                // A live read may already include a later edit or worker result.
+                const responseRevision = updated.configuration?.revision ?? 0
+                return current && (current.configuration?.revision ?? 0) >= responseRevision
+                    ? current
+                    : updated
+            })
+            setRecordEditor(null)
+            setSettingsEditor(null)
+            setDeletion(null)
+            toast.success(t(message), { title: t('toast.titles.success') })
+            void queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+            void queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.providers })
+        },
+        [t, queryClient],
+    )
+    const restorePaused = snapshot?.restorePaused
+    const apply = useCallback(
+        async (
+            candidate: DdnsDraft,
+            expectedRevision: number,
+            message: string,
+            enabled = settings ? settings.enabled : !restorePaused,
+        ) => {
+            if (locked) return
+            const prepared = withDdnsRecordFamilies(candidate)
+            await run(async () =>
+                accept(
+                    unwrap(
+                        await api.apply({
+                            expectedRevision,
+                            draft: prepared,
+                            enabled:
+                                enabled &&
+                                prepared.targets.length > 0 &&
+                                (!!settings?.enabled ||
+                                    prepared.targets.some((target) =>
+                                        activeDdnsTarget(prepared, target),
+                                    )),
+                        }),
+                    ),
+                    message,
                 ),
-                { title: t('toast.titles.error') },
             )
-            void queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
-        } finally {
-            pending.current = false
-            setIsPending(false)
-        }
-    }
-    async function accept(updated: DdnsSnapshot, message: string) {
-        await queryClient.cancelQueries({ queryKey: DDNS_QUERY_KEYS.status }, { revert: false })
-        queryClient.setQueryData<DdnsSnapshot>(DDNS_QUERY_KEYS.status, (current) => {
-            // A live read may already include a later edit or worker result.
-            const responseRevision = updated.configuration?.revision ?? 0
-            return current && (current.configuration?.revision ?? 0) >= responseRevision
-                ? current
-                : updated
-        })
-        setRecordEditor(null)
-        setSettingsEditor(null)
-        setDeletion(null)
-        toast.success(t(message), { title: t('toast.titles.success') })
-        void queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
-    }
-    async function apply(
-        candidate: DdnsDraft,
-        expectedRevision: number,
-        message: string,
-        enabled = settings ? settings.enabled : !snapshot?.restorePaused,
-    ) {
-        if (locked) return
-        const prepared = withDdnsRecordFamilies(candidate)
-        await run(async () =>
-            accept(
-                unwrap(
-                    await api.apply({
-                        expectedRevision,
-                        draft: prepared,
-                        enabled:
-                            enabled &&
-                            prepared.targets.length > 0 &&
-                            (!!settings?.enabled ||
-                                prepared.targets.some((target) =>
-                                    activeDdnsTarget(prepared, target),
-                                )),
-                    }),
-                ),
-                message,
-            ),
-        )
-    }
+        },
+        [locked, settings, restorePaused, api, run, accept],
+    )
+    const edit = useCallback(
+        (target: DdnsTarget) => {
+            if (!locked && canManage) setRecordEditor({ draft, revision, target })
+        },
+        [locked, canManage, draft, revision],
+    )
+    const toggle = useCallback(
+        (target: DdnsTarget) => {
+            if (!locked)
+                void apply(
+                    {
+                        ...draft,
+                        targets: draft.targets.map((item) =>
+                            item.id === target.id ? { ...item, enabled: !item.enabled } : item,
+                        ),
+                    },
+                    revision,
+                    target.enabled
+                        ? 'admin.ddns.messages.recordDisabled'
+                        : 'admin.ddns.messages.recordEnabled',
+                )
+        },
+        [locked, apply, draft, revision],
+    )
+    const askDelete = useCallback(
+        (target: DdnsTarget) => {
+            if (!locked && canManage) setDeletion({ target, revision })
+        },
+        [locked, canManage, revision],
+    )
     const add = () => {
         if (!locked && canChooseConnection) setRecordEditor({ draft, revision, target: null })
     }
@@ -207,6 +267,8 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             settings,
             rows,
             connections: connectionsQuery.data ?? [],
+            providers: providersQuery.isError ? [] : (providersQuery.data?.providers ?? []),
+            providerBindings: providersQuery.isError ? [] : (providersQuery.data?.bindings ?? []),
             recordEditor,
             settingsEditor,
             deleteTarget: deletion?.target ?? null,
@@ -227,9 +289,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         handler: {
             toggleRuntimeDetails: () => setRuntimeDetails((expanded) => !expanded),
             add,
-            edit: (target: DdnsTarget) => {
-                if (!locked && canManage) setRecordEditor({ draft, revision, target })
-            },
+            edit,
             editSettings: () => {
                 if (!locked && canManage) setSettingsEditor({ draft, revision })
             },
@@ -243,24 +303,8 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                 apply(next, base, 'admin.ddns.messages.recordSaved'),
             saveSettings: (next: DdnsDraft, base: number) =>
                 apply(next, base, 'admin.ddns.messages.settingsSaved'),
-            toggle: (target: DdnsTarget) => {
-                if (!locked)
-                    void apply(
-                        {
-                            ...draft,
-                            targets: draft.targets.map((item) =>
-                                item.id === target.id ? { ...item, enabled: !item.enabled } : item,
-                            ),
-                        },
-                        revision,
-                        target.enabled
-                            ? 'admin.ddns.messages.recordDisabled'
-                            : 'admin.ddns.messages.recordEnabled',
-                    )
-            },
-            askDelete: (target: DdnsTarget) => {
-                if (!locked && canManage) setDeletion({ target, revision })
-            },
+            toggle,
+            askDelete,
             closeDelete: (open: boolean) => {
                 if (!open && !pending.current) setDeletion(null)
             },
@@ -318,7 +362,11 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                         toast[partial ? 'warning' : 'success'](t(message), {
                             title: t(partial ? 'toast.titles.warning' : 'toast.titles.success'),
                         })
-                        await queryClient.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+                        await Promise.all(
+                            DDNS_LIVE_QUERY_KEYS.map((queryKey) =>
+                                queryClient.invalidateQueries({ queryKey }),
+                            ),
+                        )
                     })
             },
         },

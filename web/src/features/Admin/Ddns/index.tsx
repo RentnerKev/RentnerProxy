@@ -198,6 +198,8 @@ export default function DdnsPage(props: DdnsPageProps) {
                 <DdnsRecordEditor
                     editor={state.recordEditor}
                     connections={state.connections}
+                    providers={state.providers}
+                    providerBindings={state.providerBindings}
                     canChooseConnection={state.canChooseConnection}
                     pending={state.isPending}
                     locked={state.locked}

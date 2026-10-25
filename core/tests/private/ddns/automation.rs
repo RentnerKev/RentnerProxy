@@ -453,6 +453,7 @@ async fn permission_failures_stop_periodic_retries_and_credential_revision_chang
         .save(
             CONNECTION.into(),
             crate::runtime::dns_connections::SaveRequest {
+                provider: None,
                 expected_revision: 1,
                 name: "Rotated credentials".into(),
                 api_token: Some(SECRET.into()),

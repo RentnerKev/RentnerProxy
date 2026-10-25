@@ -1,6 +1,7 @@
 import type { DNS_CONNECTION_ERROR_CODES } from '@/config/dns-connections.config.ts'
+import type { DnsProviderId } from './dns-provider.types.ts'
 
-export interface CloudflareZone {
+export interface DnsZone {
     readonly id: string
     readonly name: string
 }
@@ -23,19 +24,19 @@ interface DnsConnectionUsage {
 
 export interface DnsConnection {
     readonly id: string
-    readonly provider: 'cloudflare'
+    readonly provider: DnsProviderId
     readonly ownership: 'instance'
     readonly name: string
     readonly createdByUserId: string
     readonly revision: number
-    readonly zones: readonly CloudflareZone[]
+    readonly zones: readonly DnsZone[]
     readonly references: readonly DnsConnectionUsage[]
     readonly createdAt: string
     readonly updatedAt: string
 }
 
 export interface DnsConnectionTestResult {
-    readonly zones: readonly CloudflareZone[]
+    readonly zones: readonly DnsZone[]
     readonly selectedZoneIds: readonly string[]
     readonly checkedAt: string
     readonly dnsWriteVerified: false
@@ -44,7 +45,7 @@ export interface DnsConnectionTestResult {
 export interface ValidatedDnsConnectionReference {
     readonly reference: DnsConnectionReference
     readonly revision: number
-    readonly zone: CloudflareZone
+    readonly zone: DnsZone
 }
 
 export type DnsConnectionErrorCode = (typeof DNS_CONNECTION_ERROR_CODES)[number]

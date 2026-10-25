@@ -1,3 +1,5 @@
+import { dnsProviderForId, supportsDns01, supportsDdns } from '@/lib/DnsConnections/dnsProviders.ts'
+import type { DnsProviderId } from '@/lib/DnsConnections/Types/dns-provider.types.ts'
 import useQuickAction from '@/shared/QuickActions/Hooks/useQuickActions.ts'
 import { useForm } from '@tanstack/react-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,16 +8,14 @@ import { toast } from '@rentnerkev/toasts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { MAX_DNS_CONNECTION_ZONES } from '@/config/dns-connections.config.ts'
 import { DNS_CONNECTION_LIVE_QUERY_KEYS } from '@/config/ddns.config.ts'
-import type {
-    CloudflareZone,
-    DnsConnection,
-} from '@/lib/DnsConnections/Types/dns-connections.types.ts'
+import type { DnsZone, DnsConnection } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
 import {
     deleteDnsConnectionHandler,
     getDnsConnectionsHandler,
+    getDnsConnectionProvidersHandler,
     saveDnsConnectionHandler,
     testDnsConnectionHandler,
 } from '../middleware.ts'
@@ -31,10 +31,11 @@ export default function useDnsConnectionsLogic({
     const formId = useId()
     const canView = permissions.includes(PERMISSIONS.DNS_CONNECTIONS_VIEW)
     const canManage = permissions.includes(PERMISSIONS.DNS_CONNECTIONS_MANAGE)
+    const [providerId, setProviderId] = useState<DnsProviderId>('cloudflare')
     const [editorOpen, setEditorOpen] = useState(false)
     const [editing, setEditing] = useState<DnsConnection | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<DnsConnection | null>(null)
-    const [zones, setZones] = useState<readonly CloudflareZone[]>([])
+    const [zones, setZones] = useState<readonly DnsZone[]>([])
     const [isPending, setIsPending] = useState(false)
     const pending = useRef(false)
     const connectionsQuery = useQuery({
@@ -43,6 +44,13 @@ export default function useDnsConnectionsLogic({
         enabled: canView,
         retry: false,
     })
+    const providersQuery = useQuery({
+        queryKey: ['dns-providers', 'connections'],
+        queryFn: () => getDnsConnectionProvidersHandler(),
+        enabled: canView,
+        retry: false,
+    })
+    useQueryRecovery(providersQuery, canView)
     useQueryRecovery(connectionsQuery, canView)
     useLiveInvalidation({
         topic: 'dns-connections',
@@ -94,6 +102,10 @@ export default function useDnsConnectionsLogic({
         ),
     )
     const unavailable = connectionsQuery.isError || (canView && connectionsQuery.isPending)
+    const selectedProvider = providersQuery.isError
+        ? undefined
+        : dnsProviderForId(providersQuery.data ?? [], providerId)
+    const providerUnavailable = !selectedProvider
     const locked = isPending || unavailable
     useEffect(() => {
         if (editorOpen && isStale)
@@ -111,11 +123,16 @@ export default function useDnsConnectionsLogic({
         },
         onSubmit: async ({ value }) => {
             if (!canManage || pending.current || unavailable) return
+            if (!selectedProvider) {
+                fail('admin.dnsConnections.providers.unavailable')
+                return
+            }
             if (isStale) {
                 fail('admin.dnsConnections.messages.changed')
                 return
             }
             const parsed = saveDnsConnectionSchema.safeParse({
+                provider: selectedProvider.id,
                 name: value.name,
                 apiToken: value.apiToken || undefined,
                 zoneIds: value.zoneIds,
@@ -167,6 +184,7 @@ export default function useDnsConnectionsLogic({
     }
     function handleEdit(connection: DnsConnection) {
         if (!canManage || pending.current || unavailable) return
+        setProviderId(connection.provider)
         setEditing(connection)
         form.reset({
             name: connection.name,
@@ -178,7 +196,12 @@ export default function useDnsConnectionsLogic({
     }
     async function handleTest() {
         if (!canManage || pending.current || unavailable) return
+        if (!selectedProvider?.capabilities.zoneDiscovery) {
+            fail('admin.dnsConnections.providers.unavailable')
+            return
+        }
         const parsed = testDnsConnectionSchema.safeParse({
+            provider: selectedProvider.id,
             connectionId: editing?.id,
             apiToken: form.getFieldValue('apiToken') || undefined,
             zoneIds: [],
@@ -268,6 +291,19 @@ export default function useDnsConnectionsLogic({
             isError: connectionsQuery.isError,
             isPending,
             locked,
+            providerUnavailable,
+            canDiscoverZones: selectedProvider?.capabilities.zoneDiscovery === true,
+            providerId,
+            providerOptions: (providersQuery.isError ? [] : (providersQuery.data ?? [])).map(
+                (provider) => ({
+                    value: provider.id,
+                    label: t(`admin.dnsConnections.providers.${provider.id}`),
+                }),
+            ),
+            supportsCertificates: supportsDns01(selectedProvider),
+            supportsIpv4: supportsDdns(selectedProvider, 'A'),
+            supportsIpv6: supportsDdns(selectedProvider, 'AAAA'),
+            supportsProxy: selectedProvider?.capabilities.proxyOptions === 'cloudflare',
             isStale,
             editorOpen,
             editing,
@@ -277,6 +313,9 @@ export default function useDnsConnectionsLogic({
             formId,
         },
         handler: {
+            handleProviderChange: (id: DnsProviderId) => {
+                if (!editing && !pending.current) setProviderId(id)
+            },
             handleCreate,
             handleEdit,
             handleEditorOpenChange,

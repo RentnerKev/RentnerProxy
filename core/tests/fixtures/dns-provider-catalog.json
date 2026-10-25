@@ -1,0 +1,14 @@
+{
+    "providers": [
+        {
+            "id": "cloudflare",
+            "capabilities": {
+                "zoneDiscovery": true,
+                "txtCreate": true,
+                "txtCleanup": true,
+                "addressRecordTypes": ["A", "AAAA"],
+                "proxyOptions": "cloudflare"
+            }
+        }
+    ]
+}

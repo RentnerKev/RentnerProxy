@@ -231,7 +231,24 @@ mock.module('@/features/Admin/ProxyHostManagement/CertificateJobs/middleware.ts'
     getCertificateJobProgressHandler: getCertificateJobProgressHandlerMock,
 }))
 
+let dnsProvidersUnavailable = false
+const getCertificateDnsProviders = mock(async () => {
+    if (dnsProvidersUnavailable) throw new Error('offline')
+    return [
+        {
+            id: 'cloudflare' as const,
+            capabilities: {
+                zoneDiscovery: true,
+                txtCreate: true,
+                txtCleanup: true,
+                addressRecordTypes: ['A', 'AAAA'] as const,
+                proxyOptions: 'cloudflare' as const,
+            },
+        },
+    ]
+})
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,
 }))
@@ -540,6 +557,8 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    dnsProvidersUnavailable = false
+    getCertificateDnsProviders.mockClear()
     toast.dismissAll()
     window.sessionStorage.clear()
     getProxyConfigEditorHandlerMock.mockReset().mockResolvedValue(globalEditorFixture)
@@ -1396,6 +1415,42 @@ describe('proxy host form tabs', () => {
             expect(document.querySelectorAll('[role="tab"][tabindex="0"]')).toHaveLength(1)
         }
         expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('blocks proxy-host DNS-01 requests when the provider catalogue is unavailable', async () => {
+        dnsProvidersUnavailable = true
+        await render(
+            withQueryClient(
+                <FormHarness mode="create" canAssignCertificates canRequestCertificate />,
+            ),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'catalogue.example.com',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            'backend.internal',
+        )
+        await click(getHostTab('Certificate & HTTPS'))
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-name')!,
+            'Catalogue failure',
+        )
+        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-dns-zone-id')!,
+            'a'.repeat(32),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')!,
+            'catalogue-secret',
+        )
+        await click(getButton('Request certificate and save'))
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        expect(document.body.textContent).not.toContain('catalogue-secret')
     })
 
     test('keeps host, certificate and partially edited cache drafts when switching tabs', async () => {

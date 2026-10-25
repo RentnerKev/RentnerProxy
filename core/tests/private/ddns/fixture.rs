@@ -146,6 +146,7 @@ impl Fixture {
             .save(
                 CONNECTION.into(),
                 SaveRequest {
+                    provider: None,
                     expected_revision: 0,
                     name: "Fixture Cloudflare".into(),
                     api_token: Some(SECRET.into()),

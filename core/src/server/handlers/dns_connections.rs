@@ -30,6 +30,12 @@ fn parse<T: DeserializeOwned>(body: Result<Bytes, BytesRejection>) -> Result<T, 
     }
     serde_json::from_slice(&body).map_err(|_| Error::InvalidInput)
 }
+pub(in crate::server) async fn providers() -> Response {
+    no_store_json(
+        serde_json::json!({"providers": crate::runtime::dns_connections::provider_catalog()}),
+    )
+}
+
 pub(in crate::server) async fn list(state: AppState) -> Response {
     match state.runtime.dns_connections.list().await {
         Ok(connections) => no_store_json(serde_json::json!({"connections":connections})),

@@ -2618,6 +2618,12 @@
             "downloadFailed": "Het rapport kon niet worden gedownload. Controleer je rechten en probeer het opnieuw."
         },
         "dnsConnections": {
+            "providers": {
+                "label": "DNS-provider",
+                "cloudflare": "Cloudflare",
+                "capabilities": "Ondersteunde functies (tokenrechten worden afzonderlijk gecontroleerd).",
+                "unavailable": "DNS-functies zijn niet beschikbaar of ondersteunen deze bewerking niet. Controleer de controllerverbinding en probeer opnieuw."
+            },
             "page": {
                 "eyebrow": "Beheer",
                 "title": "DNS-verbindingen",

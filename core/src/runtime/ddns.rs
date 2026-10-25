@@ -227,8 +227,13 @@ impl Engine {
         if !validation::in_zone(&target.name, &access.zone_name) {
             return TargetResult::failed(target, Error::NameOutsideZone);
         }
-        let provider = match Provider::new(client.clone(), access.endpoint, &access.token, deadline)
-        {
+        let provider = match Provider::new(
+            access.provider,
+            client.clone(),
+            access.endpoint,
+            &access.token,
+            deadline,
+        ) {
             Ok(provider) => provider,
             Err(failure) => return failure_result(target, failure),
         };

@@ -1,3 +1,8 @@
+import {
+    dnsProviderForId,
+    supportsDdns,
+    supportsProxyOption,
+} from '@/lib/DnsConnections/dnsProviders.ts'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { toast } from '@rentnerkev/toasts'
@@ -18,6 +23,22 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
         onSubmit: async ({ value }) => {
             if (props.locked || props.stale) return
             try {
+                const selected = props.connections.find((item) => item.id === value.connectionId)
+                const provider = dnsProviderForId(
+                    props.providers,
+                    selected?.provider ??
+                        props.providerBindings.find(
+                            (binding) => binding.connectionId === value.connectionId,
+                        )?.provider ??
+                        '',
+                )
+                if (
+                    !(value.recordType === 'both'
+                        ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
+                        : supportsDdns(provider, value.recordType)) ||
+                    !supportsProxyOption(provider, value.proxied)
+                )
+                    throw new Error('admin.dnsConnections.providers.unavailable')
                 await props.onSave(
                     buildDdnsRecordDraft(
                         props.editor.draft,
@@ -30,7 +51,9 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             } catch (error) {
                 toast.error(
                     t(
-                        error instanceof Error && error.message.startsWith('admin.ddns.')
+                        error instanceof Error &&
+                            (error.message.startsWith('admin.ddns.') ||
+                                error.message.startsWith('admin.dnsConnections.'))
                             ? error.message
                             : 'admin.ddns.errors.invalid_input',
                     ),
@@ -41,14 +64,35 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
     })
     const values = useStore(form.store, (state) => state.values)
     const connection = props.connections.find((item) => item.id === values.connectionId)
-    const connectionOptions = props.connections.map((item) => ({
-        value: item.id,
-        label: item.name,
-    }))
-    if (props.editor.target && !connection)
+    const provider = dnsProviderForId(
+        props.providers,
+        connection?.provider ??
+            props.providerBindings.find((binding) => binding.connectionId === values.connectionId)
+                ?.provider ??
+            '',
+    )
+    const recordTypeAvailable =
+        values.recordType === 'both'
+            ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
+            : supportsDdns(provider, values.recordType)
+    const operationSupported = recordTypeAvailable && supportsProxyOption(provider, values.proxied)
+    const operationUnavailable = !!values.connectionId && !operationSupported
+    const connectionOptions = props.connections
+        .filter((item) => {
+            const available = dnsProviderForId(props.providers, item.provider)
+            return supportsDdns(available, 'A') || supportsDdns(available, 'AAAA')
+        })
+        .map((item) => ({
+            value: item.id,
+            label: item.name,
+        }))
+    if (
+        props.editor.target &&
+        !connectionOptions.some((item) => item.value === props.editor.target?.connectionId)
+    )
         connectionOptions.push({
             value: props.editor.target.connectionId,
-            label: t('admin.ddns.records.savedConnection'),
+            label: `${t('admin.ddns.records.savedConnection')} (${props.editor.target.connectionId})`,
         })
     const zoneOptions = [
         { value: DDNS_AUTO_ZONE, label: t('admin.ddns.form.autoZone') },
@@ -90,7 +134,12 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             zoneOptions,
             pending: props.pending,
             stale: props.stale,
-            locked: props.locked,
+            locked: props.locked || !operationSupported,
+            operationSupported,
+            operationUnavailable,
+            savedRecordType: props.editor.target?.recordType,
+            recordTypeAvailable,
+            proxyAvailable: provider?.capabilities.proxyOptions === 'cloudflare',
             canChooseConnection: props.canChooseConnection,
             locale,
             selectLocale:
@@ -98,9 +147,15 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
                     ? language
                     : ('en' as const),
             recordTypeOptions: [
-                { value: 'A' as const, label: t('admin.ddns.form.ipv4') },
-                { value: 'AAAA' as const, label: t('admin.ddns.form.ipv6') },
-                ...(!props.editor.target
+                ...(supportsDdns(provider, 'A')
+                    ? [{ value: 'A' as const, label: t('admin.ddns.form.ipv4') }]
+                    : []),
+                ...(supportsDdns(provider, 'AAAA')
+                    ? [{ value: 'AAAA' as const, label: t('admin.ddns.form.ipv6') }]
+                    : []),
+                ...(!props.editor.target &&
+                supportsDdns(provider, 'A') &&
+                supportsDdns(provider, 'AAAA')
                     ? [{ value: 'both' as const, label: t('admin.ddns.editor.both') }]
                     : []),
             ],
@@ -116,6 +171,20 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             changeConnection: (id: string) => {
                 form.setFieldValue('connectionId', id)
                 form.setFieldValue('zoneId', DDNS_AUTO_ZONE)
+                if (!props.editor.target) {
+                    const selected = props.connections.find((item) => item.id === id)
+                    const selectedProvider = dnsProviderForId(
+                        props.providers,
+                        selected?.provider ?? '',
+                    )
+                    if (!supportsProxyOption(selectedProvider, true))
+                        form.setFieldValue('proxied', false)
+                    const current = form.getFieldValue('recordType')
+                    if (current !== 'both' && !supportsDdns(selectedProvider, current)) {
+                        const recordType = selectedProvider?.capabilities.addressRecordTypes[0]
+                        if (recordType) form.setFieldValue('recordType', recordType)
+                    }
+                }
             },
             changeZone: (id: string) => form.setFieldValue('zoneId', id),
             addDomain,

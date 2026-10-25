@@ -11,10 +11,7 @@ pub(super) fn id(value: &str) -> Result<(), Error> {
         .ok_or(Error::InvalidInput)
 }
 pub(super) fn zone_id(value: &str) -> bool {
-    value.len() == 32
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
+    crate::runtime::dns::capabilities::ProviderId::Cloudflare.valid_zone_id(value)
 }
 pub(super) fn token(value: &str) -> Result<(), Error> {
     (!value.is_empty() && value.len() <= 512 && value.bytes().all(|b| (0x21..=0x7e).contains(&b)))
@@ -65,7 +62,7 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
     id(&m.id)?;
     id(&m.created_by_user_id)?;
     name(&m.name)?;
-    if m.provider != "cloudflare"
+    if crate::runtime::dns::capabilities::ProviderId::parse(&m.provider).is_none()
         || m.ownership != "instance"
         || m.revision == 0
         || timestamp(&m.updated_at)? < timestamp(&m.created_at)?
@@ -91,7 +88,22 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
     Ok(())
 }
 
-pub(super) async fn permitted(endpoint: &str, token: &str) -> Result<Vec<Zone>, Error> {
+pub(super) async fn permitted(
+    provider: crate::runtime::dns::capabilities::ProviderId,
+    endpoint: &str,
+    token: &str,
+) -> Result<Vec<Zone>, Error> {
+    if !provider.supports(crate::runtime::dns::capabilities::Operation::ZoneDiscovery) {
+        return Err(Error::InvalidInput);
+    }
+    match provider {
+        crate::runtime::dns::capabilities::ProviderId::Cloudflare => {
+            permitted_cloudflare(endpoint, token).await
+        }
+    }
+}
+
+async fn permitted_cloudflare(endpoint: &str, token: &str) -> Result<Vec<Zone>, Error> {
     tokio::time::timeout(Duration::from_secs(20), list(endpoint, token))
         .await
         .map_err(|_| Error::ProviderUnavailable)?

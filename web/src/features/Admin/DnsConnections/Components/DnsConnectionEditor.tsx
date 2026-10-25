@@ -1,3 +1,4 @@
+import { CustomSelect } from '@rentnerkev/select'
 import { ModalCancelButton, ModalSaveButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { CheckboxInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import {
@@ -36,12 +37,38 @@ export default function DnsConnectionEditor({
                     <ModalSaveButton
                         form={state.formId}
                         isPending={state.isPending}
-                        disabled={state.locked || state.isStale}
+                        disabled={state.locked || state.isStale || state.providerUnavailable}
                     />
                 </>
             }
         >
             <form id={state.formId} onSubmit={handler.handleSubmit} className="grid gap-5">
+                <CustomSelect
+                    label={t('admin.dnsConnections.providers.label')}
+                    value={state.providerId}
+                    options={state.providerOptions}
+                    onValueChange={handler.handleProviderChange}
+                    disabled={state.isPending || !!state.editing}
+                />
+                {state.providerUnavailable ? (
+                    <p role="alert" className="text-sm text-danger-text">
+                        {t('admin.dnsConnections.providers.unavailable')}
+                    </p>
+                ) : (
+                    <div className="text-sm text-muted">
+                        <p>{t('admin.dnsConnections.providers.capabilities')}</p>
+                        <ul>
+                            {state.supportsCertificates ? (
+                                <li>{t('admin.certificates.challenge.dns01')}</li>
+                            ) : null}
+                            {state.supportsIpv4 ? <li>{t('admin.ddns.form.ipv4')}</li> : null}
+                            {state.supportsIpv6 ? <li>{t('admin.ddns.form.ipv6')}</li> : null}
+                            {state.supportsProxy ? (
+                                <li>{t('admin.ddns.records.proxied')}</li>
+                            ) : null}
+                        </ul>
+                    </div>
+                )}
                 <form.Field name="name">
                     {(field) => (
                         <div className="grid gap-2">
@@ -112,7 +139,7 @@ export default function DnsConnectionEditor({
                 <button
                     type="button"
                     onClick={handler.handleTest}
-                    disabled={state.locked}
+                    disabled={state.locked || !state.canDiscoverZones}
                     className="h-12 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft enabled:hover:border-accent-border disabled:opacity-50"
                 >
                     {t(state.isPending ? 'common.working' : 'admin.dnsConnections.actions.test')}

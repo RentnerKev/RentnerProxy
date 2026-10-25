@@ -1,3 +1,4 @@
+import { getDdnsProviderContextService } from '@/server/Admin/DnsConnections/dns-providers.service.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import type { z } from 'zod'
@@ -125,3 +126,12 @@ export const syncDdnsHandler = createServerFn({ method: 'POST' })
             return failure(error)
         }
     })
+
+export const getDdnsProvidersHandler = createServerFn({ method: 'GET' }).handler(async () => {
+    noStore()
+    try {
+        return await getDdnsProviderContextService()
+    } catch (error) {
+        throwLocalizedQueryError(error, 'admin.dnsConnections.providers.unavailable')
+    }
+})

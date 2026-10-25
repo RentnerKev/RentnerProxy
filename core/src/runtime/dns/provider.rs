@@ -14,6 +14,7 @@ use super::{
         CloudflareRecord, CloudflareRecordDelete, CloudflareResponse, CloudflareZone,
         MAX_REQUEST_BODY_BYTES, RECORDS_PER_PAGE, map_provider_error,
     },
+    capabilities::{Operation, ProviderId},
     config::{DnsProviderConfig, endpoint_for_environment},
     models::{DnsRecordHandle, DnsRecordIntent},
     validation::{
@@ -65,6 +66,12 @@ impl DnsProvider {
     }
 
     fn new(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
+        match config.provider_id() {
+            ProviderId::Cloudflare => Self::cloudflare(config, base_url),
+        }
+    }
+
+    fn cloudflare(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
         crate::runtime::tls::ensure_crypto_provider();
         let client = Client::builder()
             .timeout(REQUEST_TIMEOUT)
@@ -111,6 +118,9 @@ impl DnsProvider {
         &self,
         intent: &DnsRecordIntent,
     ) -> Result<DnsRecordHandle, CertificateError> {
+        if !self.config.provider_id().supports(Operation::TxtCreate) {
+            return Err(CertificateError::DnsProviderInvalid);
+        }
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
         let existing = self
@@ -168,6 +178,9 @@ impl DnsProvider {
         &self,
         intents: &[DnsRecordIntent],
     ) -> Result<(), CertificateError> {
+        if !self.config.provider_id().supports(Operation::TxtCleanup) {
+            return Err(CertificateError::DnsProviderInvalid);
+        }
         if intents.len() > MAX_INTENTS {
             return Err(CertificateError::DnsCleanupFailed);
         }
