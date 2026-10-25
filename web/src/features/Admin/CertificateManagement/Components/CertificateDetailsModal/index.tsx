@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
+import ManualDnsRecordCard from '../ManualDnsRecordCard/index.tsx'
 import type { CertificateDetailsModalProps } from './Types/certificate-details-modal.types.ts'
 import { certificateOperationStageClass } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
 import {
@@ -70,51 +71,25 @@ export default function CertificateDetailsModal({
                             {t(`admin.certificates.manualDns.status.${state.manualDns.status}`)}
                         </output>
                         <p>{t('admin.certificates.manualDns.instructions')}</p>
-                        <p>
+                        <p className="m-0 text-xs text-muted">
                             {t('admin.certificates.manualDns.expires')}:{' '}
                             <time dateTime={state.manualDns.expiresAt}>
-                                {state.manualDns.expiresAt}
+                                {state.formatDateTime(new Date(state.manualDns.expiresAt))}
                             </time>
                         </p>
-                        {state.manualDns.records.map((record) => (
-                            <dl
+                        {state.manualDns.records.map((record, index) => (
+                            <ManualDnsRecordCard
                                 key={`${record.identifier}:${record.owner}:${record.value}`}
-                                className="grid min-w-0 gap-2 rounded-lg border border-border bg-surface p-3"
-                            >
-                                <dt>{t('admin.certificates.manualDns.identifier')}</dt>
-                                <dd className="break-all font-mono">{record.identifier}</dd>
-                                <dt>{t('admin.certificates.manualDns.owner')}</dt>
-                                <dd className="break-all font-mono">
-                                    {record.owner}{' '}
-                                    <button
-                                        type="button"
-                                        onClick={() => void handler.copy(record.owner)}
-                                        className="font-sans text-sm underline"
-                                    >
-                                        {t('admin.certificates.manualDns.copyOwner')}
-                                    </button>
-                                </dd>
-                                <dt>{t('admin.certificates.manualDns.value')}</dt>
-                                <dd className="break-all font-mono">
-                                    {record.value}{' '}
-                                    <button
-                                        type="button"
-                                        onClick={() => void handler.copy(record.value)}
-                                        className="font-sans text-sm underline"
-                                    >
-                                        {t('admin.certificates.manualDns.copyValue')}
-                                    </button>
-                                </dd>
-                                <dt>{t('admin.certificates.manualDns.expires')}</dt>
-                                <dd>
-                                    <time dateTime={record.expiresAt}>{record.expiresAt}</time>
-                                </dd>
-                            </dl>
+                                record={record}
+                                idPrefix="manual-dns-details"
+                                index={index}
+                                onCopy={handler.copy}
+                            />
                         ))}
                         {state.manualDns.lastCheckedAt ? (
-                            <p>
+                            <p className="m-0 text-xs text-muted">
                                 {t('admin.certificates.manualDns.lastChecked')}:{' '}
-                                {state.manualDns.lastCheckedAt}
+                                {state.formatDateTime(new Date(state.manualDns.lastCheckedAt))}
                             </p>
                         ) : null}
                         {state.canActOnManualDns ? (

@@ -1,9 +1,9 @@
-import { TextInput } from '@rentnerkev/inputs'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
 import type { ManualDnsSetupGuideProps } from './Types/manual-dns-setup-guide.types.ts'
+import ManualDnsRecordCard from '../../../ManualDnsRecordCard/index.tsx'
 
 export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
     const { t, locale } = useTranslationStore()
@@ -68,64 +68,13 @@ export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
                         </p>
                         {props.recordsReady
                             ? props.records.map((record, index) => (
-                                  <fieldset
+                                  <ManualDnsRecordCard
                                       key={`${record.identifier}:${record.owner}:${record.value}`}
-                                      className="m-0 grid min-w-0 gap-3 rounded-xl border border-border bg-surface-raised p-3"
-                                  >
-                                      <legend className="px-1 text-sm font-semibold text-ink-soft">
-                                          {record.identifier}
-                                      </legend>
-                                      <div className="grid gap-1.5">
-                                          <label
-                                              htmlFor={`manual-dns-setup-owner-${index}`}
-                                              className="text-xs font-semibold text-ink-soft"
-                                          >
-                                              {t('admin.certificates.manualDns.owner')}
-                                          </label>
-                                          <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
-                                              <div className="min-w-0 flex-1">
-                                                  <TextInput
-                                                      id={`manual-dns-setup-owner-${index}`}
-                                                      value={record.owner}
-                                                      onValueChange={() => undefined}
-                                                      readOnly
-                                                  />
-                                              </div>
-                                              <button
-                                                  type="button"
-                                                  className={buttonClassName('secondary')}
-                                                  onClick={() => void props.onCopy(record.owner)}
-                                              >
-                                                  {t('admin.certificates.manualDns.copyOwner')}
-                                              </button>
-                                          </div>
-                                      </div>
-                                      <div className="grid gap-1.5">
-                                          <label
-                                              htmlFor={`manual-dns-setup-value-${index}`}
-                                              className="text-xs font-semibold text-ink-soft"
-                                          >
-                                              {t('admin.certificates.manualDns.value')}
-                                          </label>
-                                          <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
-                                              <div className="min-w-0 flex-1">
-                                                  <TextInput
-                                                      id={`manual-dns-setup-value-${index}`}
-                                                      value={record.value}
-                                                      onValueChange={() => undefined}
-                                                      readOnly
-                                                  />
-                                              </div>
-                                              <button
-                                                  type="button"
-                                                  className={buttonClassName('secondary')}
-                                                  onClick={() => void props.onCopy(record.value)}
-                                              >
-                                                  {t('admin.certificates.manualDns.copyValue')}
-                                              </button>
-                                          </div>
-                                      </div>
-                                  </fieldset>
+                                      record={record}
+                                      idPrefix="manual-dns-setup"
+                                      index={index}
+                                      onCopy={props.onCopy}
+                                  />
                               ))
                             : null}
                         {props.recordsReady && props.expiresAt ? (

@@ -1684,14 +1684,35 @@ test('manual DNS details preserve two TXT values with one owner and fence contin
             />,
         )
         const dialog = document.querySelector('[role=dialog]')!
-        expect(dialog.textContent).toContain('a'.repeat(43))
-        expect(dialog.textContent).toContain('b'.repeat(43))
+        expect(dialog.querySelectorAll('fieldset')).toHaveLength(2)
+        const owners = [
+            ...dialog.querySelectorAll<HTMLInputElement>('[id^=manual-dns-details-owner-]'),
+        ]
+        const values = [
+            ...dialog.querySelectorAll<HTMLInputElement>('[id^=manual-dns-details-value-]'),
+        ]
+        expect(owners.map((input) => input.value)).toEqual([
+            '_acme-challenge.example.com',
+            '_acme-challenge.example.com',
+        ])
+        expect(values.map((input) => input.value)).toEqual(['a'.repeat(43), 'b'.repeat(43)])
+        expect(
+            [...owners, ...values].every((input) => input.readOnly && !input.disabled),
+        ).toBeTrue()
         expect(dialog.textContent).toContain('*.example.com')
         expect(dialog.textContent).toContain('Manual TXT records')
         expect(dialog.textContent).not.toContain('Every renewal needs your help')
         expect(dialog.textContent).not.toContain('Active ACME')
+        await click(button('Copy owner'))
+        expect(writeText).toHaveBeenCalledWith('_acme-challenge.example.com')
         await click(button('Copy value'))
         expect(writeText).toHaveBeenCalledWith('a'.repeat(43))
+        await click(
+            [...dialog.querySelectorAll<HTMLButtonElement>('button')].filter(
+                (item) => item.textContent?.trim() === 'Copy value',
+            )[1]!,
+        )
+        expect(writeText).toHaveBeenCalledWith('b'.repeat(43))
         await click(button('Check DNS and continue'))
         await waitFor(() => continueManualDnsHandlerMock.mock.calls.length === 1)
         const data = {
@@ -1757,7 +1778,9 @@ test('manual renewal details with issue permission alone expose records without 
             certificate={{ ...certificate, currentOperation: manualOperation }}
         />,
     )
-    expect(document.body.textContent).toContain('a'.repeat(43))
+    expect(document.querySelector<HTMLInputElement>('#manual-dns-details-value-0')?.value).toBe(
+        'a'.repeat(43),
+    )
     expect(
         [...document.querySelectorAll('button')].some((item) =>
             item.textContent?.includes('Check DNS and continue'),
