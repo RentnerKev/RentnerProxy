@@ -23,6 +23,8 @@ pub(crate) enum CertificateOperationStage {
     Queued,
     CreatingOrder,
     PreparingChallenge,
+    AwaitingDns,
+    CheckingDns,
     WaitingForValidation,
     Finalizing,
     CertificateReady,
@@ -31,6 +33,8 @@ pub(crate) enum CertificateOperationStage {
     RetryScheduled,
     Failed,
     NeedsAttention,
+    Cancelled,
+    Expired,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -41,6 +45,10 @@ pub(crate) struct CurrentOperation {
     pub(crate) stage: CertificateOperationStage,
     pub(crate) started_at: String,
     pub(crate) updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) dns_mode: Option<super::DnsValidationMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) manual_dns: Option<super::ManualDnsChallengeSet>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -53,6 +61,9 @@ pub(crate) enum CertificateEventKind {
     Renewed,
     RetryScheduled,
     Failed,
+    OperatorActionRequired,
+    Cancelled,
+    Expired,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -116,6 +127,8 @@ pub(crate) fn new_operation(kind: OperationKind) -> Result<CurrentOperation, Cer
         stage: CertificateOperationStage::Queued,
         started_at: now.clone(),
         updated_at: now,
+        dns_mode: None,
+        manual_dns: None,
     })
 }
 
@@ -123,6 +136,11 @@ pub(crate) fn event_kind_for_stage(
     stage: CertificateOperationStage,
 ) -> Option<CertificateEventKind> {
     match stage {
+        CertificateOperationStage::AwaitingDns => {
+            Some(CertificateEventKind::OperatorActionRequired)
+        }
+        CertificateOperationStage::Cancelled => Some(CertificateEventKind::Cancelled),
+        CertificateOperationStage::Expired => Some(CertificateEventKind::Expired),
         CertificateOperationStage::CertificateReady => Some(CertificateEventKind::Issued),
         CertificateOperationStage::RetryScheduled => Some(CertificateEventKind::RetryScheduled),
         CertificateOperationStage::Failed | CertificateOperationStage::NeedsAttention => {
@@ -131,6 +149,7 @@ pub(crate) fn event_kind_for_stage(
         CertificateOperationStage::Queued
         | CertificateOperationStage::CreatingOrder
         | CertificateOperationStage::PreparingChallenge
+        | CertificateOperationStage::CheckingDns
         | CertificateOperationStage::WaitingForValidation
         | CertificateOperationStage::Finalizing
         | CertificateOperationStage::Applying
@@ -192,7 +211,19 @@ pub(crate) fn append_event(
             | CertificateEventKind::Issued
             | CertificateEventKind::Activated
             | CertificateEventKind::Renewed
+            | CertificateEventKind::OperatorActionRequired
+            | CertificateEventKind::Cancelled
+            | CertificateEventKind::Expired
     );
+    if kind == CertificateEventKind::OperatorActionRequired
+        && index.events.iter().any(|event| {
+            event.operation_id == operation_id
+                && event.certificate_id == certificate_id
+                && event.kind == kind
+        })
+    {
+        return Ok(());
+    }
     if one_shot && index.events.iter().any(same_event) {
         return Ok(());
     }
@@ -283,6 +314,11 @@ fn known_error_code(code: &str) -> bool {
             | "dns_provider_unauthorized"
             | "dns_cleanup_failed"
             | "dns_credentials_unavailable"
+            | "manual_dns_not_propagated"
+            | "manual_dns_lookup_failed"
+            | "manual_dns_expired"
+            | "manual_dns_cancelled"
+            | "manual_dns_order_invalid"
             | "runtime_apply_failed"
             | "certificate_store_unavailable"
     )

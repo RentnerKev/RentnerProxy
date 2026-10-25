@@ -13,6 +13,7 @@ pub(crate) mod dns_connections;
 pub(crate) mod docker_discovery;
 mod engine;
 mod lifecycle;
+pub(crate) mod manual_dns_propagation;
 pub(crate) mod renderer;
 mod renewal;
 mod state;
@@ -27,6 +28,7 @@ pub(crate) use certificates::{CertificateEnvironment, CertificateSource, Certifi
 pub(crate) use certificates::{
     CertificateError, CertificateEventPage, CertificateImportRequest, CertificateIssueRequest,
     CertificateMetadata, CertificateOperationStage, CertificateStore, CertificateStoreReadiness,
+    ManualDnsActionRequest,
 };
 pub(crate) use crowdsec::CrowdSecError;
 pub(crate) use engine::{CaddyProcess, EngineEnvironment, EngineError, EngineFuture, ProxyEngine};

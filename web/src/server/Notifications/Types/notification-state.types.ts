@@ -31,6 +31,7 @@ export interface NotificationIncident {
     observedAt: number
     evidence: string
     failures: number
+    code?: 'certificate_renewal_manual_dns_required' | undefined
     recoveredAt: number | null
     recoveryEvidence: string | null
     channels: NotificationIncidentChannel[]

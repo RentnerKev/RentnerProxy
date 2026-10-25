@@ -8,6 +8,7 @@ import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/serv
 import type { CertificateActionResult } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import {
+    actOnManualDnsService,
     deleteCertificateService,
     getAssignableCertificatesService,
     getCertificatesService,
@@ -18,6 +19,7 @@ import {
 } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
 import {
+    manualDnsActionInputSchema,
     certificateIdInputSchema,
     importCertificateInputSchema,
     replaceCertificateInputSchema,
@@ -154,3 +156,20 @@ export const getCertificateDnsProvidersHandler = createServerFn({ method: 'GET' 
         }
     },
 )
+
+export const continueManualDnsHandler = createServerFn({ method: 'POST' })
+    .validator(manualDnsActionInputSchema)
+    .handler(({ data }) =>
+        certificateAction(
+            () => actOnManualDnsService(data, 'continue'),
+            'admin.certificates.manualDns.checking',
+        ),
+    )
+export const cancelManualDnsHandler = createServerFn({ method: 'POST' })
+    .validator(manualDnsActionInputSchema)
+    .handler(({ data }) =>
+        certificateAction(
+            () => actOnManualDnsService(data, 'cancel'),
+            'admin.certificates.manualDns.cancelled',
+        ),
+    )

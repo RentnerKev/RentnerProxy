@@ -99,6 +99,7 @@ fn issue_request() -> CertificateIssueRequest {
         environment: CertificateEnvironment::Staging,
         contact_email: Some("certs@example.com".to_owned()),
         challenge_type: crate::runtime::certificates::AcmeChallengeType::Http01,
+        dns_mode: crate::runtime::certificates::DnsValidationMode::Provider,
         dns_provider: None,
         accept_terms: true,
     }
@@ -350,4 +351,65 @@ fn private_ca_rejects_insecure_ambiguous_and_oversized_configuration() {
             Err(CertificateError::AcmeFailed)
         );
     }
+}
+
+#[tokio::test]
+async fn manual_account_identity_binds_key_account_and_directory_but_ignores_json_layout() {
+    let runtime = account_runtime().await;
+    let request = issue_request();
+    runtime
+        .acme_account_with_builder(&request, DIRECTORY.to_owned(), FakeCa::default().builder())
+        .await
+        .unwrap();
+    let bytes = runtime
+        .certificate_store
+        .load_acme_account(request.environment)
+        .await
+        .unwrap()
+        .unwrap();
+    let identity = account_identity(&bytes, DIRECTORY).unwrap();
+    let mut value: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(
+        account_identity(&serde_json::to_vec_pretty(&value).unwrap(), DIRECTORY).unwrap(),
+        identity
+    );
+    value["id"] = json!("https://ca.example.test/accounts/another");
+    assert_ne!(
+        account_identity(&serde_json::to_vec(&value).unwrap(), DIRECTORY).unwrap(),
+        identity
+    );
+    assert_eq!(
+        account_identity(&bytes, "https://other.example/directory"),
+        Err(CertificateError::StoreUnavailable)
+    );
+    assert_eq!(
+        account_identity(
+            br#"{"directory":"https://ca.example.test/directory","pendingKeyPkcs8":[]}"#,
+            DIRECTORY
+        ),
+        Err(CertificateError::StoreUnavailable)
+    );
+}
+
+#[tokio::test]
+async fn manual_resume_does_not_register_account_when_saved_credentials_are_missing() {
+    let runtime = account_runtime().await;
+    let request = issue_request();
+    let result = runtime
+        .manual_acme_account(
+            "unused",
+            &request,
+            Some(&"a".repeat(64)),
+            AcmeResponseObserver::default(),
+        )
+        .await;
+    assert!(matches!(result, Err(CertificateError::StoreUnavailable)));
+    assert!(
+        runtime
+            .certificate_store
+            .load_acme_account(request.environment)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }

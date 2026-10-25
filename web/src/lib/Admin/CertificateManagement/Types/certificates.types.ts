@@ -11,9 +11,33 @@ import type {
 } from '../../../../config/Types/certificates-config.types.ts'
 import type { ProxyRuntimeMutationStatus } from '../../../ProxyRuntime/Types/proxy-runtime.types.ts'
 
+export interface ManualDnsChallengeMetadata {
+    readonly challengeSetId: string
+    readonly status:
+        | 'awaiting_input'
+        | 'checking_dns'
+        | 'validating'
+        | 'finalizing'
+        | 'complete'
+        | 'cancelled'
+        | 'expired'
+        | 'failed'
+    readonly expiresAt: string
+    readonly records: readonly {
+        readonly identifier: string
+        readonly owner: string
+        readonly value: string
+        readonly expiresAt: string
+    }[]
+    readonly lastCheckedAt: string | null
+    readonly lastErrorCode: CertificateErrorCode | null
+}
+
 export interface CertificateCurrentOperationMetadata {
     readonly id: string
     readonly kind: CertificateOperationKind
+    readonly dnsMode?: 'provider' | 'manual' | undefined
+    readonly manualDns?: ManualDnsChallengeMetadata | undefined
     readonly stage: CertificateOperationStage
     readonly startedAt: string
     readonly updatedAt: string
@@ -22,6 +46,8 @@ export interface CertificateCurrentOperationMetadata {
 interface CertificateCurrentOperation {
     readonly id: string
     readonly kind: CertificateOperationKind
+    readonly dnsMode?: 'provider' | 'manual' | undefined
+    readonly manualDns?: ManualDnsChallengeMetadata | undefined
     readonly stage: CertificateOperationStage
     readonly startedAt: Date
     readonly updatedAt: Date

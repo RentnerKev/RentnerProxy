@@ -10,6 +10,16 @@ function time(value: string | null | undefined): number | null {
     return Number.isFinite(parsed) ? parsed : null
 }
 
+function isPendingManualDnsRenewal(certificate: ControllerCertificateMetadata): boolean {
+    const operation = certificate.currentOperation
+    return (
+        operation?.dnsMode === 'manual' &&
+        operation.kind === 'renew' &&
+        certificate.operation !== 'idle' &&
+        !['failed', 'expired', 'cancelled'].includes(operation.manualDns?.status ?? operation.stage)
+    )
+}
+
 function activatedAt(certificate: ControllerCertificateMetadata, nowMs: number): string | null {
     const activated = time(certificate.lastActivatedAt)
     const failed = time(certificate.lastErrorAt)
@@ -50,6 +60,7 @@ export function certificateEventObservations(
                 ? certificate.currentOperation.kind
                 : null)
         if (operationKind !== 'renew') continue
+        if (isPendingManualDnsRenewal(certificate)) continue
         const failing =
             (event.kind === 'failed' || event.kind === 'retry_scheduled') &&
             event.errorCode !== null
@@ -96,7 +107,33 @@ export function certificateSnapshotObservations(
         const operation = certificate.currentOperation
         const renewing =
             operation?.kind === 'renew' || (!operation && certificate.operation === 'renewing')
-        if (renewing && certificate.lastErrorCode !== null) {
+        if (isPendingManualDnsRenewal(certificate)) {
+            if (operation?.manualDns?.status === 'awaiting_input') {
+                const occurred = time(operation.startedAt)
+                if (occurred !== null && occurred <= nowMs)
+                    observations.push({
+                        source: 'snapshot',
+                        category: 'certificate_renewal',
+                        resourceId: certificate.id,
+                        health: 'failing',
+                        code: 'certificate_renewal_manual_dns_required',
+                        severity: 'error',
+                        occurredAt: new Date(occurred).toISOString(),
+                        evidence: JSON.stringify(['certificate-manual-dns', operation.id]),
+                        failures: 1,
+                    })
+            }
+            continue
+        }
+        const renewalError =
+            certificate.lastErrorCode ??
+            (operation?.dnsMode === 'manual' &&
+            ['failed', 'expired', 'cancelled'].includes(
+                operation.manualDns?.status ?? operation.stage,
+            )
+                ? (operation.manualDns?.lastErrorCode ?? null)
+                : null)
+        if (renewing && renewalError !== null) {
             const at = certificate.lastErrorAt ?? certificate.lastAttemptAt ?? operation?.updatedAt
             const occurred = time(at)
             if (at && occurred !== null && occurred <= nowMs)
@@ -111,7 +148,7 @@ export function certificateSnapshotObservations(
                         'certificate-renewal',
                         operation?.id ?? null,
                         new Date(occurred).toISOString(),
-                        certificate.lastErrorCode,
+                        renewalError,
                     ]),
                     failures: Math.max(1, certificate.attemptCount ?? 1),
                 })

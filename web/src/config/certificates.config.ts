@@ -14,6 +14,10 @@ export const CERTIFICATE_OPERATIONS = ['idle', 'issuing', 'renewing'] as const
 export const CERTIFICATE_OPERATION_KINDS = ['issue', 'renew', 'import'] as const
 
 export const CERTIFICATE_OPERATION_STAGES = [
+    'awaiting_dns',
+    'checking_dns',
+    'cancelled',
+    'expired',
     'queued',
     'creating_order',
     'preparing_challenge',
@@ -28,6 +32,9 @@ export const CERTIFICATE_OPERATION_STAGES = [
 ] as const
 
 export const CERTIFICATE_EVENT_KINDS = [
+    'operator_action_required',
+    'cancelled',
+    'expired',
     'accepted',
     'started',
     'issued',
@@ -42,6 +49,11 @@ export const MAX_CERTIFICATE_DOMAINS = 100
 export const MAX_CERTIFICATE_PEM_LENGTH = 256 * 1_024
 export const MAX_PRIVATE_KEY_PEM_LENGTH = 64 * 1_024
 export const CERTIFICATE_ERROR_CODES = [
+    'manual_dns_order_invalid',
+    'manual_dns_not_propagated',
+    'manual_dns_lookup_failed',
+    'manual_dns_expired',
+    'manual_dns_cancelled',
     'invalid_input',
     'invalid_certificate',
     'key_mismatch',

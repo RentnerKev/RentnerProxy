@@ -25,6 +25,8 @@ impl ProxyRuntime {
             loop {
                 timer.tick().await;
                 runtime.retry_certificate_candidates().await;
+                let _ = runtime.certificate_store.expire_manual_dns_orders().await;
+                runtime.recover_manual_dns().await;
                 runtime.recover_dns_cleanup().await;
                 runtime
                     .renew_due_certificates(challenges.clone(), cursor)

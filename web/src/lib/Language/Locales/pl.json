@@ -1105,7 +1105,11 @@
                 "applied": "Zastosowano",
                 "retry_scheduled": "Ponowna próba zaplanowana",
                 "failed": "Niepowodzenie",
-                "needs_attention": "Wymaga uwagi"
+                "needs_attention": "Wymaga uwagi",
+                "awaiting_dns": "Oczekiwanie na rekordy TXT",
+                "checking_dns": "Sprawdzanie publicznego DNS",
+                "cancelled": "Anulowano",
+                "expired": "Wygasło"
             },
             "cells": {
                 "moreDomains": "Pokaż jeszcze {{count}} domen"
@@ -1268,7 +1272,12 @@
                 "dns_credentials_unavailable": "Dane dostępowe DNS są niedostępne.",
                 "runtime_apply_failed": "Certyfikat został zapisany, ale nie udało się zastosować go w środowisku proxy.",
                 "certificate_store_unavailable": "Magazyn certyfikatów jest niedostępny.",
-                "controller_unavailable": "Kontroler proxy jest niedostępny."
+                "controller_unavailable": "Kontroler proxy jest niedostępny.",
+                "manual_dns_not_propagated": "Niektóre wartości TXT nie są jeszcze publiczne. Poczekaj na propagację i sprawdź ponownie.",
+                "manual_dns_lookup_failed": "Wyszukiwanie DNS nie powiodło się. Sprawdź DNS i spróbuj ponownie.",
+                "manual_dns_expired": "Wyzwanie DNS wygasło. Rozpocznij nowy wniosek lub odnowienie.",
+                "manual_dns_cancelled": "Ręczna walidacja DNS została anulowana.",
+                "manual_dns_order_invalid": "Zamówienie ACME jest już nieważne. Rozpocznij nowy wniosek lub odnowienie."
             },
             "validation": {
                 "name": "Wpisz nazwę certyfikatu.",
@@ -1289,6 +1298,41 @@
                 "label": "Typ certyfikatu",
                 "server": "Certyfikaty serwera",
                 "trusted": "Zaufane urzędy certyfikacji"
+            },
+            "manualDns": {
+                "mode": "Walidacja DNS",
+                "provider": "Automatyczna (API dostawcy)",
+                "manual": "Ręczne rekordy TXT",
+                "renewalHint": "Każde odnowienie wymaga Twojej pomocy: opublikuj nowe wartości TXT i kontynuuj walidację.",
+                "title": "Ręczna walidacja DNS",
+                "instructions": "Utwórz każdą wartość TXT pod dokładnie podaną nazwą. Wiele wartości może mieć tę samą nazwę. Zachowaj istniejące wartości.",
+                "expires": "Wygasa",
+                "identifier": "Identyfikator",
+                "owner": "Nazwa TXT",
+                "value": "Wartość TXT",
+                "copyOwner": "Kopiuj nazwę",
+                "copyValue": "Kopiuj wartość",
+                "lastChecked": "Ostatnia kontrola DNS",
+                "continue": "Sprawdź DNS i kontynuuj",
+                "cancel": "Anuluj walidację",
+                "checking": "Rozpoczęto kontrolę DNS. Walidacja będzie kontynuowana, gdy wszystkie wartości będą widoczne.",
+                "cancelled": "Walidacja anulowana. Aktywny certyfikat zostaje zachowany.",
+                "cleanup": "Po zakończeniu, anulowaniu lub wygaśnięciu usuń tylko dokładnie pokazane wartości TXT. Zachowaj pozostałe wartości pod tą samą nazwą.",
+                "copied": "Skopiowano do schowka.",
+                "copyFailed": "Nie udało się skopiować. Zaznacz i skopiuj tekst ręcznie.",
+                "preparing": "Przygotowywanie zamówienia ACME. Pozostaw szczegóły otwarte, aby zobaczyć wymagane wartości TXT.",
+                "status": {
+                    "awaiting_input": "Oczekiwanie na rekordy TXT",
+                    "checking_dns": "Sprawdzanie publicznego DNS",
+                    "validating": "Walidacja w urzędzie certyfikacji",
+                    "finalizing": "Finalizowanie certyfikatu",
+                    "complete": "Zakończono",
+                    "cancelled": "Anulowano",
+                    "expired": "Wygasło",
+                    "failed": "Niepowodzenie"
+                },
+                "openDetails": "Otwórz wartości TXT i walidację",
+                "handoff": "Operator certyfikatów musi otworzyć szczegóły certyfikatu i opublikować wartości TXT."
             }
         },
         "proxyHosts": {

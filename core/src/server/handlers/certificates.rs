@@ -174,6 +174,53 @@ fn certificate_id(id: &str) -> Result<(), ApiError> {
     }
 }
 
+fn manual_dns_action(
+    body: Result<Bytes, BytesRejection>,
+) -> Result<crate::runtime::ManualDnsActionRequest, ApiError> {
+    let body = body.map_err(|_| ApiError::validation_failed())?;
+    if body.len() > 1024 {
+        return Err(ApiError::validation_failed());
+    }
+    let action: crate::runtime::ManualDnsActionRequest =
+        serde_json::from_slice(&body).map_err(|_| ApiError::validation_failed())?;
+    if !is_canonical_uuid_v7(&action.operation_id)
+        || !is_canonical_uuid_v7(&action.challenge_set_id)
+    {
+        return Err(ApiError::validation_failed());
+    }
+    Ok(action)
+}
+
+pub(in crate::server) async fn continue_manual_dns(
+    Path(id): Path<String>,
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let action = manual_dns_action(body)?;
+    let metadata = state
+        .runtime
+        .start_manual_dns_continue(id, action)
+        .await
+        .map_err(ApiError::certificate)?;
+    Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
+}
+
+pub(in crate::server) async fn cancel_manual_dns(
+    Path(id): Path<String>,
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let action = manual_dns_action(body)?;
+    let metadata = state
+        .runtime
+        .cancel_manual_dns(&id, &action)
+        .await
+        .map_err(ApiError::certificate)?;
+    Ok(no_store_json(metadata))
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CertificateListResponse {

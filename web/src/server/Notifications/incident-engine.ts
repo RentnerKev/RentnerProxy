@@ -81,6 +81,21 @@ function terminate(
     markTerminal(state, delivery)
 }
 
+function isSupersededManualDelivery(
+    state: NotificationState,
+    delivery: NotificationQueuedDelivery,
+): boolean {
+    if (delivery.payload.code !== 'certificate_renewal_manual_dns_required') return false
+    const incident = state.incidents.find((item) => item.id === delivery.payload.incidentId)
+    if (!incident || incident.recoveredAt === null) return false
+    return incident.channels.some(
+        (marker) =>
+            marker.channelId === delivery.channelId &&
+            marker.channelRevision === delivery.channelRevision &&
+            marker.recovery === 'failed',
+    )
+}
+
 function reconcile(
     state: NotificationState,
     configuration: NotificationEngineConfiguration,
@@ -106,7 +121,7 @@ function reconcile(
             delivery.leaseExpiresAt > nowMs
         )
             continue
-        if (!allowed) {
+        if (!allowed || isSupersededManualDelivery(state, delivery)) {
             terminate(state, delivery, 'cancelled', nowMs)
         } else if (delivery.payload.type === 'test') {
             // A manual test is one attempt, never a delayed background send after a crash.
@@ -224,7 +239,7 @@ function admit(
                 code: recovery
                     ? 'operation_recovered'
                     : incident.category === 'certificate_renewal'
-                      ? 'certificate_renewal_failed'
+                      ? (incident.code ?? 'certificate_renewal_failed')
                       : incident.category === 'ddns'
                         ? 'ddns_update_failed'
                         : 'proxy_apply_failed',
@@ -305,7 +320,7 @@ export function observeNotificationSignals(
                 incident.category === observation.category &&
                 incident.resourceId === observation.resourceId,
         )
-        const current = matching.find((incident) => incident.recoveredAt === null)
+        let current = matching.find((incident) => incident.recoveredAt === null)
         const lastObservedAt = Math.max(
             -1,
             ...matching.map((incident) => incident.recoveredAt ?? incident.observedAt),
@@ -355,7 +370,32 @@ export function observeNotificationSignals(
             }
             continue
         }
+        if (
+            current &&
+            (current.code !== observation.code ||
+                (observation.code === 'certificate_renewal_manual_dns_required' &&
+                    current.evidence !== evidence))
+        ) {
+            // A new TXT request or a terminal failure is a distinct actionable condition.
+            // Preserve an elapsed threshold when the same renewal moves from waiting to failure.
+            // Supersession is silent; only an activated certificate reports recovery.
+            if (
+                current.code === 'certificate_renewal_manual_dns_required' &&
+                observation.code === undefined
+            )
+                startedAt = current.startedAt
+            current.recoveredAt = observedAt
+            current.recoveryEvidence = evidence
+            for (const delivery of next.deliveries) {
+                if (delivery.payload.incidentId === current.id && delivery.status === 'pending')
+                    terminate(next, delivery, 'cancelled', nowMs)
+            }
+            for (const marker of current.channels) marker.recovery ??= 'failed'
+            current = undefined
+        }
         if (current) {
+            if (observation.code === undefined) delete current.code
+            else current.code = observation.code
             if (current.evidence !== evidence)
                 current.failures = Math.min(
                     Number.MAX_SAFE_INTEGER,
@@ -393,6 +433,7 @@ export function observeNotificationSignals(
             failures: Math.max(1, observation.failures),
             recoveredAt: null,
             recoveryEvidence: null,
+            ...(observation.code ? { code: observation.code } : {}),
             channels: [],
         })
         if (!withinStateLimit(next)) {
@@ -460,6 +501,8 @@ export function finishNotificationDelivery(
             delivery.status = 'succeeded'
             delivery.error = null
             markTerminal(next, delivery)
+        } else if (isSupersededManualDelivery(next, delivery)) {
+            terminate(next, delivery, 'cancelled', nowMs)
         } else {
             delivery.error = result.code
             const channelAllowed =

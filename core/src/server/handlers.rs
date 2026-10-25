@@ -17,9 +17,9 @@ mod proxy;
 
 pub(super) use access_logs::access_logs;
 pub(super) use certificates::{
-    certificate_events, certificate_store_status, delete_certificate, get_certificate,
-    import_certificate, issue_certificate, list_certificates, renew_certificate,
-    validate_trusted_ca,
+    cancel_manual_dns, certificate_events, certificate_store_status, continue_manual_dns,
+    delete_certificate, get_certificate, import_certificate, issue_certificate, list_certificates,
+    renew_certificate, validate_trusted_ca,
 };
 pub(super) use challenges::challenge_response;
 pub(super) use crowdsec::{

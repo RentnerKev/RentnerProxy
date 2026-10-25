@@ -1072,7 +1072,11 @@
                 "applied": "Toegepast",
                 "retry_scheduled": "Nieuwe poging gepland",
                 "failed": "Mislukt",
-                "needs_attention": "Aandacht vereist"
+                "needs_attention": "Aandacht vereist",
+                "awaiting_dns": "Wachten op je TXT-records",
+                "checking_dns": "Openbare DNS controleren",
+                "cancelled": "Geannuleerd",
+                "expired": "Verlopen"
             },
             "cells": {
                 "moreDomains": "Nog {{count}} domeinen tonen"
@@ -1233,7 +1237,12 @@
                 "dns_credentials_unavailable": "DNS-inloggegevens zijn niet beschikbaar.",
                 "runtime_apply_failed": "Het certificaat is opgeslagen, maar kon niet op de actieve proxy worden toegepast.",
                 "certificate_store_unavailable": "De certificaatopslag is niet beschikbaar.",
-                "controller_unavailable": "De proxycontroller is niet beschikbaar."
+                "controller_unavailable": "De proxycontroller is niet beschikbaar.",
+                "manual_dns_not_propagated": "Sommige TXT-waarden zijn nog niet openbaar zichtbaar. Wacht op verspreiding en controleer opnieuw.",
+                "manual_dns_lookup_failed": "DNS-opzoeking mislukt. Controleer DNS en probeer opnieuw.",
+                "manual_dns_expired": "Deze DNS-uitdaging is verlopen. Start een nieuwe aanvraag of vernieuwing.",
+                "manual_dns_cancelled": "Handmatige DNS-validatie is geannuleerd.",
+                "manual_dns_order_invalid": "De ACME-aanvraag is niet meer geldig. Start een nieuwe aanvraag of vernieuwing."
             },
             "validation": {
                 "name": "Voer een certificaatnaam in.",
@@ -1254,6 +1263,41 @@
                 "label": "Certificaattype",
                 "server": "Servercertificaten",
                 "trusted": "Vertrouwde CA’s"
+            },
+            "manualDns": {
+                "mode": "DNS-validatie",
+                "provider": "Automatisch (provider-API)",
+                "manual": "Handmatige TXT-records",
+                "renewalHint": "Elke vernieuwing vereist je hulp: publiceer nieuwe TXT-waarden en ga verder met de validatie.",
+                "title": "Handmatige DNS-validatie",
+                "instructions": "Maak elke TXT-waarde aan bij de exact getoonde naam. Meerdere waarden kunnen dezelfde naam hebben. Behoud bestaande waarden.",
+                "expires": "Verloopt op",
+                "identifier": "Identificatie",
+                "owner": "TXT-naam",
+                "value": "TXT-waarde",
+                "copyOwner": "Naam kopiëren",
+                "copyValue": "Waarde kopiëren",
+                "lastChecked": "Laatste DNS-controle",
+                "continue": "DNS controleren en doorgaan",
+                "cancel": "Validatie annuleren",
+                "checking": "DNS-controle gestart. De validatie gaat verder zodra alle waarden zichtbaar zijn.",
+                "cancelled": "Validatie geannuleerd. Het actieve certificaat blijft behouden.",
+                "cleanup": "Verwijder na voltooiing, annulering of verval alleen de exact getoonde TXT-waarden. Behoud alle andere waarden bij dezelfde naam.",
+                "copied": "Naar klembord gekopieerd.",
+                "copyFailed": "Kopiëren mislukt. Selecteer en kopieer de tekst handmatig.",
+                "preparing": "ACME-aanvraag voorbereiden. Houd deze details open voor de vereiste TXT-waarden.",
+                "status": {
+                    "awaiting_input": "Wachten op je TXT-records",
+                    "checking_dns": "Openbare DNS controleren",
+                    "validating": "Validatie bij de certificaatautoriteit",
+                    "finalizing": "Certificaat afronden",
+                    "complete": "Voltooid",
+                    "cancelled": "Geannuleerd",
+                    "expired": "Verlopen",
+                    "failed": "Mislukt"
+                },
+                "openDetails": "TXT-waarden en validatie openen",
+                "handoff": "Een certificaatbeheerder moet de certificaatdetails openen en de TXT-waarden publiceren."
             }
         },
         "proxyHosts": {

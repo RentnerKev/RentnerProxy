@@ -27,6 +27,7 @@ import {
     certificateJobDigest,
     validateCertificateJobContext,
 } from './certificate-jobs.storage.server.ts'
+import { getCertificateJobManualDnsState } from './certificate-jobs.manual.ts'
 import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 
 const certificateJobController = {
@@ -41,20 +42,27 @@ async function saveJobCertificateMetadata(
 ): Promise<void> {
     await withCertificateJobClaim(job, async (transaction, current) => {
         await validateCertificateJobContext(transaction, current)
+        const manualState = getCertificateJobManualDnsState(metadata)
         await persistControllerCertificatesMetadataInTransaction(transaction, [metadata], false)
         await transaction
             .update(certificateJobs)
             .set({
                 stage:
-                    metadata.status === 'failed' &&
-                    metadata.operation === 'idle' &&
-                    !metadata.candidate
+                    manualState === 'failed' ||
+                    (metadata.status === 'failed' &&
+                        metadata.operation === 'idle' &&
+                        !metadata.candidate)
                         ? 'failed'
                         : 'issuing',
                 controllerStage: metadata.currentOperation?.stage ?? null,
                 controllerOperationId:
                     metadata.currentOperation?.id ?? current.controllerOperationId,
-                lastErrorCode: metadata.candidate?.lastErrorCode ?? metadata.lastErrorCode,
+                lastErrorCode:
+                    manualState === 'pending'
+                        ? null
+                        : (metadata.currentOperation?.manualDns?.lastErrorCode ??
+                          metadata.candidate?.lastErrorCode ??
+                          metadata.lastErrorCode),
                 retryRequested: false,
                 updatedAt: new Date(),
             })
@@ -104,6 +112,8 @@ async function loadOrIssueJobCertificate(
             throw new CertificateJobDomainError('certificate_not_found')
         return issueJobCertificate(job, controller)
     }
+    if (metadata.currentOperation?.dnsMode === 'manual' && metadata.operation !== 'idle')
+        return metadata
     if (metadata.candidate && job.retryRequested) return controller.renew(job.certificateId)
     if (
         metadata.status !== 'valid' &&
@@ -130,7 +140,12 @@ async function processCertificateJob(
         if (!ready) return
         const metadata = await loadOrIssueJobCertificate(job, controller)
         if (!metadata) return
-        if (metadata.status === 'valid' && !metadata.candidate) {
+        const manualState = getCertificateJobManualDnsState(metadata)
+        if (
+            metadata.status === 'valid' &&
+            !metadata.candidate &&
+            (manualState === 'not_manual' || manualState === 'complete')
+        ) {
             if (!(await bindIssuedJobCertificate(job, metadata))) return
             if (await confirmJobRuntime(job, runtime)) return
             await releaseCertificateJob(job, {
@@ -141,7 +156,10 @@ async function processCertificateJob(
             return
         }
         await saveJobCertificateMetadata(job, metadata)
-        await releaseCertificateJob(job)
+        await releaseCertificateJob(
+            job,
+            manualState === 'pending' ? { nextAttemptAt: new Date(Date.now() + 30_000) } : {},
+        )
     } catch (error) {
         if (error instanceof CertificateJobDomainError) {
             await releaseCertificateJob(job, {

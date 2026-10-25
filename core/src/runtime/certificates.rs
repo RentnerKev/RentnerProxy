@@ -23,10 +23,15 @@ use super::state::{SafeDir, state_dir};
 #[path = "../../tests/private/certificate_dns.rs"]
 mod dns_tests;
 
+mod manual_dns;
 #[cfg(test)]
 #[path = "../../tests/private/certificate_operations.rs"]
 mod operation_tests;
 mod operations;
+pub(crate) use manual_dns::{
+    DnsValidationMode, ManualDnsActionRequest, ManualDnsChallengeSet, ManualDnsOrder,
+    ManualDnsPhase, ManualDnsRecord,
+};
 
 pub(crate) const MAX_CERTIFICATE_PEM_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
@@ -107,6 +112,10 @@ struct StoredAcmeConfiguration {
     contact_email: Option<String>,
     #[serde(default)]
     challenge_type: AcmeChallengeType,
+    #[serde(default, skip_serializing_if = "DnsValidationMode::is_provider")]
+    dns_mode: DnsValidationMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    manual_order: Option<ManualDnsOrder>,
     #[serde(default)]
     dns_provider: Option<EncryptedDnsConfig>,
     #[serde(default)]

@@ -5,6 +5,7 @@ import { isIP } from 'node:net'
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { startCertificateDnsFixture } from './dns-fixture.ts'
+import { refreshManualDnsForwarder } from './dns-forwarder.ts'
 import { buildHttp3Client } from '../http3/client.ts'
 import type { CertificateSetupContext } from './Types/scenarios.types.ts'
 
@@ -275,6 +276,8 @@ export async function verifyCertificateSetup(context: CertificateSetupContext) {
             '--env',
             'RENTNERPROXY_ACME_TEST_ROOT_CERT=/test/pebble.minica.pem',
             '--env',
+            'RENTNERPROXY_ACME_TEST_DNS_ADDR=127.0.0.1:15353',
+            '--env',
             'APP_ENCRYPTION_KEY=' + randomBytes(32).toString('base64'),
             '--env',
             'RENTNERPROXY_DNS_TEST_API_URL=http://host.docker.internal:' +
@@ -293,6 +296,7 @@ export async function verifyCertificateSetup(context: CertificateSetupContext) {
     context.controllerUrl = 'http://127.0.0.1:' + controllerPort
     const dnsAddresses = context.dnsFixture.addresses
     async function refreshRuntimeDns(): Promise<void> {
+        await refreshManualDnsForwarder(context)
         context.runtimeIpv4 = await context.command([
             'docker',
             'inspect',

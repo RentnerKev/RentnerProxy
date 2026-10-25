@@ -156,6 +156,18 @@ pub(super) fn public_metadata_with_candidate(
     stored: &StoredCertificate,
     candidate: Option<&StoredCertificateCandidate>,
 ) -> CertificateMetadata {
+    let mut current_operation = stored.metadata.current_operation.clone();
+    if let Some(operation) = current_operation.as_mut()
+        && let Some(acme) = stored.acme.as_ref()
+        && acme.challenge_type == super::AcmeChallengeType::Dns01
+    {
+        operation.dns_mode = Some(acme.dns_mode);
+        operation.manual_dns = acme
+            .manual_order
+            .as_ref()
+            .filter(|order| order.operation_id == operation.id && !order.records.is_empty())
+            .map(super::ManualDnsOrder::public);
+    }
     CertificateMetadata {
         id: stored.metadata.id.clone(),
         source: stored.metadata.source,
@@ -179,7 +191,7 @@ pub(super) fn public_metadata_with_candidate(
             .acme
             .as_ref()
             .is_some_and(|acme| !acme.pending_dns_records.is_empty()),
-        current_operation: stored.metadata.current_operation.clone(),
+        current_operation,
         challenge_type: stored
             .metadata
             .challenge_type

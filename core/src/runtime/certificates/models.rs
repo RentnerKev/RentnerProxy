@@ -23,6 +23,8 @@ pub(crate) struct CertificateIssueRequest {
     #[serde(default)]
     pub(crate) challenge_type: AcmeChallengeType,
     #[serde(default)]
+    pub(crate) dns_mode: super::DnsValidationMode,
+    #[serde(default)]
     pub(crate) dns_provider: Option<DnsProviderConfig>,
     pub(crate) accept_terms: bool,
 }
@@ -128,6 +130,11 @@ pub(crate) enum CertificateError {
     DnsProviderUnauthorized,
     DnsCleanupFailed,
     DnsCredentialsUnavailable,
+    ManualDnsNotPropagated,
+    ManualDnsLookupFailed,
+    ManualDnsExpired,
+    ManualDnsCancelled,
+    ManualDnsOrderInvalid,
     RuntimeApplyFailed,
     StoreUnavailable,
 }
@@ -151,6 +158,11 @@ impl CertificateError {
             Self::DnsProviderUnauthorized => "dns_provider_unauthorized",
             Self::DnsCleanupFailed => "dns_cleanup_failed",
             Self::DnsCredentialsUnavailable => "dns_credentials_unavailable",
+            Self::ManualDnsNotPropagated => "manual_dns_not_propagated",
+            Self::ManualDnsLookupFailed => "manual_dns_lookup_failed",
+            Self::ManualDnsExpired => "manual_dns_expired",
+            Self::ManualDnsCancelled => "manual_dns_cancelled",
+            Self::ManualDnsOrderInvalid => "manual_dns_order_invalid",
             Self::RuntimeApplyFailed => "runtime_apply_failed",
             Self::StoreUnavailable => "certificate_store_unavailable",
         }

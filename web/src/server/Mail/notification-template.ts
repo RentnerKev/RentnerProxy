@@ -73,6 +73,8 @@ export function createNotificationEmailTemplate(
     const category = CATEGORY_COPY[payload.category]
     const isTest = payload.type === 'test'
     const isRecovery = payload.type === 'recovery'
+    const isManualDns =
+        payload.code === 'certificate_renewal_manual_dns_required' && !isTest && !isRecovery
     const status =
         isTest || isRecovery
             ? {
@@ -80,30 +82,47 @@ export function createNotificationEmailTemplate(
                   color: theme.successText,
                   background: theme.successBackground,
               }
-            : severityStyle[payload.severity]
+            : isManualDns
+              ? {
+                    label: 'Aktion erforderlich',
+                    color: theme.warningText,
+                    background: theme.neutral,
+                }
+              : severityStyle[payload.severity]
     const heading = isTest
         ? 'Testnachricht angekommen'
         : isRecovery
           ? `Entwarnung: ${category.label}`
-          : category.heading
+          : isManualDns
+            ? 'Neue DNS-TXT-Werte für die Erneuerung nötig'
+            : category.heading
     const summary = isTest
         ? 'Diese Testmail bestätigt, dass RentnerProxy Nachrichten an diese Adresse zustellen kann.'
         : isRecovery
           ? category.recovery
-          : category.summary
+          : isManualDns
+            ? 'Die Zertifikatserneuerung wartet auf deine manuelle DNS-Bestätigung. Dafür werden neue TXT-Werte benötigt.'
+            : category.summary
     const nextStep = isTest
         ? 'Ereignisse und Empfänger kannst du in deinem Konto unter Benachrichtigungen anpassen.'
         : isRecovery
           ? 'Für diese Meldung ist keine weitere Aktion erforderlich.'
-          : category.nextStep
+          : isManualDns
+            ? 'Öffne das betroffene Zertifikat in RentnerProxy. Lege alle dort gezeigten TXT-Werte unter den exakten Namen an und wähle „DNS prüfen und fortsetzen“. Bestehende andere TXT-Werte erhalten.'
+            : category.nextStep
     const details: [string, string][] = isTest
         ? [['Versendet am', formatTime(payload.occurredAt)]]
         : [
               ['Bereich', category.label],
               ['Ressourcen-ID', payload.resourceId],
-              ['Beginn der Störung', formatTime(payload.startedAt)],
+              [
+                  isManualDns ? 'Erneuerung gestartet' : 'Beginn der Störung',
+                  formatTime(payload.startedAt),
+              ],
               [isRecovery ? 'Behoben am' : 'Letzte Meldung', formatTime(payload.occurredAt)],
-              ['Fehlversuche', String(payload.failures)],
+              ...(isManualDns
+                  ? []
+                  : [['Fehlversuche', String(payload.failures)] as [string, string]]),
           ]
     const subject = `RentnerProxy: ${heading}`
     const text = [

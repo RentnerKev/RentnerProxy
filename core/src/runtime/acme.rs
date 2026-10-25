@@ -1,13 +1,16 @@
 mod accounts;
 #[path = "acme_http.rs"]
 mod acme_http;
+mod manual;
 mod order;
 use super::{
     ProxyRuntime,
     dns::{DnsProvider, DnsRecordIntent},
 };
 use crate::{
-    runtime::certificates::{AcmeChallengeType, CertificateError, CertificateIssueRequest},
+    runtime::certificates::{
+        AcmeChallengeType, CertificateError, CertificateIssueRequest, DnsValidationMode,
+    },
     server::challenges::ChallengeStore,
 };
 use std::{sync::Arc, time::Duration};
@@ -182,6 +185,12 @@ impl ProxyRuntime {
         request: CertificateIssueRequest,
         challenges: ChallengeStore,
     ) {
+        if request.challenge_type == AcmeChallengeType::Dns01
+            && request.dns_mode == DnsValidationMode::Manual
+        {
+            self.issue_manual_dns_inner(id, request).await;
+            return;
+        }
         let dns_provider = match request.challenge_type {
             AcmeChallengeType::Http01 => None,
             AcmeChallengeType::Dns01 => {

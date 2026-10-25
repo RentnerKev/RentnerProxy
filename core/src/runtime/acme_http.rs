@@ -1,8 +1,9 @@
 use std::{
+    collections::BTreeMap,
     future::Future,
     io,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -15,7 +16,7 @@ use http_body_util::BodyExt;
 use httpdate::parse_http_date;
 use instant_acme::{BodyWrapper, BytesResponse, Error, HttpClient};
 use reqwest::{Client, redirect::Policy};
-use time::{Date, OffsetDateTime, Time};
+use time::{Date, OffsetDateTime, Time, format_description::well_known::Rfc3339};
 
 use super::super::{ProxyRuntime, certificates::CertificateEnvironment};
 
@@ -26,11 +27,44 @@ const MAX_ACME_RESPONSE_BODY_BYTES: usize = 1 << 20;
 #[path = "../../tests/private/acme_http_transport.rs"]
 mod transport_tests;
 
+#[derive(Clone, Default)]
+pub(super) struct AcmeResponseObserver(Arc<Mutex<BTreeMap<String, String>>>);
+
+impl AcmeResponseObserver {
+    pub(super) fn expires_at(&self, url: &str) -> Option<String> {
+        self.0.lock().ok()?.get(url).cloned()
+    }
+
+    pub(super) fn observe(&self, url: &str, location: Option<&str>, bytes: &[u8]) {
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+            return;
+        };
+        if !value.is_object() || value.get("status").and_then(|v| v.as_str()).is_none() {
+            return;
+        }
+        let Some(expires) = value.get("expires").and_then(|v| v.as_str()) else {
+            return;
+        };
+        if expires.len() > 40 || OffsetDateTime::parse(expires, &Rfc3339).is_err() {
+            return;
+        }
+        let Ok(mut observed) = self.0.lock() else {
+            return;
+        };
+        // The collector belongs to a single order attempt, with at most 100 SANs.
+        if observed.len() >= 256 {
+            return;
+        }
+        observed.insert(location.unwrap_or(url).to_owned(), expires.to_owned());
+    }
+}
+
 pub(crate) struct AcmeHttpClient {
     client: Client,
     runtime: Arc<ProxyRuntime>,
     certificate_id: String,
     environment: CertificateEnvironment,
+    observer: Option<AcmeResponseObserver>,
 }
 
 impl AcmeHttpClient {
@@ -58,7 +92,15 @@ impl AcmeHttpClient {
             runtime,
             certificate_id,
             environment,
+            observer: None,
         })
+    }
+}
+
+impl AcmeHttpClient {
+    pub(super) fn observing(mut self, observer: AcmeResponseObserver) -> Self {
+        self.observer = Some(observer);
+        self
     }
 }
 
@@ -71,6 +113,7 @@ impl HttpClient for AcmeHttpClient {
         let runtime = Arc::clone(&self.runtime);
         let certificate_id = self.certificate_id.clone();
         let environment = self.environment;
+        let observer = self.observer.clone();
         Box::pin(async move {
             let (parts, body) = request.into_parts();
             let authority = parts.uri.authority().map(|authority| authority.as_str());
@@ -90,6 +133,7 @@ impl HttpClient for AcmeHttpClient {
                 return Err(other_error("ACME request body is too large"));
             }
 
+            let request_url = parts.uri.to_string();
             let request = client
                 .request(parts.method, parts.uri.to_string())
                 .headers(parts.headers)
@@ -121,6 +165,17 @@ impl HttpClient for AcmeHttpClient {
                     .map_err(|_| other_error("unable to persist ACME retry deadline"))?;
             }
             let bytes = read_bounded_body(response).await?;
+            if status.is_success()
+                && let Some(observer) = observer
+            {
+                observer.observe(
+                    &request_url,
+                    headers
+                        .get("location")
+                        .and_then(|value| value.to_str().ok()),
+                    &bytes,
+                );
+            }
             bytes_response(status, version, headers, bytes)
         })
     }

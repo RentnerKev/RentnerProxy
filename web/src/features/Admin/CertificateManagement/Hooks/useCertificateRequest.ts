@@ -1,4 +1,3 @@
-import useCertificateDnsProviders from './useCertificateDnsProviders.ts'
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
@@ -6,7 +5,8 @@ import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
 import { DEFAULT_ACME_ENVIRONMENT } from '@/config/certificates.config.ts'
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { requestCertificateHandler } from '../middleware.ts'
+import { supportsDns01 } from '@/lib/DnsConnections/dnsProviders.ts'
+import { requestCertificateHandler, getCertificateDnsProvidersHandler } from '../middleware.ts'
 import {
     requestProxyHostCertificateHandler,
     retryCertificateJobHandler,
@@ -32,7 +32,6 @@ export default function useCertificateRequest({
 }: CertificateRequestInputs) {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
-    const { dnsAvailable } = useCertificateDnsProviders()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
     const [idempotencyKey] = useState(() => crypto.randomUUID())
@@ -45,17 +44,27 @@ export default function useCertificateRequest({
     )
     const getRequestInput = useCallback(
         (value: Parameters<typeof certificateRequestInputFromForm>[0]) => {
-            if (value.challengeType === 'dns-01' && !dnsAvailable)
-                throw new Error('admin.dnsConnections.providers.unavailable')
+            if (value.challengeType === 'dns-01' && value.dnsMode !== 'manual') {
+                const providers = queryClient.getQueryData<
+                    Awaited<ReturnType<typeof getCertificateDnsProvidersHandler>>
+                >(['dns-providers', 'certificates'])
+                if (
+                    queryClient.getQueryState(['dns-providers', 'certificates'])?.status ===
+                        'error' ||
+                    !providers?.some(supportsDns01)
+                )
+                    throw new Error('admin.dnsConnections.providers.unavailable')
+            }
             return requestCertificateInputSchema.parse(certificateRequestInputFromForm(value))
         },
-        [dnsAvailable],
+        [queryClient],
     )
     const defaultValues: CertificateRequestFormValues = {
         name: initialName ?? '',
         domains: initialDomains ? [...initialDomains] : [''],
         environment: DEFAULT_ACME_ENVIRONMENT,
         challengeType: 'http-01',
+        dnsMode: 'provider',
         dnsZoneId: '',
         dnsApiToken: '',
         contactEmail: '',
@@ -65,12 +74,6 @@ export default function useCertificateRequest({
         defaultValues,
         onSubmit: async ({ value }) => {
             if (isPending) return
-            if (!retryableJob && value.challengeType === 'dns-01' && !dnsAvailable) {
-                toast.error(t('admin.dnsConnections.providers.unavailable'), {
-                    title: t('toast.titles.error'),
-                })
-                return
-            }
             setIsPending(true)
             try {
                 if (!retryableJob && proxyHostId && !expectedUpdatedAt) {
@@ -101,6 +104,7 @@ export default function useCertificateRequest({
                     domains: [''],
                     environment: DEFAULT_ACME_ENVIRONMENT,
                     challengeType: 'http-01',
+                    dnsMode: 'provider',
                     dnsZoneId: '',
                     dnsApiToken: '',
                     contactEmail: '',
@@ -112,11 +116,19 @@ export default function useCertificateRequest({
                 } else {
                     toast.success(t(result.message), { title: t('toast.titles.success') })
                 }
-                await onSuccess()
-            } catch {
-                toast.error(t('admin.certificates.errors.requestFailed'), {
-                    title: t('toast.titles.error'),
-                })
+                await onSuccess('certificateId' in result ? result.certificateId : undefined)
+            } catch (error) {
+                toast.error(
+                    t(
+                        error instanceof Error &&
+                            error.message === 'admin.dnsConnections.providers.unavailable'
+                            ? error.message
+                            : 'admin.certificates.errors.requestFailed',
+                    ),
+                    {
+                        title: t('toast.titles.error'),
+                    },
+                )
             } finally {
                 setIsPending(false)
             }

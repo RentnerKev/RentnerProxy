@@ -23,6 +23,7 @@ fn issue_request() -> CertificateIssueRequest {
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: AcmeChallengeType::Http01,
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     }

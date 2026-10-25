@@ -3,6 +3,7 @@ import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certific
 
 export interface CertificateManagementPageProps {
     readonly permissions: readonly PermissionKey[]
+    readonly selectedCertificateId?: string | undefined
 }
 
 export interface CertificateWorkspaceLogicResult {
@@ -20,7 +21,7 @@ export interface CertificateWorkspaceLogicResult {
 }
 
 export interface CertificateRequestInputs {
-    readonly onSuccess: () => void | Promise<void>
+    readonly onSuccess: (certificateId?: string) => void | Promise<void>
     readonly initialDomains?: ReadonlyArray<string> | undefined
     readonly initialName?: string | undefined
     readonly proxyHostId?: string | undefined
@@ -61,7 +62,7 @@ export interface CertificateManagementLogicResult {
     readonly handler: {
         readonly confirmDelete: () => Promise<void>
         readonly confirmRenew: () => Promise<void>
-        readonly handleFormSuccess: () => Promise<void>
+        readonly handleFormSuccess: (certificateId?: string) => Promise<void>
         readonly openDelete: (
             certificate: import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary,
         ) => void

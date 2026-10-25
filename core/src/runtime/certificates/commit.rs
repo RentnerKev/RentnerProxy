@@ -32,6 +32,16 @@ impl CertificateStore {
 
             committed.acme = previous.acme.clone().or(committed.acme);
             committed.metadata.operation = CertificateOperation::Idle;
+            if let Some(order) = committed
+                .acme
+                .as_mut()
+                .and_then(|acme| acme.manual_order.as_mut())
+            {
+                order.phase = super::ManualDnsPhase::Complete;
+                order.private_key_pem = None;
+                order.csr_der = None;
+                order.last_error_code = None;
+            }
             committed.metadata.status = CertificateStatus::Valid;
             committed.metadata.last_error_code = None;
             committed.metadata.attempt_count = 0;

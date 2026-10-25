@@ -55,9 +55,7 @@ function getJobToastContent(job: CertificateJobSummary, t: Translate): string {
     return parts.join(' · ')
 }
 
-export default function useCertificateJobProgressObserver(
-    permissions: readonly PermissionKey[],
-): void {
+export default function useCertificateJobProgressObserver(permissions: readonly PermissionKey[]) {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
     const { language, t } = useTranslationStore()
@@ -127,4 +125,14 @@ export default function useCertificateJobProgressObserver(
         }
         initialized.current = true
     }, [canView, jobsQuery.data, language, t])
+    return {
+        state: {
+            manualJobs: canView
+                ? jobs.filter(
+                      (job) => job.controllerStage === 'awaiting_dns' && job.certificateId !== null,
+                  )
+                : [],
+            canViewCertificate: permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW),
+        },
+    }
 }

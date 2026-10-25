@@ -129,6 +129,7 @@ async fn run_order(
         environment: crate::runtime::certificates::CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: AcmeChallengeType::Http01,
+        dns_mode: crate::runtime::certificates::DnsValidationMode::Provider,
         dns_provider: None,
         accept_terms: true,
     };

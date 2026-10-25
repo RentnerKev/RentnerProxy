@@ -72,6 +72,25 @@ impl CertificateStore {
         ));
         let mut recovery_events = Vec::new();
         for (id, entry) in &mut index.certificates {
+            if entry.metadata.operation != CertificateOperation::Idle
+                && !index.pending_candidates.contains_key(id)
+                && let Some(order) = entry
+                    .acme
+                    .as_mut()
+                    .and_then(|acme| acme.manual_order.as_mut())
+                && !order.phase.is_terminal()
+            {
+                if order.phase == super::ManualDnsPhase::CheckingDns && !order.records.is_empty() {
+                    order.phase = super::ManualDnsPhase::AwaitingInput;
+                    if let Some(operation) = entry.metadata.current_operation.as_mut() {
+                        operation.stage = CertificateOperationStage::AwaitingDns;
+                        operation.updated_at = recovery_now.clone();
+                    }
+                    entry.metadata.updated_at = recovery_now.clone();
+                    recovered_interrupted_operation = true;
+                }
+                continue;
+            }
             if entry.metadata.operation != CertificateOperation::Idle {
                 entry.metadata.operation = CertificateOperation::Idle;
                 entry.metadata.status = if entry.material_id.is_some() {
@@ -156,6 +175,34 @@ impl CertificateStore {
         let now = OffsetDateTime::now_utc();
         index.certificates.get(id).is_some_and(|entry| {
             !index.pending_candidates.contains_key(id)
+                && !(entry
+                    .acme
+                    .as_ref()
+                    .is_some_and(|acme| acme.dns_mode == super::DnsValidationMode::Manual)
+                    && entry
+                        .metadata
+                        .current_operation
+                        .as_ref()
+                        .is_some_and(|operation| {
+                            matches!(
+                                operation.stage,
+                                CertificateOperationStage::NeedsAttention
+                                    | CertificateOperationStage::Cancelled
+                                    | CertificateOperationStage::Expired
+                            )
+                        }))
+                && entry
+                    .acme
+                    .as_ref()
+                    .and_then(|acme| acme.manual_order.as_ref())
+                    .is_none_or(|order| {
+                        !matches!(
+                            order.phase,
+                            super::ManualDnsPhase::Cancelled
+                                | super::ManualDnsPhase::Expired
+                                | super::ManualDnsPhase::Failed
+                        )
+                    })
                 && !retry_is_blocking(entry, now)
                 && entry
                     .metadata

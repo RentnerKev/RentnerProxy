@@ -10,6 +10,8 @@ import { verifyCertificateManualLifecycle } from './manual-lifecycle.ts'
 import { verifyCertificateHttpAcme } from './http-acme.ts'
 import { verifyCertificateActivationRecovery } from './activation-recovery.ts'
 import { verifyCertificateDnsAcme } from './dns-acme.ts'
+import { verifyCertificateManualDns } from './manual-dns.ts'
+import { manualDnsForwarderName } from './dns-forwarder.ts'
 import { verifyCertificateAccessPolicies } from './access-policies.ts'
 import { verifyCertificateIpPolicies } from './ip-policies.ts'
 import { verifyCertificateLogsAndJobs } from './logs-and-jobs.ts'
@@ -27,12 +29,16 @@ async function runSmoke(): Promise<void> {
         const acme = extendSmokeContext(protocols, await verifyCertificateHttpAcme(protocols))
         await verifyCertificateActivationRecovery(acme)
         const dns = extendSmokeContext(acme, await verifyCertificateDnsAcme(acme))
+        await verifyCertificateManualDns(dns)
         const policies = extendSmokeContext(dns, await verifyCertificateAccessPolicies(dns))
         await verifyCertificateIpPolicies(policies)
         await verifyCertificateLogsAndJobs(policies)
     } finally {
         context.backend?.stop(true)
         context.dnsFixture?.stop()
+        await context
+            .command(['docker', 'rm', '--force', manualDnsForwarderName(context.project)])
+            .catch(() => undefined)
         await context
             .command(['docker', 'rm', '--force', '--volumes', context.trustedProxyContainer])
             .catch(() => undefined)

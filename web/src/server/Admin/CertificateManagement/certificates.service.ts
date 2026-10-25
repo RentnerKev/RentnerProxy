@@ -29,6 +29,7 @@ import {
     redirectHosts,
 } from '@/db/schema.ts'
 import {
+    manualDnsActionInputSchema,
     certificateIdInputSchema,
     importCertificateInputSchema,
     replaceCertificateInputSchema,
@@ -53,6 +54,7 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
+    actOnControllerManualDns,
     deleteControllerCertificate,
     getControllerCertificate,
     importControllerCertificate,
@@ -155,6 +157,7 @@ async function readCertificateSummaries(
                 operation: row.operation,
                 currentOperation: row.currentOperation
                     ? {
+                          ...row.currentOperation,
                           id: row.currentOperation.id,
                           kind: row.currentOperation.kind,
                           stage: row.currentOperation.stage,
@@ -731,4 +734,64 @@ export async function searchCertificatesService(
         )
         .orderBy(asc(certificates.id))
         .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)
+}
+
+export async function actOnManualDnsService(
+    input: z.input<typeof manualDnsActionInputSchema>,
+    action: 'continue' | 'cancel',
+): Promise<string> {
+    const actor = await requireUserService()
+    if (
+        !actor.permissions.includes(PERMISSIONS.CERTIFICATES_ISSUE) &&
+        !actor.permissions.includes(PERMISSIONS.CERTIFICATES_RENEW)
+    ) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = parseInput(manualDnsActionInputSchema, input)
+    const id = parsed.certificateId.toLowerCase()
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            const row = await getCertificateRow(transaction, id)
+            const operation = row.currentOperation
+            const permission =
+                operation?.kind === 'renew'
+                    ? PERMISSIONS.CERTIFICATES_RENEW
+                    : PERMISSIONS.CERTIFICATES_ISSUE
+            await requirePermissionInTransaction(transaction, actor.id, permission)
+            if (
+                row.source !== 'acme' ||
+                !operation ||
+                (operation.kind !== 'issue' && operation.kind !== 'renew') ||
+                operation.dnsMode !== 'manual' ||
+                operation.id !== parsed.operationId.toLowerCase() ||
+                operation.manualDns?.challengeSetId !== parsed.challengeSetId.toLowerCase() ||
+                operation.manualDns.status !== 'awaiting_input'
+            )
+                throw new CertificateDomainError('operation_in_progress')
+            const metadata = await actOnControllerManualDns(id, action, {
+                operationId: parsed.operationId.toLowerCase(),
+                challengeSetId: parsed.challengeSetId.toLowerCase(),
+            })
+            await persistControllerMetadata(transaction, metadata)
+            await appendAuditEventInTransactionService(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'certificate',
+                targetId: id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'certificate',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
+    return id
 }

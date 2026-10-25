@@ -113,6 +113,8 @@ export default function ServerCertificates(props: CertificateManagementPageProps
                 <CertificateDetailsModal
                     open
                     certificate={state.detailsTarget}
+                    canIssue={state.canIssue}
+                    canRenew={state.canRenew}
                     onOpenChange={handler.setDetailsDialogOpen}
                 />
             ) : null}

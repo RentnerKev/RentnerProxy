@@ -112,6 +112,8 @@ async fn management_routes_authenticate_before_parsing_or_reading_state() {
         ("POST", "/internal/v1/crowdsec/test"),
         ("POST", "/internal/v1/crowdsec/console/enroll"),
         ("GET", "/internal/v1/dns/connections"),
+        ("POST", "/internal/v1/certificates/invalid/dns-01/continue"),
+        ("POST", "/internal/v1/certificates/invalid/dns-01/cancel"),
         ("PUT", "/internal/v1/dns/connections/invalid"),
         ("DELETE", "/internal/v1/dns/connections/invalid"),
         ("POST", "/internal/v1/dns/connections/test"),
@@ -149,6 +151,42 @@ async fn management_routes_authenticate_before_parsing_or_reading_state() {
             StatusCode::UNAUTHORIZED
         );
     }
+}
+
+#[tokio::test]
+async fn manual_dns_actions_require_bounded_fenced_ids_and_never_create_state_from_invalid_requests()
+ {
+    let root = Root::new();
+    let router = root.router(true);
+    for action in ["continue", "cancel"] {
+        let endpoint = format!("/internal/v1/certificates/{ACTOR}/dns-01/{action}");
+        for body in [
+            "not JSON".to_owned(),
+            "{}".to_owned(),
+            "x".repeat(1025),
+            json!({"operationId":ACTOR,"challengeSetId":"invalid"}).to_string(),
+            json!({"operationId":ACTOR,"challengeSetId":CONNECTION,"orderUrl":"https://unrelated.example.com/"}).to_string(),
+        ] {
+            assert_eq!(call(&router,"POST",&endpoint,body,true).await,
+                (StatusCode::BAD_REQUEST,json!({"error":"validation_failed"})));
+        }
+        assert_eq!(
+            call(&root.router(false), "POST", &endpoint, Body::empty(), false)
+                .await
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+        let missing = call(
+            &router,
+            "POST",
+            &endpoint,
+            json!({"operationId":ACTOR,"challengeSetId":CONNECTION}).to_string(),
+            true,
+        )
+        .await;
+        assert_eq!(missing.0, StatusCode::NOT_FOUND);
+    }
+    assert_eq!(std::fs::read_dir(&root.0).unwrap().count(), 0);
 }
 
 #[tokio::test]

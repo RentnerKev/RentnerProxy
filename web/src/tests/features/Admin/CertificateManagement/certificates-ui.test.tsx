@@ -1,3 +1,4 @@
+import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { generateKeyPairSync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
@@ -59,7 +60,7 @@ const replaceCertificateHandlerMock = mock(async () => ({
     success: true as const,
     message: 'admin.certificates.messages.replaced',
 }))
-const requestCertificateHandlerMock = mock(async () => ({
+const requestCertificateHandlerMock = mock(async (): Promise<CertificateActionResult> => ({
     success: true as const,
     message: 'admin.certificates.messages.requested',
 }))
@@ -102,7 +103,17 @@ const getCertificateDnsProviders = mock(async () => {
     if (dnsProvidersUnavailable) throw new Error('offline')
     return [dnsProvider]
 })
+const continueManualDnsHandlerMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.certificates.manualDns.checking',
+}))
+const cancelManualDnsHandlerMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.certificates.manualDns.cancelled',
+}))
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    continueManualDnsHandler: continueManualDnsHandlerMock,
+    cancelManualDnsHandler: cancelManualDnsHandlerMock,
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getCertificatesHandler: getCertificatesHandlerMock,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
@@ -288,6 +299,8 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 }
 
 beforeEach(() => {
+    continueManualDnsHandlerMock.mockClear()
+    cancelManualDnsHandlerMock.mockClear()
     dnsProvidersUnavailable = false
     getCertificateDnsProviders.mockClear()
     toast.dismissAll()
@@ -1408,3 +1421,244 @@ test.each(['certificate', 'trusted-ca'] as const)(
         }
     },
 )
+
+const { default: CertificateDetailsModal } =
+    await import('@/features/Admin/CertificateManagement/Components/CertificateDetailsModal/index.tsx')
+const manualOperation: NonNullable<CertificateSummary['currentOperation']> = {
+    id: '0198d98a-0000-7000-8000-000000000002',
+    kind: 'renew',
+    stage: 'awaiting_dns',
+    dnsMode: 'manual',
+    startedAt: new Date('2026-10-25T10:00:00Z'),
+    updatedAt: new Date('2026-10-25T10:01:00Z'),
+    manualDns: {
+        challengeSetId: '0198d98a-0000-7000-8000-000000000003',
+        status: 'awaiting_input',
+        expiresAt: '2026-10-25T11:00:00Z',
+        lastCheckedAt: null,
+        lastErrorCode: null,
+        records: [
+            {
+                identifier: 'example.com',
+                owner: '_acme-challenge.example.com',
+                value: 'a'.repeat(43),
+                expiresAt: '2026-10-25T11:00:00Z',
+            },
+            {
+                identifier: '*.example.com',
+                owner: '_acme-challenge.example.com',
+                value: 'b'.repeat(43),
+                expiresAt: '2026-10-25T11:00:00Z',
+            },
+        ],
+    },
+}
+
+test('requests manual DNS without reading the provider catalogue or collecting credentials', async () => {
+    dnsProvidersUnavailable = true
+    const onSuccess = mock(() => undefined)
+    await renderPage(
+        [],
+        'en',
+        <CertificateRequestModal open onOpenChange={() => undefined} onSuccess={onSuccess} />,
+    )
+    await setValue(document.querySelector('#certificate-request-name')!, 'Manual edge')
+    await setValue(certificateDomainInputs()[0]!, '*.example.com')
+    await click(document.querySelector('[aria-label="ACME challenge"]')!)
+    await waitFor(() => !!document.querySelector('[role=option]'))
+    await click(
+        [...document.querySelectorAll('[role=option]')].find((option) =>
+            option.textContent?.includes('Manual TXT records'),
+        )!,
+    )
+    expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
+    expect(document.body.textContent).toContain('Every renewal needs your help')
+    expect(getCertificateDnsProviders).not.toHaveBeenCalled()
+    await click(lastButton('Request with ACME'))
+    await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+    expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+            dnsMode: 'manual',
+            challengeType: 'dns-01',
+            domains: ['*.example.com'],
+        }),
+    })
+    expect(getCertificateDnsProviders).not.toHaveBeenCalled()
+    expect(JSON.stringify(requestCertificateHandlerMock.mock.calls)).not.toContain('dnsProvider')
+})
+
+test('manual DNS details preserve two TXT values with one owner and fence continue/cancel actions', async () => {
+    const writeText = mock(async (_value: string) => undefined)
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+        await renderPage(
+            [],
+            'en',
+            <CertificateDetailsModal
+                open
+                onOpenChange={() => undefined}
+                canRenew
+                certificate={{
+                    ...certificate,
+                    operation: 'renewing',
+                    currentOperation: manualOperation,
+                }}
+            />,
+        )
+        const dialog = document.querySelector('[role=dialog]')!
+        expect(dialog.textContent).toContain('a'.repeat(43))
+        expect(dialog.textContent).toContain('b'.repeat(43))
+        expect(dialog.textContent).toContain('*.example.com')
+        expect(dialog.textContent).toContain('Every renewal needs your help')
+        expect(dialog.textContent).not.toContain('Active ACME')
+        await click(button('Copy value'))
+        expect(writeText).toHaveBeenCalledWith('a'.repeat(43))
+        await click(button('Check DNS and continue'))
+        await waitFor(() => continueManualDnsHandlerMock.mock.calls.length === 1)
+        const data = {
+            certificateId: certificate.id,
+            operationId: manualOperation.id,
+            challengeSetId: manualOperation.manualDns!.challengeSetId,
+        }
+        expect(continueManualDnsHandlerMock).toHaveBeenCalledWith({ data })
+        await waitFor(() => !button('Cancel validation').disabled)
+        await click(button('Cancel validation'))
+        await waitFor(() => cancelManualDnsHandlerMock.mock.calls.length === 1)
+        expect(cancelManualDnsHandlerMock).toHaveBeenCalledWith({ data })
+    } finally {
+        if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor)
+        else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+})
+
+test.each(['checking_dns', 'validating', 'complete', 'expired', 'cancelled'] as const)(
+    'manual DNS %s cannot be continued or cancelled',
+    async (status) => {
+        await renderPage(
+            [],
+            'en',
+            <CertificateDetailsModal
+                open
+                canRenew
+                onOpenChange={() => undefined}
+                certificate={{
+                    ...certificate,
+                    currentOperation: {
+                        ...manualOperation,
+                        manualDns: { ...manualOperation.manualDns!, status },
+                    },
+                }}
+            />,
+        )
+        expect(
+            [...document.querySelectorAll('button')].some((item) =>
+                item.textContent?.includes('Check DNS and continue'),
+            ),
+        ).toBeFalse()
+        expect(
+            [...document.querySelectorAll('button')].some((item) =>
+                item.textContent?.includes('Cancel validation'),
+            ),
+        ).toBeFalse()
+        if (['complete', 'expired', 'cancelled'].includes(status))
+            expect(document.body.textContent).toContain(
+                'Remove only the exact TXT values shown above',
+            )
+    },
+)
+
+test('manual renewal details with issue permission alone expose records without renewal actions', async () => {
+    await renderPage(
+        [],
+        'en',
+        <CertificateDetailsModal
+            open
+            canIssue
+            onOpenChange={() => undefined}
+            certificate={{ ...certificate, currentOperation: manualOperation }}
+        />,
+    )
+    expect(document.body.textContent).toContain('a'.repeat(43))
+    expect(
+        [...document.querySelectorAll('button')].some((item) =>
+            item.textContent?.includes('Check DNS and continue'),
+        ),
+    ).toBeFalse()
+})
+
+test('manual request opens its own details while preparing and refreshes delayed challenge records in place', async () => {
+    const id = '0198d98a-0000-7000-8000-000000000001'
+    const pending: CertificateSummary = {
+        ...certificate,
+        id,
+        name: 'Delayed manual edge',
+        operation: 'issuing',
+        currentOperation: {
+            ...manualOperation,
+            kind: 'issue',
+            stage: 'creating_order',
+            manualDns: undefined,
+        },
+    }
+    let accepted = false
+    getCertificatesHandlerMock.mockImplementation(async () =>
+        accepted ? [certificate, pending] : [certificate],
+    )
+    requestCertificateHandlerMock.mockImplementation(async () => {
+        accepted = true
+        return {
+            success: true,
+            message: 'admin.certificates.messages.requested',
+            certificateId: id,
+        }
+    })
+    await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+    await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+    await click(button('Request with ACME'))
+    await setValue(document.querySelector('#certificate-request-name')!, pending.name)
+    await setValue(certificateDomainInputs()[0]!, 'example.com')
+    await click(document.querySelector('[aria-label="ACME challenge"]')!)
+    await waitFor(() => !!document.querySelector('[role=option]'))
+    await click(
+        [...document.querySelectorAll('[role=option]')].find((option) =>
+            option.textContent?.includes('Manual TXT records'),
+        )!,
+    )
+    await click(lastButton('Request with ACME'))
+    await waitFor(() => document.body.textContent?.includes('Preparing the ACME order') === true)
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain(pending.name)
+    const waiting = { ...pending, currentOperation: { ...manualOperation, kind: 'issue' as const } }
+    await act(async () => {
+        activeQueryClient!.setQueryData(certificateManagementQueryKeys.all, [certificate, waiting])
+    })
+    await waitFor(() => document.body.textContent?.includes('a'.repeat(43)) === true)
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('b'.repeat(43))
+    expect(button('Check DNS and continue').disabled).toBeFalse()
+})
+
+test('certificate detail selection from a binding-job link opens after its metadata arrives', async () => {
+    getCertificatesHandlerMock.mockResolvedValue([certificate])
+    await renderPage(
+        [],
+        'en',
+        <CertificateManagementPage
+            permissions={[PERMISSIONS.CERTIFICATES_VIEW]}
+            selectedCertificateId={certificate.id}
+        />,
+    )
+    await waitFor(
+        () =>
+            document
+                .querySelector('[role=dialog]')
+                ?.textContent?.includes('Certificate metadata') === true,
+    )
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain(certificate.name)
+    const close = document.querySelector<HTMLButtonElement>(
+        '[role=dialog] button[aria-label="Close dialog"]',
+    )
+    if (close) {
+        await click(close)
+        expect(document.querySelector('[role=dialog]')).toBeNull()
+    }
+})

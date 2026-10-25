@@ -136,6 +136,7 @@ export async function issueControllerCertificate(
         domains: input.domains,
         environment: input.environment ?? DEFAULT_ACME_ENVIRONMENT,
         challengeType: input.challengeType ?? 'http-01',
+        ...(input.dnsMode ? { dnsMode: input.dnsMode } : {}),
         ...(input.dnsProvider ? { dnsProvider: input.dnsProvider } : {}),
         ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),
         acceptTerms: input.acceptTerms,
@@ -143,7 +144,7 @@ export async function issueControllerCertificate(
     return parseMetadata(
         await controllerRequest(`${certificatePath(certificateId)}/issue`, {
             privileged: true,
-            confidential: input.challengeType === 'dns-01' || input.dnsProvider !== undefined,
+            confidential: input.dnsProvider !== undefined,
             timeoutMs: 5_000,
             method: 'POST',
             body,
@@ -184,4 +185,27 @@ export async function deleteControllerCertificate(certificateId: string): Promis
     if (!z.object({ deleted: z.literal(true) }).safeParse(payload).success) {
         throw new CertificateDomainError('controller_unavailable')
     }
+}
+
+export async function actOnControllerManualDns(
+    certificateId: string,
+    action: 'continue' | 'cancel',
+    input: { readonly operationId: string; readonly challengeSetId: string },
+): Promise<ControllerCertificateMetadata> {
+    if (
+        !z.uuidv7().safeParse(input.operationId).success ||
+        !z.uuidv7().safeParse(input.challengeSetId).success
+    )
+        throw new CertificateDomainError('invalid_input')
+    return parseMetadata(
+        await controllerRequest(`${certificatePath(certificateId)}/dns-01/${action}`, {
+            privileged: true,
+            timeoutMs: 5_000,
+            method: 'POST',
+            body: JSON.stringify(input),
+            responseLimit: RESPONSE_LIMIT,
+            acceptErrorResponse: true,
+        }),
+        certificateId.toLowerCase(),
+    )
 }

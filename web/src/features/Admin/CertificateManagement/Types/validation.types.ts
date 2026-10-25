@@ -11,6 +11,7 @@ export interface CertificateRequestFormValues {
     readonly domains: string[]
     readonly environment: string
     readonly challengeType: string
+    readonly dnsMode?: string | undefined
     readonly dnsZoneId: string
     readonly dnsApiToken: string
     readonly contactEmail: string

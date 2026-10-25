@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form'
 import useCertificateDnsProviders from '../../../Hooks/useCertificateDnsProviders.ts'
 import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
@@ -13,7 +14,12 @@ export default function CertificateRequestFields({
     readOnlyDomains = false,
 }: CertificateRequestFieldsProps) {
     const { t } = useTranslationStore()
-    const { dnsProviders, dnsAvailable } = useCertificateDnsProviders()
+    const manualMode = useStore(form.store, (state) => state.values.dnsMode === 'manual')
+    const providerMode = useStore(
+        form.store,
+        (state) => state.values.challengeType === 'dns-01' && state.values.dnsMode !== 'manual',
+    )
+    const { dnsProviders, dnsAvailable } = useCertificateDnsProviders(providerMode)
     return (
         <div className="grid gap-4">
             <form.Field name="name">
@@ -67,10 +73,19 @@ export default function CertificateRequestFields({
                             aria-invalid={field.state.meta.errors.length > 0}
                             aria-describedby="certificate-request-challengeType-hint certificate-request-challengeType-error"
                             onBlur={field.handleBlur}
-                            value={field.state.value}
+                            value={
+                                field.state.value === 'dns-01' && manualMode
+                                    ? 'dns-01-manual'
+                                    : field.state.value
+                            }
                             onValueChange={(value) => {
-                                if (value === 'http-01' || value === 'dns-01')
+                                if (value === 'dns-01-manual') {
+                                    form.setFieldValue('dnsMode', 'manual')
+                                    field.handleChange('dns-01')
+                                } else if (value === 'http-01' || value === 'dns-01') {
+                                    form.setFieldValue('dnsMode', 'provider')
                                     field.handleChange(value)
+                                }
                             }}
                             options={[
                                 {
@@ -80,6 +95,10 @@ export default function CertificateRequestFields({
                                 {
                                     label: t('admin.certificates.challenge.dns01'),
                                     value: 'dns-01',
+                                },
+                                {
+                                    label: `DNS-01 (${t('admin.certificates.manualDns.manual')})`,
+                                    value: 'dns-01-manual',
                                 },
                             ]}
                         />
@@ -98,7 +117,16 @@ export default function CertificateRequestFields({
                     </div>
                 )}
             </form.Field>
-            <form.Subscribe selector={(state) => state.values.challengeType === 'dns-01'}>
+            {manualMode ? (
+                <p role="note" className="text-sm text-info-text">
+                    {t('admin.certificates.manualDns.renewalHint')}
+                </p>
+            ) : null}
+            <form.Subscribe
+                selector={(state) =>
+                    state.values.challengeType === 'dns-01' && state.values.dnsMode !== 'manual'
+                }
+            >
                 {(isDnsChallenge) =>
                     isDnsChallenge ? (
                         <div className="grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3">

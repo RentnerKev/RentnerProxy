@@ -15,6 +15,7 @@ export interface NotificationPayload {
     readonly severity: NotificationSeverity | 'info'
     readonly resourceId: string
     readonly code:
+        | 'certificate_renewal_manual_dns_required'
         | 'certificate_renewal_failed'
         | 'ddns_update_failed'
         | 'proxy_apply_failed'
@@ -101,6 +102,7 @@ export interface NotificationObservation {
     readonly category: NotificationCategory
     readonly resourceId: string
     readonly health: 'failing' | 'healthy' | 'pending'
+    readonly code?: 'certificate_renewal_manual_dns_required' | undefined
     readonly desiredRevision?: string
     readonly severity: NotificationSeverity
     readonly occurredAt: string

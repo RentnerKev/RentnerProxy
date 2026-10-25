@@ -3712,3 +3712,33 @@ describe('public response cache form controls', () => {
         expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
     })
 })
+
+test('manual DNS binding wait exposes a permission-gated link to its exact certificate details', async () => {
+    const job = certificateJobFixture({ stage: 'issuing', controllerStage: 'awaiting_dns' })
+    await renderCertificateProgress([job])
+    await waitFor(() => document.querySelector('button[data-severity]') !== null)
+    const alert = await openPageAlerts()
+    const link = alert.querySelector<HTMLAnchorElement>('a')
+    expect(link?.getAttribute('href')).toBe(
+        '/certificates?selectedCertificateId=' + job.certificateId,
+    )
+    expect(link?.textContent).toContain('Open TXT records and validation')
+    expect(getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-info')).toBeTrue()
+})
+
+test('manual DNS binding wait asks for an operator when certificate view permission is absent', async () => {
+    getCertificateJobProgressHandlerMock.mockResolvedValue([
+        certificateJobFixture({ stage: 'issuing', controllerStage: 'awaiting_dns' }),
+    ])
+    await render(
+        withQueryClient(
+            <CertificateJobProgressObserver permissions={[PERMISSIONS.PROXY_HOSTS_VIEW]} />,
+        ),
+    )
+    await waitFor(() => document.querySelector('button[data-severity]') !== null)
+    const alert = await openPageAlerts()
+    expect(alert.querySelector('a')).toBeNull()
+    expect(alert.textContent).toContain(
+        'A certificate operator must open these certificate details',
+    )
+})

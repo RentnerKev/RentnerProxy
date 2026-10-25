@@ -1093,7 +1093,11 @@
                 "applied": "Appliqué",
                 "retry_scheduled": "Nouvel essai planifié",
                 "failed": "Échec",
-                "needs_attention": "Intervention requise"
+                "needs_attention": "Intervention requise",
+                "awaiting_dns": "En attente des enregistrements TXT",
+                "checking_dns": "Vérification du DNS public",
+                "cancelled": "Annulé",
+                "expired": "Expiré"
             },
             "cells": {
                 "moreDomains": "Afficher {{count}} domaines supplémentaires"
@@ -1254,7 +1258,12 @@
                 "dns_credentials_unavailable": "Les identifiants DNS sont indisponibles.",
                 "runtime_apply_failed": "Le certificat a été enregistré, mais n’a pas pu être appliqué au moteur proxy.",
                 "certificate_store_unavailable": "Le magasin de certificats est indisponible.",
-                "controller_unavailable": "Le contrôleur proxy est indisponible."
+                "controller_unavailable": "Le contrôleur proxy est indisponible.",
+                "manual_dns_not_propagated": "Certaines valeurs TXT ne sont pas encore publiques. Attendez la propagation et réessayez.",
+                "manual_dns_lookup_failed": "Échec de la recherche DNS. Vérifiez le DNS et réessayez.",
+                "manual_dns_expired": "Ce défi DNS a expiré. Lancez une nouvelle demande ou un renouvellement.",
+                "manual_dns_cancelled": "La validation DNS manuelle a été annulée.",
+                "manual_dns_order_invalid": "La commande ACME n’est plus valide. Lancez une nouvelle demande ou un renouvellement."
             },
             "validation": {
                 "name": "Saisissez un nom de certificat.",
@@ -1275,6 +1284,41 @@
                 "label": "Type de certificat",
                 "server": "Certificats serveur",
                 "trusted": "AC de confiance"
+            },
+            "manualDns": {
+                "mode": "Validation DNS",
+                "provider": "Automatique (API du fournisseur)",
+                "manual": "Enregistrements TXT manuels",
+                "renewalHint": "Chaque renouvellement demande votre aide : publiez les nouvelles valeurs TXT puis poursuivez la validation.",
+                "title": "Validation DNS manuelle",
+                "instructions": "Créez chaque valeur TXT au nom exact indiqué. Plusieurs valeurs peuvent partager un nom. Conservez les valeurs existantes.",
+                "expires": "Expiration",
+                "identifier": "Identifiant",
+                "owner": "Nom TXT",
+                "value": "Valeur TXT",
+                "copyOwner": "Copier le nom",
+                "copyValue": "Copier la valeur",
+                "lastChecked": "Dernière vérification DNS",
+                "continue": "Vérifier le DNS et continuer",
+                "cancel": "Annuler la validation",
+                "checking": "Vérification DNS lancée. La validation continue lorsque toutes les valeurs sont visibles.",
+                "cancelled": "Validation annulée. Le certificat actif est conservé.",
+                "cleanup": "Après la fin, l’annulation ou l’expiration, supprimez uniquement les valeurs TXT exactes affichées. Conservez les autres valeurs au même nom.",
+                "copied": "Copié dans le presse-papiers.",
+                "copyFailed": "Copie impossible. Sélectionnez et copiez le texte manuellement.",
+                "preparing": "Préparation de la commande ACME. Gardez ces détails ouverts pour les valeurs TXT requises.",
+                "status": {
+                    "awaiting_input": "En attente des enregistrements TXT",
+                    "checking_dns": "Vérification du DNS public",
+                    "validating": "Validation par l’autorité de certification",
+                    "finalizing": "Finalisation du certificat",
+                    "complete": "Terminé",
+                    "cancelled": "Annulé",
+                    "expired": "Expiré",
+                    "failed": "Échec"
+                },
+                "openDetails": "Ouvrir les valeurs TXT et la validation",
+                "handoff": "Un opérateur de certificats doit ouvrir les détails du certificat et publier les valeurs TXT."
             }
         },
         "proxyHosts": {

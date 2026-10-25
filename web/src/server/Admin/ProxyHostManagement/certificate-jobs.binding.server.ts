@@ -15,6 +15,7 @@ import {
     readCertificateJobHost,
     validateCertificateJobContext,
 } from './certificate-jobs.storage.server.ts'
+import { getCertificateJobManualDnsState } from './certificate-jobs.manual.ts'
 import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 import { withCertificateJobClaim } from './certificate-jobs.lease.server.ts'
 
@@ -27,6 +28,9 @@ function validateIssuedJobCertificate(
     metadata: ControllerCertificateMetadata,
     job: CertificateJobRow,
 ): void {
+    const manualState = getCertificateJobManualDnsState(metadata)
+    if (metadata.candidate || (manualState !== 'not_manual' && manualState !== 'complete'))
+        throw new CertificateJobDomainError('operation_in_progress')
     if (
         metadata.id !== job.certificateId ||
         metadata.source !== 'acme' ||

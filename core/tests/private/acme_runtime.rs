@@ -12,6 +12,7 @@ fn request() -> CertificateIssueRequest {
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: AcmeChallengeType::Http01,
+        dns_mode: crate::runtime::certificates::DnsValidationMode::Provider,
         dns_provider: None,
         accept_terms: true,
     }
@@ -48,6 +49,15 @@ async fn shutdown_rejects_every_acme_entrypoint_before_creating_work() {
             .await,
         runtime
             .start_scheduled_acme_retry(ID.to_owned(), challenges)
+            .await,
+        runtime
+            .start_manual_dns_continue(
+                ID.to_owned(),
+                crate::runtime::certificates::ManualDnsActionRequest {
+                    operation_id: ID.to_owned(),
+                    challenge_set_id: ID.to_owned(),
+                },
+            )
             .await,
     ] {
         assert_eq!(result, Err(CertificateError::OperationInProgress));

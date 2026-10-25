@@ -1,6 +1,7 @@
 import { metadataSchema } from './validation.ts'
 import { supportedBackupFormatLabel } from '../../web/src/lib/ApplicationVersion/backupCompatibility.ts'
 import { validateDnsConnectionsBackup } from './dns-connections.ts'
+import { validateManualDnsBackupState } from './manual-dns-state.ts'
 import type { BackupMetadata } from './Types/format.types.ts'
 import type {
     DeploymentSettings,
@@ -306,6 +307,7 @@ function validateControllerEncryptionEntries(
             const object = value as Record<string, unknown>
             const metadata = object.metadata as { id?: unknown } | undefined
             const certificateId = object.id ?? metadata?.id
+            validateManualDnsBackupState(object, certificateId)
             const acme = object.acme as
                 | { dnsProvider?: { ciphertext?: unknown; nonce?: unknown; version?: unknown } }
                 | undefined
