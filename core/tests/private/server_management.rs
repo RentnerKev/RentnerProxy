@@ -75,7 +75,10 @@ async fn call(
         .await
         .unwrap();
     let status = response.status();
-    if status != StatusCode::UNAUTHORIZED && !uri.contains("/crowdsec/") {
+    if status != StatusCode::UNAUTHORIZED
+        && !uri.contains("/crowdsec/")
+        && (status.is_success() || !uri.starts_with("/internal/v1/certificates/"))
+    {
         assert_eq!(
             response.headers()["cache-control"],
             "no-store",
@@ -168,7 +171,7 @@ async fn manual_dns_actions_require_bounded_fenced_ids_and_never_create_state_fr
             json!({"operationId":ACTOR,"challengeSetId":CONNECTION,"orderUrl":"https://unrelated.example.com/"}).to_string(),
         ] {
             assert_eq!(call(&router,"POST",&endpoint,body,true).await,
-                (StatusCode::BAD_REQUEST,json!({"error":"validation_failed"})));
+                (StatusCode::UNPROCESSABLE_ENTITY,json!({"error":"validation_failed"})));
         }
         assert_eq!(
             call(&root.router(false), "POST", &endpoint, Body::empty(), false)

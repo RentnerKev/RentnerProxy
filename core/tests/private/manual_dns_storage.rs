@@ -655,7 +655,10 @@ async fn public_metadata_excludes_persisted_order_url_account_key_and_csr() {
         &order.order_url,
         &order.account_identity,
     ] {
-        assert!(!json.contains(private), "private field leaked: {private}");
+        assert!(
+            !json.contains(private),
+            "private field leaked into public metadata"
+        );
     }
     let public = fixture
         .store
