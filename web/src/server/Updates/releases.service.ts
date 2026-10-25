@@ -6,6 +6,13 @@ import type {
 } from '@/features/ApplicationVersion/Types/application-update.types.ts'
 import type { ReleaseReadiness } from '@/lib/ApplicationVersion/Types/release-readiness.types.ts'
 import { isReleaseMetadataCompatible } from '@/lib/ApplicationVersion/releaseMetadata.ts'
+import { READINESS_ASSET, RELEASE_REPOSITORY } from '@/config/compatibility.config.ts'
+import { getUpgradeCompatibility } from '@/lib/ApplicationVersion/upgradeCompatibility.ts'
+import {
+    compareReleaseVersions,
+    isNewerEligibleRelease,
+    parseReleaseVersion,
+} from '@/lib/ApplicationVersion/releaseVersion.ts'
 import type {
     CachedUpdate,
     PublishedUpdateRelease,
@@ -13,14 +20,7 @@ import type {
 } from './Types/releases.types.ts'
 import { readBoundedText } from './http.ts'
 import { verifyReleaseImage } from './image.service.ts'
-import {
-    getUpgradeCompatibility,
-    parseReleaseReadiness,
-    READINESS_ASSET,
-    RELEASE_API,
-    RELEASE_REPOSITORY,
-} from './readiness.ts'
-import { compareReleaseVersions, isNewerEligibleRelease, parseReleaseVersion } from './version.ts'
+import { parseReleaseReadiness, RELEASE_API } from './readiness.ts'
 
 const releaseSummarySchema = z.object({
     tag_name: z.string().max(128),

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CURRENT_COMPATIBILITY_PROFILE } from '../../web/src/config/compatibility.config.ts'
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/u)
 
@@ -37,7 +38,7 @@ export const deploymentSchema = z.strictObject({
 
 export const metadataSchema = z.strictObject({
     ...base,
-    version: z.literal(4),
+    version: z.literal(CURRENT_COMPATIBILITY_PROFILE.backup.acceptedVersions),
     crowdSecState: artifact.extend({ archive: z.literal('crowdsec-state.tar') }),
     deployment: deploymentSchema,
     source: z.strictObject({

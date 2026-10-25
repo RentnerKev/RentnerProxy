@@ -1,12 +1,22 @@
 import { webSocketProbeScript } from './websocket-probe.ts'
 import { prepareTargetSource, immutableImageId } from './source-identity.ts'
-import { assertHistoricalImports, copyHistoricalZod } from './historical-dependencies.ts'
+import {
+    copyHistoricalZod,
+    loadHistoricalToolClosure,
+    readHistoricalToolSource,
+} from './historical-dependencies.ts'
+import { publishedSourceRevision } from './select-sources.ts'
+import {
+    discoverPublishedReleases,
+    loadPublishedSource,
+    parseCompatibilitySource,
+    verifyCompatibilitySource,
+} from '../../../../scripts/compatibility/source-selection.ts'
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { psql } from '../fixtures/appliance-storage.ts'
 import { assertBackupState, seedBackupState } from '../fixtures/backup-state.ts'
 import type { BackupStateFixture } from '../fixtures/Types/backup-state.types.ts'
-import { PINNED_BACKUP_TOOL_PATHS } from '../../../../scripts/compatibility/published-tools.ts'
 // oxlint-disable no-await-in-loop -- Appliance phases and bounded readiness probes run in order.
 import assert from 'node:assert/strict'
 import { dockerBuildDiagnostic } from '../../../../scripts/smoke/docker-build-diagnostics.ts'
@@ -42,11 +52,6 @@ import {
     smokeCompose,
     smokeDockerArguments,
 } from '../../../../scripts/smoke/resources.ts'
-import {
-    PUBLISHED_RELEASES,
-    publishedRelease,
-} from '../../../../scripts/compatibility/published-releases.ts'
-import type { PublishedReleaseKey } from '../../../../scripts/compatibility/Types/published-releases.types.ts'
 import { assertAuthFixture, seedAuthFixture } from './auth-state.ts'
 import type { AuthFixture } from './Types/auth-state.types.ts'
 import { assertAuditFixture, seedAuditFixture } from './audit-state.ts'
@@ -62,11 +67,11 @@ import {
 import type { PolicyFixture } from './Types/state.types.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
-const sourceKey = process.argv[2]
-if (!sourceKey || (sourceKey !== 'fresh' && !Object.hasOwn(PUBLISHED_RELEASES, sourceKey))) {
-    throw new Error('Choose fresh or beta.1.')
-}
-const source = sourceKey === 'fresh' ? null : publishedRelease(sourceKey as PublishedReleaseKey)
+const binding = parseCompatibilitySource(process.env.COMPATIBILITY_SOURCE ?? '')
+const source = binding.release
+const discoveryToken = process.env.GH_TOKEN
+delete process.env.GH_TOKEN
+delete process.env.GITHUB_TOKEN
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = `rp-compat-${runId}`
 const targetImage = `rentnerproxy:compat-${runId}`
@@ -82,6 +87,7 @@ let trafficStatus = 'not-started'
 let temporaryRoot = ''
 let targetSourceRevision = 'unverified'
 let targetImageId = 'unbuilt'
+let historicalFiles: ReadonlyMap<string, string> = new Map()
 let backend: ReturnType<typeof Bun.serve> | undefined
 
 const environment: NodeJS.ProcessEnv = { ...process.env }
@@ -183,12 +189,9 @@ async function materializePinnedScript(
     release: string,
     repositoryPath: string,
 ): Promise<{ readonly path: string; readonly sha256: string }> {
-    const contents = await command(['git', 'show', `${revision}:${repositoryPath}`])
-    assertHistoricalImports(contents, repositoryPath, [
-        ...PINNED_BACKUP_TOOL_PATHS,
-        'scripts/production-backup.ts',
-        'scripts/production-restore.ts',
-    ])
+    if (revision !== source?.revision) throw new Error('historical tool revision mismatch')
+    const contents = historicalFiles.get(repositoryPath)
+    if (contents === undefined) throw new Error('historical tool outside validated closure')
     const path = join(temporaryRoot, 'historical-tools', release, repositoryPath)
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, contents, { mode: 0o600 })
@@ -198,7 +201,10 @@ async function materializePinnedScript(
 async function createPinnedSourceBackup(backupRoot: string): Promise<string> {
     if (!source) throw new Error('source release missing')
     const release = source.version
-    for (const path of PINNED_BACKUP_TOOL_PATHS)
+    historicalFiles = await loadHistoricalToolClosure((path) =>
+        readHistoricalToolSource(command, source.revision, path),
+    )
+    for (const path of historicalFiles.keys())
         await materializePinnedScript(source.revision, release, path)
     // Historical tools import only Zod beyond Bun/Node builtins and the pinned local files.
     // Copy that package into this disposable tool tree; Windows needs no symlink privilege.
@@ -717,6 +723,19 @@ async function run(): Promise<void> {
     stage = 'target-source'
     const targetSource = await prepareTargetSource(command, temporaryRoot)
     targetSourceRevision = targetSource.revision
+    if (source) {
+        const manifest = JSON.parse(
+            await readFile(join(targetSource.context, 'package.json'), 'utf8'),
+        ) as { version: string }
+        const discovery = { token: discoveryToken, signal: AbortSignal.timeout(120_000) }
+        await verifyCompatibilitySource(source, {
+            releases: await discoverPublishedReleases(fetch, discovery),
+            targetVersion: manifest.version,
+            sourceRevision: (tag) => publishedSourceRevision(tag, targetSourceRevision),
+            loadSource: (release) => loadPublishedSource(release, fetch, discovery),
+            signal: discovery.signal,
+        })
+    }
     const upstreamPort = await freePort()
     backend = Bun.serve({
         hostname: '0.0.0.0',

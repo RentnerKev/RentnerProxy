@@ -1,5 +1,5 @@
-import type { ReleaseChannel } from '@/features/ApplicationVersion/Types/application-update.types.ts'
-import type { ParsedReleaseVersion } from './Types/releases.types.ts'
+import type { ReleaseChannel } from '../../features/ApplicationVersion/Types/application-update.types.ts'
+import type { ParsedReleaseVersion } from './Types/release-version.types.ts'
 
 // Numeric prerelease identifiers cannot have leading zeroes. Build metadata has no precedence.
 const versionPattern =

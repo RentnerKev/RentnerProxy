@@ -1,4 +1,5 @@
 import type { CommandOptions } from './backup/Types/production-backup.types.ts'
+import { CURRENT_COMPATIBILITY_PROFILE } from '../web/src/config/compatibility.config.ts'
 import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
 import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
 import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
@@ -272,7 +273,7 @@ async function backup(): Promise<void> {
                 user: databaseUser,
             },
             redis: 'excluded',
-            version: 4,
+            version: CURRENT_COMPATIBILITY_PROFILE.backup.writtenVersion,
         }
         parseBackupMetadata(metadata)
         const metadataPath = join(stagingPath, 'metadata.json')

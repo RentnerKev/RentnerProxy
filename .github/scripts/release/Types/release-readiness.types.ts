@@ -20,5 +20,4 @@ export interface ValidatedReleaseReadinessInput {
     readonly publishedAt: string
     readonly revision: string
     readonly digest: string
-    readonly automaticUpgrade: boolean
 }
