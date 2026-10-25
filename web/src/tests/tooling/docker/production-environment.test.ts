@@ -113,9 +113,9 @@ describe.skipIf(Bun.which('docker') === null)('production Compose environment al
         ).toBe('')
     })
 
-    test('still requires a public origin', async () => {
+    test('leaves an absent origin empty for the appliance startup guard', async () => {
         const result = await render({})
-        expect(result.exit).not.toBe(0)
-        expect(result.stderr).toContain('Set PUBLIC_ORIGIN')
+        expect(result.exit, result.stderr).toBe(0)
+        expect(JSON.parse(result.stdout).services.rentnerproxy.environment.PUBLIC_ORIGIN).toBe('')
     })
 })
