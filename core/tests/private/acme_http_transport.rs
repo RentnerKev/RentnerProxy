@@ -209,3 +209,35 @@ async fn interrupted_response_fails_instead_of_returning_partial_certificate() {
     assert!(matches!(result, Err(Error::Other(_))));
     assert_eq!(polls.load(Ordering::Relaxed), 2);
 }
+
+#[test]
+fn manual_expiry_observer_keeps_exact_ca_deadlines_at_order_location() {
+    let observer = AcmeResponseObserver::default();
+    let order = "https://ca.example.test/order/1";
+    observer.observe(
+        "https://ca.example.test/orders",
+        Some(order),
+        br#"{"status":"pending","expires":"2030-01-02T03:04:05Z"}"#,
+    );
+    assert_eq!(
+        observer.expires_at(order).as_deref(),
+        Some("2030-01-02T03:04:05Z")
+    );
+    for body in [
+        br#"{"status":"pending"}"#.as_slice(),
+        br#"{"status":"pending","expires":"tomorrow"}"#.as_slice(),
+        br#"{"expires":"2030-01-02T03:04:05Z"}"#.as_slice(),
+    ] {
+        observer.observe("https://ca.example.test/auth/invalid", None, body);
+    }
+    assert!(
+        observer
+            .expires_at("https://ca.example.test/auth/invalid")
+            .is_none()
+    );
+    assert!(
+        observer
+            .expires_at("https://ca.example.test/orders")
+            .is_none()
+    );
+}

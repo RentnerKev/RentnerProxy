@@ -41,6 +41,16 @@ const chainPem = z
     .max(MAX_CERTIFICATE_PEM_LENGTH, 'admin.certificates.validation.pemLimit')
     .optional()
 
+export const manualDnsActionInputSchema = z.strictObject({
+    certificateId: z.uuid(),
+    operationId: z.uuidv7(),
+    challengeSetId: z.uuidv7(),
+})
+
+export const certificateDetailsSearchSchema = z.strictObject({
+    selectedCertificateId: z.uuid().optional(),
+})
+
 export const certificateIdInputSchema = z.strictObject({ certificateId: z.uuid() })
 export const importCertificateInputSchema = z.strictObject({
     name,
@@ -102,6 +112,7 @@ export const requestCertificateInputSchema = z
         domains: certificateDomainsSchema,
         environment: z.enum(ACME_ENVIRONMENTS).default(DEFAULT_ACME_ENVIRONMENT),
         challengeType: z.enum(ACME_CHALLENGE_TYPES).default('http-01'),
+        dnsMode: z.enum(['provider', 'manual']).optional(),
         dnsProvider: dnsProviderSchema.optional(),
         contactEmail: z
             .union([z.email('admin.certificates.validation.email').max(254), z.literal('')])
@@ -124,14 +135,22 @@ export const requestCertificateInputSchema = z
                 message: 'admin.certificates.validation.publicDomain',
             })
         }
-        if (request.challengeType === 'dns-01' && !request.dnsProvider) {
+        if (
+            request.challengeType === 'dns-01' &&
+            request.dnsMode !== 'manual' &&
+            !request.dnsProvider
+        ) {
             context.addIssue({
                 code: 'custom',
                 path: ['dnsProvider'],
                 message: 'admin.certificates.validation.dnsProviderRequired',
             })
         }
-        if (request.challengeType === 'http-01' && request.dnsProvider) {
+        if (
+            (request.challengeType === 'http-01' &&
+                (request.dnsProvider || request.dnsMode === 'manual')) ||
+            (request.dnsMode === 'manual' && request.dnsProvider)
+        ) {
             context.addIssue({
                 code: 'custom',
                 path: ['dnsProvider'],
@@ -144,11 +163,12 @@ export const requestCertificateInputSchema = z
 export function certificateRequestInputFromForm(
     value: CertificateRequestFormValues,
 ): Record<string, unknown> {
-    const { dnsZoneId, dnsApiToken, ...requestValues } = value
+    const { dnsZoneId, dnsApiToken, dnsMode, ...requestValues } = value
     return {
         ...requestValues,
+        ...(value.challengeType === 'dns-01' && dnsMode === 'manual' ? { dnsMode: 'manual' } : {}),
         domains: value.domains.map((domain) => domain.trim()).filter(Boolean),
-        ...(value.challengeType === 'dns-01'
+        ...(value.challengeType === 'dns-01' && value.dnsMode !== 'manual'
             ? {
                   dnsProvider: {
                       type: 'cloudflare',
@@ -173,6 +193,7 @@ export const certificateRequestFormSchema = z
         domains: z.array(z.string()),
         environment: z.string(),
         challengeType: z.string(),
+        dnsMode: z.string().optional(),
         dnsZoneId: z.string(),
         dnsApiToken: z.string(),
         contactEmail: z.string(),

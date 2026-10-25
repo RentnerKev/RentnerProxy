@@ -210,10 +210,16 @@ export default function useProxyHostFormModalLogic({
             setPendingDisableValues(null)
             onSuccess()
         },
-        onError: () =>
-            toast.error(t('admin.proxyHosts.errors.saveFailed'), {
-                title: t('toast.titles.error'),
-            }),
+        onError: (error) =>
+            toast.error(
+                t(
+                    error instanceof Error &&
+                        error.message === 'admin.dnsConnections.providers.unavailable'
+                        ? error.message
+                        : 'admin.proxyHosts.errors.saveFailed',
+                ),
+                { title: t('toast.titles.error') },
+            ),
     })
     const retryAssignableCertificates = useCallback(() => {
         void certificatesQuery.refetch()
@@ -229,6 +235,7 @@ export default function useProxyHostFormModalLogic({
             if (requestNewCertificate) {
                 const errors = await certificateRequest.form.validate('submit')
                 if (Object.keys(errors).length > 0) {
+                    certificateRequest.reportValidationError(certificateRequest.form.state.values)
                     revealInvalidTab('certificate')
                     return
                 }

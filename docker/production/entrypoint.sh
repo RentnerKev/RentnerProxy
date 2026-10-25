@@ -96,6 +96,11 @@ fatal() {
     exit 1
 }
 
+require_public_origin() {
+    [[ -n ${PUBLIC_ORIGIN-${RENTNERPROXY_PUBLIC_ORIGIN-}} ]] \
+        || fatal 'Set PUBLIC_ORIGIN to the public management URL'
+}
+
 start_child() {
     local name=$1
     shift
@@ -383,6 +388,7 @@ if [[ ${1:-} == --initialize-restore-target ]]; then
     exit 0
 fi
 
+require_public_origin
 initialize_layout
 initialize_secrets
 start_crowdsec_supervisor

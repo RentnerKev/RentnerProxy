@@ -90,3 +90,21 @@ describe('notification email templates', () => {
         expect(template.html).not.toMatch(/@import|url\s*\(/i)
     })
 })
+
+test('manual DNS renewal mail requests fresh TXT values without claiming automatic renewal failure', () => {
+    const template = createNotificationEmailTemplate(
+        {
+            ...PAYLOAD,
+            category: 'certificate_renewal',
+            code: 'certificate_renewal_manual_dns_required',
+        },
+        options,
+    )
+    for (const body of [template.html, template.text]) {
+        expect(body).toContain('Aktion erforderlich')
+        expect(body).toContain('neue TXT-Werte')
+        expect(body).not.toContain('Zertifikat nicht erneuert')
+        expect(body).not.toContain('Fehlversuche')
+    }
+    expect(template.text).toContain('DNS prüfen und fortsetzen')
+})

@@ -33,6 +33,7 @@ export default function CertificateDomainInputs({
                     hintId="certificate-request-domains-hint"
                     errorId="certificate-request-domains-error"
                     errors={domainsField.state.meta.errors}
+                    showInlineErrors={false}
                 >
                     {domainsField.state.value.map((_domain, index) => (
                         <form.Field
@@ -60,8 +61,12 @@ export default function CertificateDomainInputs({
                                     onRemove={() => handler.removeDomain(index)}
                                     onBlur={field.handleBlur}
                                     onValueChange={field.handleChange}
-                                    describedBy={`certificate-request-domains-hint certificate-request-domains-error certificate-request-domain-${index}-error`}
-                                    errors={field.state.meta.errors}
+                                    describedBy="certificate-request-domains-hint"
+                                    errors={[
+                                        ...domainsField.state.meta.errors,
+                                        ...field.state.meta.errors,
+                                    ]}
+                                    showInlineErrors={false}
                                 />
                             )}
                         </form.Field>

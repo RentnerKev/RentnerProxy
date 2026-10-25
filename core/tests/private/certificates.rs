@@ -25,6 +25,7 @@ async fn retry_attempt_history_continues_after_backoff_has_reached_its_cap() {
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     };
@@ -76,6 +77,7 @@ fn acme_request() -> CertificateIssueRequest {
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     }
@@ -896,6 +898,7 @@ async fn certificate_index_limits_preserve_persisted_and_in_memory_metadata() {
             environment: CertificateEnvironment::Staging,
             contact_email: None,
             challenge_type: Default::default(),
+            dns_mode: Default::default(),
             dns_provider: None,
             accept_terms: true,
         };
@@ -935,6 +938,7 @@ async fn acme_retry_metadata_preserves_success_material_across_restart() {
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     };
@@ -1041,6 +1045,7 @@ async fn failed_acme_replacement_of_imported_certificate_keeps_old_material_and_
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     };
@@ -1096,6 +1101,7 @@ async fn failed_acme_replacement_of_imported_certificate_keeps_old_material_and_
                     environment: CertificateEnvironment::Staging,
                     contact_email: None,
                     challenge_type: Default::default(),
+                    dns_mode: Default::default(),
                     dns_provider: None,
                     accept_terms: true,
                 },
@@ -1119,6 +1125,7 @@ async fn acme_account_retry_deadline_blocks_environment_across_certificates_and_
         environment,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     };

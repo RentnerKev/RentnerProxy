@@ -1091,7 +1091,11 @@
                 "applied": "Applied",
                 "retry_scheduled": "Retry scheduled",
                 "failed": "Failed",
-                "needs_attention": "Needs attention"
+                "needs_attention": "Needs attention",
+                "awaiting_dns": "Waiting for your TXT records",
+                "checking_dns": "Checking public DNS",
+                "cancelled": "Cancelled",
+                "expired": "Expired"
             },
             "cells": {
                 "moreDomains": "Show {{count}} more domains"
@@ -1252,7 +1256,12 @@
                 "dns_credentials_unavailable": "DNS credentials are unavailable.",
                 "runtime_apply_failed": "The certificate was saved but could not be applied to the proxy runtime.",
                 "certificate_store_unavailable": "The certificate store is unavailable.",
-                "controller_unavailable": "The proxy controller is unavailable."
+                "controller_unavailable": "The proxy controller is unavailable.",
+                "manual_dns_not_propagated": "Some TXT values are not publicly visible yet. Wait for propagation and check again.",
+                "manual_dns_lookup_failed": "DNS lookup failed. Check your DNS and try again.",
+                "manual_dns_expired": "This DNS challenge expired. Start a new request or renewal.",
+                "manual_dns_cancelled": "Manual DNS validation was cancelled.",
+                "manual_dns_order_invalid": "The ACME order is no longer valid. Start a new request or renewal."
             },
             "validation": {
                 "name": "Enter a certificate name.",
@@ -1273,6 +1282,55 @@
                 "label": "Certificate type",
                 "server": "Server certificates",
                 "trusted": "Trusted CAs"
+            },
+            "manualDns": {
+                "setup": {
+                    "action": "Set up TXT records",
+                    "title": "Set up TXT records",
+                    "description": "Add the TXT records at your DNS provider and save your changes. Select Done, then Request certificate in the main dialog to check DNS and continue.",
+                    "preparing": "Preparing the request with the certificate authority…",
+                    "loading": "Loading the TXT records…",
+                    "dnsInstructions": "Open your domain’s DNS settings and add a record. Choose TXT as the record type, then enter each owner and value shown below.",
+                    "ownerHint": "Some providers append the domain automatically. Enter the owner as required by your provider so the final full name matches the displayed TXT owner.",
+                    "valuesHint": "Several values may share the same owner. Add every value and keep unrelated existing TXT values.",
+                    "finish": "Done",
+                    "retry": "Retry loading TXT records",
+                    "reused": "The certificate authority reused an existing authorization. No TXT records are needed. Select Done, then continue in the main dialog.",
+                    "blocked": "Close the guide and review the current certificate validation.",
+                    "expires": "TXT records expire at {{expires}}"
+                },
+                "mode": "DNS validation",
+                "provider": "Automatic (provider API)",
+                "manual": "Manual TXT records",
+                "title": "Manual DNS validation",
+                "instructions": "Create every TXT value below at its exact owner. Several values may share one owner. Preserve existing values.",
+                "expires": "Expires at",
+                "identifier": "Identifier",
+                "owner": "TXT owner",
+                "value": "TXT value",
+                "copyOwner": "Copy owner",
+                "copyValue": "Copy value",
+                "lastChecked": "Last DNS check",
+                "continue": "Check DNS and continue",
+                "cancel": "Cancel validation",
+                "checking": "DNS check queued. Validation continues when all values are visible.",
+                "cancelled": "Validation cancelled. The active certificate is unchanged.",
+                "cleanup": "Remove only the exact TXT values shown above after completion, cancellation or expiry. Keep all other values at the same owner.",
+                "copied": "Copied to clipboard.",
+                "copyFailed": "Could not copy. Select and copy the text manually.",
+                "preparing": "Preparing the ACME order. Keep these details open for the required TXT records.",
+                "status": {
+                    "awaiting_input": "Waiting for your TXT records",
+                    "checking_dns": "Checking public DNS",
+                    "validating": "Validating with the certificate authority",
+                    "finalizing": "Finalizing certificate",
+                    "complete": "Complete",
+                    "cancelled": "Cancelled",
+                    "expired": "Expired",
+                    "failed": "Failed"
+                },
+                "openDetails": "Open TXT records and validation",
+                "handoff": "A certificate operator must open these certificate details and publish the TXT records."
             }
         },
         "proxyHosts": {

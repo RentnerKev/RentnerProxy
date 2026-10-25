@@ -6,7 +6,10 @@ import type { CertificateOperationStage } from '@/config/Types/certificates-conf
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 
 function isHistoricalCompletedOperation(certificate: CertificateSummary): boolean {
-    return certificate.operation === 'idle' && certificate.currentOperation?.stage === 'applied'
+    return (
+        certificate.operation === 'idle' &&
+        ['applied', 'cancelled', 'expired'].includes(certificate.currentOperation?.stage ?? '')
+    )
 }
 
 function asDate(value: Date | string | null | undefined): Date | null {

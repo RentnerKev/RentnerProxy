@@ -241,25 +241,42 @@ pub(super) fn index_is_valid(index: &CertificateIndex) -> bool {
                 && entry
                     .retry_delay_seconds
                     .is_none_or(|delay| (1_800..=21_600).contains(&delay))
-                && entry.acme.as_ref().is_none_or(|acme| {
-                    let provider_is_valid = match acme.challenge_type {
-                        AcmeChallengeType::Http01 => acme.dns_provider.is_none(),
-                        AcmeChallengeType::Dns01 => {
-                            acme.dns_provider.as_ref().is_some_and(|config| {
-                                config.version == 1
-                                    && config.nonce.len() == 12
-                                    && (16..=8 * 1024).contains(&config.ciphertext.len())
-                            })
-                        }
-                    };
-                    provider_is_valid
-                        && acme.pending_dns_records.len() <= 256
-                        && acme
-                            .pending_dns_records
-                            .iter()
-                            .all(|intent| dns_intent_belongs_to(intent, id))
-                        && (acme.challenge_type == AcmeChallengeType::Dns01
-                            || acme.pending_dns_records.is_empty())
-                })
+                && acme_configuration_is_valid(id, entry)
         })
+}
+
+pub(super) fn acme_configuration_is_valid(id: &str, entry: &super::StoredCertificate) -> bool {
+    entry.acme.as_ref().is_none_or(|acme| {
+        let provider_is_valid = match acme.challenge_type {
+            AcmeChallengeType::Http01 => {
+                acme.dns_provider.is_none()
+                    && acme.dns_mode == super::DnsValidationMode::Provider
+                    && acme.manual_order.is_none()
+            }
+            AcmeChallengeType::Dns01 if acme.dns_mode == super::DnsValidationMode::Manual => {
+                acme.dns_provider.is_none()
+                    && acme.pending_dns_records.is_empty()
+                    && acme
+                        .manual_order
+                        .as_ref()
+                        .is_none_or(|order| super::manual_dns::manual_order_is_valid(entry, order))
+            }
+            AcmeChallengeType::Dns01 => {
+                acme.manual_order.is_none()
+                    && acme.dns_provider.as_ref().is_some_and(|config| {
+                        config.version == 1
+                            && config.nonce.len() == 12
+                            && (16..=8 * 1024).contains(&config.ciphertext.len())
+                    })
+            }
+        };
+        provider_is_valid
+            && acme.pending_dns_records.len() <= 256
+            && acme
+                .pending_dns_records
+                .iter()
+                .all(|intent| dns_intent_belongs_to(intent, id))
+            && (acme.challenge_type == AcmeChallengeType::Dns01
+                || acme.pending_dns_records.is_empty())
+    })
 }

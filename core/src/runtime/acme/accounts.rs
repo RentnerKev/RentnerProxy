@@ -1,4 +1,4 @@
-use super::acme_http::AcmeHttpClient;
+use super::acme_http::{AcmeHttpClient, AcmeResponseObserver};
 use crate::runtime::{
     ProxyRuntime,
     certificates::{CertificateEnvironment, CertificateError, CertificateIssueRequest},
@@ -49,6 +49,55 @@ impl ProxyRuntime {
             Account::builder_with_http(Box::new(http)),
         )
         .await
+    }
+
+    pub(super) async fn manual_acme_account(
+        self: &Arc<Self>,
+        id: &str,
+        request: &CertificateIssueRequest,
+        expected_identity: Option<&str>,
+        observer: AcmeResponseObserver,
+    ) -> Result<(Account, String, String), CertificateError> {
+        let _account_guard = ACCOUNT_REGISTRATION.lock().await;
+        let (directory, root) = acme_directory(request.environment)?;
+        if let Some(expected) = expected_identity {
+            let bytes = self
+                .certificate_store
+                .load_acme_account(request.environment)
+                .await?
+                .ok_or(CertificateError::StoreUnavailable)?;
+            if account_identity(&bytes, &directory)? != expected {
+                return Err(CertificateError::StoreUnavailable);
+            }
+        }
+        let root_pem = root
+            .as_deref()
+            .map(std::fs::read)
+            .transpose()
+            .map_err(|_| CertificateError::AcmeFailed)?;
+        crate::runtime::tls::ensure_crypto_provider();
+        let http = AcmeHttpClient::new(
+            root_pem.as_deref(),
+            Arc::clone(self),
+            id.to_owned(),
+            request.environment,
+        )
+        .map_err(|_| CertificateError::AcmeFailed)?
+        .observing(observer);
+        let account = self
+            .acme_account_with_builder(
+                request,
+                directory.clone(),
+                Account::builder_with_http(Box::new(http)),
+            )
+            .await?;
+        let bytes = self
+            .certificate_store
+            .load_acme_account(request.environment)
+            .await?
+            .ok_or(CertificateError::StoreUnavailable)?;
+        let identity = account_identity(&bytes, &directory)?;
+        Ok((account, identity, directory))
     }
 
     async fn acme_account_with_builder(
@@ -114,6 +163,35 @@ impl ProxyRuntime {
             .await?;
         Ok(account)
     }
+}
+
+fn account_identity(bytes: &[u8], directory: &str) -> Result<String, CertificateError> {
+    let credentials: AccountCredentials =
+        serde_json::from_slice(bytes).map_err(|_| CertificateError::StoreUnavailable)?;
+    let value: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|_| CertificateError::StoreUnavailable)?;
+    if value.get("directory").and_then(|value| value.as_str()) != Some(directory) {
+        return Err(CertificateError::StoreUnavailable);
+    }
+    let id = value
+        .get("id")
+        .and_then(|value| value.as_str())
+        .ok_or(CertificateError::StoreUnavailable)?;
+    let mut context = aws_lc_rs::digest::Context::new(&aws_lc_rs::digest::SHA256);
+    for part in [
+        directory.as_bytes(),
+        id.as_bytes(),
+        credentials.private_key().secret_pkcs8_der(),
+    ] {
+        context.update(&(part.len() as u64).to_be_bytes());
+        context.update(part);
+    }
+    Ok(context
+        .finish()
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect())
 }
 
 fn acme_directory(

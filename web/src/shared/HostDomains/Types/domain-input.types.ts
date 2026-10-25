@@ -9,6 +9,7 @@ export interface DomainInputRowProps {
     readonly placeholder: string
     readonly describedBy: string
     readonly errors: readonly unknown[]
+    readonly showInlineErrors?: boolean
     readonly disabled: boolean
     readonly readOnly?: boolean
     readonly removeDisabled: boolean
@@ -29,4 +30,5 @@ export interface DomainListFieldsetProps {
     readonly hintId: string
     readonly errorId: string
     readonly errors: readonly unknown[]
+    readonly showInlineErrors?: boolean
 }

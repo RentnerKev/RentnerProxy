@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    http::StatusCode,
+    http::{HeaderValue, StatusCode, header::CACHE_CONTROL},
     response::{IntoResponse, Response},
 };
 
@@ -104,13 +104,19 @@ impl ApiError {
             | CertificateError::TermsRequired
             | CertificateError::AcmeDomainInvalid
             | CertificateError::AcmeDnsRequired
-            | CertificateError::DnsProviderInvalid => StatusCode::UNPROCESSABLE_ENTITY,
+            | CertificateError::DnsProviderInvalid
+            | CertificateError::ManualDnsOrderInvalid => StatusCode::UNPROCESSABLE_ENTITY,
             CertificateError::NotFound => StatusCode::NOT_FOUND,
-            CertificateError::InUse | CertificateError::OperationInProgress => StatusCode::CONFLICT,
+            CertificateError::InUse
+            | CertificateError::OperationInProgress
+            | CertificateError::ManualDnsNotPropagated
+            | CertificateError::ManualDnsExpired
+            | CertificateError::ManualDnsCancelled => StatusCode::CONFLICT,
             CertificateError::AcmeFailed
             | CertificateError::DnsProviderUnavailable
             | CertificateError::DnsProviderUnauthorized
             | CertificateError::DnsCleanupFailed
+            | CertificateError::ManualDnsLookupFailed
             | CertificateError::RuntimeApplyFailed => StatusCode::BAD_GATEWAY,
             CertificateError::DnsCredentialsUnavailable | CertificateError::StoreUnavailable => {
                 StatusCode::SERVICE_UNAVAILABLE
@@ -132,10 +138,14 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        let mut response = (
             self.status,
             Json(serde_json::json!({ "error": self.error })),
         )
-            .into_response()
+            .into_response();
+        response
+            .headers_mut()
+            .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        response
     }
 }

@@ -20,6 +20,24 @@ fatal() { exit 1; }
 
 test_environment() (
     local variant role expected
+    load_function "$entrypoint" require_public_origin
+    for variant in new legacy both empty missing; do
+        (
+            unset PUBLIC_ORIGIN RENTNERPROXY_PUBLIC_ORIGIN
+            case $variant in
+                new) export PUBLIC_ORIGIN=https://management.example.invalid ;;
+                legacy) export RENTNERPROXY_PUBLIC_ORIGIN=https://legacy.example.invalid ;;
+                both) export PUBLIC_ORIGIN=https://management.example.invalid RENTNERPROXY_PUBLIC_ORIGIN=https://legacy.example.invalid ;;
+                empty) export PUBLIC_ORIGIN='' RENTNERPROXY_PUBLIC_ORIGIN=https://legacy.example.invalid ;;
+            esac
+            if [[ $variant == empty || $variant == missing ]]; then
+                if (require_public_origin); then fail "$variant public origin accepted"; fi
+            else
+                require_public_origin || fail "$variant public origin rejected"
+            fi
+        )
+    done
+    printf 'PASS: public origin aliases retain required startup validation\n'
     # The extracted preamble includes the real de-export instruction. It stops
     # before any fixed production paths or startup calls can be evaluated.
     load_function "$entrypoint" start_child

@@ -2,7 +2,9 @@ import useCertificateDetailsModalLogic from './Hooks/useCertificateDetailsModalL
 import type { ReactNode } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
+import ManualDnsRecordCard from '../ManualDnsRecordCard/index.tsx'
 import type { CertificateDetailsModalProps } from './Types/certificate-details-modal.types.ts'
 import { certificateOperationStageClass } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
 import {
@@ -31,11 +33,18 @@ function MetadataField({
 
 export default function CertificateDetailsModal({
     certificate,
+    canIssue = false,
+    canRenew = false,
     onOpenChange,
     open,
 }: CertificateDetailsModalProps) {
     const { t } = useTranslationStore()
-    const { state } = useCertificateDetailsModalLogic(certificate)
+    const { state, handler } = useCertificateDetailsModalLogic(
+        certificate,
+        canIssue,
+        canRenew,
+        open,
+    )
     return (
         <Modal
             open={open}
@@ -45,6 +54,66 @@ export default function CertificateDetailsModal({
             description={t('admin.certificates.details.description')}
         >
             <div className="grid gap-5">
+                {certificate.currentOperation?.dnsMode === 'manual' && !state.manualDns ? (
+                    <output className="text-sm text-info-text">
+                        {t('admin.certificates.manualDns.preparing')}
+                    </output>
+                ) : null}
+                {state.manualDns ? (
+                    <section
+                        aria-labelledby="manual-dns-title"
+                        className="grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-4"
+                    >
+                        <h2 id="manual-dns-title" className="font-extrabold">
+                            {t('admin.certificates.manualDns.title')}
+                        </h2>
+                        <output>
+                            {t(`admin.certificates.manualDns.status.${state.manualDns.status}`)}
+                        </output>
+                        <p>{t('admin.certificates.manualDns.instructions')}</p>
+                        <p className="m-0 text-xs text-muted">
+                            {t('admin.certificates.manualDns.expires')}:{' '}
+                            <time dateTime={state.manualDns.expiresAt}>
+                                {state.formatDateTime(new Date(state.manualDns.expiresAt))}
+                            </time>
+                        </p>
+                        {state.manualDns.records.map((record, index) => (
+                            <ManualDnsRecordCard
+                                key={`${record.identifier}:${record.owner}:${record.value}`}
+                                record={record}
+                                idPrefix="manual-dns-details"
+                                index={index}
+                                onCopy={handler.copy}
+                            />
+                        ))}
+                        {state.manualDns.lastCheckedAt ? (
+                            <p className="m-0 text-xs text-muted">
+                                {t('admin.certificates.manualDns.lastChecked')}:{' '}
+                                {state.formatDateTime(new Date(state.manualDns.lastCheckedAt))}
+                            </p>
+                        ) : null}
+                        {state.canActOnManualDns ? (
+                            <div className="flex flex-wrap gap-3">
+                                <ModalActionButton
+                                    disabled={state.manualPending}
+                                    onClick={handler.continueManualDns}
+                                >
+                                    {t('admin.certificates.manualDns.continue')}
+                                </ModalActionButton>
+                                <ModalActionButton
+                                    variant="secondary"
+                                    disabled={state.manualPending}
+                                    onClick={handler.cancelManualDns}
+                                >
+                                    {t('admin.certificates.manualDns.cancel')}
+                                </ModalActionButton>
+                            </div>
+                        ) : null}
+                        {state.manualCleanup ? (
+                            <p role="note">{t('admin.certificates.manualDns.cleanup')}</p>
+                        ) : null}
+                    </section>
+                ) : null}
                 {certificate.environment === 'staging' ? (
                     <p
                         role="note"
@@ -82,7 +151,11 @@ export default function CertificateDetailsModal({
                             label={t('admin.certificates.details.autoRenew')}
                             value={
                                 certificate.source === 'acme'
-                                    ? t('admin.certificates.details.autoRenewAcme')
+                                    ? t(
+                                          certificate.currentOperation?.dnsMode === 'manual'
+                                              ? 'admin.certificates.manualDns.manual'
+                                              : 'admin.certificates.details.autoRenewAcme',
+                                      )
                                     : t('admin.certificates.details.autoRenewManual')
                             }
                         />
@@ -292,16 +365,6 @@ export default function CertificateDetailsModal({
                             />
                         </dl>
                     </section>
-                ) : null}
-                {certificate.lastErrorCode ? (
-                    <p className="m-0 rounded-xl border border-red-700/25 bg-danger-bg p-3 text-sm leading-relaxed text-danger-text">
-                        {t(`admin.certificates.errors.${certificate.lastErrorCode}`)}
-                    </p>
-                ) : null}
-                {certificate.candidate?.lastErrorCode ? (
-                    <p className="m-0 rounded-xl border border-red-700/25 bg-danger-bg p-3 text-sm leading-relaxed text-danger-text">
-                        {t(`admin.certificates.errors.${certificate.candidate.lastErrorCode}`)}
-                    </p>
                 ) : null}
                 {certificate.dnsCleanupPending ? (
                     <p className="m-0 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm leading-relaxed text-amber-700">

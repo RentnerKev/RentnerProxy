@@ -1093,7 +1093,11 @@
                 "applied": "Aplicado",
                 "retry_scheduled": "Reintento programado",
                 "failed": "Fallido",
-                "needs_attention": "Requiere atención"
+                "needs_attention": "Requiere atención",
+                "awaiting_dns": "Esperando tus registros TXT",
+                "checking_dns": "Comprobando el DNS público",
+                "cancelled": "Cancelado",
+                "expired": "Caducado"
             },
             "cells": {
                 "moreDomains": "Mostrar {{count}} dominios más"
@@ -1254,7 +1258,12 @@
                 "dns_credentials_unavailable": "Las credenciales DNS no están disponibles.",
                 "runtime_apply_failed": "El certificado se guardó, pero no se pudo aplicar al motor proxy.",
                 "certificate_store_unavailable": "El almacén de certificados no está disponible.",
-                "controller_unavailable": "El controlador proxy no está disponible."
+                "controller_unavailable": "El controlador proxy no está disponible.",
+                "manual_dns_not_propagated": "Algunos valores TXT aún no son públicos. Espera la propagación y vuelve a comprobar.",
+                "manual_dns_lookup_failed": "Falló la consulta DNS. Comprueba el DNS e inténtalo de nuevo.",
+                "manual_dns_expired": "El desafío DNS ha caducado. Inicia una nueva solicitud o renovación.",
+                "manual_dns_cancelled": "La validación DNS manual fue cancelada.",
+                "manual_dns_order_invalid": "El pedido ACME ya no es válido. Inicia una nueva solicitud o renovación."
             },
             "validation": {
                 "name": "Introduce un nombre para el certificado.",
@@ -1275,6 +1284,55 @@
                 "label": "Tipo de certificado",
                 "server": "Certificados de servidor",
                 "trusted": "CA de confianza"
+            },
+            "manualDns": {
+                "setup": {
+                    "action": "Configurar registros TXT",
+                    "title": "Configurar registros TXT",
+                    "description": "Añade los registros TXT en tu proveedor DNS y guarda los cambios. Selecciona Listo y luego Solicitar certificado en el diálogo principal para comprobar DNS y continuar.",
+                    "preparing": "Preparando la solicitud con la autoridad de certificación…",
+                    "loading": "Cargando los registros TXT…",
+                    "dnsInstructions": "Abre la configuración DNS de tu dominio y añade un registro. Elige TXT como tipo e introduce cada nombre y valor que se muestra abajo.",
+                    "ownerHint": "Algunos proveedores añaden el dominio automáticamente. Introduce el nombre según tu proveedor para que el nombre completo coincida con el nombre TXT mostrado.",
+                    "valuesHint": "Varios valores pueden compartir un nombre. Añade todos los valores y conserva los demás valores TXT existentes.",
+                    "finish": "Listo",
+                    "retry": "Volver a cargar los registros TXT",
+                    "reused": "La autoridad de certificación ha reutilizado una autorización existente. No se necesitan registros TXT. Selecciona Listo y continúa en el diálogo principal.",
+                    "blocked": "Cierra la guía y revisa la validación actual del certificado.",
+                    "expires": "Los registros TXT caducan el {{expires}}"
+                },
+                "mode": "Validación DNS",
+                "provider": "Automática (API del proveedor)",
+                "manual": "Registros TXT manuales",
+                "title": "Validación DNS manual",
+                "instructions": "Crea cada valor TXT en el nombre exacto indicado. Varios valores pueden compartir un nombre. Conserva los valores existentes.",
+                "expires": "Caduca",
+                "identifier": "Identificador",
+                "owner": "Nombre TXT",
+                "value": "Valor TXT",
+                "copyOwner": "Copiar nombre",
+                "copyValue": "Copiar valor",
+                "lastChecked": "Última comprobación DNS",
+                "continue": "Comprobar DNS y continuar",
+                "cancel": "Cancelar validación",
+                "checking": "Comprobación DNS iniciada. La validación continúa cuando todos los valores son visibles.",
+                "cancelled": "Validación cancelada. El certificado activo se conserva.",
+                "cleanup": "Tras completar, cancelar o caducar, elimina únicamente los valores TXT exactos mostrados. Conserva los demás valores del mismo nombre.",
+                "copied": "Copiado al portapapeles.",
+                "copyFailed": "No se pudo copiar. Selecciona y copia el texto manualmente.",
+                "preparing": "Preparando el pedido ACME. Mantén estos detalles abiertos para los valores TXT necesarios.",
+                "status": {
+                    "awaiting_input": "Esperando tus registros TXT",
+                    "checking_dns": "Comprobando el DNS público",
+                    "validating": "Validando con la autoridad certificadora",
+                    "finalizing": "Finalizando certificado",
+                    "complete": "Completado",
+                    "cancelled": "Cancelado",
+                    "expired": "Caducado",
+                    "failed": "Error"
+                },
+                "openDetails": "Abrir valores TXT y validación",
+                "handoff": "Un operador de certificados debe abrir los detalles del certificado y publicar los valores TXT."
             }
         },
         "proxyHosts": {

@@ -21,7 +21,10 @@ impl CertificateStore {
         let (has_candidate, has_pending_dns) = {
             let index = self.index.lock().await;
             (
-                index.pending_candidates.contains_key(id),
+                index.pending_candidates.contains_key(id)
+                    || index.certificates.get(id).is_some_and(|entry| {
+                        entry.metadata.operation != CertificateOperation::Idle
+                    }),
                 index
                     .certificates
                     .get(id)
@@ -52,6 +55,9 @@ impl CertificateStore {
                     let previous_events = index.events.clone();
                     let previous_sequence = index.event_sequence;
                     let mut active = previous.clone();
+                    if let Some(acme) = active.acme.as_mut() {
+                        acme.manual_order = None;
+                    }
                     active.metadata.current_operation = Some(operation.clone());
                     active.metadata.updated_at = operation.updated_at.clone();
                     index.certificates.insert(id.to_owned(), active);
@@ -125,13 +131,22 @@ impl CertificateStore {
                     current
                         .acme
                         .as_ref()
+                        .and_then(|acme| acme.manual_order.clone()),
+                    current
+                        .acme
+                        .as_ref()
                         .map(|acme| acme.pending_dns_records.clone())
                         .unwrap_or_default(),
                 )),
             }
         };
-        let (base_material_id, activation_operation, mut current_operation, pending_dns_records) =
-            stage_context?;
+        let (
+            base_material_id,
+            activation_operation,
+            mut current_operation,
+            manual_order,
+            pending_dns_records,
+        ) = stage_context?;
         let acme = self.stored_acme_configuration(id, request)?;
         let result = self.stage_import_with_lease(
             id,
@@ -157,6 +172,7 @@ impl CertificateStore {
 
         if let Some(acme) = staged.stored.acme.as_mut() {
             acme.pending_dns_records = pending_dns_records;
+            acme.manual_order = manual_order;
         }
         let candidate = StoredCertificateCandidate {
             version: CANDIDATE_MANIFEST_VERSION,
@@ -206,6 +222,8 @@ impl CertificateStore {
         Ok(StoredAcmeConfiguration {
             contact_email: request.contact_email.clone(),
             challenge_type: request.challenge_type,
+            dns_mode: request.dns_mode,
+            manual_order: None,
             dns_provider,
             pending_dns_records: Vec::new(),
         })

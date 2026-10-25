@@ -1091,7 +1091,11 @@
                 "applied": "Angewendet",
                 "retry_scheduled": "Wiederholung geplant",
                 "failed": "Fehlgeschlagen",
-                "needs_attention": "Aufmerksamkeit erforderlich"
+                "needs_attention": "Aufmerksamkeit erforderlich",
+                "awaiting_dns": "Wartet auf deine TXT-Einträge",
+                "checking_dns": "Öffentliches DNS wird geprüft",
+                "cancelled": "Abgebrochen",
+                "expired": "Abgelaufen"
             },
             "cells": {
                 "moreDomains": "Weitere {{count}} Domains anzeigen"
@@ -1252,7 +1256,12 @@
                 "dns_credentials_unavailable": "DNS-Zugangsdaten sind nicht verfügbar.",
                 "runtime_apply_failed": "Das Zertifikat wurde gespeichert, konnte aber nicht auf die Proxy-Runtime angewendet werden.",
                 "certificate_store_unavailable": "Der Zertifikatsspeicher ist nicht verfügbar.",
-                "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar."
+                "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar.",
+                "manual_dns_not_propagated": "Einige TXT-Werte sind noch nicht öffentlich sichtbar. DNS-Verteilung abwarten und erneut prüfen.",
+                "manual_dns_lookup_failed": "DNS-Abfrage fehlgeschlagen. DNS prüfen und erneut versuchen.",
+                "manual_dns_expired": "Diese DNS-Challenge ist abgelaufen. Neue Anfrage oder Erneuerung starten.",
+                "manual_dns_cancelled": "Die manuelle DNS-Validierung wurde abgebrochen.",
+                "manual_dns_order_invalid": "Der ACME-Auftrag ist nicht mehr gültig. Neue Anfrage oder Erneuerung starten."
             },
             "validation": {
                 "name": "Gib einen Zertifikatsnamen ein.",
@@ -1273,6 +1282,55 @@
                 "label": "Zertifikatstyp",
                 "server": "Serverzertifikate",
                 "trusted": "Vertrauenswürdige CAs"
+            },
+            "manualDns": {
+                "setup": {
+                    "action": "TXT-Einträge einrichten",
+                    "title": "TXT-Einträge einrichten",
+                    "description": "Füge die TXT-Einträge bei deinem DNS-Anbieter hinzu und speichere deine Änderungen. Wähle Fertig und danach Zertifikat anfordern im Hauptdialog, um DNS zu prüfen und fortzufahren.",
+                    "preparing": "Anforderung wird bei der Zertifizierungsstelle vorbereitet…",
+                    "loading": "TXT-Einträge werden geladen…",
+                    "dnsInstructions": "Öffne die DNS-Einstellungen deiner Domain und füge einen Eintrag hinzu. Wähle TXT als Eintragstyp und trage jeden unten angezeigten Namen und Wert ein.",
+                    "ownerHint": "Manche Anbieter ergänzen die Domain automatisch. Gib den Namen so ein, dass der vollständige Name dem angezeigten TXT-Namen entspricht.",
+                    "valuesHint": "Mehrere Werte können denselben Namen haben. Füge jeden Wert hinzu und behalte andere vorhandene TXT-Werte bei.",
+                    "finish": "Fertig",
+                    "retry": "TXT-Einträge erneut laden",
+                    "reused": "Die Zertifizierungsstelle hat eine bestehende Autorisierung wiederverwendet. Es sind keine TXT-Einträge nötig. Wähle Fertig und fahre im Hauptdialog fort.",
+                    "blocked": "Schließe die Anleitung und prüfe die aktuelle Zertifikatsvalidierung.",
+                    "expires": "TXT-Einträge laufen am {{expires}} ab"
+                },
+                "mode": "DNS-Validierung",
+                "provider": "Automatisch (Provider-API)",
+                "manual": "Manuelle TXT-Einträge",
+                "title": "Manuelle DNS-Validierung",
+                "instructions": "Lege jeden gezeigten TXT-Wert unter dem exakten Namen an. Mehrere Werte können denselben Namen haben. Bestehende Werte erhalten.",
+                "expires": "Gültig bis",
+                "identifier": "Bezeichner",
+                "owner": "TXT-Name",
+                "value": "TXT-Wert",
+                "copyOwner": "Namen kopieren",
+                "copyValue": "Wert kopieren",
+                "lastChecked": "Letzte DNS-Prüfung",
+                "continue": "DNS prüfen und fortsetzen",
+                "cancel": "Validierung abbrechen",
+                "checking": "DNS-Prüfung gestartet. Sobald alle Werte sichtbar sind, geht die Validierung weiter.",
+                "cancelled": "Validierung abgebrochen. Das aktive Zertifikat bleibt erhalten.",
+                "cleanup": "Nach Abschluss, Abbruch oder Ablauf nur die exakt gezeigten TXT-Werte entfernen. Alle anderen Werte unter demselben Namen erhalten.",
+                "copied": "In die Zwischenablage kopiert.",
+                "copyFailed": "Kopieren fehlgeschlagen. Text bitte markieren und manuell kopieren.",
+                "preparing": "ACME-Auftrag wird vorbereitet. Details für die benötigten TXT-Werte geöffnet lassen.",
+                "status": {
+                    "awaiting_input": "Wartet auf deine TXT-Einträge",
+                    "checking_dns": "Öffentliches DNS wird geprüft",
+                    "validating": "Zertifizierungsstelle prüft",
+                    "finalizing": "Zertifikat wird fertiggestellt",
+                    "complete": "Abgeschlossen",
+                    "cancelled": "Abgebrochen",
+                    "expired": "Abgelaufen",
+                    "failed": "Fehlgeschlagen"
+                },
+                "openDetails": "TXT-Einträge und Validierung öffnen",
+                "handoff": "Ein Zertifikatsverantwortlicher muss die Zertifikatsdetails öffnen und die TXT-Werte veröffentlichen."
             }
         },
         "proxyHosts": {

@@ -248,6 +248,15 @@ const getCertificateDnsProviders = mock(async () => {
     ]
 })
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    getCertificatesHandler: mock(async () => []),
+    continueManualDnsHandler: mock(async () => ({
+        success: true as const,
+        message: 'admin.certificates.manualDns.checking',
+    })),
+    cancelManualDnsHandler: mock(async () => ({
+        success: true as const,
+        message: 'admin.certificates.manualDns.cancelled',
+    })),
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,
@@ -1449,7 +1458,11 @@ describe('proxy host form tabs', () => {
         )
         await click(getButton('Request certificate and save'))
         expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
-        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'DNS provider capabilities are unavailable',
+        )
+        expect(document.querySelector('form [role="alert"]')).toBeNull()
         expect(document.body.textContent).not.toContain('catalogue-secret')
     })
 
@@ -3711,4 +3724,34 @@ describe('public response cache form controls', () => {
         )
         expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
     })
+})
+
+test('manual DNS binding wait exposes a permission-gated link to its exact certificate details', async () => {
+    const job = certificateJobFixture({ stage: 'issuing', controllerStage: 'awaiting_dns' })
+    await renderCertificateProgress([job])
+    await waitFor(() => document.querySelector('button[data-severity]') !== null)
+    const alert = await openPageAlerts()
+    const link = alert.querySelector<HTMLAnchorElement>('a')
+    expect(link?.getAttribute('href')).toBe(
+        '/certificates?selectedCertificateId=' + job.certificateId,
+    )
+    expect(link?.textContent).toContain('Open TXT records and validation')
+    expect(getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-info')).toBeTrue()
+})
+
+test('manual DNS binding wait asks for an operator when certificate view permission is absent', async () => {
+    getCertificateJobProgressHandlerMock.mockResolvedValue([
+        certificateJobFixture({ stage: 'issuing', controllerStage: 'awaiting_dns' }),
+    ])
+    await render(
+        withQueryClient(
+            <CertificateJobProgressObserver permissions={[PERMISSIONS.PROXY_HOSTS_VIEW]} />,
+        ),
+    )
+    await waitFor(() => document.querySelector('button[data-severity]') !== null)
+    const alert = await openPageAlerts()
+    expect(alert.querySelector('a')).toBeNull()
+    expect(alert.textContent).toContain(
+        'A certificate operator must open these certificate details',
+    )
 })

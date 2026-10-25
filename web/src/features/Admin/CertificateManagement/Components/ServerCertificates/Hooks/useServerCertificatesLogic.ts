@@ -26,6 +26,7 @@ const EMPTY_CERTIFICATES: CertificateSummary[] = []
 
 export default function useServerCertificatesLogic({
     permissions,
+    selectedCertificateId,
 }: CertificateManagementPageProps): CertificateManagementLogicResult {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW)
@@ -35,6 +36,10 @@ export default function useServerCertificatesLogic({
         queryKey: certificateManagementQueryKeys.all,
         queryFn: () => getCertificatesHandler(),
         enabled: canView,
+        refetchInterval: (query) =>
+            query.state.data?.some((certificate) => certificate.operation !== 'idle')
+                ? 3_000
+                : false,
     })
     useLiveInvalidation({
         topic: 'certificates',
@@ -47,6 +52,7 @@ export default function useServerCertificatesLogic({
     const [requestDefaults, setRequestDefaults] = useState<{ domains?: string[]; name?: string }>(
         {},
     )
+    const [dismissedSelection, setDismissedSelection] = useState<string | null>(null)
     const [detailsTarget, setDetailsTarget] = useState<CertificateSummary | null>(null)
     const [replaceTarget, setReplaceTarget] = useState<CertificateSummary | null>(null)
     const [renewTarget, setRenewTarget] = useState<CertificateSummary | null>(null)
@@ -141,9 +147,15 @@ export default function useServerCertificatesLogic({
         },
         [deleteMutation],
     )
-    const setDetailsDialogOpen = useCallback((open: boolean) => {
-        if (!open) setDetailsTarget(null)
-    }, [])
+    const setDetailsDialogOpen = useCallback(
+        (open: boolean) => {
+            if (!open) {
+                setDetailsTarget(null)
+                setDismissedSelection(selectedCertificateId ?? null)
+            }
+        },
+        [selectedCertificateId],
+    )
     const setReplaceDialogOpen = useCallback((open: boolean) => {
         if (!open) setReplaceTarget(null)
     }, [])
@@ -171,19 +183,34 @@ export default function useServerCertificatesLogic({
     const confirmDelete = useCallback(async () => {
         if (deleteTarget) await deleteMutation.mutateAsync(deleteTarget.id).catch(() => undefined)
     }, [deleteMutation, deleteTarget])
-    const handleFormSuccess = useCallback(async () => {
-        await invalidateCertificateQueries()
-        setImportOpen(false)
-        setReplaceTarget(null)
-        setRequestOpen(false)
-    }, [invalidateCertificateQueries])
+    const handleFormSuccess = useCallback(
+        async (certificateId?: string) => {
+            // The mutation already succeeded; refresh failures remain query errors.
+            await invalidateCertificateQueries().catch(() => undefined)
+            setImportOpen(false)
+            setReplaceTarget(null)
+            setRequestOpen(false)
+            if (certificateId) {
+                const data = queryClient.getQueryData<CertificateSummary[]>(
+                    certificateManagementQueryKeys.all,
+                )
+                const created = data?.find((certificate) => certificate.id === certificateId)
+                if (created) setDetailsTarget(created)
+            }
+        },
+        [invalidateCertificateQueries, queryClient],
+    )
     const retry = useCallback(() => {
         void certificatesQuery.refetch()
     }, [certificatesQuery])
     const currentDetailsTarget = detailsTarget
         ? (certificatesQuery.data?.find((certificate) => certificate.id === detailsTarget.id) ??
           detailsTarget)
-        : null
+        : selectedCertificateId && selectedCertificateId !== dismissedSelection
+          ? (certificatesQuery.data?.find(
+                (certificate) => certificate.id === selectedCertificateId,
+            ) ?? null)
+          : null
 
     useQuickAction(
         'importCertificate',

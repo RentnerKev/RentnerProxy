@@ -190,7 +190,7 @@ impl ProxyRuntime {
     }
 }
 
-fn requested_identifier(
+pub(super) fn requested_identifier(
     authorized: &instant_acme::AuthorizedIdentifier<'_>,
     requested: &[String],
 ) -> Result<(String, String), CertificateError> {

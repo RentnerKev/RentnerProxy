@@ -1,12 +1,10 @@
 use super::scheduling::{valid_fingerprint, valid_timestamp};
-use super::validation::{
-    dns_intent_belongs_to, is_certificate_domain, read_regular_private_file, write_private_file,
-};
+use super::validation::{is_certificate_domain, read_regular_private_file, write_private_file};
 use super::{
-    AcmeChallengeType, CANDIDATE_MANIFEST_FILE, CANDIDATE_MANIFEST_VERSION, CertificateError,
-    CertificateEventKind, CertificateIndex, CertificateOperation, CertificateOperationStage,
-    CertificateSource, CertificateStatus, ErrorKind, MAX_ACME_RETRY_DELAY_SECONDS,
-    MAX_CANDIDATE_MANIFEST_BYTES, MAX_CANDIDATE_RETRY_DELAY_SECONDS, MIN_ACME_RETRY_DELAY_SECONDS,
+    CANDIDATE_MANIFEST_FILE, CANDIDATE_MANIFEST_VERSION, CertificateError, CertificateEventKind,
+    CertificateIndex, CertificateOperation, CertificateOperationStage, CertificateSource,
+    CertificateStatus, ErrorKind, MAX_ACME_RETRY_DELAY_SECONDS, MAX_CANDIDATE_MANIFEST_BYTES,
+    MAX_CANDIDATE_RETRY_DELAY_SECONDS, MIN_ACME_RETRY_DELAY_SECONDS,
     MIN_CANDIDATE_RETRY_DELAY_SECONDS, OperationKind, SafeDir, StoredCertificateCandidate,
     is_canonical_uuid_v7, operations,
 };
@@ -358,22 +356,6 @@ pub(super) fn candidate_is_valid(id: &str, candidate: &StoredCertificateCandidat
                 (MIN_CANDIDATE_RETRY_DELAY_SECONDS..=MAX_CANDIDATE_RETRY_DELAY_SECONDS)
                     .contains(&delay)
             })
-        && staged.acme.as_ref().is_some_and(|acme| {
-            let provider_is_valid = match acme.challenge_type {
-                AcmeChallengeType::Http01 => acme.dns_provider.is_none(),
-                AcmeChallengeType::Dns01 => acme.dns_provider.as_ref().is_some_and(|config| {
-                    config.version == 1
-                        && config.nonce.len() == 12
-                        && (16..=8 * 1024).contains(&config.ciphertext.len())
-                }),
-            };
-            provider_is_valid
-                && acme.pending_dns_records.len() <= 256
-                && acme
-                    .pending_dns_records
-                    .iter()
-                    .all(|intent| dns_intent_belongs_to(intent, id))
-                && (acme.challenge_type == AcmeChallengeType::Dns01
-                    || acme.pending_dns_records.is_empty())
-        })
+        && staged.acme.is_some()
+        && super::validation::acme_configuration_is_valid(id, staged)
 }

@@ -164,7 +164,12 @@ async function persistFetchedBatch(batch: FetchedEvents): Promise<boolean> {
             newEvents.map((event) => ({
                 actorUserId: null,
                 actorKind: 'system',
-                action: event.kind,
+                action:
+                    event.kind === 'operator_action_required' ||
+                    event.kind === 'cancelled' ||
+                    event.kind === 'expired'
+                        ? 'update'
+                        : event.kind,
                 resource: 'certificate',
                 targetId: event.certificateId,
                 result: eventResult(event),

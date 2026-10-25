@@ -7,6 +7,7 @@ export const hostCertificateRequestSchema = z.strictObject({
     name: requestFields.name,
     environment: requestFields.environment,
     challengeType: requestFields.challengeType,
+    dnsMode: requestFields.dnsMode,
     dnsProvider: requestFields.dnsProvider,
     contactEmail: requestFields.contactEmail,
     acceptTerms: requestFields.acceptTerms,

@@ -31,6 +31,7 @@ const payload = z.strictObject({
     severity: z.enum([...NOTIFICATION_SEVERITIES, 'info']),
     resourceId: z.string().min(1).max(512),
     code: z.enum([
+        'certificate_renewal_manual_dns_required',
         'certificate_renewal_failed',
         'ddns_update_failed',
         'proxy_apply_failed',
@@ -65,6 +66,7 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
                     observedAt: time,
                     evidence: z.string().max(512),
                     failures: counter,
+                    code: z.literal('certificate_renewal_manual_dns_required').optional(),
                     recoveredAt: time.nullable(),
                     recoveryEvidence: z.string().length(64).nullable(),
                     channels: z

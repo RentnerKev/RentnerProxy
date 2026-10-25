@@ -109,6 +109,20 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             }),
         )
         .route(
+            "/internal/v1/certificates/{id}/dns-01/continue",
+            post({
+                let state = state.clone();
+                move |id, body| handlers::continue_manual_dns(id, state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/dns-01/cancel",
+            post({
+                let state = state.clone();
+                move |id, body| handlers::cancel_manual_dns(id, state.clone(), body)
+            }),
+        )
+        .route(
             "/internal/v1/trusted-cas/validate",
             post(validate_trusted_ca),
         )

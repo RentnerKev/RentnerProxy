@@ -33,7 +33,12 @@ impl CertificateStore {
                     .any(|domain| domain.starts_with("*.")))
             || (request.challenge_type == AcmeChallengeType::Http01
                 && request.dns_provider.is_some())
+            || (request.challenge_type == AcmeChallengeType::Http01
+                && request.dns_mode == super::DnsValidationMode::Manual)
+            || (request.dns_mode == super::DnsValidationMode::Manual
+                && request.dns_provider.is_some())
             || (request.challenge_type == AcmeChallengeType::Dns01
+                && request.dns_mode == super::DnsValidationMode::Provider
                 && request.dns_provider.is_none())
             || (!renewal && !request.accept_terms)
             || request
@@ -44,6 +49,7 @@ impl CertificateStore {
             return Err(if !request.accept_terms && !renewal {
                 CertificateError::TermsRequired
             } else if request.challenge_type == AcmeChallengeType::Dns01
+                && request.dns_mode == super::DnsValidationMode::Provider
                 && request.dns_provider.is_none()
             {
                 CertificateError::AcmeDnsRequired
@@ -307,6 +313,9 @@ impl CertificateStore {
         attempted.metadata.last_attempt_at = Some(now.clone());
         attempted.metadata.updated_at = now;
         attempted.metadata.current_operation = Some(operation.clone());
+        if let Some(acme) = attempted.acme.as_mut() {
+            acme.manual_order = None;
+        }
         index.certificates.insert(id.to_owned(), attempted.clone());
         let previous_events = index.events.clone();
         let previous_event_sequence = index.event_sequence;
@@ -354,6 +363,11 @@ impl CertificateStore {
                 .as_ref()
                 .and_then(|acme| acme.contact_email.clone()),
             challenge_type,
+            dns_mode: attempted
+                .acme
+                .as_ref()
+                .map(|acme| acme.dns_mode)
+                .unwrap_or_default(),
             dns_provider,
             accept_terms: true,
         };

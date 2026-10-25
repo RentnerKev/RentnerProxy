@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { supportsDns01 } from '@/lib/DnsConnections/dnsProviders.ts'
 import { getCertificateDnsProvidersHandler } from '../middleware.ts'
 
-export default function useCertificateDnsProviders() {
+export default function useCertificateDnsProviders(enabled = true) {
     const query = useQuery({
         queryKey: ['dns-providers', 'certificates'],
         queryFn: () => getCertificateDnsProvidersHandler(),
         retry: false,
+        enabled,
     })
     const dnsProviders = query.isError ? [] : (query.data ?? []).filter(supportsDns01)
     return { dnsProviders, dnsAvailable: dnsProviders.length > 0 }

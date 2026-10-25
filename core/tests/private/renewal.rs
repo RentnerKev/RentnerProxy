@@ -71,6 +71,8 @@ fn retry_requires_valid_deadline_and_issue_or_renew_operation() {
         stage: certificates::CertificateOperationStage::RetryScheduled,
         started_at: certificate.updated_at.clone(),
         updated_at: certificate.updated_at.clone(),
+        dns_mode: None,
+        manual_dns: None,
     });
     assert!(ProxyRuntime::acme_retry_is_due_at(&certificate, now));
     certificate.current_operation.as_mut().unwrap().kind = certificates::OperationKind::Import;
@@ -166,6 +168,8 @@ fn failed_initial_issue_is_retried_at_its_deadline_without_certificate_dates() {
         stage: certificates::CertificateOperationStage::RetryScheduled,
         started_at: certificate.updated_at.clone(),
         updated_at: certificate.updated_at.clone(),
+        dns_mode: None,
+        manual_dns: None,
     });
     assert!(!ProxyRuntime::renewal_is_due_at(&certificate, now));
     assert!(!ProxyRuntime::acme_retry_is_due_at(

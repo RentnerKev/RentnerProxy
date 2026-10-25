@@ -19,6 +19,50 @@ const timestamp = z
     .max(40)
     .refine((value) => /^\d{4}-\d{2}-\d{2}T/u.test(value) && Number.isFinite(Date.parse(value)))
 
+const manualDnsSchema = z.strictObject({
+    challengeSetId: z.uuidv7(),
+    status: z.enum([
+        'awaiting_input',
+        'checking_dns',
+        'validating',
+        'finalizing',
+        'complete',
+        'cancelled',
+        'expired',
+        'failed',
+    ]),
+    expiresAt: timestamp,
+    records: z
+        .array(
+            z.strictObject({
+                identifier: z
+                    .string()
+                    .max(253)
+                    .refine((value) => normalizeCertificateDomain(value) === value),
+                owner: z
+                    .string()
+                    .max(269)
+                    .regex(/^_acme-challenge\.[a-z0-9.-]+$/u),
+                value: z.string().regex(/^[A-Za-z0-9_-]{43}$/u),
+                expiresAt: timestamp,
+            }),
+        )
+        .min(1)
+        .max(MAX_CERTIFICATE_DOMAINS)
+        .superRefine((records, context) => {
+            for (const [index, record] of records.entries()) {
+                if (record.owner !== `_acme-challenge.${record.identifier.replace(/^\*\./u, '')}`)
+                    context.addIssue({
+                        code: 'custom',
+                        path: [index, 'owner'],
+                        message: 'Invalid TXT owner.',
+                    })
+            }
+        }),
+    lastCheckedAt: timestamp.nullable(),
+    lastErrorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
+})
+
 export const certificateMetadataSchema = z
     .object({
         id: z.uuid(),
@@ -35,10 +79,12 @@ export const certificateMetadataSchema = z
         status: z.enum(CERTIFICATE_STORED_STATUSES),
         operation: z.enum(CERTIFICATE_OPERATIONS),
         currentOperation: z
-            .object({
+            .strictObject({
                 id: z.uuid(),
                 kind: z.enum(CERTIFICATE_OPERATION_KINDS),
                 stage: z.enum(CERTIFICATE_OPERATION_STAGES),
+                dnsMode: z.enum(['provider', 'manual']).optional(),
+                manualDns: manualDnsSchema.optional(),
                 startedAt: timestamp,
                 updatedAt: timestamp,
             })

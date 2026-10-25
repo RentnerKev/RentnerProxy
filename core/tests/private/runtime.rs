@@ -1025,6 +1025,7 @@ async fn runtime_with_issued_candidate(
         environment: CertificateEnvironment::Staging,
         contact_email: None,
         challenge_type: Default::default(),
+        dns_mode: Default::default(),
         dns_provider: None,
         accept_terms: true,
     };

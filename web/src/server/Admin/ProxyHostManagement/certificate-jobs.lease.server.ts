@@ -34,7 +34,10 @@ export async function claimCertificateJob(): Promise<CertificateJobRow | null> {
             .set({
                 leaseToken: randomUUID(),
                 leaseExpiresAt: new Date(now.getTime() + 90_000),
-                attemptCount: sql`least(${certificateJobs.attemptCount} + 1, 2147483647)`,
+                attemptCount:
+                    job.controllerStage === 'awaiting_dns'
+                        ? job.attemptCount
+                        : sql`least(${certificateJobs.attemptCount} + 1, 2147483647)`,
             })
             .where(eq(certificateJobs.id, job.id))
             .returning()
@@ -72,7 +75,7 @@ export async function releaseCertificateJob(
                 ...changes,
                 leaseToken: null,
                 leaseExpiresAt: null,
-                nextAttemptAt: new Date(Date.now() + 5_000),
+                nextAttemptAt: changes.nextAttemptAt ?? new Date(Date.now() + 5_000),
                 updatedAt: new Date(),
             })
             .where(eq(certificateJobs.id, current.id))
