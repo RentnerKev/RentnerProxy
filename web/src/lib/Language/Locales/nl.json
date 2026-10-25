@@ -617,7 +617,7 @@
                 "registrationComplete": "Registratie van passkey kon niet worden voltooid.",
                 "registrationFailed": "Registratie van passkey mislukt.",
                 "invalidDomain": "Passkeys kunnen niet worden geregistreerd via een IP-adres. Open de app op localhost voor lokale ontwikkeling of gebruik het HTTPS-domein.",
-                "invalidRpId": "Dit adres komt niet overeen met het ingestelde passkeydomein. Open de app via de ingestelde RENTNERPROXY_PUBLIC_ORIGIN en probeer het opnieuw.",
+                "invalidRpId": "Dit adres komt niet overeen met het ingestelde passkeydomein. Open de app via de ingestelde PUBLIC_ORIGIN en probeer het opnieuw.",
                 "notFound": "De passkey bestaat niet meer.",
                 "rename": "De naam van de passkey kon niet worden opgeslagen.",
                 "remove": "De passkey kon niet worden verwijderd."

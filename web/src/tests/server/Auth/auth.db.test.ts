@@ -2069,12 +2069,12 @@ describe('account security with PostgreSQL and Valkey', () => {
         'enables SHA256 TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
         async () => {
             const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
-            const originalPublicOrigin = process.env.RENTNERPROXY_PUBLIC_ORIGIN
+            const originalPublicOrigin = process.env.PUBLIC_ORIGIN
             const originalRpId = process.env.WEBAUTHN_RP_ID
             process.env.APP_ENCRYPTION_KEY = Buffer.from(
                 crypto.getRandomValues(new Uint8Array(32)),
             ).toString('base64')
-            process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:3000'
+            process.env.PUBLIC_ORIGIN = 'http://localhost:3000'
             process.env.WEBAUTHN_RP_ID = 'localhost'
 
             try {
@@ -2452,9 +2452,8 @@ describe('account security with PostgreSQL and Valkey', () => {
             } finally {
                 if (originalEncryptionKey === undefined) delete process.env.APP_ENCRYPTION_KEY
                 else process.env.APP_ENCRYPTION_KEY = originalEncryptionKey
-                if (originalPublicOrigin === undefined)
-                    delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
-                else process.env.RENTNERPROXY_PUBLIC_ORIGIN = originalPublicOrigin
+                if (originalPublicOrigin === undefined) delete process.env.PUBLIC_ORIGIN
+                else process.env.PUBLIC_ORIGIN = originalPublicOrigin
                 if (originalRpId === undefined) delete process.env.WEBAUTHN_RP_ID
                 else process.env.WEBAUTHN_RP_ID = originalRpId
             }

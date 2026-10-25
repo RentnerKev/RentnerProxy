@@ -7,10 +7,81 @@ use std::{
 
 use crate::config::{
     CONTROLLER_TOKEN_ENV, CONTROLLER_TOKEN_FILE_ENV, Config, ConfigError,
-    read_controller_token_sources,
+    read_controller_token_sources, read_trusted_proxy_cidrs,
 };
 
 static NEXT_SECRET_FILE: AtomicU64 = AtomicU64::new(0);
+
+#[test]
+fn trusted_proxy_environment_aliases_preserve_precedence_and_log_migration_guidance() {
+    use std::{
+        io,
+        sync::{Arc, Mutex},
+    };
+
+    #[derive(Clone)]
+    struct Captured(Arc<Mutex<Vec<u8>>>);
+    impl io::Write for Captured {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let output = Captured(Arc::new(Mutex::new(Vec::new())));
+    let writer = output.clone();
+    let subscriber = tracing_subscriber::fmt()
+        .json()
+        .with_writer(move || writer.clone())
+        .finish();
+    tracing::subscriber::with_default(subscriber, || {
+        let read = |primary: Option<&str>, legacy: Option<&str>| {
+            read_trusted_proxy_cidrs(|variable| {
+                Ok(match variable {
+                    "PROXY_TRUSTED_PROXY_CIDRS" => primary.map(str::to_owned),
+                    "RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS" => legacy.map(str::to_owned),
+                    _ => panic!("unexpected environment variable: {variable}"),
+                })
+            })
+        };
+
+        assert!(read(None, None).unwrap().is_empty());
+        assert_eq!(read(None, Some("192.0.2.0/24")).unwrap(), ["192.0.2.0/24"]);
+        assert_eq!(
+            read(Some("2001:db8::/64"), None).unwrap(),
+            ["2001:db8::/64"]
+        );
+        assert_eq!(
+            read(Some("2001:db8::/64"), Some("192.0.2.0/24")).unwrap(),
+            ["2001:db8::/64"]
+        );
+        assert!(read(Some(""), Some("192.0.2.0/24")).unwrap().is_empty());
+        assert_eq!(
+            read(Some("192.0.2.0/24"), Some("invalid")).unwrap(),
+            ["192.0.2.0/24"]
+        );
+        assert!(read(Some("0.0.0.0/0"), Some("192.0.2.0/24")).is_err());
+        assert!(read(None, Some("0.0.0.0/0")).is_err());
+        assert!(read(None, Some("")).unwrap().is_empty());
+    });
+    let bytes = output.0.lock().unwrap();
+    let diagnostic = String::from_utf8_lossy(&bytes);
+    let lines: Vec<_> = diagnostic.lines().collect();
+    assert_eq!(lines.len(), 7);
+    for line in lines {
+        let fields: serde_json::Value = serde_json::from_str(line).unwrap();
+        assert_eq!(fields["level"], "WARN");
+        let message = fields["fields"]["message"].as_str().unwrap();
+        assert!(message.contains("RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS is deprecated"));
+        assert!(message.contains("Please rename it to PROXY_TRUSTED_PROXY_CIDRS"));
+        assert!(!message.contains("192.0.2.0/24"));
+        assert!(!message.contains("2001:db8::/64"));
+    }
+}
 
 #[test]
 fn trusted_proxy_cidrs_default_empty_and_validate_explicit_networks() {

@@ -29,6 +29,7 @@ COPY --from=web-build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstra
 COPY --from=web-build /app/docker/web/validate-backup.ts ./docker/web/validate-backup.ts
 COPY --from=web-build /app/web/src/config/compatibility.config.ts ./web/src/config/compatibility.config.ts
 COPY --from=web-build /app/web/src/lib/ApplicationVersion/backupCompatibility.ts ./web/src/lib/ApplicationVersion/backupCompatibility.ts
+COPY --from=web-build /app/web/src/lib/Environment/deployment-environment.ts ./web/src/lib/Environment/deployment-environment.ts
 COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
 COPY --from=web-build /app/docker/web/serve.ts ./docker/web/serve.ts

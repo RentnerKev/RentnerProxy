@@ -6,7 +6,7 @@ export function createMailUrl(appUrl: string, path: string): URL {
     try {
         configured = new URL(appUrl)
     } catch {
-        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
+        throw new Error('PUBLIC_ORIGIN is invalid.')
     }
     if (
         (configured.protocol !== 'http:' && configured.protocol !== 'https:') ||
@@ -14,7 +14,7 @@ export function createMailUrl(appUrl: string, path: string): URL {
         configured.password ||
         !configured.hostname
     ) {
-        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
+        throw new Error('PUBLIC_ORIGIN is invalid.')
     }
     return new URL(path, configured.origin)
 }

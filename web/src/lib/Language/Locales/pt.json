@@ -638,7 +638,7 @@
                 "registrationComplete": "Não foi possível concluir o registo da chave de acesso.",
                 "registrationFailed": "O registo da chave de acesso falhou.",
                 "invalidDomain": "Não é possível registar chaves de acesso através de um endereço IP. Para desenvolvimento local, abra a aplicação em localhost ou utilize o domínio HTTPS.",
-                "invalidRpId": "Este endereço não corresponde ao domínio configurado para as chaves de acesso. Abra a aplicação no RENTNERPROXY_PUBLIC_ORIGIN configurado e tente novamente.",
+                "invalidRpId": "Este endereço não corresponde ao domínio configurado para as chaves de acesso. Abra a aplicação no PUBLIC_ORIGIN configurado e tente novamente.",
                 "notFound": "A chave de acesso já não existe.",
                 "rename": "Não foi possível guardar o nome da chave de acesso.",
                 "remove": "Não foi possível remover a chave de acesso."

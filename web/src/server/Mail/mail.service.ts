@@ -219,7 +219,7 @@ async function getRequiredPublicOrigin(): Promise<string> {
     const publicOrigin = getPublicOrigin()
 
     if (!publicOrigin) {
-        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is not configured.')
+        throw new Error('PUBLIC_ORIGIN is not configured.')
     }
 
     return publicOrigin

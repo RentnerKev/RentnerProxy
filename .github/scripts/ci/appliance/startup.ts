@@ -29,7 +29,7 @@ export async function verifyApplianceStartup(context: ApplianceStartupContext) {
         services: Record<
             string,
             {
-                environment?: Record<string, string>
+                environment?: Record<string, string | null>
                 image?: string
                 ports?: Array<{ published: string; target: number; protocol: string }>
                 volumes?: Array<{ source?: string; target: string }>
@@ -45,16 +45,17 @@ export async function verifyApplianceStartup(context: ApplianceStartupContext) {
         Object.keys(service.environment ?? {}).toSorted(),
         [
             ...context.smtpNames,
-            'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
+            'PROXY_TRUSTED_PROXY_CIDRS',
             'RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT',
+            'PUBLIC_ORIGIN',
+            'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
             'RENTNERPROXY_PUBLIC_ORIGIN',
         ].toSorted(),
     )
-    assert.equal(
-        service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS,
-        context.trustedProxyCidrs,
-    )
-    assert.equal(service.environment?.RENTNERPROXY_PUBLIC_ORIGIN, context.publicOrigin)
+    assert.equal(service.environment?.PROXY_TRUSTED_PROXY_CIDRS, context.trustedProxyCidrs)
+    assert.equal(service.environment?.PUBLIC_ORIGIN, context.publicOrigin)
+    assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, null)
+    assert.equal(service.environment?.RENTNERPROXY_PUBLIC_ORIGIN, null)
     assert.deepEqual(
         (service.ports ?? []).map(({ published, target, protocol }) => ({
             published,

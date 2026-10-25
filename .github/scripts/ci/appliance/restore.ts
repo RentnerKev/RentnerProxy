@@ -187,11 +187,9 @@ export async function verifyApplianceRestore(context: ApplianceRestoreContext) {
     const restoredEnvironment = JSON.parse(
         await context.inspect(restoredId, '{{json .Config.Env}}'),
     ) as string[]
-    assert.ok(restoredEnvironment.includes('RENTNERPROXY_PUBLIC_ORIGIN=' + context.publicOrigin))
+    assert.ok(restoredEnvironment.includes('PUBLIC_ORIGIN=' + context.publicOrigin))
     assert.ok(
-        restoredEnvironment.includes(
-            'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + context.trustedProxyCidrs,
-        ),
+        restoredEnvironment.includes('PROXY_TRUSTED_PROXY_CIDRS=' + context.trustedProxyCidrs),
     )
     const restoredSavedExternalConfig = JSON.parse(
         await context.command([

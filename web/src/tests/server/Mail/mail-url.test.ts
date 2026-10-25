@@ -27,8 +27,6 @@ describe('external mail logo URLs', () => {
         'file:///private',
         'https://user:pass@proxy.example',
     ])('rejects unsafe configured origins: %s', (origin) => {
-        expect(() => createMailLogoUrl(origin, '#8844ee')).toThrow(
-            'RENTNERPROXY_PUBLIC_ORIGIN is invalid.',
-        )
+        expect(() => createMailLogoUrl(origin, '#8844ee')).toThrow('PUBLIC_ORIGIN is invalid.')
     })
 })

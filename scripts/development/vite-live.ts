@@ -1,4 +1,5 @@
 import { LIVE_SNAPSHOT_PATH } from '../../web/src/config/realtime.config.ts'
+import { readDeploymentEnvironmentVariable } from '../../web/src/lib/Environment/deployment-environment.ts'
 import { createLiveWebSocketRuntime } from '../../web/src/server/WebSockets/realtimeWebSocket.ts'
 import type { LiveSocketData } from '../../web/src/server/WebSockets/Types/bun.types.ts'
 import type { Plugin, UserConfig, ViteDevServer } from 'vite'
@@ -20,7 +21,7 @@ export function createLiveVitePlugin(): Plugin {
     let runtime: ReturnType<typeof createLiveWebSocketRuntime> | null = null
     let sidecar: Bun.Server<LiveSocketData> | null = null
     let localOrigin: { value: string } | null = null
-    const configuredOrigin = process.env.RENTNERPROXY_PUBLIC_ORIGIN?.trim()
+    const configuredOrigin = readDeploymentEnvironmentVariable('PUBLIC_ORIGIN')?.trim()
     let cleaned = false
 
     function cleanup(): void {

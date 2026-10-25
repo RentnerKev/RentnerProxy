@@ -266,11 +266,7 @@ export async function verifyCertificateSetup(context: CertificateSetupContext) {
             '--env',
             'RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT=' + httpsPort,
             '--env',
-            'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' +
-                trustedProxyIpv4 +
-                '/32,' +
-                trustedProxyIpv6 +
-                '/128',
+            'PROXY_TRUSTED_PROXY_CIDRS=' + trustedProxyIpv4 + '/32,' + trustedProxyIpv6 + '/128',
             '--env',
             'RENTNERPROXY_ACME_TEST_DIRECTORY_URL=https://pebble:14000/dir',
             '--env',

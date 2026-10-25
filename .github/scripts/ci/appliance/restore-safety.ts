@@ -145,8 +145,8 @@ export async function verifyApplianceRestoreSafety(context: ApplianceRestoreSafe
     const changedTrustedProxyCidrs = '192.0.2.0/24'
     const changedDeploymentEnvironment: NodeJS.ProcessEnv = {
         ...context.scriptEnvironment,
-        RENTNERPROXY_PUBLIC_ORIGIN: changedPublicOrigin,
-        RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: changedTrustedProxyCidrs,
+        PUBLIC_ORIGIN: changedPublicOrigin,
+        PROXY_TRUSTED_PROXY_CIDRS: changedTrustedProxyCidrs,
     }
     await assertRestorePreflightFailure(
         context.backupPath,
@@ -178,11 +178,9 @@ export async function verifyApplianceRestoreSafety(context: ApplianceRestoreSafe
     const deploymentChangeRuntime = JSON.parse(
         await context.inspect(deploymentChangeId, '{{json .Config.Env}}'),
     ) as string[]
-    assert.ok(deploymentChangeRuntime.includes('RENTNERPROXY_PUBLIC_ORIGIN=' + changedPublicOrigin))
+    assert.ok(deploymentChangeRuntime.includes('PUBLIC_ORIGIN=' + changedPublicOrigin))
     assert.ok(
-        deploymentChangeRuntime.includes(
-            'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + changedTrustedProxyCidrs,
-        ),
+        deploymentChangeRuntime.includes('PROXY_TRUSTED_PROXY_CIDRS=' + changedTrustedProxyCidrs),
     )
     await context.assertRealTraffic(
         deploymentChangeId,

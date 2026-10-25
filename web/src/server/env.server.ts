@@ -11,6 +11,7 @@ import {
     PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE,
 } from '@/config/management-origin.config.ts'
 import { parsePublicOrigin } from '@/lib/ManagementOrigin/origin.ts'
+import { readDeploymentEnvironmentVariable } from '@/lib/Environment/deployment-environment.ts'
 
 const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const MAXIMUM_SECRET_FILE_BYTES = 4_096
@@ -203,7 +204,7 @@ export function getValkeyUrl(): string | null {
 }
 
 export function getPublicOrigin(): string | null {
-    const configured = process.env[PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE]
+    const configured = readDeploymentEnvironmentVariable(PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE)
     const environment = process.env.NODE_ENV === 'production' ? 'production' : 'development'
 
     if (configured === undefined && environment === 'development') {
@@ -323,7 +324,7 @@ export function validateProductionEnvironment(): void {
         }
         if (!publicOrigin) {
             message +=
-                ' Set RENTNERPROXY_PUBLIC_ORIGIN to a valid deployment origin. For Alpha 3 upgrades, use the previous management origin from management_origin_v1; Alpha 4 does not read that database value automatically.'
+                ' Set PUBLIC_ORIGIN to a valid deployment origin. For Alpha 3 upgrades, use the previous management origin from management_origin_v1; Alpha 4 does not read that database value automatically.'
         }
         throw new Error(message)
     }

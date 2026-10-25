@@ -169,6 +169,8 @@ function composeFile(image: string, upstreamPort: number): string {
                         SMTP_PORT: '587',
                         SMTP_SECURE: 'false',
                         SMTP_USER: 'compat',
+                        PUBLIC_ORIGIN: 'https://management.compat.invalid',
+                        PROXY_TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
                         RENTNERPROXY_PUBLIC_ORIGIN: 'https://management.compat.invalid',
                         RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
                     },

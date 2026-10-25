@@ -385,7 +385,7 @@ try {
         '--publish',
         '127.0.0.1::8443',
         '--env',
-        'RENTNERPROXY_PUBLIC_ORIGIN=https://drain-management.example.invalid',
+        'PUBLIC_ORIGIN=https://drain-management.example.invalid',
         '--env',
         'SMTP_HOST=127.0.0.1',
         '--env',

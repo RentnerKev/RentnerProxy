@@ -1,5 +1,6 @@
 import type { CommandOptions } from './backup/Types/production-backup.types.ts'
 import { CURRENT_COMPATIBILITY_PROFILE } from '../web/src/config/compatibility.config.ts'
+import { readDeploymentEnvironmentVariable } from '../web/src/lib/Environment/deployment-environment.ts'
 import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
 import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
 import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
@@ -83,12 +84,14 @@ async function backup(): Promise<void> {
     const config = JSON.parse(
         await runCommand([...compose, 'config', '--format=json'], 'inspect deployment'),
     ) as {
-        services: { rentnerproxy: { image: string; environment: Record<string, string> } }
+        services: { rentnerproxy: { image: string; environment: Record<string, string | null> } }
     }
     const service = config.services.rentnerproxy
     const deployment = deploymentSchema.parse({
-        publicOrigin: service.environment.RENTNERPROXY_PUBLIC_ORIGIN,
-        trustedProxyCidrs: service.environment.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS ?? '',
+        publicOrigin: readDeploymentEnvironmentVariable('PUBLIC_ORIGIN', service.environment),
+        trustedProxyCidrs:
+            readDeploymentEnvironmentVariable('PROXY_TRUSTED_PROXY_CIDRS', service.environment) ??
+            '',
     })
     const image = JSON.parse(
         await runCommand(
