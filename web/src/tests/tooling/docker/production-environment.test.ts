@@ -3,6 +3,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readDeploymentEnvironmentVariable } from '@/lib/Environment/deployment-environment.ts'
+import { parsePublicOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url))
 
@@ -113,9 +115,16 @@ describe.skipIf(Bun.which('docker') === null)('production Compose environment al
         ).toBe('')
     })
 
-    test('leaves an absent origin empty for the appliance startup guard', async () => {
+    test('keeps a missing public origin invalid for application startup validation', async () => {
         const result = await render({})
         expect(result.exit, result.stderr).toBe(0)
-        expect(JSON.parse(result.stdout).services.rentnerproxy.environment.PUBLIC_ORIGIN).toBe('')
+        const environment = JSON.parse(result.stdout).services.rentnerproxy.environment
+        expect(environment.PUBLIC_ORIGIN).toBe('')
+        expect(
+            parsePublicOrigin(
+                readDeploymentEnvironmentVariable('PUBLIC_ORIGIN', environment),
+                'production',
+            ),
+        ).toBeNull()
     })
 })
