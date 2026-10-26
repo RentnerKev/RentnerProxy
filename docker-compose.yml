@@ -1,6 +1,6 @@
 services:
     rentnerproxy:
-        image: ${RENTNERPROXY_IMAGE:?Set RENTNERPROXY_IMAGE to a Valkey-based RentnerProxy image}
+        image: ${RENTNERPROXY_IMAGE:?Set RENTNERPROXY_IMAGE to a RentnerProxy image}
         environment:
             # Older Compose versions eagerly expand required-value fallbacks; startup validates the origin.
             PUBLIC_ORIGIN: ${PUBLIC_ORIGIN-${RENTNERPROXY_PUBLIC_ORIGIN-}}
