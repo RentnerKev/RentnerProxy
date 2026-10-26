@@ -67,6 +67,8 @@ export default function useCertificateRequest({
                 ])
                 const connection = connections?.find((item) => item.id === value.dnsConnectionId)
                 if (
+                    queryClient.getQueryState(['dns-connections', 'certificates'])?.status ===
+                        'error' ||
                     !connection ||
                     !connectionSupportsOperation(connection, providers, 'dns01') ||
                     !verifiedConnectionZones(connection).some(

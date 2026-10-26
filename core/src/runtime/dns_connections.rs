@@ -43,6 +43,7 @@ pub(crate) struct Store {
     state: Mutex<Option<Registry>>,
     pub(crate) bindings: Mutex<()>,
     checks: Mutex<()>,
+    cleanup_cursor: std::sync::atomic::AtomicUsize,
     #[cfg(test)]
     key: Option<[u8; 32]>,
     #[cfg(test)]
@@ -57,6 +58,7 @@ impl Store {
             state: Mutex::new(None),
             bindings: Mutex::new(()),
             checks: Mutex::new(()),
+            cleanup_cursor: std::sync::atomic::AtomicUsize::new(0),
             #[cfg(test)]
             key: None,
             #[cfg(test)]

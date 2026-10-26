@@ -1201,6 +1201,35 @@ describe('certificate management UI', () => {
         })
     })
 
+    test('a failed account refresh blocks issuance from stale cached choices', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await click(button('Request with ACME'))
+        await setValue(document.querySelector('#certificate-request-name')!, 'Account refresh')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
+        await chooseDnsChallenge()
+        await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+        await click(document.querySelector('[aria-label="Provider connection"]')!)
+        await waitFor(() => !!document.querySelector('[role=option]'))
+        await click(
+            [...document.querySelectorAll('[role=option]')].find((item) =>
+                item.textContent?.includes('Fixture Cloudflare'),
+            )!,
+        )
+        getCertificateDnsConnections.mockRejectedValue(new Error('offline'))
+        await act(async () => {
+            await activeQueryClient!.invalidateQueries({
+                queryKey: ['dns-connections', 'certificates'],
+            })
+        })
+        expect(activeQueryClient!.getQueryData(['dns-connections', 'certificates'])).toBeDefined()
+        await click(lastButton('Request with ACME'))
+        await waitForToast('error')
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(document.querySelector<HTMLInputElement>('#certificate-request-name')!.value).toBe(
+            'Account refresh',
+        )
+    })
+
     test('requires a verified connection and permits correction without losing the draft', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)

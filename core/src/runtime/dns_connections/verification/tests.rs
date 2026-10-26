@@ -29,6 +29,7 @@ struct Api {
     sequence: AtomicUsize,
     deny_write: AtomicBool,
     fail_cleanup: AtomicBool,
+    cleanup_exemption: Mutex<Option<String>>,
     pause_create: AtomicBool,
     created: Notify,
     resume: Notify,
@@ -66,7 +67,7 @@ async fn fixture() -> Fixture {
             if api.deny_write.load(Ordering::SeqCst) { return (StatusCode::FORBIDDEN, envelope(Value::Null)); }
             assert_eq!(body["type"], "TXT");
             assert!(body["name"].as_str().unwrap().starts_with("_acme-challenge.rp-verify-"));
-            assert_eq!(body["comment"], format!("rentnerproxy-acme:{ID}"));
+            assert!(body["comment"].as_str().unwrap().starts_with("rentnerproxy-acme:"));
             let id = format!("{:032x}", api.sequence.fetch_add(1, Ordering::SeqCst) + 1);
             let record = json!({"id":id,"name":body["name"],"type":"TXT","content":body["content"],"comment":body["comment"]});
             api.records.lock().await.insert(id, record.clone());
@@ -76,7 +77,7 @@ async fn fixture() -> Fixture {
         }))
         .route("/zones/{zone}/dns_records/{id}", axum::routing::delete(|State(api): State<Arc<Api>>, Path((_zone,id)): Path<(String,String)>| async move {
             assert_ne!(id, UNRELATED, "verification must never delete unrelated TXT values");
-            if api.fail_cleanup.load(Ordering::SeqCst) { return (StatusCode::SERVICE_UNAVAILABLE, envelope(Value::Null)); }
+            if api.fail_cleanup.load(Ordering::SeqCst) && api.cleanup_exemption.lock().await.as_deref() != Some(&id) { return (StatusCode::SERVICE_UNAVAILABLE, envelope(Value::Null)); }
             api.records.lock().await.remove(&id);
             (StatusCode::OK, envelope(json!({"id":id})))
         }))
@@ -446,4 +447,59 @@ fn certificate_connections_migrate_only_idle_matching_credentials_and_reconcile_
             );
             runtime.dns_connections.delete(ID, 1).await.unwrap();
         });
+}
+
+#[tokio::test]
+async fn recovery_reaches_later_accounts_despite_repeated_failures_in_the_first_batch() {
+    let fixture = fixture().await;
+    fixture.api.fail_cleanup.store(true, Ordering::SeqCst);
+    for number in 91..=95 {
+        let id = format!("0198d98a-0000-7000-8000-{number:012}");
+        if number != 91 {
+            fixture
+                .store
+                .save(
+                    id.clone(),
+                    SaveRequest {
+                        provider: None,
+                        expected_revision: 0,
+                        name: format!("Account {number}"),
+                        api_token: Some("fixture-token".into()),
+                        zone_ids: vec![ZONE.into()],
+                        actor_user_id: USER.into(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        assert_eq!(
+            fixture
+                .store
+                .verify(&id, 1)
+                .await
+                .unwrap()
+                .verification
+                .status,
+            ConnectionStatus::Failed
+        );
+    }
+    let last = "rentnerproxy-acme:0198d98a-0000-7000-8000-000000000095";
+    let exempt = fixture
+        .api
+        .records
+        .lock()
+        .await
+        .iter()
+        .find(|(_, record)| record["comment"] == last)
+        .unwrap()
+        .0
+        .clone();
+    *fixture.api.cleanup_exemption.lock().await = Some(exempt.clone());
+    fixture.store.recover_permission_checks().await;
+    assert!(fixture.api.records.lock().await.contains_key(&exempt));
+    fixture.store.recover_permission_checks().await;
+    let records = fixture.api.records.lock().await;
+    assert!(!records.contains_key(&exempt));
+    assert!(records.contains_key(UNRELATED));
+    assert_eq!(records.len(), 5);
 }

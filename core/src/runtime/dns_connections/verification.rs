@@ -231,7 +231,7 @@ impl Store {
         let Ok(_checks) = self.checks.try_lock() else {
             return;
         };
-        let entries = {
+        let mut entries = {
             let Ok(mut state) = self.lock().await else {
                 return;
             };
@@ -242,11 +242,18 @@ impl Store {
                 .connections
                 .iter()
                 .filter(|entry| !entry.pending_checks.is_empty())
-                .take(4)
                 .cloned()
                 .collect::<Vec<_>>()
         };
-        for entry in entries {
+        if entries.is_empty() {
+            return;
+        }
+        let offset = self
+            .cleanup_cursor
+            .fetch_add(4, std::sync::atomic::Ordering::Relaxed)
+            % entries.len();
+        entries.rotate_left(offset);
+        for entry in entries.into_iter().take(4) {
             let _ =
                 tokio::time::timeout(Duration::from_secs(30), self.cleanup_checks(&entry)).await;
         }
