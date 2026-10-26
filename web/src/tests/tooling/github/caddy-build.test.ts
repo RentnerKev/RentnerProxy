@@ -31,6 +31,14 @@ describe('upstream Caddy binary security metadata', () => {
                 readFile(join(root, 'docker', image, 'Dockerfile'), 'utf8'),
             ),
         )
+        const caddyBuilders = images.map(
+            (image) =>
+                image.match(
+                    /^FROM (mirror\.gcr\.io\/library\/caddy:\d+\.\d+\.\d+-builder@sha256:[a-f0-9]{64}) AS caddy-build$/mu,
+                )?.[1],
+        )
+        expect(caddyBuilders[0]).toBeDefined()
+        expect(caddyBuilders[1]).toBe(caddyBuilders[0])
         for (const image of images) {
             expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
             expect(image).toContain(
@@ -50,9 +58,6 @@ describe('upstream Caddy binary security metadata', () => {
             )
             expect(image).toContain(
                 'golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d',
-            )
-            expect(image).toContain(
-                'caddy:2.11.7-builder@sha256:d842facfd63b960922e57444ff76fd8f0793a66dfdcf481af8026e1f4e6a39b4',
             )
         }
         for (const contract of [
