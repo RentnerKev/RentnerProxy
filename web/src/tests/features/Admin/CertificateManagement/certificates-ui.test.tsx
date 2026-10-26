@@ -1225,8 +1225,8 @@ describe('certificate management UI', () => {
         await click(document.querySelector('#certificate-request-dns-zone-id')!)
         await waitFor(() => !!document.querySelector('[role=option]'))
         await click(
-            [...document.querySelectorAll('[role=option]')].find((item) =>
-                item.textContent?.includes('example.org'),
+            [...document.querySelectorAll('[role=option]')].find(
+                (item) => item.textContent?.trim() === 'example.org',
             )!,
         )
         await click(lastButton('Request with ACME'))
