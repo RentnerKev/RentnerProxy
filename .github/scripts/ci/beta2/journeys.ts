@@ -86,14 +86,11 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
     async function http(domain = 'h0.beta2.test') {
         const response = await fetch(`http://127.0.0.1:${httpPort}/`, {
             headers: { host: domain },
-            // Probe each reload over its own connection, outside Bun's shared idle pool.
-            keepalive: false,
             signal: AbortSignal.timeout(8_000),
             redirect: 'manual',
         })
         const body: { backend?: 'a' | 'b' | 'tls' } =
             response.status === 200 ? backendSchema.parse(await response.json()) : {}
-        if (response.status !== 200) await response.body?.cancel()
         return { status: response.status, body, headers: response.headers }
     }
     async function traffic(trafficRoutes: ScaleResult['traffic']) {
