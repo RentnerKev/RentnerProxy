@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, setDefaultTimeout, test } from 'bun:test'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,6 +7,10 @@ import { readDeploymentEnvironmentVariable } from '@/lib/Environment/deployment-
 import { parsePublicOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url))
+const composeTimeoutMs = 10_000
+
+// Let Compose reach its own deadline and clean up before the test runner aborts.
+setDefaultTimeout(composeTimeoutMs + 5_000)
 
 async function render(environment: NodeJS.ProcessEnv, environmentFile = '') {
     const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-compose-environment-'))
@@ -43,7 +47,7 @@ async function render(environment: NodeJS.ProcessEnv, environmentFile = '') {
                 'config',
                 '--format=json',
             ],
-            { cwd: root, env: fixture, stdout: 'pipe', stderr: 'pipe', timeout: 10_000 },
+            { cwd: root, env: fixture, stdout: 'pipe', stderr: 'pipe', timeout: composeTimeoutMs },
         )
         const [exit, stdout, stderr] = await Promise.all([
             child.exited,
