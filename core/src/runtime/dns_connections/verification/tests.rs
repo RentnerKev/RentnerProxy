@@ -21,6 +21,7 @@ use tokio::sync::{Mutex, Notify};
 const ID: &str = "0198d98a-0000-7000-8000-000000000091";
 const USER: &str = "0198d98a-0000-7000-8000-000000000092";
 const ZONE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const SECOND_ZONE: &str = "cccccccccccccccccccccccccccccccc";
 const UNRELATED: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 #[derive(Default)]
@@ -56,8 +57,8 @@ async fn fixture() -> Fixture {
     let api = Arc::new(Api::default());
     api.records.lock().await.insert(UNRELATED.into(), json!({"id":UNRELATED,"type":"TXT","name":"_acme-challenge.keep.example.com","content":"keep-me","comment":null}));
     let router = Router::new()
-        .route("/zones", get(|| async { Json(json!({"success":true,"result":[{"id":ZONE,"name":"example.com"}],"result_info":{"page":1,"per_page":20,"total_pages":1}})) }))
-        .route("/zones/{zone}", get(|| async { envelope(json!({"id":ZONE,"name":"example.com"})) }))
+        .route("/zones", get(|| async { Json(json!({"success":true,"result":[{"id":ZONE,"name":"example.com"},{"id":SECOND_ZONE,"name":"example.org"}],"result_info":{"page":1,"per_page":20,"total_pages":1}})) }))
+        .route("/zones/{zone}", get(|Path(zone): Path<String>| async move { let name = if zone == ZONE { "example.com" } else { "example.org" }; envelope(json!({"id":zone,"name":name})) }))
         .route("/zones/{zone}/dns_records", get(|State(api): State<Arc<Api>>, Query(query): Query<BTreeMap<String, String>>| async move {
             let records = api.records.lock().await.values().filter(|record| {
                 query.get("name").is_none_or(|name| record["name"].as_str() == Some(name))
@@ -204,6 +205,39 @@ async fn zone_read_access_alone_cannot_claim_connected_or_bind_a_certificate() {
             .await,
         Err(Error::ProviderUnauthorized)
     ));
+    assert_eq!(fixture.api.records.lock().await.len(), 1);
+}
+
+#[tokio::test]
+async fn denied_multizone_checks_leave_no_unattempted_cleanup_reservations() {
+    let fixture = fixture().await;
+    fixture
+        .store
+        .save(
+            ID.into(),
+            SaveRequest {
+                provider: None,
+                expected_revision: 1,
+                name: "Two zones".into(),
+                api_token: None,
+                zone_ids: vec![ZONE.into(), SECOND_ZONE.into()],
+                actor_user_id: USER.into(),
+            },
+        )
+        .await
+        .unwrap();
+    fixture.api.deny_write.store(true, Ordering::SeqCst);
+    assert_eq!(
+        fixture
+            .store
+            .verify(ID, 2)
+            .await
+            .unwrap()
+            .verification
+            .status,
+        ConnectionStatus::Disconnected
+    );
+    fixture.store.delete(ID, 2).await.unwrap();
     assert_eq!(fixture.api.records.lock().await.len(), 1);
 }
 

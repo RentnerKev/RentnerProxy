@@ -210,6 +210,7 @@ impl Store {
             current.metadata.verification = Verification::default();
             self.commit(&mut state, next)?;
         }
+        let mut first_error = None;
         for check in &entry.pending_checks {
             let provider = self.check_provider(&entry, &check.zone_id)?;
             let present = provider
@@ -222,9 +223,11 @@ impl Store {
                 .map_err(provider_error)?;
             self.remove_check(&entry.metadata.id, entry.metadata.revision, &check.zone_id)
                 .await?;
-            present?;
+            if let Err(error) = present {
+                first_error.get_or_insert(error);
+            }
         }
-        Ok(())
+        first_error.map_or(Ok(()), Err)
     }
 
     pub(in crate::runtime) async fn recover_permission_checks(&self) {

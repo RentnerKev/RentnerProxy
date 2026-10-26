@@ -45,9 +45,17 @@ impl ProxyRuntime {
                 && let Some(connection) = self.dns_connections.matching_connection(&config).await?
                 && let Some(usage) = reference(&id, &connection)
             {
-                self.dns_connections
+                match self
+                    .dns_connections
                     .certificate_references(&[usage], true, true)
-                    .await?;
+                    .await
+                {
+                    Ok(()) => {}
+                    Err(dns_connections::Error::StoreUnavailable) => {
+                        return Err(dns_connections::Error::StoreUnavailable);
+                    }
+                    Err(_) => continue,
+                }
                 match self
                     .certificate_store
                     .adopt_dns_connection(&id, &config, &connection)

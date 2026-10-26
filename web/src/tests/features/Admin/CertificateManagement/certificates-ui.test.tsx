@@ -1201,6 +1201,43 @@ describe('certificate management UI', () => {
         })
     })
 
+    test('domain edits clear an ineligible displayed zone and allow selecting the new permitted zone', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await click(button('Request with ACME'))
+        await setValue(document.querySelector('#certificate-request-name')!, 'Changed zone')
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
+        await chooseDnsChallenge()
+        await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+        await click(document.querySelector('[aria-label="Provider connection"]')!)
+        await waitFor(() => !!document.querySelector('[role=option]'))
+        await click(
+            [...document.querySelectorAll('[role=option]')].find((item) =>
+                item.textContent?.includes('Fixture Cloudflare'),
+            )!,
+        )
+        expect(document.querySelector('#certificate-request-dns-zone-id')?.textContent).toContain(
+            'example.com',
+        )
+        await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.org')
+        expect(
+            document.querySelector('#certificate-request-dns-zone-id')?.textContent,
+        ).not.toContain('example.com')
+        await click(document.querySelector('#certificate-request-dns-zone-id')!)
+        await waitFor(() => !!document.querySelector('[role=option]'))
+        await click(
+            [...document.querySelectorAll('[role=option]')].find((item) =>
+                item.textContent?.includes('example.org'),
+            )!,
+        )
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                dnsProvider: expect.objectContaining({ zoneId: 'b'.repeat(32) }),
+            }),
+        })
+    })
+
     test('a failed account refresh blocks issuance from stale cached choices', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await click(button('Request with ACME'))

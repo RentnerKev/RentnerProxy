@@ -26,7 +26,7 @@ export default function useCertificateProviderFieldsLogic({
             connections,
             providers: dnsProviders,
             connectionId: values.dnsConnectionId ?? '',
-            zoneId: values.dnsZoneId,
+            zoneId: zones.some((zone) => zone.id === values.dnsZoneId) ? values.dnsZoneId : '',
             zoneOptions: zones.map((zone) => ({ value: zone.id, label: zone.name })),
             disabled: disabled || connectionsLoading || connectionsError,
             unavailable: connectionsError,
