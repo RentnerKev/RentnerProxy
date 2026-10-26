@@ -20,7 +20,7 @@ const navigationGroups = [
             '/redirect-hosts',
             '/certificates',
             '/operations',
-            '/dns-connections',
+            '/providers',
             '/ddns',
             '/docker-discovery',
         ],

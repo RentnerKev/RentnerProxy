@@ -1,4 +1,5 @@
-import { Cloud, Globe2, Link2, Pencil, Trash2 } from 'lucide-react'
+import { Cloud, Globe2, Link2, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import ProviderConnectionStatus from '@/shared/ProviderConnections/ProviderConnectionStatus.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { DnsConnectionCardProps } from '../Types/dns-connections-ui.types.ts'
 
@@ -8,6 +9,7 @@ export default function DnsConnectionCard({
     isPending,
     onEdit,
     onDelete,
+    onVerify,
 }: DnsConnectionCardProps) {
     const { t } = useTranslationStore()
     return (
@@ -21,8 +23,9 @@ export default function DnsConnectionCard({
                         {connection.name}
                     </h2>
                     <p className="mt-1 text-xs font-bold text-muted">
-                        {t('admin.dnsConnections.provider')}
+                        {t(`admin.dnsConnections.providers.${connection.provider}`)}
                     </p>
+                    <ProviderConnectionStatus connection={connection} />
                 </div>
                 <span className="rounded-full border border-border bg-surface-subtle px-2.5 py-1 text-xs font-bold tabular-nums text-muted">
                     {t('admin.dnsConnections.card.zoneCount', { count: connection.zones.length })}
@@ -39,6 +42,34 @@ export default function DnsConnectionCard({
                     </span>
                 ))}
             </div>
+            {connection.verification?.error ? (
+                <output className="px-5 pb-4 text-sm text-danger-text sm:px-6">
+                    {t(`admin.dnsConnections.errors.${connection.verification.error}`)}
+                </output>
+            ) : null}
+            {connection.references.length ? (
+                <details className="px-5 pb-4 text-xs text-muted sm:px-6">
+                    <summary className="cursor-pointer font-bold">
+                        {t('admin.providers.consumers')}
+                    </summary>
+                    <ul className="mt-2 grid gap-2">
+                        {connection.references.map((reference) => (
+                            <li
+                                key={`${reference.zoneId}:${reference.consumer.type}:${reference.consumer.id}`}
+                            >
+                                {t(`admin.providers.consumerTypes.${reference.consumer.type}`)} ·{' '}
+                                {
+                                    connection.zones.find((zone) => zone.id === reference.zoneId)
+                                        ?.name
+                                }
+                                <span className="block break-all font-mono">
+                                    {reference.consumer.id}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </details>
+            ) : null}
             <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-subtle px-5 py-3 sm:px-6">
                 <span className="inline-flex items-center gap-2 text-xs text-muted">
                     <Link2 aria-hidden="true" className="size-3.5" />
@@ -48,6 +79,19 @@ export default function DnsConnectionCard({
                 </span>
                 {canManage ? (
                     <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => void onVerify(connection)}
+                            disabled={isPending}
+                            aria-label={t('admin.providers.recheckNamed', {
+                                name: connection.name,
+                            })}
+                            title={t('admin.providers.permissionHint')}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
+                        >
+                            <RefreshCw aria-hidden="true" className="size-3.5" />
+                            {t('admin.providers.recheck')}
+                        </button>
                         <button
                             type="button"
                             onClick={() => onEdit(connection)}

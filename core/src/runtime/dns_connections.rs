@@ -4,6 +4,7 @@ mod references;
 #[cfg(test)]
 mod tests;
 mod validation;
+mod verification;
 
 pub(crate) use super::dns::capabilities::{ProviderId, catalog as provider_catalog};
 use super::{
@@ -11,10 +12,11 @@ use super::{
     dns::{EncryptedDnsConfig, encryption},
     state::state_dir,
 };
+pub(crate) use models::Metadata;
 pub(crate) use models::{
     Consumer, ConsumerType, DeleteRequest, Error, Reference, SaveRequest, TestRequest,
 };
-use models::{Metadata, TestResult, ValidatedReference, Zone};
+use models::{TestResult, ValidatedReference, Zone};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, path::PathBuf};
 use tokio::sync::{Mutex, MutexGuard};
@@ -26,6 +28,8 @@ const MAX_BYTES: usize = 1024 * 1024;
 struct Entry {
     metadata: Metadata,
     secret: EncryptedDnsConfig,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pending_checks: Vec<verification::PermissionCheck>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +41,8 @@ struct Registry {
 pub(crate) struct Store {
     path: PathBuf,
     state: Mutex<Option<Registry>>,
+    pub(crate) bindings: Mutex<()>,
+    checks: Mutex<()>,
     #[cfg(test)]
     key: Option<[u8; 32]>,
     #[cfg(test)]
@@ -49,6 +55,8 @@ impl Store {
         Self {
             path,
             state: Mutex::new(None),
+            bindings: Mutex::new(()),
+            checks: Mutex::new(()),
             #[cfg(test)]
             key: None,
             #[cfg(test)]
@@ -104,6 +112,7 @@ impl Store {
         let mut names = BTreeSet::new();
         for entry in &registry.connections {
             validation::metadata(&entry.metadata).map_err(|_| Error::StoreUnavailable)?;
+            verification::validate_pending(entry)?;
             if !ids.insert(&entry.metadata.id)
                 || !names.insert(entry.metadata.name.to_lowercase())
                 || entry.secret.version != 1
@@ -214,6 +223,10 @@ impl Store {
         })
     }
     pub(crate) async fn save(&self, id: String, request: SaveRequest) -> Result<Metadata, Error> {
+        let _checks = self
+            .checks
+            .try_lock()
+            .map_err(|_| Error::ConnectionConflict)?;
         validation::id(&id)?;
         validation::id(&request.actor_user_id)?;
         validation::name(&request.name)?;
@@ -241,6 +254,14 @@ impl Store {
                 .references
                 .iter()
                 .any(|r| !request.zone_ids.contains(&r.zone_id))
+        }) {
+            return Err(Error::ConnectionInUse);
+        }
+        if old.as_ref().is_some_and(|entry| {
+            entry
+                .pending_checks
+                .iter()
+                .any(|check| !request.zone_ids.contains(&check.zone_id))
         }) {
             return Err(Error::ConnectionInUse);
         }
@@ -283,6 +304,21 @@ impl Store {
                 now = entry.metadata.updated_at.clone();
             }
         }
+        let verification = if request.api_token.is_none()
+            && old
+                .as_ref()
+                .is_some_and(|entry| entry.metadata.zones == zones)
+        {
+            old.as_ref()
+                .map(|entry| entry.metadata.verification.clone())
+                .unwrap_or_default()
+        } else {
+            models::Verification::default()
+        };
+        let pending_checks = old
+            .as_ref()
+            .map(|entry| entry.pending_checks.clone())
+            .unwrap_or_default();
         let metadata = Metadata {
             id: id.clone(),
             provider: provider.as_str().into(),
@@ -301,12 +337,14 @@ impl Store {
                 .map(|e| e.metadata.created_at)
                 .unwrap_or_else(|| now.clone()),
             updated_at: now,
+            verification,
         };
         let mut next = registry.clone();
         next.connections.retain(|e| e.metadata.id != id);
         next.connections.push(Entry {
             metadata: metadata.clone(),
             secret,
+            pending_checks,
         });
         self.commit(&mut state, next)?;
         Ok(metadata)
@@ -323,7 +361,7 @@ impl Store {
             .connections
             .iter()
             .find(|e| e.metadata.id == id)
-            .is_some_and(|e| !e.metadata.references.is_empty())
+            .is_some_and(|e| !e.metadata.references.is_empty() || !e.pending_checks.is_empty())
         {
             return Err(Error::ConnectionInUse);
         }

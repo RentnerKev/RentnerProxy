@@ -88,6 +88,39 @@ test('strict request boundary rejects manual DNS mixed with provider credentials
     ).toBeFalse()
 })
 
+test('shared DNS issuance sends a stable reference and never stale inline credentials', () => {
+    const form = {
+        ...request,
+        challengeType: 'dns-01',
+        dnsMode: 'provider',
+        dnsConnectionId: '0198d98a-0000-7000-8000-000000000002',
+        dnsConnectionProvider: 'cloudflare' as const,
+        dnsZoneId: 'a'.repeat(32),
+        dnsApiToken: 'stale-secret',
+    }
+    const input = certificateRequestInputFromForm(form)
+    expect(requestCertificateInputSchema.parse(input).dnsProvider).toEqual({
+        type: 'connection',
+        provider: 'cloudflare',
+        connectionId: form.dnsConnectionId,
+        zoneId: form.dnsZoneId,
+    })
+    expect(JSON.stringify(input)).not.toContain('stale-secret')
+    expect(certificateRequestFormSchema.safeParse(form).success).toBeTrue()
+    expect(
+        certificateRequestFormSchema.safeParse({ ...form, dnsConnectionId: '' }).success,
+    ).toBeFalse()
+    expect(
+        requestCertificateInputSchema.safeParse({
+            ...input,
+            dnsProvider: {
+                ...requestCertificateInputSchema.parse(input).dnsProvider,
+                apiToken: 'forged',
+            },
+        }).success,
+    ).toBeFalse()
+})
+
 test('certificate detail search accepts only a UUID selection and rejects arbitrary destinations', () => {
     expect(
         certificateDetailsSearchSchema.parse({

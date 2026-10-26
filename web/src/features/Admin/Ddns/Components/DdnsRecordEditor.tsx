@@ -7,6 +7,7 @@ import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useDdnsRecordEditorLogic from '../Hooks/useDdnsRecordEditorLogic.ts'
 import type { DdnsRecordEditorProps } from '../Types/ddns-editor.types.ts'
+import ProviderConnectionSelect from '@/shared/ProviderConnections/ProviderConnectionSelect.tsx'
 
 export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
     const { state, handler, form } = useDdnsRecordEditorLogic(props)
@@ -40,14 +41,17 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
                     </p>
                 ) : null}
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                    <CustomSelect
-                        value={state.connectionId || null}
-                        options={state.connectionOptions}
+                    <ProviderConnectionSelect
+                        connections={props.connections}
+                        providers={props.providers}
+                        operation={state.recordType}
+                        value={state.connectionId}
                         onValueChange={handler.changeConnection}
                         label={t('admin.ddns.form.connection')}
-                        placeholder={t('admin.ddns.form.chooseConnection')}
                         disabled={state.pending || !state.canChooseConnection}
-                        locale={state.selectLocale}
+                        fallbackLabel={
+                            t('admin.ddns.records.savedConnection') + ` (${state.connectionId})`
+                        }
                     />
                     <CustomSelect
                         value={state.zoneId}
@@ -61,12 +65,7 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
                     />
                 </div>
                 {!state.connectionOptions.length ? (
-                    <p className="text-sm text-muted">
-                        {t('admin.ddns.form.noConnections')}{' '}
-                        <a href="/dns-connections" className="font-bold text-accent-ring underline">
-                            {t('shell.dnsConnections')}
-                        </a>
-                    </p>
+                    <p className="text-sm text-muted">{t('admin.ddns.form.noConnections')} </p>
                 ) : null}
                 {!state.recordTypeAvailable && state.savedRecordType ? (
                     <p className="text-sm text-muted">

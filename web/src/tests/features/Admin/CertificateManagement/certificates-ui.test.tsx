@@ -9,6 +9,7 @@ import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
+import { DDNS_CONNECTION } from '@/tests/Helpers/ddnsFixture.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { MAX_CERTIFICATE_DOMAINS } from '@/config/certificates.config.ts'
@@ -103,6 +104,7 @@ const getCertificateDnsProviders = mock(async () => {
     if (dnsProvidersUnavailable) throw new Error('offline')
     return [dnsProvider]
 })
+const getCertificateDnsConnections = mock(async () => [DDNS_CONNECTION])
 const continueManualDnsHandlerMock = mock(async (_input: unknown) => ({
     success: true as const,
     message: 'admin.certificates.manualDns.checking',
@@ -115,6 +117,7 @@ mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
     continueManualDnsHandler: continueManualDnsHandlerMock,
     cancelManualDnsHandler: cancelManualDnsHandlerMock,
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
+    getCertificateDnsConnectionsHandler: getCertificateDnsConnections,
     getCertificatesHandler: getCertificatesHandlerMock,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     importCertificateHandler: importCertificateHandlerMock,
@@ -305,6 +308,7 @@ beforeEach(() => {
     cancelManualDnsHandlerMock.mockClear()
     dnsProvidersUnavailable = false
     getCertificateDnsProviders.mockClear()
+    getCertificateDnsConnections.mockReset().mockResolvedValue([DDNS_CONNECTION])
     toast.dismissAll()
     requestProxyHostCertificateHandlerMock.mockClear()
     retryCertificateJobHandlerMock.mockClear()
@@ -1131,14 +1135,11 @@ describe('certificate management UI', () => {
         )
         await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
         await chooseDnsChallenge()
-        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
-        await setValue(
-            document.querySelector('#certificate-request-dns-api-token')!,
-            'catalogue-secret-token',
-        )
         await click(lastButton('Request with ACME'))
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
-        expect(document.body.textContent).toContain('DNS provider capabilities are unavailable')
+        expect(document.body.textContent).toContain(
+            'Choose a verified connection and a permitted zone.',
+        )
         expect(document.body.textContent).not.toContain('catalogue-secret-token')
         await click(document.querySelector('[aria-label="ACME challenge"]')!)
         await waitFor(() => !!document.querySelector('[role="option"]'))
@@ -1154,7 +1155,7 @@ describe('certificate management UI', () => {
         })
     })
 
-    test('forwards DNS-01 wildcard requests with Cloudflare credentials', async () => {
+    test('forwards DNS-01 wildcard requests with a shared account and retains the draft while managing providers', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
@@ -1164,11 +1165,22 @@ describe('certificate management UI', () => {
         await click(button('Add another domain'))
         await setValue(document.querySelector('#certificate-request-domain-1')!, 'example.com')
         await chooseDnsChallenge()
-        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
-        await setValue(
-            document.querySelector('#certificate-request-dns-api-token')!,
-            'cloudflare-secret-token',
+        await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+        expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
+        const manage = document.querySelector<HTMLAnchorElement>('a[href="/providers"]')!
+        expect(manage.target).toBe('_blank')
+        expect(manage.rel).toContain('noopener')
+        await click(manage)
+        expect(document.querySelector<HTMLInputElement>('#certificate-request-name')!.value).toBe(
+            'Wildcard edge',
         )
+        await click(document.querySelector('[aria-label="Provider connection"]')!)
+        await waitFor(() => !!document.querySelector('[role=option]'))
+        const option = [...document.querySelectorAll('[role=option]')].find((item) =>
+            item.textContent?.includes('Fixture Cloudflare'),
+        )!
+        expect(option.textContent).toContain('Connected')
+        await click(option)
         await click(lastButton('Request with ACME'))
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
         expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
@@ -1178,9 +1190,10 @@ describe('certificate management UI', () => {
                 environment: 'production',
                 challengeType: 'dns-01',
                 dnsProvider: {
-                    type: 'cloudflare',
+                    type: 'connection',
+                    provider: 'cloudflare',
+                    connectionId: DDNS_CONNECTION.id,
                     zoneId: 'a'.repeat(32),
-                    apiToken: 'cloudflare-secret-token',
                 },
                 contactEmail: '',
                 acceptTerms: true,
@@ -1188,7 +1201,7 @@ describe('certificate management UI', () => {
         })
     })
 
-    test('shows provider validation toasts and allows correction and resubmission', async () => {
+    test('requires a verified connection and permits correction without losing the draft', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
@@ -1196,33 +1209,21 @@ describe('certificate management UI', () => {
         await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
         await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
         await chooseDnsChallenge()
-        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'invalid-zone')
-        await setValue(
-            document.querySelector('#certificate-request-dns-api-token')!,
-            'token with spaces',
-        )
         await click(lastButton('Request with ACME'))
         await waitForToast('error')
         expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
-            'Enter a 32-character lowercase Cloudflare zone ID.',
+            'Choose a verified connection and a permitted zone.',
         )
         expect(document.querySelector('form [role="alert"]')).toBeNull()
         expect(document.querySelector('#certificate-request-dns-zone-id-error')).toBeNull()
         expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
         await act(() => toast.dismissAll())
-        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
-        expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
-        expect(lastButton('Request with ACME').disabled).toBeFalse()
-        await click(lastButton('Request with ACME'))
-        await waitForToast('error')
-        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
-            'Enter a valid Cloudflare API token without whitespace.',
-        )
-        expect(document.querySelector('#certificate-request-dns-api-token-error')).toBeNull()
-        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
-        await setValue(
-            document.querySelector('#certificate-request-dns-api-token')!,
-            'fixture-token',
+        await click(document.querySelector('[aria-label="Provider connection"]')!)
+        await waitFor(() => !!document.querySelector('[role=option]'))
+        await click(
+            [...document.querySelectorAll('[role=option]')].find((item) =>
+                item.textContent?.includes('Fixture Cloudflare'),
+            )!,
         )
         await click(lastButton('Request with ACME'))
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)

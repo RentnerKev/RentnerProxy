@@ -6,6 +6,7 @@ import {
     getDnsConnectionsService,
     saveDnsConnectionService,
     testDnsConnectionService,
+    verifyDnsConnectionService,
     deleteDnsConnectionService,
 } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
@@ -84,6 +85,17 @@ export const deleteDnsConnectionHandler = createServerFn({ method: 'POST' })
         try {
             await deleteDnsConnectionService(data)
             return { success: true as const, message: 'admin.dnsConnections.messages.deleted' }
+        } catch (error) {
+            return failure(error)
+        }
+    })
+
+export const verifyDnsConnectionHandler = createServerFn({ method: 'POST' })
+    .validator((input: unknown) => validateDnsConnectionInput(deleteDnsConnectionSchema, input))
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            return { success: true as const, connection: await verifyDnsConnectionService(data) }
         } catch (error) {
             return failure(error)
         }

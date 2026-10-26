@@ -29,7 +29,7 @@ export default function getApplicationShellViewModel(
             ? ([{ to: '/access-policies', label: t('shell.accessPolicies') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.DNS_CONNECTIONS_VIEW)
-            ? ([{ to: '/dns-connections', label: t('shell.dnsConnections') }] as const)
+            ? ([{ to: '/providers', label: t('shell.dnsConnections') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.DDNS_VIEW)
             ? ([{ to: '/ddns', label: t('shell.ddns') }] as const)

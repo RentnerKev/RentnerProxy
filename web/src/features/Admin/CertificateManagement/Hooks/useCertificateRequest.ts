@@ -20,6 +20,12 @@ import {
 } from '../validation.ts'
 import type { CertificateRequestFormValues } from '../Types/validation.types.ts'
 import type { CertificateRequestInputs } from '../Types/certificate-management.types.ts'
+import {
+    connectionSupportsOperation,
+    verifiedConnectionZones,
+    zoneCoversDomains,
+} from '@/lib/DnsConnections/connectionEligibility.ts'
+import type { DnsConnectionChoice } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 
 /** Builds and submits certificate requests, including reset and retry behavior. */
 export default function useCertificateRequest({
@@ -55,6 +61,20 @@ export default function useCertificateRequest({
                     !providers?.some(supportsDns01)
                 )
                     throw new Error('admin.dnsConnections.providers.unavailable')
+                const connections = queryClient.getQueryData<readonly DnsConnectionChoice[]>([
+                    'dns-connections',
+                    'certificates',
+                ])
+                const connection = connections?.find((item) => item.id === value.dnsConnectionId)
+                if (
+                    !connection ||
+                    !connectionSupportsOperation(connection, providers, 'dns01') ||
+                    !verifiedConnectionZones(connection).some(
+                        (zone) =>
+                            zone.id === value.dnsZoneId && zoneCoversDomains(zone, value.domains),
+                    )
+                )
+                    throw new Error('admin.providers.validation.connection')
             }
             return requestCertificateInputSchema.parse(certificateRequestInputFromForm(value))
         },
@@ -68,6 +88,8 @@ export default function useCertificateRequest({
         dnsMode: 'provider',
         dnsZoneId: '',
         dnsApiToken: '',
+        dnsConnectionId: '',
+        dnsConnectionProvider: 'cloudflare',
         contactEmail: '',
         acceptTerms: false,
     }
@@ -121,6 +143,8 @@ export default function useCertificateRequest({
                     dnsMode: 'provider',
                     dnsZoneId: '',
                     dnsApiToken: '',
+                    dnsConnectionId: '',
+                    dnsConnectionProvider: 'cloudflare',
                     contactEmail: '',
                     acceptTerms: false,
                 }
@@ -135,7 +159,8 @@ export default function useCertificateRequest({
                 toast.error(
                     t(
                         error instanceof Error &&
-                            error.message === 'admin.dnsConnections.providers.unavailable'
+                            (error.message === 'admin.dnsConnections.providers.unavailable' ||
+                                error.message === 'admin.providers.validation.connection')
                             ? error.message
                             : 'admin.certificates.errors.requestFailed',
                     ),

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Error {
     InvalidInput,
@@ -63,6 +63,35 @@ pub(crate) struct Metadata {
     pub(crate) references: Vec<Usage>,
     pub(crate) created_at: String,
     pub(crate) updated_at: String,
+    #[serde(default)]
+    pub(crate) verification: Verification,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConnectionStatus {
+    #[default]
+    Untested,
+    Connected,
+    Disconnected,
+    Failed,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct Verification {
+    pub(crate) status: ConnectionStatus,
+    pub(crate) checked_at: Option<String>,
+    #[serde(default)]
+    pub(crate) zone_ids: Vec<String>,
+    pub(crate) error: Option<Error>,
+}
+
+impl Metadata {
+    pub(in crate::runtime) fn verified_for(&self, zone: &str) -> bool {
+        self.verification.status == ConnectionStatus::Connected
+            && self.verification.zone_ids.iter().any(|id| id == zone)
+    }
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

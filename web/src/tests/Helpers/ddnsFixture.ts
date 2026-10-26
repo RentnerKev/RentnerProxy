@@ -13,6 +13,12 @@ export const DDNS_CONNECTION: DnsConnection = {
         { id: 'b'.repeat(32), name: 'example.org' },
     ],
     references: [],
+    verification: {
+        status: 'connected',
+        checkedAt: '2026-10-01T00:00:00Z',
+        zoneIds: ['a'.repeat(32), 'b'.repeat(32)],
+        error: null,
+    },
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-01T00:00:00Z',
 }

@@ -63,6 +63,7 @@ export default function DnsConnectionsPage(props: DnsConnectionsPageProps) {
                             isPending={state.locked}
                             onEdit={handler.handleEdit}
                             onDelete={handler.handleDelete}
+                            onVerify={handler.handleVerify}
                         />
                     ))}
                 </div>

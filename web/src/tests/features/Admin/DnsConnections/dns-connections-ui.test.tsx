@@ -48,6 +48,7 @@ const getProviders = mock(async () => {
 let queryFails = false
 let testFails = false
 let saveFails = false
+let verificationRejected = false
 let availableZones: readonly DnsZone[] = [firstZone, secondZone]
 const getConnections = mock(async () => {
     if (queryFails) throw new Error('offline')
@@ -82,6 +83,18 @@ mock.module('@/features/Admin/DnsConnections/middleware.ts', () => ({
     testDnsConnectionHandler: testConnection,
     saveDnsConnectionHandler: saveConnection,
     deleteDnsConnectionHandler: deleteConnection,
+    verifyDnsConnectionHandler: async () => ({
+        success: true as const,
+        connection: {
+            ...connection,
+            verification: {
+                status: verificationRejected ? ('disconnected' as const) : ('connected' as const),
+                checkedAt: connection.updatedAt,
+                zoneIds: verificationRejected ? [] : connection.zones.map((zone) => zone.id),
+                error: verificationRejected ? ('provider_unauthorized' as const) : null,
+            },
+        },
+    }),
 }))
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
@@ -177,6 +190,7 @@ beforeEach(() => {
     queryFails = false
     testFails = false
     saveFails = false
+    verificationRejected = false
     availableZones = [firstZone, secondZone]
     for (const fn of [getConnections, testConnection, saveConnection, deleteConnection])
         fn.mockClear()
@@ -190,6 +204,22 @@ afterEach(async () => {
 })
 
 describe('Cloudflare DNS connection management', () => {
+    test('rechecks update same-revision status even when the following metadata refresh fails', async () => {
+        connections = [connection]
+        await renderPage()
+        expect(document.querySelector('article')?.textContent).toContain('Not verified')
+        verificationRejected = true
+        queryFails = true
+        await click(button('Recheck'))
+        await waitFor(
+            () => document.querySelector('article')?.textContent?.includes('Disconnected') === true,
+        )
+        expect(document.querySelector('article')?.textContent).not.toContain('Connected')
+        expect(
+            queryClient.getQueryData<readonly DnsConnection[]>(['dns-connections'])?.[0]?.revision,
+        ).toBe(connection.revision)
+    })
+
     test('catalogue failure blocks token testing and saving without exposing credentials', async () => {
         connections = [connection]
         providersFail = true

@@ -147,7 +147,7 @@
         "auditLogs": "Audit-Protokoll",
         "systemVersion": "Systemversion {{version}}",
         "updateAvailable": "Update verfügbar auf Version {{version}}",
-        "dnsConnections": "DNS-Verbindungen",
+        "dnsConnections": "Anbieter",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2870,8 +2870,8 @@
             },
             "page": {
                 "eyebrow": "Verwaltung",
-                "title": "DNS-Verbindungen",
-                "description": "Wiederverwendbare Cloudflare-Zugangsdaten und erlaubte Zonen dieser Instanz verwalten. Berechtigte Administratoren teilen diese Verbindungen."
+                "title": "Anbieter",
+                "description": "Benannte Anbieter-Verbindungen einmal einrichten und für Zertifikate sowie DDNS wiederverwenden."
             },
             "provider": "Cloudflare · Instanzverbindung",
             "usage": "Verbraucherreferenzen: {{count}}",
@@ -3250,6 +3250,32 @@
                 "invalid": "Die Zuweisung ist ungültig oder mit diesem Host nicht kompatibel.",
                 "unavailable": "Ein benötigter Dienst ist nicht erreichbar. Erstelle eine neue Vorschau zum Wiederholen.",
                 "timeout": "Das Zeitlimit des Batches wurde erreicht. Erstelle eine neue Vorschau zum Wiederholen."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Nicht geprüft",
+                "connected": "Verbunden",
+                "disconnected": "Getrennt",
+                "failed": "Prüfung fehlgeschlagen"
+            },
+            "recheck": "Erneut prüfen",
+            "recheckNamed": "{{name}} erneut prüfen",
+            "verified": "Verbindung und DNS-Berechtigungen geprüft.",
+            "permissionHint": "Beim Speichern neuer Zugangsdaten oder erneuten Prüfen wird in jeder ausgewählten Zone ein temporärer TXT-Eintrag erstellt und entfernt, um die DNS-Berechtigungen zu prüfen.",
+            "migrationHint": "Bestehende Zertifikate werden weiter erneuert. Passende gespeicherte Zugangsdaten werden nach erfolgreicher Prüfung automatisch verknüpft.",
+            "consumers": "Verwendet von",
+            "consumerTypes": {
+                "dns01": "DNS-01-Zertifikat",
+                "ddns": "DDNS-Eintrag"
+            },
+            "chooseConnection": "Anbieter-Verbindung",
+            "unavailable": "Verbindung nicht verfügbar",
+            "manage": "Anbieter einrichten oder verwalten (neuer Tab; dein Entwurf bleibt erhalten)",
+            "certificateHint": "Wähle eine geprüfte Verbindung. Die Zugangsdaten werden zentral verwaltet.",
+            "noMatchingZone": "Keine geprüfte Zone deckt alle Zertifikatsdomains ab.",
+            "validation": {
+                "connection": "Wähle eine geprüfte Verbindung und eine erlaubte Zone."
             }
         }
     },

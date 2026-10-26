@@ -247,6 +247,33 @@ fn dns_lifecycle_with_isolated_key() {
             assert_ne!(renewed.fingerprint, first.fingerprint);
             assert_eq!(renewed.domains, first.domains);
 
+            let legacy = request.dns_provider.as_ref().unwrap();
+            let shared = DnsProviderConfig::Connection {
+                provider: crate::runtime::dns::capabilities::ProviderId::Cloudflare,
+                connection_id: "0198d98a-0000-7000-8000-000000000092".into(),
+                zone_id: "a".repeat(32),
+            };
+            assert_eq!(
+                reopened.dns_configurations().await.unwrap(),
+                vec![(ID.into(), legacy.clone(), true)]
+            );
+            reopened
+                .adopt_dns_connection(ID, legacy, &shared)
+                .await
+                .unwrap();
+            assert_eq!(
+                reopened.dns_configurations().await.unwrap(),
+                vec![(ID.into(), shared.clone(), true)]
+            );
+            let recovered = CertificateStore::new(reopened.state_dir.clone());
+            recovered.initialize().await.unwrap();
+            let (_, shared_renewal) = recovered.begin_renewal(ID).await.unwrap();
+            assert_eq!(shared_renewal.dns_provider, Some(shared.clone()));
+            assert_eq!(
+                recovered.adopt_dns_connection(ID, &shared, legacy).await,
+                Err(CertificateError::OperationInProgress)
+            );
+
             let original_config = {
                 let mut index = reopened.index.lock().await;
                 let config = index

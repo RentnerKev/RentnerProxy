@@ -12,6 +12,50 @@ pub(in crate::runtime) struct RecordAccess<'a> {
 }
 
 impl Store {
+    pub(in crate::runtime) async fn resolve_config(
+        &self,
+        config: &crate::runtime::dns::DnsProviderConfig,
+    ) -> Result<crate::runtime::dns::DnsProviderConfig, Error> {
+        let Some((provider, connection_id, zone_id)) = config.connection() else {
+            return Ok(config.clone());
+        };
+        let access = self.record_access(connection_id, zone_id).await?;
+        if access.provider != provider {
+            return Err(Error::InvalidInput);
+        }
+        match provider {
+            super::ProviderId::Cloudflare => {
+                Ok(crate::runtime::dns::DnsProviderConfig::Cloudflare {
+                    zone_id: zone_id.to_owned(),
+                    api_token: access.token.clone(),
+                })
+            }
+        }
+    }
+
+    pub(in crate::runtime) async fn matching_connection(
+        &self,
+        config: &crate::runtime::dns::DnsProviderConfig,
+    ) -> Result<Option<crate::runtime::dns::DnsProviderConfig>, Error> {
+        let Some((zone_id, token)) = config.credential() else {
+            return Ok(None);
+        };
+        let mut state = self.lock().await?;
+        for entry in &Self::registry(&mut state)?.connections {
+            if super::resolve_provider(None, Some(entry))? == config.provider_id()
+                && entry.metadata.verified_for(zone_id)
+                && self.decrypt(entry)? == token
+            {
+                return Ok(Some(crate::runtime::dns::DnsProviderConfig::Connection {
+                    provider: config.provider_id(),
+                    connection_id: entry.metadata.id.clone(),
+                    zone_id: zone_id.to_owned(),
+                }));
+            }
+        }
+        Ok(None)
+    }
+
     pub(in crate::runtime) async fn record_access(
         &self,
         connection: &str,

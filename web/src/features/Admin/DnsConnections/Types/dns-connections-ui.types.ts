@@ -10,4 +10,5 @@ export interface DnsConnectionCardProps {
     readonly isPending: boolean
     readonly onEdit: (connection: DnsConnection) => void
     readonly onDelete: (connection: DnsConnection) => void
+    readonly onVerify: (connection: DnsConnection) => Promise<void>
 }

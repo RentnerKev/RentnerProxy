@@ -253,6 +253,13 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
                 move |id, body| handlers::dns_connections::delete(id, state.clone(), body)
             }),
         )
+        .route(
+            "/internal/v1/dns/connections/{id}/verify",
+            post({
+                let state = state.clone();
+                move |id, body| handlers::dns_connections::verify(id, state.clone(), body)
+            }),
+        )
         .layer(axum::extract::DefaultBodyLimit::max(32 * 1024))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

@@ -147,7 +147,7 @@
         "auditLogs": "Audit log",
         "systemVersion": "System version {{version}}",
         "updateAvailable": "Update available to version {{version}}",
-        "dnsConnections": "DNS connections",
+        "dnsConnections": "Providers",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2870,8 +2870,8 @@
             },
             "page": {
                 "eyebrow": "Administration",
-                "title": "DNS connections",
-                "description": "Manage reusable, instance-owned Cloudflare credentials and permitted zones. Connections are shared with authorized administrators."
+                "title": "Providers",
+                "description": "Configure named provider connections once and reuse them for certificates and DDNS."
             },
             "provider": "Cloudflare · Instance connection",
             "usage": "Consumer references: {{count}}",
@@ -3250,6 +3250,32 @@
                 "invalid": "The assignment is invalid or incompatible with this host.",
                 "unavailable": "A required service is unavailable. Preview again to retry.",
                 "timeout": "Batch time limit reached. Preview again to retry."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Not verified",
+                "connected": "Connected",
+                "disconnected": "Disconnected",
+                "failed": "Check failed"
+            },
+            "recheck": "Recheck",
+            "recheckNamed": "Recheck {{name}}",
+            "verified": "Connection and DNS permissions verified.",
+            "permissionHint": "Saving new credentials or rechecking creates and removes a temporary TXT record in each selected zone to verify DNS permissions.",
+            "migrationHint": "Existing certificates keep renewing. Matching saved credentials are linked automatically after verification.",
+            "consumers": "Used by",
+            "consumerTypes": {
+                "dns01": "DNS-01 certificate",
+                "ddns": "DDNS record"
+            },
+            "chooseConnection": "Provider connection",
+            "unavailable": "Connection unavailable",
+            "manage": "Set up or manage providers (opens a new tab; your draft is kept)",
+            "certificateHint": "Choose a verified connection. Provider credentials are managed centrally.",
+            "noMatchingZone": "No verified zone covers all certificate domains.",
+            "validation": {
+                "connection": "Choose a verified connection and a permitted zone."
             }
         }
     },

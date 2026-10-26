@@ -100,11 +100,20 @@ const dnsApiTokenSchema = z
     .min(1, 'admin.certificates.validation.dnsApiToken')
     .max(512, 'admin.certificates.validation.dnsApiToken')
     .regex(/^[\x21-\x7e]+$/u, 'admin.certificates.validation.dnsApiToken')
-const dnsProviderSchema = z.strictObject({
+const inlineDnsProviderSchema = z.strictObject({
     type: dnsProviderIdSchema,
     zoneId: z.string().regex(/^[a-f0-9]{32}$/u, 'admin.certificates.validation.dnsZoneId'),
     apiToken: dnsApiTokenSchema,
 })
+const dnsProviderSchema = z.discriminatedUnion('type', [
+    inlineDnsProviderSchema,
+    z.strictObject({
+        type: z.literal('connection'),
+        provider: dnsProviderIdSchema,
+        connectionId: z.uuidv7('admin.providers.validation.connection'),
+        zoneId: z.string().regex(/^[a-f0-9]{32}$/u, 'admin.certificates.validation.dnsZoneId'),
+    }),
+])
 
 export const requestCertificateInputSchema = z
     .strictObject({
@@ -163,7 +172,14 @@ export const requestCertificateInputSchema = z
 export function certificateRequestInputFromForm(
     value: CertificateRequestFormValues,
 ): Record<string, unknown> {
-    const { dnsZoneId, dnsApiToken, dnsMode, ...requestValues } = value
+    const {
+        dnsZoneId,
+        dnsApiToken,
+        dnsConnectionId,
+        dnsConnectionProvider,
+        dnsMode,
+        ...requestValues
+    } = value
     return {
         ...requestValues,
         ...(value.challengeType === 'dns-01' && dnsMode === 'manual' ? { dnsMode: 'manual' } : {}),
@@ -171,9 +187,14 @@ export function certificateRequestInputFromForm(
         ...(value.challengeType === 'dns-01' && value.dnsMode !== 'manual'
             ? {
                   dnsProvider: {
-                      type: 'cloudflare',
+                      ...(dnsConnectionId !== undefined
+                          ? {
+                                type: 'connection',
+                                provider: dnsConnectionProvider ?? 'cloudflare',
+                                connectionId: dnsConnectionId,
+                            }
+                          : { type: 'cloudflare', apiToken: dnsApiToken }),
                       zoneId: dnsZoneId,
-                      apiToken: dnsApiToken,
                   },
               }
             : {}),
@@ -184,6 +205,7 @@ function formIssuePath(path: readonly PropertyKey[]): PropertyKey[] {
     if (path[0] !== 'dnsProvider') return [...path]
     if (path[1] === 'zoneId') return ['dnsZoneId']
     if (path[1] === 'apiToken') return ['dnsApiToken']
+    if (path[1] === 'connectionId') return ['dnsConnectionId']
     return ['dnsZoneId']
 }
 
@@ -196,6 +218,8 @@ export const certificateRequestFormSchema = z
         dnsMode: z.string().optional(),
         dnsZoneId: z.string(),
         dnsApiToken: z.string(),
+        dnsConnectionId: z.string().optional(),
+        dnsConnectionProvider: dnsProviderIdSchema.optional(),
         contactEmail: z.string(),
         acceptTerms: z.boolean(),
     })

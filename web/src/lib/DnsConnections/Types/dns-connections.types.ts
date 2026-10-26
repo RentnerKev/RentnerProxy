@@ -33,6 +33,14 @@ export interface DnsConnection {
     readonly references: readonly DnsConnectionUsage[]
     readonly createdAt: string
     readonly updatedAt: string
+    readonly verification?:
+        | {
+              readonly status: 'untested' | 'connected' | 'disconnected' | 'failed'
+              readonly checkedAt: string | null
+              readonly zoneIds: readonly string[]
+              readonly error: DnsConnectionErrorCode | null
+          }
+        | undefined
 }
 
 export interface DnsConnectionTestResult {
@@ -41,6 +49,11 @@ export interface DnsConnectionTestResult {
     readonly checkedAt: string
     readonly dnsWriteVerified: false
 }
+
+export type DnsConnectionChoice = Pick<
+    DnsConnection,
+    'id' | 'provider' | 'name' | 'zones' | 'verification'
+>
 
 export interface ValidatedDnsConnectionReference {
     readonly reference: DnsConnectionReference

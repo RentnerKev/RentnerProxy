@@ -341,6 +341,42 @@ describe('DDNS administration UI', () => {
         )
     })
 
+    test('named accounts show their status and unverified credentials cannot be selected for new records', async () => {
+        const { api } = fixture()
+        api.connections = mock(async () => [
+            DDNS_CONNECTION,
+            {
+                ...DDNS_CONNECTION,
+                id: '0198d98a-0000-7000-8000-000000000099',
+                name: 'Read-only account',
+                verification: {
+                    status: 'disconnected' as const,
+                    checkedAt: '2026-10-01T00:00:00Z',
+                    zoneIds: [],
+                    error: 'provider_unauthorized' as const,
+                },
+            },
+        ])
+        await render(api)
+        await click(button('Add records'))
+        await click(document.querySelector('[role="dialog"] [role="combobox"]')!)
+        await waitFor(() => document.querySelectorAll('[role="option"]').length === 2)
+        const options = [...document.querySelectorAll('[role="option"]')]
+        const available = options.find((item) => item.textContent?.includes('Fixture Cloudflare'))!
+        const readOnly = options.find((item) => item.textContent?.includes('Read-only account'))!
+        expect(available.textContent).toContain('Cloudflare')
+        expect(available.textContent).toContain('Connected')
+        expect(readOnly.textContent).toContain('Disconnected')
+        expect(readOnly.getAttribute('aria-disabled')).toBe('true')
+        await click(readOnly)
+        expect(button('Save changes').disabled).toBeTrue()
+        expect(api.apply).not.toHaveBeenCalled()
+        await click(available)
+        expect(document.querySelector<HTMLAnchorElement>('a[href="/providers"]')?.target).toBe(
+            '_blank',
+        )
+    })
+
     test('reduced adapter capabilities hide unsupported address families and disable proxying', async () => {
         const { api } = fixture()
         api.providers = mock(async () => ({
@@ -384,7 +420,7 @@ describe('DDNS administration UI', () => {
         await render(api)
         await action('Edit')
         expect(button('Save changes').disabled).toBe(true)
-        expect(document.body.textContent).toContain('Saved connection')
+        expect(document.body.textContent).toContain('Fixture Cloudflare')
         expect(document.body.textContent).toContain('example.com')
         await submit()
         expect(api.apply).not.toHaveBeenCalled()

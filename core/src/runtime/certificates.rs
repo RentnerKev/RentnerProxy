@@ -231,6 +231,7 @@ mod issuance;
 mod material;
 mod material_files;
 mod persistence;
+mod provider_connections;
 mod recovery;
 mod retry;
 mod scheduling;

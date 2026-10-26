@@ -258,6 +258,20 @@ mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
         message: 'admin.certificates.manualDns.cancelled',
     })),
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
+    getCertificateDnsConnectionsHandler: mock(async () => [
+        {
+            id: '0198d98a-0000-7000-8000-000000000002',
+            provider: 'cloudflare',
+            name: 'Shared Cloudflare',
+            zones: [{ id: 'a'.repeat(32), name: 'example.com' }],
+            verification: {
+                status: 'connected',
+                checkedAt: '2026-10-01T00:00:00Z',
+                zoneIds: ['a'.repeat(32)],
+                error: null,
+            },
+        },
+    ]),
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,
 }))
@@ -1448,19 +1462,11 @@ describe('proxy host form tabs', () => {
             'Catalogue failure',
         )
         await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
-        await setControlValue(
-            document.querySelector<HTMLInputElement>('#certificate-request-dns-zone-id')!,
-            'a'.repeat(32),
-        )
-        await setControlValue(
-            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')!,
-            'catalogue-secret',
-        )
         await click(getButton('Request certificate and save'))
         expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
         await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
         expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
-            'DNS provider capabilities are unavailable',
+            'Choose a verified connection and a permitted zone.',
         )
         expect(document.querySelector('form [role="alert"]')).toBeNull()
         expect(document.body.textContent).not.toContain('catalogue-secret')
@@ -1490,13 +1496,12 @@ describe('proxy host form tabs', () => {
             'Draft TLS',
         )
         await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
-        await setControlValue(
-            document.querySelector<HTMLInputElement>('#certificate-request-dns-zone-id')!,
-            'a'.repeat(32),
-        )
-        await setControlValue(
-            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')!,
-            'synthetic-dns-token',
+        await click(getButton('Provider connection'))
+        await waitFor(() => document.querySelector('[role="option"]') !== null)
+        await click(
+            [...document.querySelectorAll('[role="option"]')].find((option) =>
+                option.textContent?.includes('Shared Cloudflare'),
+            )!,
         )
         await click(getHostTab('Caching'))
         await click(getCheckbox('Enable browser-cache rules'))
@@ -1518,8 +1523,9 @@ describe('proxy host form tabs', () => {
             document.querySelector<HTMLInputElement>('#certificate-request-domain-0')?.value,
         ).toBe('updated.example.com')
         expect(
-            document.querySelector<HTMLInputElement>('#certificate-request-dns-api-token')?.value,
-        ).toBe('synthetic-dns-token')
+            document.querySelector('#certificate-request-dns-connection')?.textContent,
+        ).toContain('Shared Cloudflare')
+        expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
         expect(document.querySelector('#certificate-request-terms')).toBeNull()
         const submit = getButton('Request certificate and save')
         const consent = document.getElementById(submit.getAttribute('aria-describedby')!)!
@@ -1693,7 +1699,7 @@ describe('proxy host form tabs', () => {
         expect(getHostPanel('Certificate & HTTPS').hidden).toBeFalse()
         expect(getHostTab('Certificate & HTTPS').getAttribute('data-invalid')).toBe('true')
         expect(document.activeElement).toBe(
-            document.querySelector('#certificate-request-dns-zone-id'),
+            document.querySelector('#certificate-request-dns-connection'),
         )
         expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
     })

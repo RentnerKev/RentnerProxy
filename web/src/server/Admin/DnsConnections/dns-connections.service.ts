@@ -48,6 +48,7 @@ export function createDnsConnectionsService(dependencies: DnsConnectionsDependen
         action: AuditAction,
         targetId: string | null,
         run: () => Promise<T>,
+        succeeded: (value: T) => boolean = () => true,
     ) {
         let value: T
         try {
@@ -58,7 +59,7 @@ export function createDnsConnectionsService(dependencies: DnsConnectionsDependen
             if (error instanceof DnsConnectionDomainError) throw error
             throw new DnsConnectionDomainError('controller_unavailable')
         }
-        await audit(actorId, action, targetId, 'success')
+        await audit(actorId, action, targetId, succeeded(value) ? 'success' : 'failure')
         return value
     }
     return {
@@ -91,6 +92,23 @@ export function createDnsConnectionsService(dependencies: DnsConnectionsDependen
                 dependencies.controller.test(parsed.data),
             )
         },
+        async verifyDnsConnectionService(input: DeleteDnsConnectionInput) {
+            const actor = await dependencies.authorize(PERMISSIONS.DNS_CONNECTIONS_MANAGE)
+            const parsed = deleteDnsConnectionSchema.safeParse(input)
+            if (!parsed.success) throw new DnsConnectionDomainError('invalid_input')
+            await dependencies.limitProvider(actor.id)
+            return mutation(
+                actor.id,
+                'request',
+                parsed.data.connectionId,
+                () =>
+                    dependencies.controller.verify(
+                        parsed.data.connectionId,
+                        parsed.data.expectedRevision,
+                    ),
+                (connection) => connection.verification?.status === 'connected',
+            )
+        },
         async deleteDnsConnectionService(input: DeleteDnsConnectionInput) {
             const actor = await dependencies.authorize(PERMISSIONS.DNS_CONNECTIONS_MANAGE)
             const parsed = deleteDnsConnectionSchema.safeParse(input)
@@ -115,6 +133,7 @@ export const {
     getDnsConnectionsService,
     saveDnsConnectionService,
     testDnsConnectionService,
+    verifyDnsConnectionService,
     deleteDnsConnectionService,
 } = createDnsConnectionsService({
     authorize: requirePermissionService,

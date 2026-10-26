@@ -46,6 +46,7 @@ function setup(
             list: mock(async () => [connection]),
             save: mock(async () => connection),
             delete: mock(async () => {}),
+            verify: mock(async () => connection),
             test: mock(async () => ({
                 zones: connection.zones,
                 selectedZoneIds: [zoneId],
@@ -72,6 +73,7 @@ describe('DNS connection service authorization and mutations', () => {
             () => service.saveDnsConnectionService(input),
             () => service.testDnsConnectionService({ apiToken: input.apiToken }),
             () => service.deleteDnsConnectionService({ connectionId: id, expectedRevision: 1 }),
+            () => service.verifyDnsConnectionService({ connectionId: id, expectedRevision: 1 }),
             () =>
                 service.validateDnsConnectionReferenceService({
                     connectionId: id,
@@ -128,8 +130,12 @@ describe('DNS connection service authorization and mutations', () => {
             service.testDnsConnectionService({ apiToken: input.apiToken }),
         ).rejects.toThrow('limited')
         await expect(service.saveDnsConnectionService(input)).rejects.toThrow('limited')
+        await expect(
+            service.verifyDnsConnectionService({ connectionId: id, expectedRevision: 1 }),
+        ).rejects.toThrow('limited')
         expect(deps.controller.test).not.toHaveBeenCalled()
         expect(deps.controller.save).not.toHaveBeenCalled()
+        expect(deps.controller.verify).not.toHaveBeenCalled()
     })
     test('keeps core success when audit fails and never retries', async () => {
         const { deps } = setup()

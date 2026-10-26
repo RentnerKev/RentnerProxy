@@ -14,6 +14,7 @@ pub(crate) mod docker_discovery;
 mod engine;
 mod lifecycle;
 pub(crate) mod manual_dns_propagation;
+mod provider_connections;
 pub(crate) mod renderer;
 mod renewal;
 mod state;

@@ -102,6 +102,20 @@ export function createDnsConnectionsController(
             )
                 throw new DnsConnectionDomainError('controller_unavailable')
         },
+        async verify(id: string, expectedRevision: number) {
+            const result = decode(
+                await request(`/internal/v1/dns/connections/${encodeURIComponent(id)}/verify`, {
+                    ...options,
+                    method: 'POST',
+                    timeoutMs: 65_000,
+                    body: JSON.stringify({ expectedRevision }),
+                }),
+                dnsConnectionMetadataSchema,
+            )
+            if (result.id !== id || result.revision !== expectedRevision)
+                throw new DnsConnectionDomainError('controller_unavailable')
+            return result
+        },
         async validateReference(input: DnsConnectionReference) {
             const result = decode(
                 await request('/internal/v1/dns/connections/references/validate', {

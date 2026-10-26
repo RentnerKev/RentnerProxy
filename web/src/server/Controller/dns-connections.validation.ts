@@ -42,6 +42,26 @@ export const dnsConnectionMetadataSchema = z
             .max(10_000),
         createdAt: z.iso.datetime({ offset: true }),
         updatedAt: z.iso.datetime({ offset: true }),
+        verification: z
+            .strictObject({
+                status: z.enum(['untested', 'connected', 'disconnected', 'failed']),
+                checkedAt: z.iso.datetime({ offset: true }).nullable(),
+                zoneIds: z.array(zoneId).max(MAX_DNS_CONNECTION_ZONES),
+                error: z.enum(DNS_CONNECTION_ERROR_CODES).nullable(),
+            })
+            .optional(),
+    })
+    .refine((value) => {
+        const verification = value.verification
+        if (!verification) return true
+        if (new Set(verification.zoneIds).size !== verification.zoneIds.length) return false
+        if (verification.status !== 'connected') return verification.zoneIds.length === 0
+        return (
+            verification.checkedAt !== null &&
+            verification.error === null &&
+            verification.zoneIds.length === value.zones.length &&
+            verification.zoneIds.every((id) => value.zones.some((item) => item.id === id))
+        )
     })
     .refine((value) => Date.parse(value.createdAt) <= Date.parse(value.updatedAt))
     .refine((value) =>

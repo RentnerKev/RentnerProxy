@@ -128,7 +128,7 @@
         "auditLogs": "Auditlogboek",
         "systemVersion": "Systeemversie {{version}}",
         "updateAvailable": "Update naar versie {{version}} beschikbaar",
-        "dnsConnections": "DNS-verbindingen",
+        "dnsConnections": "Providers",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2684,8 +2684,8 @@
             },
             "page": {
                 "eyebrow": "Beheer",
-                "title": "DNS-verbindingen",
-                "description": "Beheer herbruikbare Cloudflare-inloggegevens en toegestane zones van deze instantie. Bevoegde beheerders delen deze verbindingen."
+                "title": "Providers",
+                "description": "Stel benoemde providerverbindingen één keer in en gebruik ze voor certificaten en DDNS."
             },
             "provider": "Cloudflare · Instantieverbinding",
             "usage": "Verwijzingen van afnemers: {{count}}",
@@ -3231,6 +3231,32 @@
                 "invalid": "De toewijzing is ongeldig of niet compatibel met deze host.",
                 "unavailable": "Een vereiste dienst is niet beschikbaar. Vernieuw het voorbeeld om opnieuw te proberen.",
                 "timeout": "De tijdslimiet van de batch is bereikt. Vernieuw het voorbeeld om opnieuw te proberen."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Niet geverifieerd",
+                "connected": "Verbonden",
+                "disconnected": "Niet verbonden",
+                "failed": "Controle mislukt"
+            },
+            "recheck": "Opnieuw controleren",
+            "recheckNamed": "{{name}} opnieuw controleren",
+            "verified": "Verbinding en DNS-rechten geverifieerd.",
+            "permissionHint": "Bij het opslaan van nieuwe inloggegevens of opnieuw controleren wordt in elke geselecteerde zone een tijdelijk TXT-record aangemaakt en verwijderd om DNS-rechten te controleren.",
+            "migrationHint": "Bestaande certificaten worden verder vernieuwd. Overeenkomende opgeslagen inloggegevens worden na verificatie automatisch gekoppeld.",
+            "consumers": "Gebruikt door",
+            "consumerTypes": {
+                "dns01": "DNS-01-certificaat",
+                "ddns": "DDNS-record"
+            },
+            "chooseConnection": "Providerverbinding",
+            "unavailable": "Verbinding niet beschikbaar",
+            "manage": "Providers instellen of beheren (nieuw tabblad; je concept blijft bewaard)",
+            "certificateHint": "Kies een geverifieerde verbinding. Inloggegevens worden centraal beheerd.",
+            "noMatchingZone": "Geen geverifieerde zone dekt alle certificaatdomeinen.",
+            "validation": {
+                "connection": "Kies een geverifieerde verbinding en een toegestane zone."
             }
         }
     },

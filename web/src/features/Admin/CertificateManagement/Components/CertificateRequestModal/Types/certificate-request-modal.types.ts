@@ -36,3 +36,8 @@ export interface CertificateRequestFieldsProps {
     readonly locked?: boolean
     readonly onSetupManualDns?: (() => void) | undefined
 }
+
+export interface CertificateProviderFieldsProps {
+    readonly form: CertificateRequestFieldsProps['form']
+    readonly disabled: boolean
+}

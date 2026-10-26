@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { DnsProviderId } from '@/lib/DnsConnections/Types/dns-provider.types.ts'
 
 import type {
     importCertificateInputSchema,
@@ -14,6 +15,8 @@ export interface CertificateRequestFormValues {
     readonly dnsMode?: string | undefined
     readonly dnsZoneId: string
     readonly dnsApiToken: string
+    readonly dnsConnectionId?: string | undefined
+    readonly dnsConnectionProvider?: DnsProviderId | undefined
     readonly contactEmail: string
     readonly acceptTerms: boolean
 }
