@@ -42,9 +42,11 @@ impl Store {
         };
         let mut state = self.lock().await?;
         for entry in &Self::registry(&mut state)?.connections {
+            // Adoption is optional; an unreadable candidate must remain repairable
+            // without blocking unrelated accounts. Explicit use still fails closed.
             if super::resolve_provider(None, Some(entry))? == config.provider_id()
                 && entry.metadata.verified_for(zone_id)
-                && self.decrypt(entry)? == token
+                && self.decrypt(entry).is_ok_and(|stored| stored == token)
             {
                 return Ok(Some(crate::runtime::dns::DnsProviderConfig::Connection {
                     provider: config.provider_id(),

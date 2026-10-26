@@ -537,3 +537,98 @@ async fn recovery_reaches_later_accounts_despite_repeated_failures_in_the_first_
     assert!(records.contains_key(UNRELATED));
     assert_eq!(records.len(), 5);
 }
+
+#[tokio::test]
+async fn corrupt_adoption_candidate_does_not_block_other_accounts_or_credential_repair() {
+    let fixture = fixture().await;
+    fixture.store.verify(ID, 1).await.unwrap();
+    let legacy = DnsProviderConfig::Cloudflare {
+        zone_id: ZONE.into(),
+        api_token: "fixture-token".into(),
+    };
+    {
+        let mut state = fixture.store.lock().await.unwrap();
+        let mut next = Store::registry(&mut state).unwrap().clone();
+        next.connections[0].secret.ciphertext[0] ^= 1;
+        fixture.store.commit(&mut state, next).unwrap();
+    }
+    assert!(
+        fixture
+            .store
+            .matching_connection(&legacy)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let damaged = DnsProviderConfig::Connection {
+        provider: super::super::ProviderId::Cloudflare,
+        connection_id: ID.into(),
+        zone_id: ZONE.into(),
+    };
+    assert!(matches!(
+        fixture.store.resolve_config(&damaged).await,
+        Err(Error::CredentialsUnavailable)
+    ));
+    assert!(matches!(
+        fixture
+            .store
+            .certificate_references(&[usage()], true, true)
+            .await,
+        Err(Error::CredentialsUnavailable)
+    ));
+    let other = "0198d98a-0000-7000-8000-000000000093";
+    fixture
+        .store
+        .save(
+            other.into(),
+            SaveRequest {
+                provider: None,
+                expected_revision: 0,
+                name: "Healthy account".into(),
+                api_token: Some("fixture-token".into()),
+                zone_ids: vec![ZONE.into()],
+                actor_user_id: USER.into(),
+            },
+        )
+        .await
+        .unwrap();
+    fixture.store.verify(other, 1).await.unwrap();
+    let matched = fixture
+        .store
+        .matching_connection(&legacy)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(matched.connection().unwrap().1, other);
+    fixture
+        .store
+        .save(
+            ID.into(),
+            SaveRequest {
+                provider: None,
+                expected_revision: 1,
+                name: "Reconnected account".into(),
+                api_token: Some("replacement-fixture-token".into()),
+                zone_ids: vec![ZONE.into()],
+                actor_user_id: USER.into(),
+            },
+        )
+        .await
+        .unwrap();
+    let reference = DnsProviderConfig::Connection {
+        provider: super::super::ProviderId::Cloudflare,
+        connection_id: ID.into(),
+        zone_id: ZONE.into(),
+    };
+    assert_eq!(
+        fixture
+            .store
+            .resolve_config(&reference)
+            .await
+            .unwrap()
+            .credential()
+            .unwrap()
+            .1,
+        "replacement-fixture-token"
+    );
+}
