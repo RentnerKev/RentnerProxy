@@ -1,0 +1,51 @@
+name: autofix.ci
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: read
+
+concurrency:
+    group: autofix-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.4
+    RUST_VERSION: 1.99.1
+
+jobs:
+    autofix:
+        name: Autofix
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Set up Rust
+              run: |
+                  rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt
+                  rustup override set "$RUST_VERSION"
+
+            - name: Format code
+              run: bun --no-env-file run format
+
+            - name: Exclude protected GitHub automation from fixes
+              run: git restore --worktree -- .github
+
+            - name: Apply formatting fixes
+              uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a
+              with:
+                  commit-message: 'style: apply automatic formatting'
+                  fail-fast: false
