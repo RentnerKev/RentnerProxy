@@ -55,7 +55,7 @@ export function getCertificateOperationDisplay(
     if (certificate.candidate?.nextAttemptAt || scheduling.nextAttemptAt) {
         return { id: null, kind: null, stage: 'retry_scheduled' }
     }
-    if (certificate.lastErrorCode || certificate.candidate?.lastErrorCode) {
+    if (getCertificateRetryError(certificate)) {
         return { id: null, kind: null, stage: 'failed' }
     }
     return { id: null, kind: null, stage: null }
@@ -69,7 +69,8 @@ export function getCertificateRetryAt(certificate: CertificateSummary): Date | n
 }
 
 export function getCertificateRetryError(certificate: CertificateSummary): string | null {
-    return certificate.candidate?.lastErrorCode ?? certificate.lastErrorCode
+    const error = certificate.candidate?.lastErrorCode ?? certificate.lastErrorCode
+    return error === 'acme_cancelled' ? null : error
 }
 
 export function hasActiveCertificateOperation(certificate: CertificateSummary): boolean {
@@ -97,4 +98,25 @@ export function certificateOperationStageClass(stage: CertificateOperationStage)
     if (stage === 'retry_scheduled') return 'bg-amber-500/10 text-amber-700'
     if (stage === 'applied') return 'bg-success-bg text-success-text'
     return 'bg-info-bg text-info-text'
+}
+
+export function canCancelDelegatedCertificate(certificate: {
+    readonly source: string
+    readonly operation: string
+    readonly currentOperation?: {
+        readonly kind: string
+        readonly dnsMode?: string | undefined
+        readonly stage: string
+    } | null
+}): boolean {
+    const operation = certificate.currentOperation
+    return (
+        certificate.source === 'acme' &&
+        operation?.dnsMode === 'delegated' &&
+        ((operation.kind === 'issue' && certificate.operation === 'issuing') ||
+            (operation.kind === 'renew' && certificate.operation === 'renewing')) &&
+        ['queued', 'creating_order', 'preparing_challenge', 'waiting_for_validation'].includes(
+            operation.stage,
+        )
+    )
 }

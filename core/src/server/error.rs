@@ -105,18 +105,22 @@ impl ApiError {
             | CertificateError::AcmeDomainInvalid
             | CertificateError::AcmeDnsRequired
             | CertificateError::DnsProviderInvalid
+            | CertificateError::DnsDelegationInvalid
             | CertificateError::ManualDnsOrderInvalid => StatusCode::UNPROCESSABLE_ENTITY,
             CertificateError::NotFound => StatusCode::NOT_FOUND,
             CertificateError::InUse
             | CertificateError::OperationInProgress
             | CertificateError::ManualDnsNotPropagated
+            | CertificateError::DnsDelegationNotPropagated
             | CertificateError::ManualDnsExpired
-            | CertificateError::ManualDnsCancelled => StatusCode::CONFLICT,
+            | CertificateError::ManualDnsCancelled
+            | CertificateError::AcmeCancelled => StatusCode::CONFLICT,
             CertificateError::AcmeFailed
             | CertificateError::DnsProviderUnavailable
             | CertificateError::DnsProviderUnauthorized
             | CertificateError::DnsCleanupFailed
             | CertificateError::ManualDnsLookupFailed
+            | CertificateError::DnsDelegationLookupFailed
             | CertificateError::RuntimeApplyFailed => StatusCode::BAD_GATEWAY,
             CertificateError::DnsCredentialsUnavailable | CertificateError::StoreUnavailable => {
                 StatusCode::SERVICE_UNAVAILABLE

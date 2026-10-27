@@ -6,7 +6,7 @@ use super::{
 use crate::runtime::{
     certificates::CertificateError,
     clock::utc_now,
-    dns::{DnsProvider, DnsProviderConfig, DnsRecordIntent},
+    dns::{DnsDelegationBinding, DnsProvider, DnsProviderConfig, DnsRecordIntent},
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -32,10 +32,18 @@ pub(super) fn validate_pending(entry: &Entry) -> Result<(), Error> {
             .iter()
             .find(|zone| zone.id == check.zone_id)
             .ok_or(Error::StoreUnavailable)?;
-        let expected =
+        let mut expected =
             DnsRecordIntent::new(&entry.metadata.id, &check.intent.name, &check.intent.value)
                 .map_err(|_| Error::StoreUnavailable)?;
-        let in_zone = check.intent.name.ends_with(&format!(".{}", zone.name))
+        let explicit_probe = if check.intent.delegation.is_some() {
+            expected = permission_probe(&entry.metadata.id, &zone.name, &check.intent.value)
+                .map_err(|_| Error::StoreUnavailable)?;
+            true
+        } else {
+            false
+        };
+        let in_zone = explicit_probe
+            || check.intent.name.ends_with(&format!(".{}", zone.name))
             || (matches!(entry.metadata.provider.as_str(), "desec" | "hetzner")
                 && check.intent.name == zone.name);
         if expected != check.intent || !in_zone {
@@ -43,6 +51,29 @@ pub(super) fn validate_pending(entry: &Entry) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+fn permission_probe(
+    id: &str,
+    zone: &str,
+    value: &str,
+) -> Result<DnsRecordIntent, CertificateError> {
+    if crate::proxy::is_canonical_domain(zone) {
+        return Err(CertificateError::DnsProviderInvalid);
+    }
+    let intent = DnsRecordIntent::new(id, "rp-verify.invalid", value)?;
+    let original_owner = "_acme-challenge.rp-verify.invalid".to_owned();
+    let cname_chain = if original_owner == zone {
+        vec![original_owner.clone()]
+    } else {
+        vec![original_owner.clone(), zone.to_owned()]
+    };
+    intent.with_delegation(DnsDelegationBinding {
+        original_owner,
+        target_owner: zone.to_owned(),
+        zone_name: zone.to_owned(),
+        cname_chain,
+    })
 }
 
 fn provider_error(error: CertificateError) -> Error {
@@ -69,8 +100,8 @@ impl Store {
                 api_token: self.decrypt(entry)?,
             },
         };
-        let endpoint = self.provider_endpoint(config.provider_id());
-        DnsProvider::for_connection_check(config, endpoint).map_err(provider_error)
+        let endpoint = self.provider_endpoint(config.provider_id())?;
+        DnsProvider::for_connection_check(config, &endpoint).map_err(provider_error)
     }
 
     async fn finish_check(
@@ -180,7 +211,7 @@ impl Store {
         let provider = super::resolve_provider(None, Some(&entry))?;
         let permitted = validation::permitted(
             provider,
-            self.provider_endpoint(provider),
+            &self.provider_endpoint(provider)?,
             &self.decrypt(&entry)?,
         )
         .await?;
@@ -201,6 +232,13 @@ impl Store {
             .zones
             .iter()
             .map(|zone| {
+                if !crate::proxy::is_canonical_domain(&zone.name) {
+                    return Ok(PermissionCheck {
+                        zone_id: zone.id.clone(),
+                        intent: permission_probe(&entry.metadata.id, &zone.name, &nonce)
+                            .map_err(provider_error)?,
+                    });
+                }
                 Ok(PermissionCheck {
                     zone_id: zone.id.clone(),
                     intent: DnsRecordIntent::new(

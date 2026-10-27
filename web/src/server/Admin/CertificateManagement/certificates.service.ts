@@ -1,3 +1,4 @@
+import { canCancelDelegatedCertificate } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
 import type {
     DeleteCertificateResult,
     CertificateDeletionRuntime,
@@ -30,6 +31,7 @@ import {
 } from '@/db/schema.ts'
 import {
     manualDnsActionInputSchema,
+    cancelDelegatedCertificateInputSchema,
     certificateIdInputSchema,
     importCertificateInputSchema,
     replaceCertificateInputSchema,
@@ -55,6 +57,7 @@ import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
     actOnControllerManualDns,
+    cancelControllerDelegatedCertificate,
     deleteControllerCertificate,
     getControllerCertificate,
     importControllerCertificate,
@@ -113,8 +116,10 @@ function parseId(certificateId: string): string {
 async function readCertificateSummaries(
     actorId: string,
     permission: PermissionKey,
+    metadata: CertificateMetadataSnapshot['metadata'],
 ): Promise<CertificateSummary[]> {
     const database = getAuthDatabase()
+    const dnsModes = new Map(metadata.map((item) => [item.id, item.dnsMode]))
     return database.transaction(
         async (transaction) => {
             await requirePermissionInTransaction(transaction, actorId, permission)
@@ -166,6 +171,7 @@ async function readCertificateSummaries(
                       }
                     : null,
                 challengeType: row.challengeType,
+                dnsMode: dnsModes.get(row.id) ?? row.currentOperation?.dnsMode ?? null,
                 issuedAt: row.issuedAt,
                 expiresAt: row.expiresAt,
                 issuer: row.issuer,
@@ -202,7 +208,7 @@ async function readCertificateSummaries(
 async function synchronizeCertificateMetadata(
     actorId: string,
     permission: PermissionKey,
-): Promise<void> {
+): Promise<CertificateMetadataSnapshot['metadata']> {
     let snapshot: CertificateMetadataSnapshot
     try {
         snapshot = await getCertificateMetadataSnapshot()
@@ -223,12 +229,13 @@ async function synchronizeCertificateMetadata(
             snapshot.validBeforeRead,
         )
     })
+    return snapshot.metadata
 }
 
 export async function getCertificatesService(): Promise<CertificateSummary[]> {
     const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_VIEW)
-    await synchronizeCertificateMetadata(actor.id, PERMISSIONS.CERTIFICATES_VIEW)
-    return readCertificateSummaries(actor.id, PERMISSIONS.CERTIFICATES_VIEW)
+    const metadata = await synchronizeCertificateMetadata(actor.id, PERMISSIONS.CERTIFICATES_VIEW)
+    return readCertificateSummaries(actor.id, PERMISSIONS.CERTIFICATES_VIEW, metadata)
 }
 
 export async function getAssignableCertificatesService(): Promise<CertificateSummary[]> {
@@ -242,8 +249,8 @@ export async function getAssignableCertificatesService(): Promise<CertificateSum
             : PERMISSIONS.REDIRECT_HOSTS_CREATE
     if (!actor.permissions.includes(permission))
         throw new AuthDomainError('permission_denied', 'Permission is required.')
-    await synchronizeCertificateMetadata(actor.id, permission)
-    return readCertificateSummaries(actor.id, permission)
+    const metadata = await synchronizeCertificateMetadata(actor.id, permission)
+    return readCertificateSummaries(actor.id, permission, metadata)
 }
 
 async function createPendingCertificate(
@@ -773,6 +780,64 @@ export async function actOnManualDnsService(
                 operationId: parsed.operationId.toLowerCase(),
                 challengeSetId: parsed.challengeSetId.toLowerCase(),
             })
+            await persistControllerMetadata(transaction, metadata)
+            await appendAuditEventInTransactionService(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'certificate',
+                targetId: id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'certificate',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
+    return id
+}
+
+export async function cancelDelegatedCertificateService(
+    input: z.input<typeof cancelDelegatedCertificateInputSchema>,
+): Promise<string> {
+    const actor = await requireUserService()
+    if (
+        !actor.permissions.includes(PERMISSIONS.CERTIFICATES_ISSUE) &&
+        !actor.permissions.includes(PERMISSIONS.CERTIFICATES_RENEW)
+    ) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = parseInput(cancelDelegatedCertificateInputSchema, input)
+    const id = parsed.certificateId.toLowerCase()
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            const row = await getCertificateRow(transaction, id)
+            const operation = row.currentOperation
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                operation?.kind === 'renew'
+                    ? PERMISSIONS.CERTIFICATES_RENEW
+                    : PERMISSIONS.CERTIFICATES_ISSUE,
+            )
+            if (
+                !canCancelDelegatedCertificate(row) ||
+                operation?.id !== parsed.operationId.toLowerCase()
+            )
+                throw new CertificateDomainError('operation_in_progress')
+            const metadata = await cancelControllerDelegatedCertificate(
+                id,
+                parsed.operationId.toLowerCase(),
+            )
+            if (metadata.currentOperation?.kind !== operation.kind)
+                throw new CertificateDomainError('controller_unavailable')
             await persistControllerMetadata(transaction, metadata)
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,

@@ -117,6 +117,14 @@ impl CertificateStore {
                     Err(CertificateError::OperationInProgress)
                 }
                 Some(current)
+                    if current
+                        .acme
+                        .as_ref()
+                        .is_some_and(|acme| acme.cancel_requested) =>
+                {
+                    Err(CertificateError::AcmeCancelled)
+                }
+                Some(current)
                     if !matches!(
                         current.metadata.operation,
                         CertificateOperation::Issuing | CertificateOperation::Renewing
@@ -226,6 +234,7 @@ impl CertificateStore {
             manual_order: None,
             dns_provider,
             pending_dns_records: Vec::new(),
+            cancel_requested: false,
         })
     }
 

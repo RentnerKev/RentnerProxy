@@ -1075,6 +1075,7 @@
                 "needs_attention": "Aandacht vereist",
                 "awaiting_dns": "Wachten op je TXT-records",
                 "checking_dns": "Openbare DNS controleren",
+                "cancelling": "Annuleren",
                 "cancelled": "Geannuleerd",
                 "expired": "Verlopen"
             },
@@ -1144,6 +1145,12 @@
             "replace": {
                 "title": "Certificaat vervangen",
                 "description": "Vervang het opgeslagen materiaal en behoud de toewijzing van dit certificaat."
+            },
+            "delegatedDns": {
+                "cancel": "Uitgifte annuleren",
+                "cancelling": "Annulering aangevraagd. DNS-records worden opgeruimd.",
+                "label": "DNS-01 (gedelegeerd)",
+                "hint": "Configureer CNAME of NS voor elke _acme-challenge-naam. Selecteer een geverifieerde verbinding en doelzone, die mag afwijken van de certificaatdomeinen. RentnerProxy zoekt de delegatie automatisch op."
             },
             "form": {
                 "name": "Naam",
@@ -1228,8 +1235,12 @@
                 "operation_in_progress": "Er is al een andere certificaatbewerking actief.",
                 "acme_terms_required": "Accepteer de ACME-voorwaarden voordat je een certificaat aanvraagt.",
                 "acme_domain_invalid": "ACME vereist openbare DNS-domeinen.",
+                "acme_cancelled": "De certificaatuitgifte is geannuleerd.",
                 "acme_failed": "De ACME-bestelling is mislukt.",
                 "acme_dns_required": "DNS-01 vereist een DNS-provider.",
+                "dns_delegation_invalid": "Ongeldige DNS-delegatie of doel buiten de zone. Controleer CNAME- of NS-records van _acme-challenge en selecteer de geverifieerde doelzone.",
+                "dns_delegation_lookup_failed": "DNS-delegatie opzoeken mislukt. Controleer openbare DNS-resolutie en probeer opnieuw.",
+                "dns_delegation_not_propagated": "DNS-delegatie nog niet verspreid. Controleer openbare CNAME- of NS-records, wacht tot DNS-caches verlopen en probeer opnieuw.",
                 "dns_provider_invalid": "De DNS-providerconfiguratie is ongeldig.",
                 "dns_provider_unavailable": "De DNS-provider kon niet worden bereikt.",
                 "dns_provider_unauthorized": "De DNS-provider heeft de inloggegevens geweigerd.",

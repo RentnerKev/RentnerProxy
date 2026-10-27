@@ -41,6 +41,11 @@ const chainPem = z
     .max(MAX_CERTIFICATE_PEM_LENGTH, 'admin.certificates.validation.pemLimit')
     .optional()
 
+export const cancelDelegatedCertificateInputSchema = z.strictObject({
+    certificateId: z.uuid(),
+    operationId: z.uuidv7(),
+})
+
 export const manualDnsActionInputSchema = z.strictObject({
     certificateId: z.uuid(),
     operationId: z.uuidv7(),
@@ -126,7 +131,7 @@ export const requestCertificateInputSchema = z
         domains: certificateDomainsSchema,
         environment: z.enum(ACME_ENVIRONMENTS).default(DEFAULT_ACME_ENVIRONMENT),
         challengeType: z.enum(ACME_CHALLENGE_TYPES).default('http-01'),
-        dnsMode: z.enum(['provider', 'manual']).optional(),
+        dnsMode: z.enum(['provider', 'manual', 'delegated']).optional(),
         dnsProvider: dnsProviderSchema.optional(),
         contactEmail: z
             .union([z.email('admin.certificates.validation.email').max(254), z.literal('')])
@@ -162,13 +167,22 @@ export const requestCertificateInputSchema = z
         }
         if (
             (request.challengeType === 'http-01' &&
-                (request.dnsProvider || request.dnsMode === 'manual')) ||
+                (request.dnsProvider ||
+                    request.dnsMode === 'manual' ||
+                    request.dnsMode === 'delegated')) ||
             (request.dnsMode === 'manual' && request.dnsProvider)
         ) {
             context.addIssue({
                 code: 'custom',
                 path: ['dnsProvider'],
                 message: 'admin.certificates.validation.dnsProviderHttp',
+            })
+        }
+        if (request.dnsMode === 'delegated' && request.dnsProvider?.type !== 'connection') {
+            context.addIssue({
+                code: 'custom',
+                path: ['dnsProvider', 'connectionId'],
+                message: 'admin.providers.validation.connection',
             })
         }
     })
@@ -187,7 +201,9 @@ export function certificateRequestInputFromForm(
     } = value
     return {
         ...requestValues,
-        ...(value.challengeType === 'dns-01' && dnsMode === 'manual' ? { dnsMode: 'manual' } : {}),
+        ...(value.challengeType === 'dns-01' && (dnsMode === 'manual' || dnsMode === 'delegated')
+            ? { dnsMode }
+            : {}),
         domains: value.domains.map((domain) => domain.trim()).filter(Boolean),
         ...(value.challengeType === 'dns-01' && value.dnsMode !== 'manual'
             ? {

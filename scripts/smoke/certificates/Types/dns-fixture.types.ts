@@ -5,3 +5,9 @@ export interface TxtRecord {
     readonly content: string
     readonly comment?: string
 }
+
+export interface DnsFixtureDelegation {
+    readonly cnames: ReadonlyMap<string, string>
+    readonly nameservers: ReadonlyMap<string, readonly string[]>
+    readonly zones: ReadonlyMap<string, string>
+}

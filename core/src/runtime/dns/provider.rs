@@ -4,12 +4,10 @@ use reqwest::{Client, Method, StatusCode, Url, redirect::Policy};
 use serde_json::json;
 use tokio::sync::OnceCell;
 
-use crate::{
-    proxy::is_canonical_domain,
-    runtime::{certificates::CertificateEnvironment, certificates::CertificateError},
-};
+use crate::runtime::{certificates::CertificateEnvironment, certificates::CertificateError};
 
 use super::{
+    DnsPresentError,
     api::{
         CloudflareRecord, CloudflareRecordDelete, CloudflareResponse, CloudflareZone,
         MAX_REQUEST_BODY_BYTES, RECORDS_PER_PAGE, map_provider_error,
@@ -18,8 +16,8 @@ use super::{
     config::{DnsProviderConfig, endpoint_for_provider_environment},
     models::{DnsRecordHandle, DnsRecordIntent},
     validation::{
-        bare_authorization_name, dns_names_equal, domain_is_in_zone, is_safe_record_id,
-        validate_sans_against_zone,
+        bare_authorization_name, dns_names_equal, domain_is_in_zone, is_canonical_dns_name,
+        is_safe_record_id, validate_sans_against_zone,
     },
 };
 
@@ -129,7 +127,7 @@ impl DnsProvider {
         let zone = response
             .result
             .ok_or(CertificateError::DnsProviderUnavailable)?;
-        if zone.id != self.config.zone_id() || !is_canonical_domain(&zone.name) {
+        if zone.id != self.config.zone_id() || !is_canonical_dns_name(&zone.name) {
             return Err(CertificateError::DnsProviderInvalid);
         }
         let name = zone.name;
@@ -149,8 +147,16 @@ impl DnsProvider {
         &self,
         intent: &DnsRecordIntent,
     ) -> Result<DnsRecordHandle, CertificateError> {
+        self.present_tracked(intent)
+            .await
+            .map_err(|error| error.error)
+    }
+    pub(crate) async fn present_tracked(
+        &self,
+        intent: &DnsRecordIntent,
+    ) -> Result<DnsRecordHandle, DnsPresentError> {
         if !self.config.provider_id().supports(Operation::TxtCreate) {
-            return Err(CertificateError::DnsProviderInvalid);
+            return Err(CertificateError::DnsProviderInvalid.into());
         }
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
@@ -176,7 +182,7 @@ impl DnsProvider {
         }))
         .map_err(|_| CertificateError::DnsProviderInvalid)?;
         if body.len() > MAX_REQUEST_BODY_BYTES {
-            return Err(CertificateError::DnsProviderInvalid);
+            return Err(CertificateError::DnsProviderInvalid.into());
         }
         let url = self.api_path(&format!("zones/{}/dns_records", self.config.zone_id()))?;
         match self
@@ -184,21 +190,22 @@ impl DnsProvider {
             .await
         {
             Ok(response) => {
-                let record = response
-                    .result
-                    .ok_or(CertificateError::DnsProviderUnavailable)?;
+                let record = response.result.ok_or_else(|| {
+                    DnsPresentError::uncertain(CertificateError::DnsProviderUnavailable)
+                })?;
                 self.handle_for_record(record, intent, &owner_name)
+                    .map_err(DnsPresentError::uncertain)
             }
             Err(error) if error.is_ambiguous() => {
                 match self.find_owned_records_for_owner(intent, &owner_name).await {
                     Ok(mut records) => records
                         .drain(..)
                         .next()
-                        .ok_or_else(|| map_provider_error(error)),
-                    Err(_) => Err(map_provider_error(error)),
+                        .ok_or_else(|| present_request_error(error)),
+                    Err(_) => Err(present_request_error(error)),
                 }
             }
-            Err(error) => Err(map_provider_error(error)),
+            Err(error) => Err(map_provider_error(error).into()),
         }
     }
 
@@ -264,6 +271,13 @@ impl DnsProvider {
         intent: &DnsRecordIntent,
     ) -> Result<String, CertificateError> {
         let zone = self.zone_name().await?;
+        if let Some(binding) = &intent.delegation {
+            binding.validate()?;
+            if binding.zone_name != zone || !domain_is_in_zone(&binding.target_owner, &zone) {
+                return Err(CertificateError::DnsDelegationInvalid);
+            }
+            return Ok(binding.target_owner.clone());
+        }
         let bare_name =
             bare_authorization_name(&intent.name).ok_or(CertificateError::DnsProviderInvalid)?;
         if !domain_is_in_zone(&bare_name, &zone) {
@@ -363,5 +377,20 @@ impl DnsProvider {
         } else {
             Err(CertificateError::DnsCleanupFailed)
         }
+    }
+}
+
+// Keep reconciliation behavior while distinguishing a definite rate-limit
+// rejection from a mutation whose response or readback cannot be trusted.
+pub(super) fn present_request_error(error: super::api::ProviderRequestError) -> DnsPresentError {
+    if error.is_ambiguous()
+        && !matches!(
+            error,
+            super::api::ProviderRequestError::Status(StatusCode::TOO_MANY_REQUESTS)
+        )
+    {
+        DnsPresentError::uncertain(map_provider_error(error))
+    } else {
+        map_provider_error(error).into()
     }
 }

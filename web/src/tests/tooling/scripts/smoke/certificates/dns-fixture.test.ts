@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createConnection } from 'node:net'
+import { Resolver } from 'node:dns/promises'
 import {
     dnsFixtureResponse,
     startCertificateDnsFixture,
@@ -22,6 +23,106 @@ function query(name: string, type: number): Buffer {
 }
 
 describe('local certificate DNS fixture', () => {
+    test('resolves CNAME chains, terminal TXT, NS cuts and SOA through a real recursive client', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        const source = '_acme-challenge.customer.invalid'
+        const middle = 'intermediate.example.com'
+        const terminal = '_acme-challenge.customer.example.com'
+        const nsOwner = '_acme-challenge.ns-customer.invalid'
+        fixture.cnames.set(source, middle)
+        fixture.cnames.set(middle, terminal)
+        fixture.nameservers.set('example.com', ['ns.fixture.invalid'])
+        fixture.zones.set('b'.repeat(32), nsOwner)
+        fixture.nameservers.set(nsOwner, ['ns.fixture.invalid'])
+        for (const name of [terminal, nsOwner]) {
+            for (const content of ['foreign-TXT', 'apex-proof', 'wildcard-proof']) {
+                fixture.records.push({ id: name + content, type: 'TXT', name, content })
+            }
+        }
+        const resolver = new Resolver({ timeout: 1_000, tries: 1 })
+        resolver.setServers(['127.0.0.1:' + fixture.dnsPort])
+        try {
+            expect(await resolver.resolveCname(source)).toEqual([middle])
+            expect(await resolver.resolveTxt(source)).toEqual([
+                ['foreign-TXT'],
+                ['apex-proof'],
+                ['wildcard-proof'],
+            ])
+            expect(await resolver.resolveNs('example.com')).toEqual(['ns.fixture.invalid'])
+            expect(await resolver.resolveNs(nsOwner)).toEqual(['ns.fixture.invalid'])
+            expect(await resolver.resolveTxt(nsOwner)).toEqual([
+                ['foreign-TXT'],
+                ['apex-proof'],
+                ['wildcard-proof'],
+            ])
+            expect((await resolver.resolveSoa(nsOwner)).nsname).toBe('ns.fixture.invalid')
+            const negative = dnsFixtureResponse(
+                query(terminal, 6),
+                fixture.records,
+                fixture.addresses,
+                fixture,
+            )!
+            expect(negative.readUInt16BE(6)).toBe(0)
+            expect(negative.readUInt16BE(8)).toBe(1)
+            const missing = dnsFixtureResponse(
+                query('missing.example.com', 16),
+                fixture.records,
+                fixture.addresses,
+                fixture,
+            )!
+            expect(missing.readUInt16BE(6)).toBe(0)
+            expect(missing.readUInt16BE(8)).toBe(1)
+        } finally {
+            fixture.stop()
+        }
+    })
+
+    test('lists provider zones and permits TXT at a delegated zone apex without modifying delegation', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        const zoneId = 'b'.repeat(32)
+        const owner = '_acme-challenge.customer.invalid'
+        fixture.zones.set(zoneId, owner)
+        fixture.nameservers.set(owner, ['ns.fixture.invalid'])
+        const headers = {
+            authorization: 'Bearer fixture-token',
+            'content-type': 'application/json',
+        }
+        const api = 'http://127.0.0.1:' + fixture.apiPort + '/client/v4'
+        try {
+            const zones = await (await fetch(api + '/zones', { headers })).json()
+            expect(zones.result).toContainEqual({ id: zoneId, name: owner })
+            const created = await (
+                await fetch(api + '/zones/' + zoneId + '/dns_records', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ type: 'TXT', name: owner, content: 'owned-proof' }),
+                })
+            ).json()
+            expect(created.success).toBe(true)
+            expect(
+                (
+                    await fetch(api + '/zones/' + fixture.zoneId + '/dns_records', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ type: 'TXT', name: owner, content: 'out-of-zone' }),
+                    })
+                ).status,
+            ).toBe(400)
+            const otherZone = await (
+                await fetch(api + '/zones/' + fixture.zoneId + '/dns_records', { headers })
+            ).json()
+            expect(otherZone.result).toEqual([])
+            await fetch(api + '/zones/' + zoneId + '/dns_records/' + created.result.id, {
+                method: 'DELETE',
+                headers,
+            })
+            expect(fixture.records).toEqual([])
+            expect(fixture.nameservers.get(owner)).toEqual(['ns.fixture.invalid'])
+        } finally {
+            fixture.stop()
+        }
+    })
+
     test('serves Pebble DNS over TCP with fragmented and coalesced query frames', async () => {
         const fixture = await startCertificateDnsFixture('fixture-token')
         fixture.addresses.set('acme.invalid', '172.20.0.2')

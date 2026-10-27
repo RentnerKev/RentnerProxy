@@ -2,7 +2,7 @@ use super::{
     Error, Reference,
     models::{Metadata, Zone},
 };
-use crate::proxy::{is_canonical_domain, is_canonical_uuid_v7};
+use crate::{proxy::is_canonical_uuid_v7, runtime::dns::is_canonical_dns_name};
 use std::{collections::BTreeSet, time::Duration};
 
 pub(super) fn id(value: &str) -> Result<(), Error> {
@@ -100,7 +100,7 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
         timestamp(checked_at)?;
     }
     if m.zones.iter().any(|z| {
-        !is_canonical_domain(&z.name)
+        !is_canonical_dns_name(&z.name)
             || !provider.valid_zone_id(&z.id)
             || (provider == crate::runtime::dns::capabilities::ProviderId::Desec && z.id != z.name)
     }) || m.references.len() > 10000
@@ -213,7 +213,7 @@ async fn list(endpoint: &str, token: &str) -> Result<Vec<Zone>, Error> {
         }
         for zone in entries {
             if !zone_id(&zone.id)
-                || !is_canonical_domain(&zone.name)
+                || !is_canonical_dns_name(&zone.name)
                 || !seen.insert(zone.id.clone())
             {
                 return Err(Error::ProviderUnavailable);

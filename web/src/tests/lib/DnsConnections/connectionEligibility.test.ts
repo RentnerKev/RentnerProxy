@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+    certificateConnectionZones,
     connectionSupportsOperation,
     verifiedConnectionZones,
     zoneCoversDomains,
@@ -66,4 +67,25 @@ describe('verified provider eligibility', () => {
         expect(zoneCoversDomains(zone, ['example.com', 'example.org'])).toBeFalse()
         expect(zoneCoversDomains(zone, [''])).toBeFalse()
     })
+})
+
+test('delegated zone eligibility permits outside SAN zones but still requires verification', () => {
+    const domains = ['*.customer.example.net', 'customer.example.net']
+    expect(certificateConnectionZones(DDNS_CONNECTION, domains, 'provider')).toEqual([])
+    expect(certificateConnectionZones(DDNS_CONNECTION, domains, undefined)).toEqual([])
+    expect(certificateConnectionZones(DDNS_CONNECTION, domains, 'delegated')).toEqual([
+        ...DDNS_CONNECTION.zones,
+    ])
+    for (const status of ['untested', 'disconnected', 'failed'] as const) {
+        expect(
+            certificateConnectionZones(
+                {
+                    ...DDNS_CONNECTION,
+                    verification: { status, checkedAt: null, zoneIds: [], error: null },
+                },
+                domains,
+                'delegated',
+            ),
+        ).toEqual([])
+    }
 })

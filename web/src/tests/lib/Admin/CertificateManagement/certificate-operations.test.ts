@@ -6,6 +6,7 @@ import type {
 } from '@/config/Types/certificates-config.types.ts'
 import {
     getCertificateOperationDisplay,
+    getCertificateRetryError,
     getCertificateOperationSearchValues,
     hasActiveCertificateOperation,
 } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
@@ -61,6 +62,7 @@ describe('certificate operation presentation', () => {
     test('keeps every current non-completed stage visible and active', () => {
         const stages: readonly CertificateOperationStage[] = [
             'queued',
+            'cancelling',
             'creating_order',
             'preparing_challenge',
             'waiting_for_validation',
@@ -136,4 +138,24 @@ describe('certificate operation presentation', () => {
         }
         expect(getCertificateOperationDisplay(failed).stage).toBe('failed')
     })
+})
+
+test('intentional delegated cancellation is historical and does not create retry failure UI', () => {
+    const cancelled: CertificateSummary = {
+        ...baseCertificate,
+        operation: 'idle',
+        lastErrorCode: 'acme_cancelled',
+        currentOperation: {
+            id: '0198d98a-0000-7000-8000-000000000002',
+            kind: 'renew',
+            dnsMode: 'delegated',
+            stage: 'cancelled',
+            startedAt: new Date(),
+            updatedAt: new Date(),
+        },
+    }
+    expect(getCertificateOperationDisplay(cancelled)).toEqual({ id: null, kind: null, stage: null })
+    expect(getCertificateRetryError(cancelled)).toBeNull()
+    expect(hasActiveCertificateOperation(cancelled)).toBeFalse()
+    expect(cancelled.status).toBe('valid')
 })

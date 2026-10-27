@@ -1094,6 +1094,7 @@
                 "needs_attention": "Needs attention",
                 "awaiting_dns": "Waiting for your TXT records",
                 "checking_dns": "Checking public DNS",
+                "cancelling": "Cancelling",
                 "cancelled": "Cancelled",
                 "expired": "Expired"
             },
@@ -1163,6 +1164,12 @@
             "replace": {
                 "title": "Replace certificate",
                 "description": "Replace the stored material while keeping this certificate assignment."
+            },
+            "delegatedDns": {
+                "cancel": "Cancel issuance",
+                "cancelling": "Cancellation requested. DNS records are being cleaned up.",
+                "label": "DNS-01 (delegated)",
+                "hint": "Configure CNAME or NS delegation for every _acme-challenge name first. Select a verified connection and target zone, which may differ from the certificate domains. RentnerProxy resolves the delegation automatically."
             },
             "form": {
                 "name": "Name",
@@ -1247,8 +1254,12 @@
                 "operation_in_progress": "Another certificate operation is already running.",
                 "acme_terms_required": "Accept the ACME terms before requesting a certificate.",
                 "acme_domain_invalid": "ACME requires public DNS domains.",
+                "acme_cancelled": "Certificate issuance was cancelled.",
                 "acme_failed": "The ACME order failed.",
                 "acme_dns_required": "DNS-01 requires a DNS provider.",
+                "dns_delegation_invalid": "Invalid DNS delegation or target outside the selected zone. Check the _acme-challenge CNAME or NS records and select the verified target zone.",
+                "dns_delegation_lookup_failed": "DNS delegation lookup failed. Check public DNS resolution and retry.",
+                "dns_delegation_not_propagated": "DNS delegation has not propagated. Check public CNAME or NS records, wait for DNS caches to expire, then retry.",
                 "dns_provider_invalid": "The DNS provider configuration is invalid.",
                 "dns_provider_unavailable": "The DNS provider could not be reached.",
                 "dns_provider_unauthorized": "The DNS provider rejected the credentials.",

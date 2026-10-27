@@ -23,6 +23,10 @@ use super::state::{SafeDir, state_dir};
 #[path = "../../tests/private/certificate_dns.rs"]
 mod dns_tests;
 
+mod cancellation;
+#[cfg(test)]
+#[path = "../../tests/private/certificate_cancellation.rs"]
+mod cancellation_tests;
 mod manual_dns;
 #[cfg(test)]
 #[path = "../../tests/private/certificate_operations.rs"]
@@ -51,9 +55,9 @@ const MAX_CANDIDATE_RETRY_DELAY_SECONDS: u32 = 300;
 
 mod models;
 pub(crate) use models::{
-    AcmeChallengeType, CertificateCandidate, CertificateEnvironment, CertificateError,
-    CertificateImportRequest, CertificateIssueRequest, CertificateMaterial, CertificateMetadata,
-    CertificateOperation, CertificateSource, CertificateStatus,
+    AcmeChallengeType, CertificateCancelRequest, CertificateCandidate, CertificateEnvironment,
+    CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMaterial,
+    CertificateMetadata, CertificateOperation, CertificateSource, CertificateStatus,
 };
 pub(crate) use operations::{
     CertificateEvent, CertificateEventKind, CertificateEventPage, CertificateOperationStage,
@@ -120,6 +124,8 @@ struct StoredAcmeConfiguration {
     dns_provider: Option<EncryptedDnsConfig>,
     #[serde(default)]
     pending_dns_records: Vec<DnsRecordIntent>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    cancel_requested: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]

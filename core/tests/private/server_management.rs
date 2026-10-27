@@ -125,6 +125,7 @@ async fn management_routes_authenticate_before_parsing_or_reading_state() {
         ("GET", "/internal/v1/dns/connections"),
         ("POST", "/internal/v1/certificates/invalid/dns-01/continue"),
         ("POST", "/internal/v1/certificates/invalid/dns-01/cancel"),
+        ("POST", "/internal/v1/certificates/invalid/cancel"),
         ("PUT", "/internal/v1/dns/connections/invalid"),
         ("DELETE", "/internal/v1/dns/connections/invalid"),
         ("POST", "/internal/v1/dns/connections/test"),
@@ -807,5 +808,40 @@ async fn dns_reference_conflicts_and_missing_credentials_fail_closed() {
         )
         .await,
         (StatusCode::BAD_REQUEST, json!({"error":"token_required"}))
+    );
+}
+
+#[tokio::test]
+async fn delegated_cancellation_requires_bounded_fenced_request_and_authentication() {
+    let root = Root::new();
+    let endpoint = format!("/internal/v1/certificates/{ACTOR}/cancel");
+    let router = root.initialized_router().await;
+    for body in [
+        "not JSON".to_owned(),
+        "{}".to_owned(),
+        "x".repeat(1025),
+        json!({"operationId":"invalid"}).to_string(),
+        json!({"operationId":ACTOR,"challengeSetId":CONNECTION}).to_string(),
+    ] {
+        assert_eq!(
+            call(&router, "POST", &endpoint, body, true).await,
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                json!({"error":"validation_failed"})
+            )
+        );
+    }
+    assert_eq!(
+        call(&root.router(false), "POST", &endpoint, Body::empty(), false)
+            .await
+            .0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        json_call(&router, "POST", &endpoint, json!({"operationId":ACTOR})).await,
+        (
+            StatusCode::NOT_FOUND,
+            json!({"error":"certificate_not_found"})
+        )
     );
 }

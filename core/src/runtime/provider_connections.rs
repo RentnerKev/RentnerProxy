@@ -96,13 +96,15 @@ impl ProxyRuntime {
             .validate_reference(usage.clone())
             .await
             .map_err(certificate_error)?;
-        if request.domains.iter().any(|domain| {
-            let domain = domain.strip_prefix("*.").unwrap_or(domain);
-            domain != validated.zone.name
-                && !domain
-                    .strip_suffix(&validated.zone.name)
-                    .is_some_and(|prefix| prefix.ends_with('.'))
-        }) {
+        if request.dns_mode != super::certificates::DnsValidationMode::Delegated
+            && request.domains.iter().any(|domain| {
+                let domain = domain.strip_prefix("*.").unwrap_or(domain);
+                domain != validated.zone.name
+                    && !domain
+                        .strip_suffix(&validated.zone.name)
+                        .is_some_and(|prefix| prefix.ends_with('.'))
+            })
+        {
             return Err(CertificateError::DnsProviderInvalid);
         }
         let resolved = self

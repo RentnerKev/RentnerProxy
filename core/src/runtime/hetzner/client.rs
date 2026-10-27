@@ -65,6 +65,12 @@ impl Api<'_> {
                             StatusCode::TOO_MANY_REQUESTS => ErrorKind::RateLimited,
                             StatusCode::NOT_FOUND => ErrorKind::NotFound,
                             StatusCode::CONFLICT => ErrorKind::Conflict,
+                            status
+                                if status.is_client_error()
+                                    && status != StatusCode::REQUEST_TIMEOUT =>
+                            {
+                                ErrorKind::Rejected
+                            }
                             _ => ErrorKind::Unavailable,
                         };
                         return Err(Error {

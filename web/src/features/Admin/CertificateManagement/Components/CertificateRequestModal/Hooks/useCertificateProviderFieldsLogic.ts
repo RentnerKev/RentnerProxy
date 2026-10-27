@@ -1,9 +1,6 @@
 import { useStore } from '@tanstack/react-form'
 import useCertificateDnsProviders from '../../../Hooks/useCertificateDnsProviders.ts'
-import {
-    verifiedConnectionZones,
-    zoneCoversDomains,
-} from '@/lib/DnsConnections/connectionEligibility.ts'
+import { certificateConnectionZones } from '@/lib/DnsConnections/connectionEligibility.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { CertificateProviderFieldsProps } from '../Types/certificate-request-modal.types.ts'
 
@@ -17,9 +14,7 @@ export default function useCertificateProviderFieldsLogic({
         useCertificateDnsProviders()
     const connection = connections.find((item) => item.id === values.dnsConnectionId)
     const zones = connection
-        ? verifiedConnectionZones(connection).filter((zone) =>
-              zoneCoversDomains(zone, values.domains),
-          )
+        ? certificateConnectionZones(connection, values.domains, values.dnsMode)
         : []
     return {
         state: {
@@ -40,9 +35,8 @@ export default function useCertificateProviderFieldsLogic({
                 form.setFieldValue(
                     'dnsZoneId',
                     selected
-                        ? (verifiedConnectionZones(selected).find((zone) =>
-                              zoneCoversDomains(zone, values.domains),
-                          )?.id ?? '')
+                        ? (certificateConnectionZones(selected, values.domains, values.dnsMode)[0]
+                              ?.id ?? '')
                         : '',
                 )
             },

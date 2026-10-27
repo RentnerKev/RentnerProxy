@@ -272,10 +272,29 @@ pub(super) fn acme_configuration_is_valid(id: &str, entry: &super::StoredCertifi
         };
         provider_is_valid
             && acme.pending_dns_records.len() <= 256
-            && acme
-                .pending_dns_records
-                .iter()
-                .all(|intent| dns_intent_belongs_to(intent, id))
+            && acme.pending_dns_records.iter().all(|intent| {
+                dns_intent_belongs_to(intent, id)
+                    && (intent.delegation.is_some()
+                        == (acme.dns_mode == super::DnsValidationMode::Delegated))
+            })
+            && (!acme.cancel_requested
+                || (entry.metadata.source == CertificateSource::Acme
+                    && acme.dns_mode == super::DnsValidationMode::Delegated
+                    && acme.challenge_type == AcmeChallengeType::Dns01
+                    && entry
+                        .metadata
+                        .current_operation
+                        .as_ref()
+                        .is_some_and(|operation| {
+                            matches!(
+                                operation.kind,
+                                super::OperationKind::Issue | super::OperationKind::Renew
+                            ) && matches!(
+                                operation.stage,
+                                super::CertificateOperationStage::Cancelling
+                                    | super::CertificateOperationStage::Cancelled
+                            )
+                        })))
             && (acme.challenge_type == AcmeChallengeType::Dns01
                 || acme.pending_dns_records.is_empty())
     })

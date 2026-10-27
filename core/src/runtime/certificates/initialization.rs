@@ -71,7 +71,34 @@ impl CertificateStore {
             i64::from(MIN_ACME_RETRY_DELAY_SECONDS),
         ));
         let mut recovery_events = Vec::new();
+        let mut cancellation_events = Vec::new();
         for (id, entry) in &mut index.certificates {
+            if entry.metadata.operation != CertificateOperation::Idle
+                && entry
+                    .acme
+                    .as_ref()
+                    .is_some_and(|acme| acme.cancel_requested)
+            {
+                entry.metadata.operation = CertificateOperation::Idle;
+                entry.metadata.status = if entry.material_id.is_some() {
+                    CertificateStatus::Valid
+                } else {
+                    CertificateStatus::Failed
+                };
+                entry.metadata.last_error_code =
+                    Some(CertificateError::AcmeCancelled.code().to_owned());
+                entry.metadata.last_error_at = Some(recovery_now.clone());
+                entry.metadata.updated_at = recovery_now.clone();
+                entry.next_attempt_at = None;
+                entry.retry_delay_seconds = None;
+                if let Some(operation) = entry.metadata.current_operation.as_mut() {
+                    operation.stage = CertificateOperationStage::Cancelled;
+                    operation.updated_at = recovery_now.clone();
+                    cancellation_events.push((operation.id.clone(), id.clone()));
+                }
+                recovered_interrupted_operation = true;
+                continue;
+            }
             if entry.metadata.operation != CertificateOperation::Idle
                 && !index.pending_candidates.contains_key(id)
                 && let Some(order) = entry
@@ -141,6 +168,16 @@ impl CertificateStore {
                 recovered_interrupted_operation = true;
             }
         }
+        for (operation_id, certificate_id) in cancellation_events {
+            operations::append_event(
+                &mut index,
+                &operation_id,
+                &certificate_id,
+                CertificateEventKind::Cancelled,
+                CertificateOperationStage::Cancelled,
+                Some(CertificateError::AcmeCancelled.code().to_owned()),
+            )?;
+        }
         for (operation_id, certificate_id, error_code) in recovery_events {
             let _ = operations::append_event(
                 &mut index,
@@ -175,6 +212,10 @@ impl CertificateStore {
         let now = OffsetDateTime::now_utc();
         index.certificates.get(id).is_some_and(|entry| {
             !index.pending_candidates.contains_key(id)
+                && !entry
+                    .acme
+                    .as_ref()
+                    .is_some_and(|acme| acme.cancel_requested)
                 && !(entry
                     .acme
                     .as_ref()
@@ -257,6 +298,13 @@ impl CertificateStore {
         let Some(mut operation) = previous_active.metadata.current_operation.clone() else {
             return Err(CertificateError::OperationInProgress);
         };
+        if previous_active
+            .acme
+            .as_ref()
+            .is_some_and(|acme| acme.cancel_requested)
+        {
+            return Err(CertificateError::AcmeCancelled);
+        }
         if operation.stage == stage {
             return Ok(());
         }
@@ -314,7 +362,7 @@ impl CertificateStore {
         Ok(())
     }
 
-    async fn ensure_ready(&self) -> Result<(), CertificateError> {
+    pub(super) async fn ensure_ready(&self) -> Result<(), CertificateError> {
         if matches!(self.readiness().await, CertificateStoreReadiness::Ready) {
             Ok(())
         } else {

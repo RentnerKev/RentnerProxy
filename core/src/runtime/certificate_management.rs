@@ -22,6 +22,16 @@ impl ProxyRuntime {
         self.certificate_store.events(after, limit).await
     }
 
+    pub(crate) async fn cancel_delegated_dns(
+        &self,
+        id: &str,
+        action: &super::CertificateCancelRequest,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        self.certificate_store
+            .request_delegated_cancel(id, &action.operation_id)
+            .await
+    }
+
     pub(crate) async fn cancel_manual_dns(
         &self,
         id: &str,

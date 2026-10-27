@@ -235,7 +235,7 @@ impl Engine {
         let provider = match Provider::new(
             access.provider,
             client.clone(),
-            access.endpoint,
+            &access.endpoint,
             &access.token,
             deadline,
         ) {

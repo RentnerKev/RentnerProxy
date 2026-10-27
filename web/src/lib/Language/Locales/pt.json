@@ -1106,6 +1106,7 @@
                 "needs_attention": "Requer atenção",
                 "awaiting_dns": "A aguardar os registos TXT",
                 "checking_dns": "A verificar o DNS público",
+                "cancelling": "A cancelar",
                 "cancelled": "Cancelado",
                 "expired": "Expirado"
             },
@@ -1175,6 +1176,12 @@
             "replace": {
                 "title": "Substituir certificado",
                 "description": "Substitua os dados armazenados mantendo esta atribuição do certificado."
+            },
+            "delegatedDns": {
+                "cancel": "Cancelar emissão",
+                "cancelling": "Cancelamento solicitado. Os registos DNS estão a ser removidos.",
+                "label": "DNS-01 (delegado)",
+                "hint": "Configure CNAME ou NS para cada nome _acme-challenge. Selecione uma ligação verificada e uma zona de destino, que pode diferir dos domínios do certificado. O RentnerProxy resolve a delegação automaticamente."
             },
             "form": {
                 "name": "Nome",
@@ -1261,8 +1268,12 @@
                 "operation_in_progress": "Já está em curso outra operação de certificado.",
                 "acme_terms_required": "Aceite os termos ACME antes de pedir um certificado.",
                 "acme_domain_invalid": "ACME requer domínios DNS públicos.",
+                "acme_cancelled": "A emissão do certificado foi cancelada.",
                 "acme_failed": "O pedido ACME falhou.",
                 "acme_dns_required": "O DNS-01 requer um fornecedor DNS.",
+                "dns_delegation_invalid": "Delegação DNS inválida ou destino fora da zona. Verifique os registos CNAME ou NS de _acme-challenge e selecione a zona verificada.",
+                "dns_delegation_lookup_failed": "Falha ao resolver a delegação DNS. Verifique o DNS público e tente novamente.",
+                "dns_delegation_not_propagated": "Delegação DNS ainda não propagada. Verifique os registos CNAME ou NS públicos, aguarde a expiração das caches DNS e tente novamente.",
                 "dns_provider_invalid": "A configuração do fornecedor DNS é inválida.",
                 "dns_provider_unavailable": "Não foi possível contactar o fornecedor DNS.",
                 "dns_provider_unauthorized": "O fornecedor DNS rejeitou as credenciais.",

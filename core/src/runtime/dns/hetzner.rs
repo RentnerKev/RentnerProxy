@@ -14,7 +14,7 @@ use crate::runtime::{
 
 use super::{
     config::DnsProviderConfig,
-    models::{DnsRecordHandle, DnsRecordIntent},
+    models::{DnsPresentError, DnsRecordHandle, DnsRecordIntent},
     provider::DnsProvider,
     txt::{quote_txt, unquote_txt},
 };
@@ -51,7 +51,7 @@ impl DnsProvider {
         &self,
         intent: &DnsRecordIntent,
         owner_name: &str,
-    ) -> Result<DnsRecordHandle, CertificateError> {
+    ) -> Result<DnsRecordHandle, DnsPresentError> {
         let name = self.hetzner_subname(owner_name).await?;
         let _guard = self.hetzner_lock(&name).await?;
         let existing = self.hetzner_read_rrset(&name).await?;
@@ -63,7 +63,7 @@ impl DnsProvider {
                 .iter()
                 .any(|record| same_value(record, &intent.value) && !owned_record(record, intent))
             {
-                return Err(CertificateError::DnsProviderInvalid);
+                return Err(CertificateError::DnsProviderInvalid.into());
             }
             if rrset
                 .records
@@ -94,7 +94,11 @@ impl DnsProvider {
         };
         let outcome = match outcome {
             Err(error) if !may_have_written(&error) || error.retry_after.is_some() => {
-                return Err(map_error(error));
+                return Err(if may_have_written(&error) {
+                    DnsPresentError::uncertain(map_error(error))
+                } else {
+                    map_error(error).into()
+                });
             }
             outcome => outcome,
         };
@@ -115,9 +119,10 @@ impl DnsProvider {
         }) {
             return Ok(self.hetzner_handle(intent, owner_name));
         }
-        Err(outcome
-            .err()
-            .map_or(CertificateError::DnsProviderUnavailable, map_error))
+        Err(DnsPresentError::uncertain(outcome.err().map_or(
+            CertificateError::DnsProviderUnavailable,
+            map_error,
+        )))
     }
 
     pub(super) async fn hetzner_find_owned_records(
@@ -350,7 +355,14 @@ fn preserves_foreign_records(
 }
 
 fn may_have_written(error: &Error) -> bool {
-    !matches!(error.kind, ErrorKind::Unauthorized | ErrorKind::RateLimited)
+    !matches!(
+        error.kind,
+        ErrorKind::Unauthorized
+            | ErrorKind::RateLimited
+            | ErrorKind::Conflict
+            | ErrorKind::NotFound
+            | ErrorKind::Rejected
+    )
 }
 
 fn map_error(error: Error) -> CertificateError {

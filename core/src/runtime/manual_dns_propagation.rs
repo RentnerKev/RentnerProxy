@@ -33,14 +33,20 @@ pub(crate) async fn check_records(
     environment: CertificateEnvironment,
 ) -> Result<(), CertificateError> {
     let expected = expected_records(records)?;
+    let resolver = resolver_for_environment(environment)?;
+    check_with_deadline(expected, resolver, LOOKUP_TIMEOUT, CHECK_TIMEOUT).await
+}
+
+pub(in crate::runtime) fn resolver_for_environment(
+    environment: CertificateEnvironment,
+) -> Result<TokioResolver, CertificateError> {
     let override_addr = configured_test_address(
         environment,
         read_optional_env(DNS_TEST_ADDR)?,
         read_optional_env(ACME_TEST_DIRECTORY)?,
         read_optional_env(ACME_TEST_ROOT)?,
     )?;
-    let resolver = resolver(override_addr)?;
-    check_with_deadline(expected, resolver, LOOKUP_TIMEOUT, CHECK_TIMEOUT).await
+    resolver(override_addr)
 }
 
 fn expected_records(records: &[ManualDnsRecord]) -> Result<ExpectedRecords, CertificateError> {

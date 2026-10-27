@@ -209,3 +209,38 @@ export async function actOnControllerManualDns(
         certificateId.toLowerCase(),
     )
 }
+
+export async function cancelControllerDelegatedCertificate(
+    certificateId: string,
+    operationId: string,
+): Promise<ControllerCertificateMetadata> {
+    if (!z.uuidv7().safeParse(operationId).success)
+        throw new CertificateDomainError('invalid_input')
+    const metadata = parseMetadata(
+        await controllerRequest(`${certificatePath(certificateId)}/cancel`, {
+            privileged: true,
+            confidential: true,
+            timeoutMs: 5_000,
+            method: 'POST',
+            body: JSON.stringify({ operationId: operationId.toLowerCase() }),
+            responseLimit: RESPONSE_LIMIT,
+            acceptErrorResponse: true,
+        }),
+        certificateId.toLowerCase(),
+    )
+    const operation = metadata.currentOperation
+    if (
+        metadata.source !== 'acme' ||
+        !operation ||
+        operation.id !== operationId.toLowerCase() ||
+        operation.dnsMode !== 'delegated' ||
+        operation.stage !== 'cancelling' ||
+        !(
+            (operation.kind === 'issue' && metadata.operation === 'issuing') ||
+            (operation.kind === 'renew' && metadata.operation === 'renewing')
+        )
+    ) {
+        throw new CertificateDomainError('controller_unavailable')
+    }
+    return metadata
+}

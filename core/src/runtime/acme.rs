@@ -1,6 +1,7 @@
 mod accounts;
 #[path = "acme_http.rs"]
 mod acme_http;
+mod delegated;
 mod manual;
 mod order;
 use super::{
@@ -268,23 +269,25 @@ impl ProxyRuntime {
         }
         let mut registered = Vec::new();
         let mut dns_intents: Vec<DnsRecordIntent> = Vec::new();
-        let order_result = timeout(
-            if request.challenge_type == AcmeChallengeType::Dns01 {
-                DNS_ORDER_TIMEOUT
-            } else {
-                ORDER_TIMEOUT
-            },
-            self.issue_acme(
-                &id,
-                &request,
-                &challenges,
-                &mut registered,
-                dns_provider.as_ref(),
-                &mut dns_intents,
-            ),
-        )
-        .await
-        .unwrap_or(Err(CertificateError::AcmeFailed));
+        let order_result = {
+            timeout(
+                if request.challenge_type == AcmeChallengeType::Dns01 {
+                    DNS_ORDER_TIMEOUT
+                } else {
+                    ORDER_TIMEOUT
+                },
+                self.issue_acme(
+                    &id,
+                    &request,
+                    &challenges,
+                    &mut registered,
+                    dns_provider.as_ref(),
+                    &mut dns_intents,
+                ),
+            )
+            .await
+            .unwrap_or(Err(CertificateError::AcmeFailed))
+        };
         let (candidate, issue_error) = match order_result {
             Ok((certificate_pem, private_key_pem)) => {
                 match self
@@ -323,6 +326,10 @@ impl ProxyRuntime {
         }
         timeout(DNS_CLEANUP_TIMEOUT, async {
             for (index, intent) in intents.iter().enumerate() {
+                if intent.unconfirmed_write && provider.find_owned_records(intent).await?.is_empty()
+                {
+                    return Err(CertificateError::DnsCleanupFailed);
+                }
                 provider
                     .cleanup_intents(std::slice::from_ref(intent))
                     .await?;

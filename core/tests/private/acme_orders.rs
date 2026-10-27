@@ -155,6 +155,7 @@ async fn run_order(
             &request,
             &challenges,
             ChallengeRegistrations {
+                delegated: BTreeMap::new(),
                 http: &mut registered,
                 dns: &mut Vec::new(),
             },

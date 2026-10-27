@@ -215,6 +215,15 @@ impl DnsProviderConfig {
     }
 }
 
+pub(in crate::runtime) fn connection_test_endpoint(
+    provider: ProviderId,
+) -> Result<Option<Url>, CertificateError> {
+    if read_optional_env(DNS_TEST_API_URL_ENV)?.is_none() {
+        return Ok(None);
+    }
+    endpoint_for_provider_environment(provider, CertificateEnvironment::Staging).map(Some)
+}
+
 pub(super) fn endpoint_for_provider_environment(
     provider: ProviderId,
     environment: CertificateEnvironment,

@@ -1,4 +1,5 @@
-import type { TxtRecord } from './Types/dns-fixture.types.ts'
+import type { DnsFixtureDelegation, TxtRecord } from './Types/dns-fixture.types.ts'
+import { delegationAnswers } from './dns-wire.ts'
 import { createSocket } from 'node:dgram'
 import { createServer, type Socket } from 'node:net'
 
@@ -6,6 +7,7 @@ export function dnsFixtureResponse(
     query: Buffer,
     records: readonly TxtRecord[],
     addresses: ReadonlyMap<string, string>,
+    delegation?: DnsFixtureDelegation,
 ): Buffer | null {
     if (query.length < 17 || query.readUInt16BE(4) !== 1 || (query[2]! & 0x80) !== 0) return null
     const labels: string[] = []
@@ -27,7 +29,11 @@ export function dnsFixtureResponse(
     const dnsClass = query.readUInt16BE(offset + 2)
     const name = labels.join('.')
     const values: Buffer[] = []
-    if (dnsClass === 1 && type === 16) {
+    const delegated =
+        dnsClass === 1 && delegation && [2, 5, 6, 16].includes(type)
+            ? delegationAnswers(name, type, records, delegation)
+            : undefined
+    if (!delegated && dnsClass === 1 && type === 16) {
         for (const record of records.filter((entry) => entry.name === name)) {
             const text = Buffer.from(record.content)
             if (text.length <= 255) values.push(Buffer.concat([Buffer.from([text.length]), text]))
@@ -40,10 +46,13 @@ export function dnsFixtureResponse(
     header.writeUInt16BE(query.readUInt16BE(0), 0)
     header.writeUInt16BE(0x8400 | (query.readUInt16BE(2) & 0x0100), 2)
     header.writeUInt16BE(1, 4)
-    header.writeUInt16BE(values.length, 6)
+    header.writeUInt16BE(delegated?.answers.length ?? values.length, 6)
+    header.writeUInt16BE(delegated?.authorities.length ?? 0, 8)
     return Buffer.concat([
         header,
         query.subarray(12, offset + 4),
+        ...(delegated?.answers ?? []),
+        ...(delegated?.authorities ?? []),
         ...values.map((value) => {
             const answer = Buffer.alloc(12)
             answer.writeUInt16BE(0xc00c, 0)
@@ -60,6 +69,10 @@ export async function startCertificateDnsFixture(apiToken: string) {
     const zoneId = 'a'.repeat(32)
     const records: TxtRecord[] = []
     const addresses = new Map<string, string>()
+    const zones = new Map([[zoneId, 'example.com']])
+    const cnames = new Map<string, string>()
+    const nameservers = new Map<string, readonly string[]>()
+    const delegation = { zones, cnames, nameservers }
     const connections = new Set<Socket>()
     const onConnection = (socket: Socket) => {
         connections.add(socket)
@@ -80,6 +93,7 @@ export async function startCertificateDnsFixture(apiToken: string) {
                     pending.subarray(2, length + 2),
                     records,
                     addresses,
+                    delegation,
                 )
                 pending = pending.subarray(length + 2)
                 if (!response) {
@@ -97,7 +111,7 @@ export async function startCertificateDnsFixture(apiToken: string) {
     ): Promise<{ dns: ReturnType<typeof createSocket>; tcp: ReturnType<typeof createServer> }> => {
         const candidateDns = createSocket('udp4')
         candidateDns.on('message', (query, remote) => {
-            const response = dnsFixtureResponse(query, records, addresses)
+            const response = dnsFixtureResponse(query, records, addresses, delegation)
             if (response) candidateDns.send(response, remote.port, remote.address)
         })
         await new Promise<void>((resolve, reject) => {
@@ -138,15 +152,36 @@ export async function startCertificateDnsFixture(apiToken: string) {
                 return Response.json({ success: false, errors: [{ code: 10000 }] }, { status: 403 })
             const url = new URL(request.url)
             const path = url.pathname.replace(/^\/client\/v4/u, '')
-            const prefix = `/zones/${zoneId}`
+            if (path === '/zones' && request.method === 'GET') {
+                const result = [...zones].map(([id, name]) => ({ id, name }))
+                return Response.json({
+                    success: true,
+                    result,
+                    result_info: {
+                        page: 1,
+                        per_page: 20,
+                        total_pages: 1,
+                        total_count: result.length,
+                    },
+                })
+            }
+            const requestedZoneId = path.split('/')[2] ?? ''
+            const zoneName = zones.get(requestedZoneId)
+            const prefix = `/zones/${requestedZoneId}`
+            if (!zoneName) return Response.json({ success: false }, { status: 404 })
             if (path === prefix && request.method === 'GET')
-                return Response.json({ success: true, result: { id: zoneId, name: 'example.com' } })
+                return Response.json({
+                    success: true,
+                    result: { id: requestedZoneId, name: zoneName },
+                })
             if (path === `${prefix}/dns_records` && request.method === 'GET') {
-                const result = records.filter((record) =>
-                    ['name', 'content', 'type', 'comment'].every((key) => {
-                        const filter = url.searchParams.get(key)
-                        return !filter || record[key as keyof TxtRecord] === filter
-                    }),
+                const result = records.filter(
+                    (record) =>
+                        (record.name === zoneName || record.name.endsWith('.' + zoneName)) &&
+                        ['name', 'content', 'type', 'comment'].every((key) => {
+                            const filter = url.searchParams.get(key)
+                            return !filter || record[key as keyof TxtRecord] === filter
+                        }),
                 )
                 return Response.json({
                     success: true,
@@ -156,7 +191,10 @@ export async function startCertificateDnsFixture(apiToken: string) {
             }
             if (path === `${prefix}/dns_records` && request.method === 'POST') {
                 const input = (await request.json()) as Omit<TxtRecord, 'id'>
-                if (input.type !== 'TXT' || !input.name.endsWith('.example.com'))
+                if (
+                    input.type !== 'TXT' ||
+                    !(input.name === zoneName || input.name.endsWith('.' + zoneName))
+                )
                     return Response.json({ success: false }, { status: 400 })
                 const record: TxtRecord = {
                     ...input,
@@ -185,6 +223,9 @@ export async function startCertificateDnsFixture(apiToken: string) {
         dnsPort: dns.address().port,
         records,
         addresses,
+        zones,
+        cnames,
+        nameservers,
         get maxSimultaneousTxt() {
             return maxSimultaneousTxt
         },

@@ -11,7 +11,23 @@ pub(super) fn is_cloudflare_zone_id(value: &str) -> bool {
 }
 
 pub(super) fn is_desec_zone_id(value: &str) -> bool {
-    value.len() <= 191 && value.contains('.') && is_canonical_domain(value)
+    value.len() <= 191 && is_canonical_dns_name(value)
+}
+
+pub(crate) fn is_canonical_dns_name(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 253
+        && value.contains('.')
+        && value.parse::<std::net::IpAddr>().is_err()
+        && value.split('.').all(|label| {
+            let edge =
+                |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_';
+            !label.is_empty()
+                && label.len() <= 63
+                && label.bytes().all(|byte| edge(byte) || byte == b'-')
+                && label.as_bytes().first().is_some_and(|byte| edge(*byte))
+                && label.as_bytes().last().is_some_and(|byte| edge(*byte))
+        })
 }
 
 pub(super) fn is_hetzner_zone_id(value: &str) -> bool {

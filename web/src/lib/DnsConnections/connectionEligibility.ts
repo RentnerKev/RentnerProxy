@@ -30,3 +30,14 @@ export function connectionSupportsOperation(
         ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
         : supportsDdns(provider, operation)
 }
+
+/** Delegated challenges target a verified zone independently of certificate SANs. */
+export function certificateConnectionZones(
+    connection: DnsConnectionChoice,
+    domains: readonly string[],
+    dnsMode: string | undefined,
+) {
+    return verifiedConnectionZones(connection).filter(
+        (zone) => dnsMode === 'delegated' || zoneCoversDomains(zone, domains),
+    )
+}

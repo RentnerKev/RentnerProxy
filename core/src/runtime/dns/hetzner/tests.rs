@@ -33,6 +33,69 @@ fn rrset_reads(state: &MockState) -> usize {
         })
         .count()
 }
+
+#[tokio::test]
+async fn tracked_explicit_rejections_settle_without_losing_poll_uncertainty() {
+    let unavailable = fixture(MockState {
+        read_status: Some(StatusCode::INTERNAL_SERVER_ERROR),
+        ..Default::default()
+    })
+    .await;
+    let error = unavailable
+        .provider
+        .present_tracked(&intent("operation-value"))
+        .await
+        .unwrap_err();
+    assert!(
+        !error.unconfirmed,
+        "failed preflight reads never send a mutation"
+    );
+    assert_eq!(writes(&*unavailable.state.lock().await), 0);
+    for status in [
+        StatusCode::BAD_REQUEST,
+        StatusCode::NOT_FOUND,
+        StatusCode::CONFLICT,
+        StatusCode::UNSUPPORTED_MEDIA_TYPE,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        StatusCode::LOCKED,
+    ] {
+        let fixture = fixture(MockState {
+            write_status: Some(status),
+            ..Default::default()
+        })
+        .await;
+        let expected = intent("operation-value");
+        let error = fixture
+            .provider
+            .present_tracked(&expected)
+            .await
+            .unwrap_err();
+        assert!(
+            !error.unconfirmed,
+            "explicit rejection {status} cannot commit later"
+        );
+        assert_eq!(writes(&*fixture.state.lock().await), 1);
+        assert_eq!(rrset_reads(&*fixture.state.lock().await), 1);
+        fixture.state.lock().await.write_status = None;
+        fixture.provider.cleanup_intents(&[expected]).await.unwrap();
+    }
+    let fixture = fixture(MockState {
+        running_action: true,
+        discard_write: true,
+        action_poll_status: Some(StatusCode::NOT_FOUND),
+        ..Default::default()
+    })
+    .await;
+    assert!(
+        fixture
+            .provider
+            .present_tracked(&intent("operation-value"))
+            .await
+            .unwrap_err()
+            .unconfirmed
+    );
+    assert_eq!(writes(&*fixture.state.lock().await), 1);
+}
 #[tokio::test]
 async fn create_inherits_zone_ttl_and_uses_comment_and_safe_restart_handle() {
     let fixture = fixture(MockState::default()).await;

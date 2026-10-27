@@ -34,11 +34,11 @@ impl CertificateStore {
             || (request.challenge_type == AcmeChallengeType::Http01
                 && request.dns_provider.is_some())
             || (request.challenge_type == AcmeChallengeType::Http01
-                && request.dns_mode == super::DnsValidationMode::Manual)
+                && request.dns_mode != super::DnsValidationMode::Provider)
             || (request.dns_mode == super::DnsValidationMode::Manual
                 && request.dns_provider.is_some())
             || (request.challenge_type == AcmeChallengeType::Dns01
-                && request.dns_mode == super::DnsValidationMode::Provider
+                && request.dns_mode != super::DnsValidationMode::Manual
                 && request.dns_provider.is_none())
             || (!renewal && !request.accept_terms)
             || request
@@ -49,13 +49,21 @@ impl CertificateStore {
             return Err(if !request.accept_terms && !renewal {
                 CertificateError::TermsRequired
             } else if request.challenge_type == AcmeChallengeType::Dns01
-                && request.dns_mode == super::DnsValidationMode::Provider
+                && request.dns_mode != super::DnsValidationMode::Manual
                 && request.dns_provider.is_none()
             {
                 CertificateError::AcmeDnsRequired
             } else {
                 CertificateError::AcmeDomainInvalid
             });
+        }
+        if request.dns_mode == super::DnsValidationMode::Delegated
+            && request
+                .dns_provider
+                .as_ref()
+                .is_none_or(|config| config.connection().is_none())
+        {
+            return Err(CertificateError::DnsProviderInvalid);
         }
         let now = utc_now()?;
         let now_instant = OffsetDateTime::now_utc();
@@ -127,6 +135,9 @@ impl CertificateStore {
             preserved.next_attempt_at = None;
             if !renewal {
                 preserved.acme = acme;
+            }
+            if let Some(acme) = preserved.acme.as_mut() {
+                acme.cancel_requested = false;
             }
             preserved
         } else {
@@ -315,6 +326,7 @@ impl CertificateStore {
         attempted.metadata.current_operation = Some(operation.clone());
         if let Some(acme) = attempted.acme.as_mut() {
             acme.manual_order = None;
+            acme.cancel_requested = false;
         }
         index.certificates.insert(id.to_owned(), attempted.clone());
         let previous_events = index.events.clone();
