@@ -185,10 +185,11 @@ pub(super) async fn write(
     // A failed action/transport acknowledgement may follow a committed write.
     // Verify once, never replay a mutation. Explicit rejection retains its code.
     if let Some(failure) = failed
-        && matches!(
-            failure.code,
-            Error::ProviderUnauthorized | Error::ProviderRateLimited | Error::RecordConflict
-        )
+        && (failure.retry_after.is_some()
+            || matches!(
+                failure.code,
+                Error::ProviderUnauthorized | Error::ProviderRateLimited | Error::RecordConflict
+            ))
     {
         return Err(failure);
     }

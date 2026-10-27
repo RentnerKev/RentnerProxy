@@ -23,6 +23,8 @@ pub(super) struct MockState {
     pub(super) wrong_action_resource: bool,
     pub(super) action_error: bool,
     pub(super) running_action: bool,
+    pub(super) action_poll_status: Option<StatusCode>,
+    pub(super) action_poll_retry_after: Option<u32>,
     pub(super) empty_rrset_after_cleanup: bool,
     pub(super) foreign_add_on_remove: bool,
     pub(super) lose_foreign_on_add: bool,
@@ -39,6 +41,7 @@ pub(super) struct Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         self.task.abort();
+        crate::runtime::hetzner::clear_pause_for_test(&self.provider.base_url, "fixture-secret");
     }
 }
 
@@ -92,6 +95,16 @@ async fn handler(
         return Json(json!({"zone": {"id": 42, "name": "example.com", "mode": state.zone_mode.as_deref().unwrap_or("primary"), "ttl": 3600}})).into_response();
     }
     if uri.path() == "/v1/actions/123" {
+        if let Some(status) = state.action_poll_status {
+            let mut response = status.into_response();
+            if let Some(seconds) = state.action_poll_retry_after {
+                response.headers_mut().insert(
+                    axum::http::header::RETRY_AFTER,
+                    seconds.to_string().parse().unwrap(),
+                );
+            }
+            return response;
+        }
         return Json(json!({"action": action(&state, "change_rrset")})).into_response();
     }
     let Some(rest) = uri.path().strip_prefix("/v1/zones/42/rrsets") else {

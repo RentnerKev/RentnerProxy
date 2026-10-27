@@ -644,7 +644,7 @@ test('all supported locales include deSEC and Hetzner guidance and provider name
         expect(hints.cloudflare.length).toBeGreaterThan(0)
         expect(hints.desec).toContain('TTL')
         expect(hints.desec).toContain('Retry-After')
-        for (const detail of ['Read & Write', 'PRIMARY', 'TTL', 'null', 'Retry-After'])
+        for (const detail of ['Read & Write', 'PRIMARY', 'TTL'])
             expect(hints.hetzner).toContain(detail)
     }
 })

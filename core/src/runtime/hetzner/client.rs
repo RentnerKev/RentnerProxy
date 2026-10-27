@@ -38,6 +38,9 @@ impl Api<'_> {
             if Instant::now() >= self.deadline {
                 return Err(ErrorKind::TimeBudgetExceeded.into());
             }
+            if let Some(error) = self.paused()? {
+                return Err(error);
+            }
             attempt += 1;
             let result = timeout_at(
                 self.deadline.min(Instant::now() + Duration::from_secs(5)),
@@ -66,7 +69,9 @@ impl Api<'_> {
                         };
                         return Err(Error {
                             kind,
-                            retry_after: retry_after(response.headers()),
+                            retry_after: retry_after(response.headers(), status).or_else(|| {
+                                (status == StatusCode::TOO_MANY_REQUESTS).then_some(60)
+                            }),
                         });
                     }
                     let mut result = Vec::new();
@@ -83,6 +88,9 @@ impl Api<'_> {
             )
             .await
             .unwrap_or_else(|_| Err(ErrorKind::TimeBudgetExceeded.into()));
+            if let Err(error) = &result {
+                self.remember_pause(*error)?;
+            }
             // Only GET can be replayed. Mutation uncertainty is resolved by callers
             // using read-back, never a second POST with an unknown first outcome.
             if is_read
@@ -205,13 +213,16 @@ impl Api<'_> {
     }
 }
 
-fn retry_after(headers: &reqwest::header::HeaderMap) -> Option<u32> {
+fn retry_after(headers: &reqwest::header::HeaderMap, status: StatusCode) -> Option<u32> {
     if let Some(seconds) = headers
         .get(reqwest::header::RETRY_AFTER)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok())
     {
         return Some(seconds.clamp(1, 86400) as u32);
+    }
+    if status != StatusCode::TOO_MANY_REQUESTS {
+        return None;
     }
     let reset = headers
         .get("ratelimit-reset")?

@@ -93,11 +93,14 @@ impl DnsProvider {
                 .await
         };
         let outcome = match outcome {
-            Err(error) if !may_have_written(&error) => return Err(map_error(error)),
+            Err(error) if !may_have_written(&error) || error.retry_after.is_some() => {
+                return Err(map_error(error));
+            }
             outcome => outcome,
         };
         // Never replay an uncertain mutation. Reconcile by reading with a fresh
         // bounded budget, including when the action poll exhausted its budget.
+        // A provider pause defers reconciliation to persisted-intent recovery.
         let actual = self
             .hetzner_read_rrset_with_timeout(&name, RECONCILIATION_TIMEOUT)
             .await;
@@ -194,7 +197,7 @@ impl DnsProvider {
             .remove_records(self.config.zone_id(), &name, "TXT", &records)
             .await;
         if let Err(error) = outcome
-            && !may_have_written(&error)
+            && (!may_have_written(&error) || error.retry_after.is_some())
         {
             return Err(map_error(error));
         }

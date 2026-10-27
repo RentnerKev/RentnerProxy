@@ -495,3 +495,143 @@ async fn failed_action_acknowledgement_is_not_reported_as_success_or_replayed() 
     );
     assert_eq!(fixture.count(), 1);
 }
+
+#[tokio::test]
+async fn accepted_mutation_poll_auth_and_rate_limits_are_unconfirmed_with_pause_preserved() {
+    for status in [
+        StatusCode::UNAUTHORIZED,
+        StatusCode::FORBIDDEN,
+        StatusCode::TOO_MANY_REQUESTS,
+    ] {
+        for hint in [None, Some(29)] {
+            let mut rejection = Reply::status(status);
+            if let Some(seconds) = hint {
+                rejection = rejection.header("retry-after", seconds);
+            }
+            let fixture =
+                Fixture::new(vec![Reply::json(action(123, "running", 42)), rejection]).await;
+            let error = fixture
+                .api()
+                .set_records("42", "www", "A", &records())
+                .await
+                .unwrap_err();
+            assert_eq!(error.kind, ErrorKind::WriteUnconfirmed, "{status}");
+            assert_eq!(
+                error.retry_after,
+                hint.or(if status == StatusCode::TOO_MANY_REQUESTS {
+                    Some(60)
+                } else {
+                    None
+                })
+            );
+            let data = fixture.data.lock().unwrap();
+            assert_eq!(data.seen.len(), 2);
+            assert_eq!(data.seen[0].method, "POST");
+            assert_eq!(data.seen[1].method, "GET");
+            assert_eq!(data.seen[1].uri, "/actions/123");
+        }
+        let fixture = Fixture::new(vec![Reply::status(status).header("retry-after", 17)]).await;
+        let error = fixture
+            .api()
+            .set_records("42", "www", "A", &records())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.kind,
+            if status == StatusCode::TOO_MANY_REQUESTS {
+                ErrorKind::RateLimited
+            } else {
+                ErrorKind::Unauthorized
+            }
+        );
+        assert_eq!(error.retry_after, Some(17));
+        assert_eq!(fixture.count(), 1);
+    }
+}
+#[tokio::test]
+async fn server_errors_ignore_rate_limit_reset_and_keep_the_single_get_retry() {
+    let reset = time::OffsetDateTime::now_utc().unix_timestamp() + 300;
+    let fixture = Fixture::new(vec![
+        Reply::status(StatusCode::SERVICE_UNAVAILABLE).header("ratelimit-reset", reset),
+        Reply::status(StatusCode::SERVICE_UNAVAILABLE).header("ratelimit-reset", reset),
+        Reply::json(json!({"zone":zone()})),
+    ])
+    .await;
+    let error = fixture.api().zone("42").await.unwrap_err();
+    assert_eq!(error.kind, ErrorKind::Unavailable);
+    assert_eq!(error.retry_after, None);
+    assert_eq!(fixture.count(), 2);
+    let fixture = Fixture::new(vec![
+        Reply::status(StatusCode::SERVICE_UNAVAILABLE).header("ratelimit-reset", reset),
+    ])
+    .await;
+    let error = fixture
+        .api()
+        .set_records("42", "www", "A", &records())
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::WriteUnconfirmed);
+    assert_eq!(error.retry_after, None);
+    assert_eq!(fixture.count(), 1);
+}
+
+#[tokio::test]
+async fn provider_pause_is_shared_across_api_clients_but_scoped_to_base_and_token() {
+    for (status, kind) in [
+        (StatusCode::TOO_MANY_REQUESTS, ErrorKind::RateLimited),
+        (StatusCode::SERVICE_UNAVAILABLE, ErrorKind::Unavailable),
+    ] {
+        let fixture = Fixture::new(vec![
+            Reply::status(status).header("retry-after", 47),
+            Reply::json(json!({"zone":zone()})),
+        ])
+        .await;
+        super::clear_pause_for_test(&fixture.base, "contract-fixture");
+        let initial = fixture.api().zone("42").await.unwrap_err();
+        assert_eq!(initial.kind, kind);
+        assert_eq!(initial.retry_after, Some(47));
+        assert_eq!(fixture.count(), 1);
+
+        // Separate reqwest clients and Api objects must honor one provider scope.
+        let another_client = Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .build()
+            .unwrap();
+        for _ in 0..2 {
+            let another_api = Api::new(
+                &another_client,
+                &fixture.base,
+                "contract-fixture",
+                Instant::now() + Duration::from_secs(3),
+            );
+            let paused = another_api.zone("42").await.unwrap_err();
+            assert_eq!(paused.kind, kind);
+            assert!((46..=47).contains(&paused.retry_after.unwrap()));
+            assert_eq!(
+                fixture.count(),
+                1,
+                "cooldown must reject locally before HTTP"
+            );
+        }
+
+        let other_token_api = Api::new(
+            &another_client,
+            &fixture.base,
+            "different-fixture-token",
+            Instant::now() + Duration::from_secs(3),
+        );
+        assert_eq!(other_token_api.zone("42").await.unwrap().id, 42);
+        assert_eq!(fixture.count(), 2);
+        assert_eq!(
+            fixture.data.lock().unwrap().seen[1].token,
+            "Bearer different-fixture-token"
+        );
+
+        // A token's pause on one endpoint cannot suppress another API scope.
+        let other_base = Fixture::new(vec![Reply::json(json!({"zone":zone()}))]).await;
+        assert_eq!(other_base.api().zone("42").await.unwrap().id, 42);
+        assert_eq!(other_base.count(), 1);
+        super::clear_pause_for_test(&fixture.base, "contract-fixture");
+    }
+}

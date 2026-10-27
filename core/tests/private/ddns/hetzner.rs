@@ -22,6 +22,8 @@ struct Data {
     status: StatusCode,
     write_status: StatusCode,
     commit_on_error: bool,
+    mutation_retry_after: Option<u32>,
+    reads_after_write: usize,
     mode: String,
 }
 struct Fixture {
@@ -53,7 +55,10 @@ async fn zone(
     headers: HeaderMap,
 ) -> (StatusCode, Json<Value>) {
     auth(&headers);
-    let data = data.lock().unwrap();
+    let mut data = data.lock().unwrap();
+    if !data.writes.is_empty() {
+        data.reads_after_write += 1;
+    }
     (
         data.status,
         Json(json!({"zone":{"id":42,"name":"example.com","mode":data.mode,"ttl":900}})),
@@ -64,7 +69,10 @@ async fn list(
     headers: HeaderMap,
 ) -> (StatusCode, HeaderMap, Json<Value>) {
     auth(&headers);
-    let data = data.lock().unwrap();
+    let mut data = data.lock().unwrap();
+    if !data.writes.is_empty() {
+        data.reads_after_write += 1;
+    }
     let mut headers = HeaderMap::new();
     headers.insert("retry-after", "17".parse().unwrap());
     (
@@ -114,7 +122,9 @@ fn mutate(
         data.rrsets.push(written.clone());
     }
     let mut headers = HeaderMap::new();
-    headers.insert("retry-after", "23".parse().unwrap());
+    if let Some(seconds) = data.mutation_retry_after {
+        headers.insert("retry-after", seconds.to_string().parse().unwrap());
+    }
     let response = if data.write_status.is_success() {
         json!({"rrset":written,"action":{"id":123,"status":"success","command":"set_rrset_records","resources":[{"id":42,"type":"zone"}],"error":null}})
     } else {
@@ -130,6 +140,8 @@ impl Fixture {
             status: StatusCode::OK,
             write_status: StatusCode::OK,
             commit_on_error: false,
+            mutation_retry_after: Some(23),
+            reads_after_write: 0,
             mode: "primary".into(),
         }));
         let app = Router::new()
@@ -321,6 +333,7 @@ async fn ambiguous_write_readback_confirms_only_exact_result_without_replay() {
             let mut data = fixture.data.lock().unwrap();
             data.write_status = StatusCode::INTERNAL_SERVER_ERROR;
             data.commit_on_error = commit;
+            data.mutation_retry_after = None;
         }
         let result = fixture
             .run(&target(Selection::Create, RecordType::A), "8.8.8.8", false)
@@ -330,7 +343,7 @@ async fn ambiguous_write_readback_confirms_only_exact_result_without_replay() {
         } else {
             let failure = result.unwrap_err();
             assert_eq!(failure.code, Error::WriteUnconfirmed);
-            assert_eq!(failure.retry_after, Some(23));
+            assert_eq!(failure.retry_after, None);
         }
         assert_eq!(fixture.data.lock().unwrap().writes.len(), 1);
     }
@@ -406,4 +419,33 @@ async fn address_family_and_outside_owner_validation_prevents_mutation() {
         Error::NameOutsideZone
     );
     assert!(fixture.data.lock().unwrap().writes.is_empty());
+}
+
+#[tokio::test]
+async fn ambiguous_mutation_with_provider_pause_defers_readback_and_preserves_cooldown() {
+    for commit in [false, true] {
+        let fixture = Fixture::new(vec![]).await;
+        {
+            let mut data = fixture.data.lock().unwrap();
+            data.write_status = StatusCode::SERVICE_UNAVAILABLE;
+            data.commit_on_error = commit;
+            data.mutation_retry_after = Some(47);
+        }
+        let failure = fixture
+            .run(&target(Selection::Create, RecordType::A), "8.8.8.8", false)
+            .await
+            .unwrap_err();
+        assert_eq!(failure.code, Error::WriteUnconfirmed);
+        assert_eq!(failure.retry_after, Some(47));
+        let result =
+            super::super::failure_result(&target(Selection::Create, RecordType::A), failure);
+        assert_eq!(
+            result.provider_cooldown(),
+            Some((47, Error::ProviderUnavailable))
+        );
+        let data = fixture.data.lock().unwrap();
+        assert_eq!(data.writes.len(), 1);
+        assert_eq!(data.reads_after_write, 0);
+        assert_eq!(!data.rrsets.is_empty(), commit);
+    }
 }

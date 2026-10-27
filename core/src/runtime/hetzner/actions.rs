@@ -67,7 +67,16 @@ impl Api<'_> {
             sleep_until(next).await;
             let response: serde_json::Value = self
                 .request(Method::GET, self.url(&["actions", &id.to_string()])?, None)
-                .await?;
+                .await
+                .map_err(|mut error| {
+                    // The POST was accepted. A later poll rejection cannot prove
+                    // that the mutation was rejected; retain any provider pause.
+                    if error.kind == ErrorKind::RateLimited {
+                        error.retry_after = Some(error.retry_after.unwrap_or(60));
+                    }
+                    error.kind = ErrorKind::WriteUnconfirmed;
+                    error
+                })?;
             action = serde_json::from_value(
                 response
                     .get("action")

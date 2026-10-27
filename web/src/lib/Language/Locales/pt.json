@@ -2807,7 +2807,7 @@
             "providerHints": {
                 "cloudflare": "O teste apenas lê zonas Cloudflare. Os futuros serviços DNS necessitam da permissão Zone / DNS / Edit, que este teste só de leitura não verifica. Ao guardar, o acesso a todas as zonas selecionadas é novamente verificado.",
                 "desec": "deSEC: use um token API com descoberta de domínios e leitura/escrita de RRsets nas zonas selecionadas, incluindo o RRset TXT _acme-challenge na raiz para verificar permissões e os registos A/AAAA dos nomes DDNS selecionados. As zonas são domínios ASCII em minúsculas sem ponto final (punycode para IDN). Novos registos usam o TTL mínimo da zona; os TTL existentes são mantidos. DDNS respeita limites e Retry-After. Sem proxy Cloudflare.",
-                "hetzner": "Hetzner Cloud DNS: use um token API Read & Write do projeto atual da Hetzner Console que contém a zona PRIMARY. Tokens da antiga DNS Console independente não são suportados. O acesso está limitado ao projeto. As alterações são concluídas através de ações assíncronas; DDNS respeita os limites de pedidos e Retry-After. Os novos RRSets herdam o TTL padrão da zona quando o seu TTL é null. Os TTL e comentários existentes são preservados."
+                "hetzner": "Hetzner Cloud DNS: use um token API Read & Write do projeto atual da Hetzner Console que contém a zona PRIMARY. Tokens da antiga DNS Console independente não são suportados. O acesso está limitado ao projeto. Os novos registos usam o TTL padrão da zona; os TTL e comentários existentes são preservados. DDNS aguarda antes de tentar novamente quando o fornecedor limita os pedidos."
             }
         },
         "ddns": {

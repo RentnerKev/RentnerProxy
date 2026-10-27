@@ -2760,7 +2760,7 @@
             "providerHints": {
                 "cloudflare": "De test leest alleen Cloudflare-zones. Toekomstige DNS-afnemers hebben Zone / DNS / Edit nodig; deze alleen-lezen test controleert die schrijfrechten niet. Bij het opslaan worden alle geselecteerde zones opnieuw gecontroleerd.",
                 "desec": "deSEC: gebruik een API-token met domeinlezing en lees-/schrijfrechten voor RRsets in de gekozen zones, inclusief het TXT-RRset _acme-challenge op de zoneroot voor rechtencontroles en de A/AAAA-records van de gekozen DDNS-namen. Zones zijn kleine ASCII-domeinnamen zonder afsluitende punt (punycode voor IDN). Nieuwe records gebruiken de minimale zone-TTL; bestaande RRset-TTLs blijven behouden. DDNS respecteert limieten en Retry-After. Geen Cloudflare-proxy.",
-                "hetzner": "Hetzner Cloud DNS: gebruik een Read & Write API-token uit het huidige Hetzner Console-project met de PRIMARY-zone. Tokens uit de oude zelfstandige DNS Console worden niet ondersteund. Toegang geldt voor het project. Wijzigingen worden via asynchrone acties voltooid; DDNS respecteert aanvraaglimieten en Retry-After. Nieuwe RRSets erven de standaard-TTL van de zone wanneer hun TTL null is. Bestaande TTLs en recordopmerkingen blijven behouden."
+                "hetzner": "Hetzner Cloud DNS: gebruik een Read & Write API-token uit het huidige Hetzner Console-project met de PRIMARY-zone. Tokens uit de oude zelfstandige DNS Console worden niet ondersteund. Toegang geldt voor het project. Nieuwe records gebruiken de standaard-TTL van de zone; bestaande TTLs en recordopmerkingen blijven behouden. DDNS wacht met opnieuw proberen wanneer de provider aanvragen beperkt."
             }
         },
         "ddns": {
