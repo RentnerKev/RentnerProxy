@@ -18,6 +18,15 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(1);
 
+fn test_client() -> Client {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .retry(reqwest::retry::never())
+        .build()
+        .unwrap()
+}
+
 struct Reply {
     status: StatusCode,
     headers: Vec<(String, String)>,
@@ -71,11 +80,7 @@ impl Fixture {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = Url::parse(&format!("http://{}/", listener.local_addr().unwrap())).unwrap();
         let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-        let client = Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .retry(reqwest::retry::never())
-            .build()
-            .unwrap();
+        let client = test_client();
         Self {
             base,
             // An OS may reuse a closed listener's port while its provider pause is live.
@@ -312,11 +317,7 @@ async fn post_transport_disconnect_does_not_replay_mutation() {
             let _ = stream.shutdown().await;
         }
     });
-    let client = Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .retry(reqwest::retry::never())
-        .build()
-        .unwrap();
+    let client = test_client();
     let api = Api::new(
         &client,
         &base,
@@ -604,11 +605,7 @@ async fn provider_pause_is_shared_across_api_clients_but_scoped_to_base_and_toke
         assert_eq!(fixture.count(), 1);
 
         // Separate reqwest clients and Api objects must honor one provider scope.
-        let another_client = Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .retry(reqwest::retry::never())
-            .build()
-            .unwrap();
+        let another_client = test_client();
         for _ in 0..2 {
             let another_api = Api::new(
                 &another_client,
