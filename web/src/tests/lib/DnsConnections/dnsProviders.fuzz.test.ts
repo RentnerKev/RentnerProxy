@@ -6,7 +6,7 @@ test('provider identifiers are a closed built-in set, never plugin names or path
     fc.assert(
         fc.property(fc.string(), (value) => {
             expect(dnsProviderIdSchema.safeParse(value).success).toBe(
-                value === 'cloudflare' || value === 'desec',
+                value === 'cloudflare' || value === 'desec' || value === 'hetzner',
             )
         }),
         { numRuns: 500 },

@@ -13,6 +13,7 @@ pub(super) fn id(value: &str) -> Result<(), Error> {
 pub(super) fn zone_id(value: &str) -> bool {
     crate::runtime::dns::capabilities::ProviderId::Cloudflare.valid_zone_id(value)
         || crate::runtime::dns::capabilities::ProviderId::Desec.valid_zone_id(value)
+        || crate::runtime::dns::capabilities::ProviderId::Hetzner.valid_zone_id(value)
 }
 pub(super) fn token(value: &str) -> Result<(), Error> {
     (!value.is_empty() && value.len() <= 512 && value.bytes().all(|b| (0x21..=0x7e).contains(&b)))
@@ -127,6 +128,9 @@ pub(super) async fn permitted(
         return Err(Error::InvalidInput);
     }
     match provider {
+        crate::runtime::dns::capabilities::ProviderId::Hetzner => {
+            super::hetzner::permitted(endpoint, token).await
+        }
         crate::runtime::dns::capabilities::ProviderId::Desec => {
             super::desec::permitted(endpoint, token).await
         }

@@ -50,6 +50,11 @@ const getProviders = mock(async () => {
             id: 'desec' as const,
             capabilities: { ...provider.capabilities, proxyOptions: 'none' as const },
         },
+        {
+            ...provider,
+            id: 'hetzner' as const,
+            capabilities: { ...provider.capabilities, proxyOptions: 'none' as const },
+        },
     ]
 })
 let queryFails = false
@@ -593,12 +598,53 @@ test('selects deSEC, clears provider drafts and creates a domain-zone connection
     })
 })
 
-test('all supported locales include deSEC guidance and provider names', () => {
+test('selects Hetzner, clears provider drafts and saves canonical numeric zones', async () => {
+    await renderPage()
+    await click(button('Add DNS connection'))
+    await input('name', 'Office Hetzner')
+    await input('apiToken', 'cloudflare-draft-token')
+    await click(button('Test read access and load zones'))
+    await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 2)
+    await click(document.querySelector('input[type="checkbox"]')!)
+    await click(document.querySelector('[role="combobox"]')!)
+    await waitFor(() => !!document.querySelector('[role="option"]'))
+    const option = [...document.querySelectorAll('[role="option"]')].find((item) =>
+        item.textContent?.includes('Hetzner Cloud DNS'),
+    )!
+    await click(option)
+    expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe('')
+    expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+    expect(document.body.textContent).toContain('Read & Write')
+    expect(document.body.textContent).toContain('PRIMARY')
+    expect(document.body.textContent).not.toContain('Cloudflare proxy')
+    await input('apiToken', 'hetzner-fixture-token')
+    availableZones = [{ id: '9223372036854775807', name: 'example.com' }]
+    await click(button('Test read access and load zones'))
+    await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 1)
+    expect(testConnection.mock.calls.at(-1)?.[0].data).toMatchObject({
+        provider: 'hetzner',
+        apiToken: 'hetzner-fixture-token',
+    })
+    await click(document.querySelector('input[type="checkbox"]')!)
+    await submit()
+    await waitFor(() => saveConnection.mock.calls.length === 1)
+    expect(saveConnection.mock.calls[0]?.[0].data).toMatchObject({
+        provider: 'hetzner',
+        name: 'Office Hetzner',
+        zoneIds: ['9223372036854775807'],
+        expectedRevision: 0,
+    })
+})
+
+test('all supported locales include deSEC and Hetzner guidance and provider names', () => {
     for (const catalog of Object.values(catalogs)) {
         expect(catalog.admin.dnsConnections.providers.desec).toBe('deSEC')
+        expect(catalog.admin.dnsConnections.providers.hetzner).toBe('Hetzner Cloud DNS')
         const hints = catalog.admin.dnsConnections.providerHints
         expect(hints.cloudflare.length).toBeGreaterThan(0)
         expect(hints.desec).toContain('TTL')
         expect(hints.desec).toContain('Retry-After')
+        for (const detail of ['Read & Write', 'PRIMARY', 'TTL', 'null', 'Retry-After'])
+            expect(hints.hetzner).toContain(detail)
     }
 })

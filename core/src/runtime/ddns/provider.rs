@@ -51,7 +51,7 @@ impl<'a> Provider<'a> {
     ) -> Result<Self, Failure> {
         match provider {
             ProviderId::Cloudflare => Self::cloudflare(client, endpoint, token, deadline),
-            ProviderId::Desec => Ok(Self {
+            ProviderId::Desec | ProviderId::Hetzner => Ok(Self {
                 provider,
                 client,
                 base: Url::parse(endpoint).map_err(|_| Error::ProviderUnavailable)?,
@@ -112,6 +112,9 @@ impl<'a> Provider<'a> {
         if self.provider == ProviderId::Desec {
             return super::desec::records(self, target).await;
         }
+        if self.provider == ProviderId::Hetzner {
+            return super::hetzner::records(self, target).await;
+        }
         let mut url = self.url(target, "")?;
         // Read all types at the exact owner, so CNAME and duplicate A/AAAA
         // conflicts are detected without ever modifying TXT or other records.
@@ -169,6 +172,9 @@ impl<'a> Provider<'a> {
         if self.provider == ProviderId::Desec {
             return super::desec::write(self, target, address, record).await;
         }
+        if self.provider == ProviderId::Hetzner {
+            return super::hetzner::write(self, target, address, record).await;
+        }
         let (method, url, body) = if let Some(record) = record {
             (
                 Method::PATCH,
@@ -223,8 +229,8 @@ impl<'a> Provider<'a> {
         };
         let proxy_options = match self.provider {
             ProviderId::Cloudflare => ProxyOptions::Cloudflare,
-            ProviderId::Desec if !target.proxied => ProxyOptions::None,
-            ProviderId::Desec => return Err(Error::InvalidInput.into()),
+            ProviderId::Desec | ProviderId::Hetzner if !target.proxied => ProxyOptions::None,
+            ProviderId::Desec | ProviderId::Hetzner => return Err(Error::InvalidInput.into()),
         };
         if !self.provider.supports(Operation::AddressUpdate {
             record_type,

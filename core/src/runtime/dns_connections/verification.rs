@@ -36,7 +36,8 @@ pub(super) fn validate_pending(entry: &Entry) -> Result<(), Error> {
             DnsRecordIntent::new(&entry.metadata.id, &check.intent.name, &check.intent.value)
                 .map_err(|_| Error::StoreUnavailable)?;
         let in_zone = check.intent.name.ends_with(&format!(".{}", zone.name))
-            || (entry.metadata.provider == "desec" && check.intent.name == zone.name);
+            || (matches!(entry.metadata.provider.as_str(), "desec" | "hetzner")
+                && check.intent.name == zone.name);
         if expected != check.intent || !in_zone {
             return Err(Error::StoreUnavailable);
         }
@@ -55,6 +56,10 @@ fn provider_error(error: CertificateError) -> Error {
 impl Store {
     fn check_provider(&self, entry: &Entry, zone: &str) -> Result<DnsProvider, Error> {
         let config = match super::resolve_provider(None, Some(entry))? {
+            super::ProviderId::Hetzner => DnsProviderConfig::Hetzner {
+                zone_id: zone.to_owned(),
+                api_token: self.decrypt(entry)?,
+            },
             super::ProviderId::Desec => DnsProviderConfig::Desec {
                 zone_id: zone.to_owned(),
                 api_token: self.decrypt(entry)?,
@@ -200,7 +205,10 @@ impl Store {
                     zone_id: zone.id.clone(),
                     intent: DnsRecordIntent::new(
                         &entry.metadata.id,
-                        &if provider == super::ProviderId::Desec {
+                        &if matches!(
+                            provider,
+                            super::ProviderId::Desec | super::ProviderId::Hetzner
+                        ) {
                             zone.name.clone()
                         } else {
                             format!("rp-verify-{}.{}", &nonce[..16], zone.name)

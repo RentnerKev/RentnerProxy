@@ -19,6 +19,16 @@
                 "addressRecordTypes": ["A", "AAAA"],
                 "proxyOptions": "none"
             }
+        },
+        {
+            "id": "hetzner",
+            "capabilities": {
+                "zoneDiscovery": true,
+                "txtCreate": true,
+                "txtCleanup": true,
+                "addressRecordTypes": ["A", "AAAA"],
+                "proxyOptions": "none"
+            }
         }
     ]
 }

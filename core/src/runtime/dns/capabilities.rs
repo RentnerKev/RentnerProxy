@@ -8,6 +8,7 @@ pub(crate) enum ProviderId {
     #[default]
     Cloudflare,
     Desec,
+    Hetzner,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -81,11 +82,22 @@ const CLOUDFLARE: ProviderDescriptor = ProviderDescriptor {
 };
 
 pub(crate) fn catalog() -> &'static [ProviderDescriptor] {
-    &[CLOUDFLARE, DESEC]
+    &[CLOUDFLARE, DESEC, HETZNER]
 }
 
 const DESEC: ProviderDescriptor = ProviderDescriptor {
     id: ProviderId::Desec,
+    capabilities: Capabilities {
+        zone_discovery: true,
+        txt_create: true,
+        txt_cleanup: true,
+        address_record_types: &[AddressRecordType::A, AddressRecordType::Aaaa],
+        proxy_options: ProxyOptions::None,
+    },
+};
+
+const HETZNER: ProviderDescriptor = ProviderDescriptor {
+    id: ProviderId::Hetzner,
     capabilities: Capabilities {
         zone_discovery: true,
         txt_create: true,
@@ -100,6 +112,7 @@ impl ProviderId {
         match value {
             "cloudflare" => Some(Self::Cloudflare),
             "desec" => Some(Self::Desec),
+            "hetzner" => Some(Self::Hetzner),
             _ => None,
         }
     }
@@ -108,6 +121,7 @@ impl ProviderId {
         match self {
             Self::Cloudflare => "cloudflare",
             Self::Desec => "desec",
+            Self::Hetzner => "hetzner",
         }
     }
 
@@ -115,6 +129,7 @@ impl ProviderId {
         match self {
             Self::Cloudflare => CLOUDFLARE.capabilities.supports(operation),
             Self::Desec => DESEC.capabilities.supports(operation),
+            Self::Hetzner => HETZNER.capabilities.supports(operation),
         }
     }
 
@@ -122,6 +137,7 @@ impl ProviderId {
         match self {
             Self::Cloudflare => super::validation::is_cloudflare_zone_id(value),
             Self::Desec => super::validation::is_desec_zone_id(value),
+            Self::Hetzner => super::validation::is_hetzner_zone_id(value),
         }
     }
 

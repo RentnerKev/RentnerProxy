@@ -2730,7 +2730,8 @@
                 "cloudflare": "Cloudflare",
                 "capabilities": "Obsługiwane funkcje (uprawnienia tokena są sprawdzane osobno).",
                 "unavailable": "Funkcje DNS są niedostępne lub nie obsługują tej operacji. Sprawdź połączenie z kontrolerem i spróbuj ponownie.",
-                "desec": "deSEC"
+                "desec": "deSEC",
+                "hetzner": "Hetzner Cloud DNS"
             },
             "page": {
                 "eyebrow": "Administracja",
@@ -2807,7 +2808,8 @@
             },
             "providerHints": {
                 "cloudflare": "Test odczytuje wyłącznie strefy Cloudflare. Przyszli odbiorcy DNS wymagają uprawnienia Zone / DNS / Edit, którego ten test tylko do odczytu nie sprawdza. Podczas zapisywania dostęp do wszystkich wybranych stref jest sprawdzany ponownie.",
-                "desec": "deSEC: użyj tokenu API z odczytem domen i odczytem/zapisem RRset w wybranych strefach, w tym RRset TXT _acme-challenge w domenie głównej do testów uprawnień oraz rekordów A/AAAA wybranych nazw DDNS. Strefy to domeny ASCII małymi literami bez końcowej kropki (punycode dla IDN). Nowe rekordy używają minimalnego TTL strefy; istniejące TTL są zachowane. DDNS respektuje limity i Retry-After. Brak proxy Cloudflare."
+                "desec": "deSEC: użyj tokenu API z odczytem domen i odczytem/zapisem RRset w wybranych strefach, w tym RRset TXT _acme-challenge w domenie głównej do testów uprawnień oraz rekordów A/AAAA wybranych nazw DDNS. Strefy to domeny ASCII małymi literami bez końcowej kropki (punycode dla IDN). Nowe rekordy używają minimalnego TTL strefy; istniejące TTL są zachowane. DDNS respektuje limity i Retry-After. Brak proxy Cloudflare.",
+                "hetzner": "Hetzner Cloud DNS: użyj tokenu API Read & Write z bieżącego projektu Hetzner Console zawierającego strefę PRIMARY. Tokeny ze starej samodzielnej DNS Console nie są obsługiwane. Dostęp jest ograniczony do projektu. Zmiany kończą się poprzez akcje asynchroniczne; DDNS przestrzega limitów żądań i Retry-After. Nowe RRSets dziedziczą domyślny TTL strefy, gdy ich TTL ma wartość null. Istniejące TTL i komentarze rekordów są zachowywane."
             }
         },
         "ddns": {

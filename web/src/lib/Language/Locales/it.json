@@ -2715,7 +2715,8 @@
                 "cloudflare": "Cloudflare",
                 "capabilities": "Funzioni supportate (i permessi del token vengono verificati separatamente).",
                 "unavailable": "Le funzioni DNS non sono disponibili o non supportano questa operazione. Verifica la connessione al controller e riprova.",
-                "desec": "deSEC"
+                "desec": "deSEC",
+                "hetzner": "Hetzner Cloud DNS"
             },
             "page": {
                 "eyebrow": "Amministrazione",
@@ -2792,7 +2793,8 @@
             },
             "providerHints": {
                 "cloudflare": "Il test legge solo le zone Cloudflare. I futuri servizi DNS richiedono il permesso Zone / DNS / Edit, che questo test in sola lettura non verifica. Al salvataggio viene ricontrollato l’accesso a tutte le zone selezionate.",
-                "desec": "deSEC: usa un token API con lettura dei domini e lettura/scrittura dei RRset nelle zone selezionate, incluso il RRset TXT _acme-challenge alla radice per verificare i permessi e i record A/AAAA dei nomi DDNS selezionati. Le zone sono domini ASCII minuscoli senza punto finale (punycode per IDN). I nuovi record usano il TTL minimo della zona; i TTL esistenti sono mantenuti. DDNS rispetta i limiti e Retry-After. Proxy Cloudflare non disponibile."
+                "desec": "deSEC: usa un token API con lettura dei domini e lettura/scrittura dei RRset nelle zone selezionate, incluso il RRset TXT _acme-challenge alla radice per verificare i permessi e i record A/AAAA dei nomi DDNS selezionati. Le zone sono domini ASCII minuscoli senza punto finale (punycode per IDN). I nuovi record usano il TTL minimo della zona; i TTL esistenti sono mantenuti. DDNS rispetta i limiti e Retry-After. Proxy Cloudflare non disponibile.",
+                "hetzner": "Hetzner Cloud DNS: usa un token API Read & Write del progetto attuale di Hetzner Console che contiene la zona PRIMARY. I token della vecchia DNS Console indipendente non sono supportati. L’accesso è limitato al progetto. Le modifiche si completano tramite azioni asincrone; DDNS rispetta i limiti di richieste e Retry-After. I nuovi RRSet ereditano il TTL predefinito della zona quando il loro TTL è null. TTL e commenti esistenti vengono conservati."
             }
         },
         "ddns": {

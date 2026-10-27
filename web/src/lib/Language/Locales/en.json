@@ -2867,7 +2867,8 @@
                 "cloudflare": "Cloudflare",
                 "capabilities": "Supported features (token permissions are checked separately).",
                 "unavailable": "DNS provider capabilities are unavailable or do not support this operation. Check the controller connection, then try again.",
-                "desec": "deSEC"
+                "desec": "deSEC",
+                "hetzner": "Hetzner Cloud DNS"
             },
             "page": {
                 "eyebrow": "Administration",
@@ -2944,7 +2945,8 @@
             },
             "providerHints": {
                 "cloudflare": "Testing only reads Cloudflare zones. Future DNS consumers require Zone / DNS / Edit permission, which this read-only test does not verify. Saving rechecks all selected zones.",
-                "desec": "deSEC: use an API token with domain discovery and RRset read/write access for the selected zones, including the apex _acme-challenge TXT RRset for permission checks and A/AAAA records for the selected DDNS names. Zone IDs are lowercase ASCII domains (punycode for IDNs), without a trailing dot. New records use the zone minimum TTL; existing RRset TTLs are retained. DDNS respects rate limits and Retry-After. Cloudflare proxying is unavailable."
+                "desec": "deSEC: use an API token with domain discovery and RRset read/write access for the selected zones, including the apex _acme-challenge TXT RRset for permission checks and A/AAAA records for the selected DDNS names. Zone IDs are lowercase ASCII domains (punycode for IDNs), without a trailing dot. New records use the zone minimum TTL; existing RRset TTLs are retained. DDNS respects rate limits and Retry-After. Cloudflare proxying is unavailable.",
+                "hetzner": "Hetzner Cloud DNS: use a Read & Write API token from the current Hetzner Console project containing the PRIMARY zone. Tokens from the old standalone DNS Console are unsupported. Access is project-scoped. Changes complete through asynchronous actions; DDNS respects rate limits and Retry-After. New RRSets inherit the zone default TTL when their TTL is null. Existing TTLs and record comments are preserved."
             }
         },
         "ddns": {

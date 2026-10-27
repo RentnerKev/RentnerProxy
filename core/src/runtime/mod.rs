@@ -12,6 +12,7 @@ mod dns;
 pub(crate) mod dns_connections;
 pub(crate) mod docker_discovery;
 mod engine;
+mod hetzner;
 mod lifecycle;
 pub(crate) mod manual_dns_propagation;
 mod provider_connections;

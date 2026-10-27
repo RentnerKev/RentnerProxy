@@ -24,6 +24,10 @@ impl Store {
             return Err(Error::InvalidInput);
         }
         match provider {
+            super::ProviderId::Hetzner => Ok(crate::runtime::dns::DnsProviderConfig::Hetzner {
+                zone_id: zone_id.to_owned(),
+                api_token: access.token.clone(),
+            }),
             super::ProviderId::Desec => Ok(crate::runtime::dns::DnsProviderConfig::Desec {
                 zone_id: zone_id.to_owned(),
                 api_token: access.token.clone(),
