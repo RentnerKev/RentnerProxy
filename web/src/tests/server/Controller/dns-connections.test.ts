@@ -24,8 +24,8 @@ const zone = { id: zoneId, name: 'example.com' }
 function metadata() {
     return {
         id,
-        provider: 'cloudflare',
-        ownership: 'instance',
+        provider: 'cloudflare' as const,
+        ownership: 'instance' as const,
         name: 'Test',
         createdByUserId: actorUserId,
         revision: 1,
@@ -163,6 +163,38 @@ describe('DNS connection controller boundary', () => {
                 createDnsConnectionsController(async () => payload).list(),
             ).rejects.toThrow('admin.dnsConnections.errors.controller_unavailable')
         }
+    })
+    test('permission checks require matching metadata and complete verified zone coverage', async () => {
+        const verification = {
+            status: 'connected' as const,
+            checkedAt: '2026-10-15T12:01:00Z',
+            zoneIds: [zoneId],
+            error: null,
+        }
+        const checked = { ...metadata(), verification }
+        const controller = createDnsConnectionsController(async (path, options) => {
+            expect(path).toBe(`/internal/v1/dns/connections/${id}/verify`)
+            expect(options).toMatchObject({
+                method: 'POST',
+                timeoutMs: 65_000,
+                confidential: true,
+                privileged: true,
+            })
+            expect(JSON.parse(options.body!)).toEqual({ expectedRevision: 1 })
+            return checked
+        })
+        expect(await controller.verify(id, 1)).toEqual(checked)
+        for (const payload of [
+            { ...checked, id: actorUserId },
+            { ...checked, revision: 2 },
+            { ...checked, verification: { ...verification, zoneIds: [] } },
+            { ...checked, verification: { ...verification, error: 'provider_unauthorized' } },
+            { ...checked, verification: { ...verification, status: 'failed' } },
+            { ...checked, verification: { ...verification, checkedAt: null } },
+        ])
+            await expect(
+                createDnsConnectionsController(async () => payload).verify(id, 1),
+            ).rejects.toThrow('controller_unavailable')
     })
     test('rejects substituted identity, revision, selected zones and false write claims', async () => {
         for (const payload of [

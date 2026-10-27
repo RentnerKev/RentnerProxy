@@ -20,6 +20,7 @@ export interface DnsConnectionsController {
     readonly test: (input: TestDnsConnectionInput) => Promise<DnsConnectionTestResult>
     readonly save: (id: string, input: SaveControllerDnsConnectionInput) => Promise<DnsConnection>
     readonly delete: (id: string, expectedRevision: number) => Promise<void>
+    readonly verify: (id: string, expectedRevision: number) => Promise<DnsConnection>
     readonly validateReference: (
         input: DnsConnectionReference,
     ) => Promise<ValidatedDnsConnectionReference>

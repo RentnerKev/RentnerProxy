@@ -50,6 +50,17 @@ impl Root {
         let runtime = ProxyRuntime::new(RuntimeSettings::new(self.0.clone(), 18_080), None);
         app_with_state(AppState::new(runtime, token))
     }
+
+    async fn initialized_router(&self) -> Router {
+        let config = Config::from_values(None, Some(TOKEN), None, None, None, false).unwrap();
+        let runtime = ProxyRuntime::new(RuntimeSettings::new(self.0.clone(), 18_080), None);
+        runtime.initialize().await;
+        assert_eq!(
+            runtime.certificate_store_readiness().await,
+            crate::runtime::CertificateStoreReadiness::Ready
+        );
+        app_with_state(AppState::new(runtime, config.controller_token))
+    }
 }
 
 impl Drop for Root {
@@ -642,7 +653,7 @@ async fn ddns_configuration_events_and_disabled_actions_survive_reload() {
 
 fn seed_connection(root: &Root, in_use: bool) {
     let references = if in_use {
-        json!([{"zoneId":ZONE,"consumer":{"type":"dns01","id":ACTOR}}])
+        json!([{"zoneId":ZONE,"consumer":{"type":"ddns","id":ACTOR}}])
     } else {
         json!([])
     };
@@ -664,7 +675,7 @@ fn seed_connection(root: &Root, in_use: bool) {
 async fn dns_metadata_redacts_credentials_and_deletion_persists() {
     let root = Root::new();
     seed_connection(&root, false);
-    let router = root.router(true);
+    let router = root.initialized_router().await;
     let (status, list) = call(
         &router,
         "GET",
@@ -691,7 +702,7 @@ async fn dns_metadata_redacts_credentials_and_deletion_persists() {
     );
     assert_eq!(
         call(
-            &root.router(true),
+            &root.initialized_router().await,
             "GET",
             "/internal/v1/dns/connections",
             Body::empty(),
@@ -713,7 +724,7 @@ async fn dns_metadata_redacts_credentials_and_deletion_persists() {
 async fn dns_reference_conflicts_and_missing_credentials_fail_closed() {
     let root = Root::new();
     seed_connection(&root, true);
-    let router = root.router(true);
+    let router = root.initialized_router().await;
     let uri = format!("/internal/v1/dns/connections/{CONNECTION}");
     assert_eq!(
         json_call(&router, "DELETE", &uri, json!({"expectedRevision":1})).await,

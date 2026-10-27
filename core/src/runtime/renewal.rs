@@ -28,6 +28,13 @@ impl ProxyRuntime {
                 let _ = runtime.certificate_store.expire_manual_dns_orders().await;
                 runtime.recover_manual_dns().await;
                 runtime.recover_dns_cleanup().await;
+                let checks_runtime = Arc::clone(&runtime);
+                tokio::spawn(async move {
+                    checks_runtime
+                        .dns_connections
+                        .recover_permission_checks()
+                        .await;
+                });
                 runtime
                     .renew_due_certificates(challenges.clone(), cursor)
                     .await;

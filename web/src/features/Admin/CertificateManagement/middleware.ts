@@ -1,4 +1,7 @@
-import { getDnsProvidersService } from '@/server/Admin/DnsConnections/dns-providers.service.ts'
+import {
+    getDnsProvidersService,
+    getCertificateDnsConnectionsService,
+} from '@/server/Admin/DnsConnections/dns-providers.service.ts'
 import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
 import { searchCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -153,6 +156,17 @@ export const getCertificateDnsProvidersHandler = createServerFn({ method: 'GET' 
             return await getDnsProvidersService('certificates')
         } catch (error) {
             throwLocalizedQueryError(error, 'admin.dnsConnections.providers.unavailable')
+        }
+    },
+)
+
+export const getCertificateDnsConnectionsHandler = createServerFn({ method: 'GET' }).handler(
+    async () => {
+        noStore()
+        try {
+            return await getCertificateDnsConnectionsService()
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.dnsConnections.errors.controller_unavailable')
         }
     },
 )

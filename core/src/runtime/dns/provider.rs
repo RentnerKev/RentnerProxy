@@ -46,6 +46,16 @@ impl fmt::Debug for DnsProvider {
 }
 
 impl DnsProvider {
+    pub(in crate::runtime) fn for_connection_check(
+        config: DnsProviderConfig,
+        endpoint: &str,
+    ) -> Result<Self, CertificateError> {
+        config.validate()?;
+        Self::new(
+            config,
+            Url::parse(endpoint).map_err(|_| CertificateError::DnsProviderInvalid)?,
+        )
+    }
     pub(crate) fn from_config(
         config: DnsProviderConfig,
         environment: CertificateEnvironment,
@@ -66,6 +76,9 @@ impl DnsProvider {
     }
 
     fn new(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
+        if config.connection().is_some() {
+            return Err(CertificateError::DnsCredentialsUnavailable);
+        }
         match config.provider_id() {
             ProviderId::Cloudflare => Self::cloudflare(config, base_url),
         }

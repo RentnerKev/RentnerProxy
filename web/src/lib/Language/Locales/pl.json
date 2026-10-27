@@ -151,7 +151,7 @@
         "auditLogs": "Dziennik audytu",
         "systemVersion": "Wersja systemu {{version}}",
         "updateAvailable": "Dostępna aktualizacja do wersji {{version}}",
-        "dnsConnections": "Połączenia DNS",
+        "dnsConnections": "Dostawcy",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2733,8 +2733,8 @@
             },
             "page": {
                 "eyebrow": "Administracja",
-                "title": "Połączenia DNS",
-                "description": "Zarządzaj współdzielonymi danymi logowania Cloudflare i dozwolonymi strefami tej instancji. Uprawnieni administratorzy korzystają z tych połączeń wspólnie."
+                "title": "Dostawcy",
+                "description": "Skonfiguruj nazwane połączenia raz i używaj ich do certyfikatów oraz DDNS."
             },
             "provider": "Cloudflare · Połączenie instancji",
             "usage": "Odwołania konsumentów: {{count}}",
@@ -3280,6 +3280,32 @@
                 "invalid": "Przypisanie jest nieprawidłowe lub niezgodne z tym hostem.",
                 "unavailable": "Wymagana usługa jest niedostępna. Odśwież podgląd, aby ponowić.",
                 "timeout": "Osiągnięto limit czasu partii. Odśwież podgląd, aby ponowić."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Niezweryfikowane",
+                "connected": "Połączono",
+                "disconnected": "Rozłączono",
+                "failed": "Weryfikacja nieudana"
+            },
+            "recheck": "Sprawdź ponownie",
+            "recheckNamed": "Sprawdź ponownie {{name}}",
+            "verified": "Zweryfikowano połączenie i uprawnienia DNS.",
+            "permissionHint": "Zapisanie nowych danych dostępowych lub ponowne sprawdzenie tworzy i usuwa tymczasowy rekord TXT w każdej wybranej strefie, aby zweryfikować uprawnienia DNS.",
+            "migrationHint": "Istniejące certyfikaty są nadal odnawiane. Pasujące zapisane dane dostępowe są automatycznie łączone po weryfikacji.",
+            "consumers": "Używane przez",
+            "consumerTypes": {
+                "dns01": "Certyfikat DNS-01",
+                "ddns": "Rekord DDNS"
+            },
+            "chooseConnection": "Połączenie z dostawcą",
+            "unavailable": "Połączenie niedostępne",
+            "manage": "Skonfiguruj dostawców lub zarządzaj nimi (nowa karta; szkic zostaje zachowany)",
+            "certificateHint": "Wybierz zweryfikowane połączenie. Dane dostępowe są zarządzane centralnie.",
+            "noMatchingZone": "Żadna zweryfikowana strefa nie obejmuje wszystkich domen certyfikatu.",
+            "validation": {
+                "connection": "Wybierz zweryfikowane połączenie i dozwoloną strefę."
             }
         }
     },

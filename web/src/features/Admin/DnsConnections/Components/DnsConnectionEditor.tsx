@@ -136,6 +136,12 @@ export default function DnsConnectionEditor({
                 <p className="rounded-xl border border-border bg-surface-subtle p-3 text-sm leading-relaxed text-muted">
                     {t('admin.dnsConnections.form.readOnlyHint')}
                 </p>
+                <p className="text-sm leading-relaxed text-muted">
+                    {t('admin.providers.permissionHint')}
+                </p>
+                <p className="text-sm leading-relaxed text-muted">
+                    {t('admin.providers.migrationHint')}
+                </p>
                 <button
                     type="button"
                     onClick={handler.handleTest}

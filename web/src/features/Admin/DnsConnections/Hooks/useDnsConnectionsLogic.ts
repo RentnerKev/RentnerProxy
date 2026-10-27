@@ -18,6 +18,7 @@ import {
     getDnsConnectionProvidersHandler,
     saveDnsConnectionHandler,
     testDnsConnectionHandler,
+    verifyDnsConnectionHandler,
 } from '../middleware.ts'
 import { saveDnsConnectionSchema, testDnsConnectionSchema } from '../validation.ts'
 import type { DnsConnectionsPageProps } from '../Types/dns-connections-ui.types.ts'
@@ -66,7 +67,7 @@ export default function useDnsConnectionsLogic({
             })
         }
     }, [connectionsQuery.isError, t])
-    async function invalidate(saved?: DnsConnection, removedId?: string) {
+    async function invalidate(saved?: DnsConnection, removedId?: string, verified = false) {
         await Promise.all(
             DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>
                 queryClient.cancelQueries({ queryKey }, { revert: false }),
@@ -75,7 +76,20 @@ export default function useDnsConnectionsLogic({
         if (saved)
             queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) => {
                 const latest = current?.find((item) => item.id === saved.id)
-                if (latest && latest.revision >= saved.revision) return current
+                if (latest && latest.revision >= saved.revision) {
+                    if (
+                        !verified ||
+                        latest.revision !== saved.revision ||
+                        !saved.verification?.checkedAt ||
+                        (latest.verification?.checkedAt &&
+                            Date.parse(latest.verification.checkedAt) >
+                                Date.parse(saved.verification.checkedAt))
+                    )
+                        return current
+                    return current?.map((item) =>
+                        item.id === saved.id ? { ...item, verification: saved.verification } : item,
+                    )
+                }
                 return [...(current ?? []).filter((item) => item.id !== saved.id), saved]
             })
         if (removedId)
@@ -158,6 +172,8 @@ export default function useDnsConnectionsLogic({
                 setZones([])
                 success(result.message)
                 await invalidate(result.connection)
+                if (result.connection.verification?.status !== 'connected')
+                    await verifyConnection(result.connection)
             } catch {
                 fail('admin.dnsConnections.errors.requestFailed')
             } finally {
@@ -166,6 +182,38 @@ export default function useDnsConnectionsLogic({
             }
         },
     })
+    async function verifyConnection(connection: DnsConnection) {
+        const result = await verifyDnsConnectionHandler({
+            data: {
+                connectionId: connection.id,
+                expectedRevision: connection.revision,
+            },
+        })
+        if (!result.success) {
+            fail(result.message)
+            return
+        }
+        if (result.connection.verification?.status === 'connected')
+            success('admin.providers.verified')
+        else
+            fail(
+                `admin.dnsConnections.errors.${result.connection.verification?.error ?? 'provider_unavailable'}`,
+            )
+        await invalidate(result.connection, undefined, true)
+    }
+    async function handleVerify(connection: DnsConnection) {
+        if (!canManage || pending.current || unavailable) return
+        pending.current = true
+        setIsPending(true)
+        try {
+            await verifyConnection(connection)
+        } catch {
+            fail('admin.dnsConnections.errors.requestFailed')
+        } finally {
+            pending.current = false
+            setIsPending(false)
+        }
+    }
     function handleEditorOpenChange(open: boolean) {
         if (pending.current) return
         if (!open) {
@@ -327,6 +375,7 @@ export default function useDnsConnectionsLogic({
                 if (!open && !pending.current) setDeleteTarget(null)
             },
             handleConfirmDelete,
+            handleVerify,
             handleSubmit: (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
                 event.stopPropagation()

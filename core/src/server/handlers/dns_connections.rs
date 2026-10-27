@@ -37,6 +37,10 @@ pub(in crate::server) async fn providers() -> Response {
 }
 
 pub(in crate::server) async fn list(state: AppState) -> Response {
+    let _binding = state.runtime.dns_connections.bindings.lock().await;
+    if let Err(e) = state.runtime.reconcile_provider_connections().await {
+        return error(e);
+    }
     match state.runtime.dns_connections.list().await {
         Ok(connections) => no_store_json(serde_json::json!({"connections":connections})),
         Err(e) => error(e),
@@ -64,6 +68,10 @@ pub(in crate::server) async fn save(
         Ok(v) => v,
         Err(e) => return error(e),
     };
+    let _binding = state.runtime.dns_connections.bindings.lock().await;
+    if let Err(e) = state.runtime.reconcile_provider_connections().await {
+        return error(e);
+    }
     match state.runtime.dns_connections.save(id, request).await {
         Ok(v) => no_store_json(v),
         Err(e) => error(e),
@@ -78,6 +86,10 @@ pub(in crate::server) async fn delete(
         Ok(v) => v,
         Err(e) => return error(e),
     };
+    let _binding = state.runtime.dns_connections.bindings.lock().await;
+    if let Err(e) = state.runtime.reconcile_provider_connections().await {
+        return error(e);
+    }
     match state
         .runtime
         .dns_connections
@@ -85,6 +97,31 @@ pub(in crate::server) async fn delete(
         .await
     {
         Ok(()) => no_store_json(serde_json::json!({"deleted":true})),
+        Err(e) => error(e),
+    }
+}
+pub(in crate::server) async fn verify(
+    Path(id): Path<String>,
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    let request = match parse::<DeleteRequest>(body) {
+        Ok(value) => value,
+        Err(e) => return error(e),
+    };
+    match state
+        .runtime
+        .dns_connections
+        .verify(&id, request.expected_revision)
+        .await
+    {
+        Ok(connection) => {
+            let _binding = state.runtime.dns_connections.bindings.lock().await;
+            if let Err(e) = state.runtime.reconcile_provider_connections().await {
+                return error(e);
+            }
+            no_store_json(connection)
+        }
         Err(e) => error(e),
     }
 }

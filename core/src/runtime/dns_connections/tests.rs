@@ -9,7 +9,7 @@ const USER: &str = "0198d98a-0000-7000-8000-000000000092";
 fn zone_id(c: char) -> String {
     c.to_string().repeat(32)
 }
-fn directory() -> PathBuf {
+pub(super) fn directory() -> PathBuf {
     static N: AtomicUsize = AtomicUsize::new(0);
     let path = std::env::temp_dir().join(format!(
         "dns-connections-{}-{}-{}",
@@ -285,6 +285,7 @@ async fn routes_require_bearer_even_without_controller_token_and_reject_oversize
     };
     use tower::ServiceExt;
     let runtime = ProxyRuntime::new(RuntimeSettings::new(directory(), 8080), None);
+    runtime.certificate_store.initialize().await.unwrap();
     let app = app_with_state(AppState::new(runtime.clone(), None));
     let response = app
         .clone()

@@ -9,7 +9,10 @@ import type {
     DnsProviderConsumer,
     DnsProvidersDependencies,
     DdnsProviderContextDependencies,
+    CertificateDnsConnectionsDependencies,
 } from './Types/dns-providers.types.ts'
+import { supportsDns01 } from '@/lib/DnsConnections/dnsProviders.ts'
+import type { DnsConnectionChoice } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 
 export function createDnsProvidersService(dependencies: DnsProvidersDependencies) {
     return async function getDnsProvidersService(consumer: DnsProviderConsumer) {
@@ -68,6 +71,44 @@ export function createDdnsProviderContextService(dependencies: DdnsProviderConte
 export const getDnsProvidersService = createDnsProvidersService({
     authorize: requirePermissionService,
     providers: () => dnsConnectionsController.providers(),
+})
+
+export function createCertificateDnsConnectionsService(
+    dependencies: CertificateDnsConnectionsDependencies,
+) {
+    return async function getCertificateDnsConnectionsService(): Promise<
+        readonly DnsConnectionChoice[]
+    > {
+        await dependencies.authorize(PERMISSIONS.CERTIFICATES_ISSUE)
+        try {
+            const [providers, connections] = await Promise.all([
+                dependencies.providers(),
+                dependencies.connections(),
+            ])
+            return connections
+                .filter((connection) =>
+                    providers.some(
+                        (provider) =>
+                            provider.id === connection.provider && supportsDns01(provider),
+                    ),
+                )
+                .map(({ id, name, provider, zones, verification }) => ({
+                    id,
+                    name,
+                    provider,
+                    zones,
+                    verification,
+                }))
+        } catch {
+            throw new DnsConnectionDomainError('controller_unavailable')
+        }
+    }
+}
+
+export const getCertificateDnsConnectionsService = createCertificateDnsConnectionsService({
+    authorize: requirePermissionService,
+    providers: () => dnsConnectionsController.providers(),
+    connections: () => dnsConnectionsController.list(),
 })
 
 export const getDdnsProviderContextService = createDdnsProviderContextService({

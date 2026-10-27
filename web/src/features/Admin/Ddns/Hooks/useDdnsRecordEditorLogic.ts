@@ -11,6 +11,10 @@ import { buildDdnsRecordDraft, ddnsRecordEditorValues } from '@/lib/Ddns/recordE
 import { canonicalDdnsName, createDdnsTargetId } from '@/lib/Ddns/targets.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { DdnsRecordEditorProps } from '../Types/ddns-editor.types.ts'
+import {
+    connectionSupportsOperation,
+    verifiedConnectionZones,
+} from '@/lib/DnsConnections/connectionEligibility.ts'
 
 export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
     const { t, language, locale } = useTranslationStore()
@@ -33,6 +37,13 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
                         '',
                 )
                 if (
+                    (!props.editor.target &&
+                        (!selected ||
+                            !connectionSupportsOperation(
+                                selected,
+                                props.providers,
+                                value.recordType,
+                            ))) ||
                     !(value.recordType === 'both'
                         ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
                         : supportsDdns(provider, value.recordType)) ||
@@ -53,7 +64,8 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
                     t(
                         error instanceof Error &&
                             (error.message.startsWith('admin.ddns.') ||
-                                error.message.startsWith('admin.dnsConnections.'))
+                                error.message.startsWith('admin.dnsConnections.') ||
+                                error.message.startsWith('admin.providers.'))
                             ? error.message
                             : 'admin.ddns.errors.invalid_input',
                     ),
@@ -76,6 +88,10 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             ? supportsDdns(provider, 'A') && supportsDdns(provider, 'AAAA')
             : supportsDdns(provider, values.recordType)
     const operationSupported = recordTypeAvailable && supportsProxyOption(provider, values.proxied)
+    const connectionEligible =
+        !!props.editor.target ||
+        (!!connection &&
+            connectionSupportsOperation(connection, props.providers, values.recordType))
     const operationUnavailable = !!values.connectionId && !operationSupported
     const connectionOptions = props.connections
         .filter((item) => {
@@ -96,7 +112,12 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
         })
     const zoneOptions = [
         { value: DDNS_AUTO_ZONE, label: t('admin.ddns.form.autoZone') },
-        ...(connection?.zones.map((zone) => ({ value: zone.id, label: zone.name })) ?? []),
+        ...((props.editor.target
+            ? connection?.zones
+            : connection
+              ? verifiedConnectionZones(connection)
+              : []
+        )?.map((zone) => ({ value: zone.id, label: zone.name })) ?? []),
     ]
     if (props.editor.target && !zoneOptions.some((zone) => zone.value === values.zoneId))
         zoneOptions.push({
@@ -134,9 +155,10 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
             zoneOptions,
             pending: props.pending,
             stale: props.stale,
-            locked: props.locked || !operationSupported,
+            locked: props.locked || !operationSupported || !connectionEligible,
             operationSupported,
             operationUnavailable,
+            recordType: values.recordType,
             savedRecordType: props.editor.target?.recordType,
             recordTypeAvailable,
             proxyAvailable: provider?.capabilities.proxyOptions === 'cloudflare',

@@ -14,3 +14,7 @@ export interface DdnsProviderContextDependencies extends DnsProvidersDependencie
     readonly connections: () => Promise<readonly DnsConnection[]>
     readonly status: () => Promise<DdnsSnapshot>
 }
+
+export interface CertificateDnsConnectionsDependencies extends DnsProvidersDependencies {
+    readonly connections: () => Promise<readonly DnsConnection[]>
+}

@@ -1,6 +1,6 @@
+import CertificateProviderFields from './CertificateProviderFields.tsx'
 import { useStore } from '@tanstack/react-form'
-import useCertificateDnsProviders from '../../../Hooks/useCertificateDnsProviders.ts'
-import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
+import { EmailInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { CertificateRequestFieldsProps } from '../Types/certificate-request-modal.types.ts'
@@ -18,11 +18,6 @@ export default function CertificateRequestFields({
     const { t } = useTranslationStore()
     const inputsDisabled = isPending || locked
     const manualMode = useStore(form.store, (state) => state.values.dnsMode === 'manual')
-    const providerMode = useStore(
-        form.store,
-        (state) => state.values.challengeType === 'dns-01' && state.values.dnsMode !== 'manual',
-    )
-    const { dnsProviders } = useCertificateDnsProviders(providerMode)
     return (
         <div className="grid gap-4">
             <form.Field name="name">
@@ -138,72 +133,7 @@ export default function CertificateRequestFields({
             >
                 {(isDnsChallenge) =>
                     isDnsChallenge ? (
-                        <div className="grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3">
-                            <p className="m-0 text-sm leading-relaxed text-info-text">
-                                {t('admin.certificates.form.dnsProviderHint')}
-                            </p>
-                            <CustomSelect
-                                label={t('admin.dnsConnections.providers.label')}
-                                value={dnsProviders[0]?.id ?? null}
-                                options={dnsProviders.map((provider) => ({
-                                    value: provider.id,
-                                    label: t(`admin.dnsConnections.providers.${provider.id}`),
-                                }))}
-                                onValueChange={() => undefined}
-                                disabled
-                            />
-                            <form.Field name="dnsZoneId">
-                                {(field) => (
-                                    <div className="grid gap-[0.45rem]">
-                                        <label
-                                            className="text-[0.82rem] font-[750] text-ink-soft"
-                                            htmlFor="certificate-request-dns-zone-id"
-                                        >
-                                            {t('admin.certificates.form.dnsZoneId')}
-                                        </label>
-                                        <TextInput
-                                            id="certificate-request-dns-zone-id"
-                                            placeholder={t('placeholders.dnsZoneId')}
-                                            aria-invalid={field.state.meta.errors.length > 0}
-                                            name={field.name}
-                                            value={field.state.value}
-                                            maxLength={32}
-                                            disabled={inputsDisabled}
-                                            onBlur={field.handleBlur}
-                                            onValueChange={field.handleChange}
-                                            autoCapitalize="none"
-                                            autoComplete="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                )}
-                            </form.Field>
-                            <form.Field name="dnsApiToken">
-                                {(field) => (
-                                    <div className="grid gap-[0.45rem]">
-                                        <label
-                                            className="text-[0.82rem] font-[750] text-ink-soft"
-                                            htmlFor="certificate-request-dns-api-token"
-                                        >
-                                            {t('admin.certificates.form.dnsApiToken')}
-                                        </label>
-                                        <PasswordInput
-                                            id="certificate-request-dns-api-token"
-                                            placeholder={t('placeholders.dnsApiToken')}
-                                            aria-invalid={field.state.meta.errors.length > 0}
-                                            name={field.name}
-                                            type="password"
-                                            value={field.state.value}
-                                            maxLength={512}
-                                            disabled={inputsDisabled}
-                                            onBlur={field.handleBlur}
-                                            onValueChange={field.handleChange}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                )}
-                            </form.Field>
-                        </div>
+                        <CertificateProviderFields form={form} disabled={inputsDisabled} />
                     ) : null
                 }
             </form.Subscribe>

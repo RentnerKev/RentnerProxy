@@ -66,7 +66,7 @@ export const QUICK_SEARCH_ACTIONS = [
     },
     {
         id: 'createDnsConnection',
-        to: '/dns-connections',
+        to: '/providers',
         label: 'admin.dnsConnections.actions.add',
         page: 'shell.dnsConnections',
         intent: 'create',

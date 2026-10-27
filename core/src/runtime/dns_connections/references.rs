@@ -14,6 +14,27 @@ impl Store {
         retain_existing: bool,
         strict: bool,
     ) -> Result<(), Error> {
+        self.reconcile_references(ConsumerType::Ddns, references, retain_existing, strict)
+            .await
+    }
+
+    pub(in crate::runtime) async fn certificate_references(
+        &self,
+        references: &[Reference],
+        retain_existing: bool,
+        strict: bool,
+    ) -> Result<(), Error> {
+        self.reconcile_references(ConsumerType::Dns01, references, retain_existing, strict)
+            .await
+    }
+
+    async fn reconcile_references(
+        &self,
+        consumer_type: ConsumerType,
+        references: &[Reference],
+        retain_existing: bool,
+        strict: bool,
+    ) -> Result<(), Error> {
         let mut state = self.lock().await?;
         let registry = Self::registry(&mut state)?;
         let mut next = registry.clone();
@@ -22,7 +43,7 @@ impl Store {
             for entry in &mut next.connections {
                 let before = entry.metadata.references.len();
                 entry.metadata.references.retain(|usage| {
-                    usage.consumer.r#type != ConsumerType::Ddns
+                    usage.consumer.r#type != consumer_type
                         || references.iter().any(|reference| {
                             reference.connection_id == entry.metadata.id
                                 && reference.zone_id == usage.zone_id
@@ -34,7 +55,7 @@ impl Store {
         }
         for reference in references {
             validation::reference(reference)?;
-            if reference.consumer.r#type != ConsumerType::Ddns {
+            if reference.consumer.r#type != consumer_type {
                 return Err(Error::InvalidInput);
             }
             let Some(entry) = next
@@ -60,6 +81,11 @@ impl Store {
             }
             if strict {
                 self.decrypt(entry)?;
+                if consumer_type == ConsumerType::Dns01
+                    && !entry.metadata.verified_for(&reference.zone_id)
+                {
+                    return Err(Error::ProviderUnauthorized);
+                }
             }
             let usage = Usage {
                 zone_id: reference.zone_id.clone(),

@@ -43,7 +43,7 @@ export interface ApplicationNavigationItem {
         | '/redirect-hosts'
         | '/certificates'
         | '/access-policies'
-        | '/dns-connections'
+        | '/providers'
         | '/ddns'
         | '/docker-discovery'
         | '/proxy-access-logs'

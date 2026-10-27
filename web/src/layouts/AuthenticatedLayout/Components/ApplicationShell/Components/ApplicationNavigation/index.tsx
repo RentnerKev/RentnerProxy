@@ -97,7 +97,7 @@ export default function ApplicationNavigation({
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}
                                         />
-                                    ) : item.to === '/dns-connections' ? (
+                                    ) : item.to === '/providers' ? (
                                         <Cloud
                                             aria-hidden="true"
                                             className="size-4 shrink-0"

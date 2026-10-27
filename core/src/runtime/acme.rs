@@ -60,7 +60,13 @@ impl ProxyRuntime {
             Ok(None) | Err(_) => return,
         };
         let (environment, config, intents) = work;
-        let result = match DnsProvider::from_config(config, environment) {
+        let resolved = self
+            .dns_connections
+            .resolve_config(&config)
+            .await
+            .map_err(super::provider_connections::certificate_error);
+        let result = match resolved.and_then(|config| DnsProvider::from_config(config, environment))
+        {
             Ok(provider) => self.cleanup_dns_challenges(id, &provider, &intents).await,
             Err(error) => Err(error),
         };
@@ -92,10 +98,34 @@ impl ProxyRuntime {
         if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
             return Err(CertificateError::OperationInProgress);
         }
-        let metadata = self
+        let binding = if request
+            .dns_provider
+            .as_ref()
+            .is_some_and(|config| config.connection().is_some())
+        {
+            Some(self.dns_connections.bindings.lock().await)
+        } else {
+            None
+        };
+        if binding.is_some() {
+            self.reconcile_provider_connections()
+                .await
+                .map_err(super::provider_connections::certificate_error)?;
+            self.reserve_certificate_connection(&id, &request).await?;
+        }
+        let metadata = match self
             .certificate_store
             .begin_issue(&id, request.clone(), false)
-            .await?;
+            .await
+        {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                if binding.is_some() {
+                    let _ = self.reconcile_provider_connections().await;
+                }
+                return Err(error);
+            }
+        };
         let runtime = Arc::clone(self);
         tokio::spawn(async move {
             let _permit = permit;
@@ -200,7 +230,14 @@ impl ProxyRuntime {
                         .await;
                     return;
                 };
-                match DnsProvider::from_config(config, request.environment) {
+                let resolved = self
+                    .dns_connections
+                    .resolve_config(&config)
+                    .await
+                    .map_err(super::provider_connections::certificate_error);
+                match resolved
+                    .and_then(|config| DnsProvider::from_config(config, request.environment))
+                {
                     Ok(provider) => Some(provider),
                     Err(error) => {
                         self.certificate_store.finish_failed(&id, error).await;

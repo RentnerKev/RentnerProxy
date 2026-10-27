@@ -16,6 +16,14 @@ const ACME_TEST_ROOT_ENV: &str = "RENTNERPROXY_ACME_TEST_ROOT_CERT";
 #[derive(Clone, Serialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub(crate) enum DnsProviderConfig {
+    #[serde(rename = "connection")]
+    Connection {
+        provider: super::capabilities::ProviderId,
+        #[serde(rename = "connectionId")]
+        connection_id: String,
+        #[serde(rename = "zoneId")]
+        zone_id: String,
+    },
     #[serde(rename = "cloudflare")]
     Cloudflare {
         #[serde(rename = "zoneId")]
@@ -28,6 +36,14 @@ pub(crate) enum DnsProviderConfig {
 #[derive(Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 enum DnsProviderConfigWire {
+    #[serde(rename = "connection")]
+    Connection {
+        provider: super::capabilities::ProviderId,
+        #[serde(rename = "connectionId")]
+        connection_id: String,
+        #[serde(rename = "zoneId")]
+        zone_id: String,
+    },
     #[serde(rename = "cloudflare")]
     Cloudflare {
         #[serde(rename = "zoneId")]
@@ -44,6 +60,15 @@ impl<'de> Deserialize<'de> for DnsProviderConfig {
     {
         let wire = DnsProviderConfigWire::deserialize(deserializer)?;
         let config = match wire {
+            DnsProviderConfigWire::Connection {
+                provider,
+                connection_id,
+                zone_id,
+            } => Self::Connection {
+                provider,
+                connection_id,
+                zone_id,
+            },
             DnsProviderConfigWire::Cloudflare { zone_id, api_token } => {
                 Self::Cloudflare { zone_id, api_token }
             }
@@ -58,6 +83,16 @@ impl<'de> Deserialize<'de> for DnsProviderConfig {
 impl fmt::Debug for DnsProviderConfig {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Connection {
+                provider,
+                connection_id,
+                zone_id,
+            } => formatter
+                .debug_struct("Connection")
+                .field("provider", provider)
+                .field("connection_id", connection_id)
+                .field("zone_id", zone_id)
+                .finish(),
             Self::Cloudflare { zone_id, .. } => formatter
                 .debug_struct("Cloudflare")
                 .field("zone_id", zone_id)
@@ -70,6 +105,7 @@ impl fmt::Debug for DnsProviderConfig {
 impl DnsProviderConfig {
     pub(crate) fn provider_id(&self) -> super::capabilities::ProviderId {
         match self {
+            Self::Connection { provider, .. } => *provider,
             Self::Cloudflare { .. } => super::capabilities::ProviderId::Cloudflare,
         }
     }
@@ -89,6 +125,17 @@ impl DnsProviderConfig {
 
     pub(crate) fn validate(&self) -> Result<(), CertificateError> {
         match self {
+            Self::Connection {
+                provider,
+                connection_id,
+                zone_id,
+            } => {
+                if !crate::proxy::is_canonical_uuid_v7(connection_id)
+                    || !provider.valid_zone_id(zone_id)
+                {
+                    return Err(CertificateError::DnsProviderInvalid);
+                }
+            }
             Self::Cloudflare { zone_id, api_token } => {
                 if !is_cloudflare_zone_id(zone_id) || !is_safe_secret(api_token, 512) {
                     return Err(CertificateError::DnsProviderInvalid);
@@ -100,13 +147,35 @@ impl DnsProviderConfig {
 
     pub(super) fn zone_id(&self) -> &str {
         match self {
+            Self::Connection { zone_id, .. } => zone_id,
             Self::Cloudflare { zone_id, .. } => zone_id,
         }
     }
 
     pub(super) fn api_token(&self) -> &str {
         match self {
+            Self::Connection { .. } => "",
             Self::Cloudflare { api_token, .. } => api_token,
+        }
+    }
+
+    pub(in crate::runtime) fn connection(
+        &self,
+    ) -> Option<(super::capabilities::ProviderId, &str, &str)> {
+        match self {
+            Self::Connection {
+                provider,
+                connection_id,
+                zone_id,
+            } => Some((*provider, connection_id, zone_id)),
+            Self::Cloudflare { .. } => None,
+        }
+    }
+
+    pub(in crate::runtime) fn credential(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::Cloudflare { zone_id, api_token } => Some((zone_id, api_token)),
+            Self::Connection { .. } => None,
         }
     }
 }

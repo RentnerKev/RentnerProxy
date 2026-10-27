@@ -73,6 +73,29 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
         &m.zones.iter().map(|z| z.id.clone()).collect::<Vec<_>>(),
         true,
     )?;
+    if m.verification.zone_ids.len() > 50
+        || m.verification
+            .zone_ids
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != m.verification.zone_ids.len()
+        || m.verification
+            .zone_ids
+            .iter()
+            .any(|id| !m.zones.iter().any(|zone| &zone.id == id))
+        || (m.verification.status == super::models::ConnectionStatus::Connected
+            && (m.verification.checked_at.is_none()
+                || m.verification.error.is_some()
+                || m.verification.zone_ids.len() != m.zones.len()))
+        || (m.verification.status != super::models::ConnectionStatus::Connected
+            && !m.verification.zone_ids.is_empty())
+    {
+        return Err(Error::InvalidInput);
+    }
+    if let Some(checked_at) = &m.verification.checked_at {
+        timestamp(checked_at)?;
+    }
     if m.zones.iter().any(|z| !is_canonical_domain(&z.name)) || m.references.len() > 10000 {
         return Err(Error::InvalidInput);
     }

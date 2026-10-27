@@ -149,7 +149,7 @@
         "auditLogs": "Journal d’audit",
         "systemVersion": "Version du système {{version}}",
         "updateAvailable": "Mise à jour disponible vers la version {{version}}",
-        "dnsConnections": "Connexions DNS",
+        "dnsConnections": "Fournisseurs",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2705,8 +2705,8 @@
             },
             "page": {
                 "eyebrow": "Administration",
-                "title": "Connexions DNS",
-                "description": "Gérez les identifiants Cloudflare réutilisables et les zones autorisées de cette instance. Les administrateurs autorisés partagent ces connexions."
+                "title": "Fournisseurs",
+                "description": "Configurez une fois vos connexions nommées et réutilisez-les pour les certificats et le DDNS."
             },
             "provider": "Cloudflare · Connexion d’instance",
             "usage": "Références des consommateurs : {{count}}",
@@ -3252,6 +3252,32 @@
                 "invalid": "L’affectation est invalide ou incompatible avec cet hôte.",
                 "unavailable": "Un service requis est indisponible. Actualisez l’aperçu pour réessayer.",
                 "timeout": "La limite de temps du lot est atteinte. Actualisez l’aperçu pour réessayer."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Non vérifié",
+                "connected": "Connecté",
+                "disconnected": "Déconnecté",
+                "failed": "Échec de la vérification"
+            },
+            "recheck": "Vérifier à nouveau",
+            "recheckNamed": "Vérifier {{name}} à nouveau",
+            "verified": "Connexion et autorisations DNS vérifiées.",
+            "permissionHint": "L’enregistrement de nouveaux identifiants ou une nouvelle vérification crée puis supprime un enregistrement TXT temporaire dans chaque zone sélectionnée afin de vérifier les autorisations DNS.",
+            "migrationHint": "Les certificats existants continuent à être renouvelés. Les identifiants enregistrés correspondants sont liés automatiquement après vérification.",
+            "consumers": "Utilisé par",
+            "consumerTypes": {
+                "dns01": "Certificat DNS-01",
+                "ddns": "Enregistrement DDNS"
+            },
+            "chooseConnection": "Connexion du fournisseur",
+            "unavailable": "Connexion indisponible",
+            "manage": "Configurer ou gérer les fournisseurs (nouvel onglet ; brouillon conservé)",
+            "certificateHint": "Choisissez une connexion vérifiée. Les identifiants sont gérés de manière centralisée.",
+            "noMatchingZone": "Aucune zone vérifiée ne couvre tous les domaines du certificat.",
+            "validation": {
+                "connection": "Choisissez une connexion vérifiée et une zone autorisée."
             }
         }
     },

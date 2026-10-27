@@ -149,7 +149,7 @@
         "auditLogs": "Registro de auditoría",
         "systemVersion": "Versión del sistema {{version}}",
         "updateAvailable": "Actualización disponible a la versión {{version}}",
-        "dnsConnections": "Conexiones DNS",
+        "dnsConnections": "Proveedores",
         "ddns": "DDNS",
         "dockerDiscovery": "Docker Discovery"
     },
@@ -2705,8 +2705,8 @@
             },
             "page": {
                 "eyebrow": "Administración",
-                "title": "Conexiones DNS",
-                "description": "Gestiona credenciales de Cloudflare reutilizables y las zonas permitidas de esta instancia. Los administradores autorizados comparten estas conexiones."
+                "title": "Proveedores",
+                "description": "Configura conexiones con nombre una vez y reutilízalas para certificados y DDNS."
             },
             "provider": "Cloudflare · Conexión de instancia",
             "usage": "Referencias de consumidores: {{count}}",
@@ -3252,6 +3252,32 @@
                 "invalid": "La asignación no es válida o es incompatible con este host.",
                 "unavailable": "Un servicio necesario no está disponible. Actualiza la vista previa para reintentar.",
                 "timeout": "Se alcanzó el límite de tiempo del lote. Actualiza la vista previa para reintentar."
+            }
+        },
+        "providers": {
+            "status": {
+                "untested": "Sin verificar",
+                "connected": "Conectado",
+                "disconnected": "Desconectado",
+                "failed": "Verificación fallida"
+            },
+            "recheck": "Verificar de nuevo",
+            "recheckNamed": "Verificar {{name}} de nuevo",
+            "verified": "Conexión y permisos DNS verificados.",
+            "permissionHint": "Al guardar credenciales nuevas o verificar de nuevo, se crea y elimina un registro TXT temporal en cada zona seleccionada para comprobar los permisos DNS.",
+            "migrationHint": "Los certificados existentes siguen renovándose. Las credenciales guardadas coincidentes se vinculan automáticamente tras verificarlas.",
+            "consumers": "Utilizado por",
+            "consumerTypes": {
+                "dns01": "Certificado DNS-01",
+                "ddns": "Registro DDNS"
+            },
+            "chooseConnection": "Conexión del proveedor",
+            "unavailable": "Conexión no disponible",
+            "manage": "Configurar o gestionar proveedores (nueva pestaña; se conserva el borrador)",
+            "certificateHint": "Elige una conexión verificada. Las credenciales se gestionan de forma centralizada.",
+            "noMatchingZone": "Ninguna zona verificada cubre todos los dominios del certificado.",
+            "validation": {
+                "connection": "Elige una conexión verificada y una zona permitida."
             }
         }
     },

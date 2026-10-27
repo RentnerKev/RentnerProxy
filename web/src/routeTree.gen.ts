@@ -23,6 +23,7 @@ import { Route as AuthenticatedDockerDiscoveryRouteImport } from './routes/_auth
 import { Route as AuthenticatedMigrationRouteImport } from './routes/_authenticated/migration'
 import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
+import { Route as AuthenticatedProvidersRouteImport } from './routes/_authenticated/providers'
 import { Route as AuthenticatedProxyAccessLogsRouteImport } from './routes/_authenticated/proxy-access-logs'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
 import { Route as AuthenticatedRedirectHostsRouteImport } from './routes/_authenticated/redirect-hosts'
@@ -115,6 +116,11 @@ const AuthenticatedNpmImportRoute = AuthenticatedNpmImportRouteImport.update({
 const AuthenticatedOperationsRoute = AuthenticatedOperationsRouteImport.update({
   id: '/operations',
   path: '/operations',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProvidersRoute = AuthenticatedProvidersRouteImport.update({
+  id: '/providers',
+  path: '/providers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProxyAccessLogsRoute =
@@ -238,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
+  '/providers': typeof AuthenticatedProvidersRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -273,6 +280,7 @@ export interface FileRoutesByTo {
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
+  '/providers': typeof AuthenticatedProvidersRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/_authenticated/migration': typeof AuthenticatedMigrationRoute
   '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
+  '/_authenticated/providers': typeof AuthenticatedProvidersRoute
   '/_authenticated/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/_authenticated/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
     | '/migration'
     | '/npm-import'
     | '/operations'
+    | '/providers'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/migration'
     | '/npm-import'
     | '/operations'
+    | '/providers'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/_authenticated/migration'
     | '/_authenticated/npm-import'
     | '/_authenticated/operations'
+    | '/_authenticated/providers'
     | '/_authenticated/proxy-access-logs'
     | '/_authenticated/proxy-hosts'
     | '/_authenticated/redirect-hosts'
@@ -551,6 +563,13 @@ declare module '@tanstack/react-router' {
       path: '/operations'
       fullPath: '/operations'
       preLoaderRoute: typeof AuthenticatedOperationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/providers': {
+      id: '/_authenticated/providers'
+      path: '/providers'
+      fullPath: '/providers'
+      preLoaderRoute: typeof AuthenticatedProvidersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/proxy-access-logs': {
@@ -715,6 +734,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMigrationRoute: typeof AuthenticatedMigrationRoute
   AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
+  AuthenticatedProvidersRoute: typeof AuthenticatedProvidersRoute
   AuthenticatedProxyAccessLogsRoute: typeof AuthenticatedProxyAccessLogsRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
   AuthenticatedRedirectHostsRoute: typeof AuthenticatedRedirectHostsRoute
@@ -736,6 +756,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMigrationRoute: AuthenticatedMigrationRoute,
   AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
+  AuthenticatedProvidersRoute: AuthenticatedProvidersRoute,
   AuthenticatedProxyAccessLogsRoute: AuthenticatedProxyAccessLogsRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,
   AuthenticatedRedirectHostsRoute: AuthenticatedRedirectHostsRoute,
