@@ -30,6 +30,23 @@ pub(super) async fn present(
     mut intent: DnsRecordIntent,
 ) -> Result<(), CertificateError> {
     check_cancelled(store, id).await?;
+    if intents.iter().any(|pending| {
+        pending.unconfirmed_write
+            && pending.value == intent.value
+            && pending.marker == intent.marker
+            && pending
+                .delegation
+                .as_ref()
+                .zip(intent.delegation.as_ref())
+                .is_some_and(|(previous, current)| {
+                    previous.zone_name == current.zone_name
+                        && previous.target_owner == current.target_owner
+                })
+    }) {
+        // Replaying the same ambiguous mutation could make a later read prove only
+        // one of two writes, allowing the other to appear after authority is retired.
+        return Err(CertificateError::DnsCleanupFailed);
+    }
     intent.unconfirmed_write = true;
     intents.push(intent);
     store.set_pending_dns_records(id, intents.clone()).await?;

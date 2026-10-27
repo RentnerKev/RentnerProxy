@@ -1,4 +1,5 @@
 use super::CERTIFICATE_INDEX_FILE;
+use super::cancellation::{delegated_cancellation_pending, settle_delegated_cancellation};
 use super::material_files::public_metadata_with_candidate;
 use super::operations;
 use super::persistence::persist_index;
@@ -73,12 +74,7 @@ impl CertificateStore {
         let mut recovery_events = Vec::new();
         let mut cancellation_events = Vec::new();
         for (id, entry) in &mut index.certificates {
-            if entry.metadata.operation != CertificateOperation::Idle
-                && entry
-                    .acme
-                    .as_ref()
-                    .is_some_and(|acme| acme.cancel_requested)
-            {
+            if delegated_cancellation_pending(entry) {
                 entry.metadata.operation = CertificateOperation::Idle;
                 entry.metadata.status = if entry.material_id.is_some() {
                     CertificateStatus::Valid
@@ -89,8 +85,7 @@ impl CertificateStore {
                     Some(CertificateError::AcmeCancelled.code().to_owned());
                 entry.metadata.last_error_at = Some(recovery_now.clone());
                 entry.metadata.updated_at = recovery_now.clone();
-                entry.next_attempt_at = None;
-                entry.retry_delay_seconds = None;
+                settle_delegated_cancellation(entry, OffsetDateTime::now_utc());
                 if let Some(operation) = entry.metadata.current_operation.as_mut() {
                     operation.stage = CertificateOperationStage::Cancelled;
                     operation.updated_at = recovery_now.clone();
@@ -98,6 +93,22 @@ impl CertificateStore {
                 }
                 recovered_interrupted_operation = true;
                 continue;
+            }
+            // Older stores retained the cancellation flag after completing an
+            // operation. Scope it to that operation and retain the original pause
+            // deadline rather than extending the pause on every restart.
+            if entry.metadata.operation == CertificateOperation::Idle
+                && entry
+                    .acme
+                    .as_ref()
+                    .is_some_and(|acme| acme.cancel_requested)
+                && let Some(operation) = entry.metadata.current_operation.as_ref()
+                && operation.stage == CertificateOperationStage::Cancelled
+            {
+                let completed_at = OffsetDateTime::parse(&operation.updated_at, &super::Rfc3339)
+                    .map_err(|_| CertificateError::StoreUnavailable)?;
+                settle_delegated_cancellation(entry, completed_at);
+                recovered_interrupted_operation = true;
             }
             if entry.metadata.operation != CertificateOperation::Idle
                 && !index.pending_candidates.contains_key(id)
@@ -212,10 +223,15 @@ impl CertificateStore {
         let now = OffsetDateTime::now_utc();
         index.certificates.get(id).is_some_and(|entry| {
             !index.pending_candidates.contains_key(id)
-                && !entry
-                    .acme
-                    .as_ref()
-                    .is_some_and(|acme| acme.cancel_requested)
+                && !delegated_cancellation_pending(entry)
+                && !(entry.material_id.is_none()
+                    && entry
+                        .metadata
+                        .current_operation
+                        .as_ref()
+                        .is_some_and(|operation| {
+                            operation.stage == CertificateOperationStage::Cancelled
+                        }))
                 && !(entry
                     .acme
                     .as_ref()
@@ -298,11 +314,7 @@ impl CertificateStore {
         let Some(mut operation) = previous_active.metadata.current_operation.clone() else {
             return Err(CertificateError::OperationInProgress);
         };
-        if previous_active
-            .acme
-            .as_ref()
-            .is_some_and(|acme| acme.cancel_requested)
-        {
+        if delegated_cancellation_pending(&previous_active) {
             return Err(CertificateError::AcmeCancelled);
         }
         if operation.stage == stage {

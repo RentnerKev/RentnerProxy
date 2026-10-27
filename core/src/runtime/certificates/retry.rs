@@ -1,3 +1,4 @@
+use super::cancellation::{delegated_cancellation_pending, settle_delegated_cancellation};
 use super::operations;
 use super::persistence::persist_index;
 use super::scheduling::{
@@ -78,11 +79,7 @@ impl CertificateStore {
         let mut index = self.index.lock().await;
         if let Some(entry) = index.certificates.get_mut(id) {
             let had_acme_operation = entry.metadata.operation != CertificateOperation::Idle;
-            let cancelled = error == CertificateError::AcmeCancelled
-                || entry
-                    .acme
-                    .as_ref()
-                    .is_some_and(|acme| acme.cancel_requested);
+            let cancelled = delegated_cancellation_pending(entry);
             let error = if cancelled {
                 CertificateError::AcmeCancelled
             } else {
@@ -91,8 +88,7 @@ impl CertificateStore {
             let retryable = !cancelled
                 && (entry.metadata.source == CertificateSource::Acme || had_acme_operation);
             if cancelled {
-                entry.next_attempt_at = None;
-                entry.retry_delay_seconds = None;
+                settle_delegated_cancellation(entry, OffsetDateTime::now_utc());
             }
             let operation_id = entry
                 .metadata

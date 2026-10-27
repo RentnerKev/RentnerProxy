@@ -1,5 +1,6 @@
 use super::*;
 use crate::runtime::dns::{DnsDelegationBinding, DnsRecordIntent, EncryptedDnsConfig};
+use base64::Engine as _;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const ID: &str = "0198d98a-0000-7000-8000-000000000291";
@@ -51,6 +52,21 @@ async fn delegated(store: &CertificateStore) -> String {
     });
     entry.metadata.challenge_type = Some(AcmeChallengeType::Dns01);
     metadata.current_operation.unwrap().id
+}
+
+async fn install_live(store: &CertificateStore) -> CertificateMetadata {
+    store.begin_issue(ID, request(), false).await.unwrap();
+    let leaf = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()]).unwrap();
+    let staged = store
+        .stage_acme(
+            ID,
+            &request(),
+            leaf.cert.pem(),
+            leaf.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    store.commit_staged(&staged).await.unwrap()
 }
 
 #[tokio::test]
@@ -255,18 +271,7 @@ async fn cancelled_renewal_preserves_live_material_and_cleanup_authority_without
     let root = Root::new();
     let store = CertificateStore::new(root.0.clone());
     store.initialize().await.unwrap();
-    store.begin_issue(ID, request(), false).await.unwrap();
-    let leaf = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()]).unwrap();
-    let staged = store
-        .stage_acme(
-            ID,
-            &request(),
-            leaf.cert.pem(),
-            leaf.signing_key.serialize_pem(),
-        )
-        .await
-        .unwrap();
-    let active = store.commit_staged(&staged).await.unwrap();
+    let active = install_live(&store).await;
     let material_id = store.index.lock().await.certificates[ID]
         .material_id
         .clone();
@@ -311,8 +316,15 @@ async fn cancelled_renewal_preserves_live_material_and_cleanup_authority_without
         CertificateOperationStage::Cancelled
     );
     assert_eq!(cancelled.last_error_code.as_deref(), Some("acme_cancelled"));
-    assert_eq!(cancelled.next_attempt_at, None);
-    assert_eq!(cancelled.next_renewal_at, None);
+    assert!(cancelled.next_attempt_at.is_some());
+    assert!(cancelled.next_renewal_at.is_some());
+    assert!(
+        !store.index.lock().await.certificates[ID]
+            .acme
+            .as_ref()
+            .unwrap()
+            .cancel_requested
+    );
     assert!(cancelled.dns_cleanup_pending);
     assert_eq!(
         store.pending_dns_records(ID).await.unwrap(),
@@ -448,4 +460,320 @@ async fn delegated_cancellation_http_acknowledges_only_matching_active_operation
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn cancelled_delegated_issue_can_be_replaced_by_manual_import_across_reload() {
+    for reload_before_import in [false, true] {
+        let root = Root::new();
+        let mut store = CertificateStore::new(root.0.clone());
+        store.initialize().await.unwrap();
+        let cancelled_id = delegated(&store).await;
+        store
+            .request_delegated_cancel(ID, &cancelled_id)
+            .await
+            .unwrap();
+        store
+            .finish_failed(ID, CertificateError::AcmeCancelled)
+            .await;
+        assert!(
+            !store.index.lock().await.certificates[ID]
+                .acme
+                .as_ref()
+                .unwrap()
+                .cancel_requested
+        );
+        // Simulate a terminal entry written by the earlier implementation as
+        // well as the new terminal representation. Import must clear either.
+        {
+            let mut index = store.index.lock().await;
+            index
+                .certificates
+                .get_mut(ID)
+                .unwrap()
+                .acme
+                .as_mut()
+                .unwrap()
+                .cancel_requested = true;
+            persistence::persist_index(&store.certificates_dir().unwrap(), &index).unwrap();
+        }
+        if reload_before_import {
+            drop(store);
+            store = CertificateStore::new(root.0.clone());
+            store.initialize().await.unwrap();
+        }
+        let leaf = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()]).unwrap();
+        let staged = store
+            .stage_manual(
+                ID,
+                CertificateImportRequest {
+                    certificate_pem: leaf.cert.pem(),
+                    private_key_pem: leaf.signing_key.serialize_pem(),
+                    chain_pem: None,
+                    required_domains: Some(vec!["example.com".to_owned()]),
+                },
+            )
+            .await
+            .unwrap();
+        let import_id = store.get(ID).await.unwrap().current_operation.unwrap().id;
+        assert_ne!(import_id, cancelled_id);
+        assert!(
+            !store.index.lock().await.certificates[ID]
+                .acme
+                .as_ref()
+                .unwrap()
+                .cancel_requested
+        );
+        drop(store);
+        let reopened = CertificateStore::new(root.0.clone());
+        reopened.initialize().await.unwrap();
+        let current = reopened.get(ID).await.unwrap().current_operation.unwrap();
+        assert_eq!(current.kind, OperationKind::Import);
+        assert_eq!(current.id, import_id);
+        reopened
+            .record_operation_stage(ID, CertificateOperationStage::Applying)
+            .await
+            .unwrap();
+        let installed = reopened.commit_staged(&staged).await.unwrap();
+        assert_eq!(installed.source, CertificateSource::Manual);
+        assert_eq!(installed.status, CertificateStatus::Valid);
+        assert_eq!(
+            installed.current_operation.as_ref().unwrap().stage,
+            CertificateOperationStage::Applied
+        );
+        assert_ne!(
+            installed.current_operation.as_ref().unwrap().id,
+            cancelled_id
+        );
+        drop(reopened);
+        let restored = CertificateStore::new(root.0.clone());
+        restored.initialize().await.unwrap();
+        assert_eq!(restored.get(ID).await.unwrap(), installed);
+        assert!(restored.index.lock().await.certificates[ID].acme.is_none());
+        let events = restored.events(None, 200).await.unwrap().events;
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.operation_id == cancelled_id
+                    && event.kind == CertificateEventKind::Cancelled)
+                .count(),
+            1
+        );
+        assert!(events.iter().any(|event| event.operation_id == import_id
+            && event.kind == CertificateEventKind::Activated));
+    }
+}
+
+#[tokio::test]
+async fn cancelled_live_renewal_defers_future_maintenance_without_restarting_cancelled_operation() {
+    const CHILD: &str = "RENTNERPROXY_CANCELLED_RENEWAL_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "runtime::certificates::cancellation_tests::cancelled_live_renewal_defers_future_maintenance_without_restarting_cancelled_operation", "--nocapture"])
+            .env(CHILD, "1")
+            .env("APP_ENCRYPTION_KEY", base64::engine::general_purpose::STANDARD.encode([7_u8; 32]))
+            .env_remove("APP_ENCRYPTION_KEY_FILE")
+            .output().unwrap();
+        assert!(
+            output.status.success(),
+            "isolated cancelled-renewal test failed: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    for restart_during_cancellation in [false, true] {
+        let root = Root::new();
+        let mut store = CertificateStore::new(root.0.clone());
+        store.initialize().await.unwrap();
+        install_live(&store).await;
+        let cancelled_id = delegated(&store).await;
+        let connection: DnsProviderConfig = serde_json::from_value(serde_json::json!({
+            "type":"connection", "provider":"cloudflare",
+            "connectionId":"0198d98a-0000-7000-8000-000000000299",
+            "zoneId":"0123456789abcdef0123456789abcdef",
+        }))
+        .unwrap();
+        let encrypted = crate::runtime::dns::encrypt(&connection, ID).unwrap();
+        {
+            let mut index = store.index.lock().await;
+            let entry = index.certificates.get_mut(ID).unwrap();
+            entry.acme.as_mut().unwrap().dns_provider = Some(encrypted);
+            entry.metadata.current_operation.as_mut().unwrap().kind = OperationKind::Renew;
+            entry.metadata.operation = CertificateOperation::Renewing;
+            // Model a certificate whose renewal is already due.
+            let now = OffsetDateTime::now_utc();
+            entry.metadata.issued_at =
+                Some((now - time::Duration::days(90)).format(&Rfc3339).unwrap());
+            entry.metadata.expires_at =
+                Some((now + time::Duration::days(30)).format(&Rfc3339).unwrap());
+        }
+        store
+            .request_delegated_cancel(ID, &cancelled_id)
+            .await
+            .unwrap();
+        let before_finish = OffsetDateTime::now_utc();
+        if restart_during_cancellation {
+            drop(store);
+            store = CertificateStore::new(root.0.clone());
+            store.initialize().await.unwrap();
+        } else {
+            store.finish_failed(ID, CertificateError::AcmeFailed).await;
+        }
+        let cancelled = store.get(ID).await.unwrap();
+        assert_eq!(
+            cancelled.current_operation.as_ref().unwrap().id,
+            cancelled_id
+        );
+        assert_eq!(
+            cancelled.current_operation.as_ref().unwrap().stage,
+            CertificateOperationStage::Cancelled
+        );
+        let deadline =
+            OffsetDateTime::parse(cancelled.next_attempt_at.as_deref().unwrap(), &Rfc3339).unwrap();
+        assert!(
+            deadline
+                >= before_finish + time::Duration::seconds(i64::from(MIN_ACME_RETRY_DELAY_SECONDS))
+        );
+        assert!(
+            deadline
+                <= OffsetDateTime::now_utc()
+                    + time::Duration::seconds(i64::from(MIN_ACME_RETRY_DELAY_SECONDS))
+        );
+        assert!(crate::runtime::ProxyRuntime::renewal_is_due(&cancelled));
+        assert!(
+            !store.renewal_is_allowed(ID).await,
+            "the next scheduler tick must not undo cancellation"
+        );
+        assert!(matches!(
+            store.begin_renewal(ID).await,
+            Err(CertificateError::OperationInProgress)
+        ));
+        assert!(matches!(
+            store.begin_acme_retry(ID).await,
+            Err(CertificateError::OperationInProgress)
+        ));
+        assert!(
+            !store.index.lock().await.certificates[ID]
+                .acme
+                .as_ref()
+                .unwrap()
+                .cancel_requested
+        );
+        drop(store);
+        store = CertificateStore::new(root.0.clone());
+        store.initialize().await.unwrap();
+        assert_eq!(
+            store.get(ID).await.unwrap().next_attempt_at,
+            cancelled.next_attempt_at,
+            "restarts must not extend the pause"
+        );
+        assert!(!store.renewal_is_allowed(ID).await);
+        {
+            let mut index = store.index.lock().await;
+            index.certificates.get_mut(ID).unwrap().next_attempt_at =
+                Some("2000-01-01T00:00:00Z".to_owned());
+            persistence::persist_index(&store.certificates_dir().unwrap(), &index).unwrap();
+        }
+        drop(store);
+        store = CertificateStore::new(root.0.clone());
+        store.initialize().await.unwrap();
+        assert!(
+            store.renewal_is_allowed(ID).await,
+            "a later scheduled renewal remains eligible"
+        );
+        assert!(crate::runtime::ProxyRuntime::renewal_is_due(
+            &store.get(ID).await.unwrap()
+        ));
+        assert!(
+            matches!(
+                store.begin_acme_retry(ID).await,
+                Err(CertificateError::OperationInProgress)
+            ),
+            "the cancelled operation itself remains terminal"
+        );
+        let (renewal, saved_request) = store.begin_renewal(ID).await.unwrap();
+        let next_id = renewal.current_operation.as_ref().unwrap().id.clone();
+        assert_ne!(next_id, cancelled_id);
+        assert_eq!(renewal.operation, CertificateOperation::Renewing);
+        assert_eq!(saved_request.dns_mode, DnsValidationMode::Delegated);
+        assert_eq!(saved_request.dns_provider, Some(connection));
+        assert_eq!(
+            store.delegated_cancel_requested(ID, &cancelled_id).await,
+            Err(CertificateError::OperationInProgress)
+        );
+        assert!(
+            !store
+                .delegated_cancel_requested(ID, &next_id)
+                .await
+                .unwrap()
+        );
+        store
+            .record_operation_stage(ID, CertificateOperationStage::Finalizing)
+            .await
+            .unwrap();
+        let events = store.events(None, 200).await.unwrap().events;
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.operation_id == cancelled_id
+                    && event.kind == CertificateEventKind::Cancelled)
+                .count(),
+            1
+        );
+        assert!(
+            !events.iter().any(|event| event.operation_id == cancelled_id
+                && event.kind == CertificateEventKind::RetryScheduled)
+        );
+    }
+}
+
+#[tokio::test]
+async fn legacy_terminal_cancel_flag_is_cleared_without_extending_original_renewal_pause() {
+    let root = Root::new();
+    let store = CertificateStore::new(root.0.clone());
+    store.initialize().await.unwrap();
+    install_live(&store).await;
+    let operation_id = delegated(&store).await;
+    store
+        .request_delegated_cancel(ID, &operation_id)
+        .await
+        .unwrap();
+    store
+        .finish_failed(ID, CertificateError::AcmeCancelled)
+        .await;
+    {
+        let mut index = store.index.lock().await;
+        let entry = index.certificates.get_mut(ID).unwrap();
+        entry.acme.as_mut().unwrap().cancel_requested = true;
+        let operation = entry.metadata.current_operation.as_mut().unwrap();
+        operation.started_at = "1999-12-31T23:59:00Z".to_owned();
+        operation.updated_at = "2000-01-01T00:00:00Z".to_owned();
+        persistence::persist_index(&store.certificates_dir().unwrap(), &index).unwrap();
+    }
+    drop(store);
+    let restored = CertificateStore::new(root.0.clone());
+    restored.initialize().await.unwrap();
+    assert!(
+        !restored.index.lock().await.certificates[ID]
+            .acme
+            .as_ref()
+            .unwrap()
+            .cancel_requested
+    );
+    assert_eq!(
+        restored.get(ID).await.unwrap().next_attempt_at.as_deref(),
+        Some("2000-01-01T00:30:00Z")
+    );
+    assert!(restored.renewal_is_allowed(ID).await);
+    assert_eq!(
+        restored
+            .get(ID)
+            .await
+            .unwrap()
+            .current_operation
+            .unwrap()
+            .id,
+        operation_id
+    );
 }

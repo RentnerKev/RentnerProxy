@@ -113,10 +113,7 @@ pub(super) fn candidate_retry_deadline(delay_seconds: u32) -> Option<String> {
 
 pub(super) fn next_renewal_at(stored: &StoredCertificate) -> Option<String> {
     if stored.metadata.source != CertificateSource::Acme
-        || stored
-            .acme
-            .as_ref()
-            .is_some_and(|acme| acme.cancel_requested)
+        || super::cancellation::delegated_cancellation_pending(stored)
     {
         return None;
     }

@@ -4,7 +4,7 @@ use super::validation::utc_now;
 use super::{
     AcmeChallengeType, CertificateError, CertificateMetadata, CertificateOperation,
     CertificateOperationStage, CertificateSource, CertificateStore, DnsValidationMode,
-    OperationKind, StoredCertificate,
+    MIN_ACME_RETRY_DELAY_SECONDS, OffsetDateTime, OperationKind, Rfc3339, StoredCertificate,
 };
 use crate::proxy::is_canonical_uuid_v7;
 
@@ -23,6 +23,38 @@ fn delegated_operation(entry: &StoredCertificate, operation_id: &str) -> bool {
                 operation.id == operation_id
                     && matches!(operation.kind, OperationKind::Issue | OperationKind::Renew)
             })
+}
+
+pub(super) fn delegated_cancellation_pending(entry: &StoredCertificate) -> bool {
+    entry
+        .acme
+        .as_ref()
+        .is_some_and(|acme| acme.cancel_requested)
+        && entry
+            .metadata
+            .current_operation
+            .as_ref()
+            .is_some_and(|operation| delegated_operation(entry, &operation.id))
+}
+
+// Cancelling one operation must not permanently disable maintenance of an existing
+// certificate. Keep a bounded pause so an already-due renewal does not restart at
+// the next scheduler tick, while initial issuance remains terminal.
+pub(super) fn settle_delegated_cancellation(
+    entry: &mut StoredCertificate,
+    completed_at: OffsetDateTime,
+) {
+    if let Some(acme) = entry.acme.as_mut() {
+        acme.cancel_requested = false;
+    }
+    entry.retry_delay_seconds = None;
+    entry.next_attempt_at = entry.material_id.as_ref().and_then(|_| {
+        completed_at
+            .checked_add(time::Duration::seconds(i64::from(
+                MIN_ACME_RETRY_DELAY_SECONDS,
+            )))
+            .and_then(|deadline| deadline.format(&Rfc3339).ok())
+    });
 }
 
 impl CertificateStore {

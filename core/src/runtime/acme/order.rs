@@ -128,6 +128,7 @@ impl ProxyRuntime {
             }
             AcmeChallengeType::Dns01 => {
                 let provider = dns_provider.ok_or(CertificateError::AcmeDnsRequired)?;
+                let current_proofs_start = dns_intents.len();
                 let mut presented = false;
                 let mut authorizations = order.authorizations();
                 while let Some(result) = authorizations.next().await {
@@ -173,7 +174,7 @@ impl ProxyRuntime {
                 if presented {
                     if request.dns_mode == DnsValidationMode::Delegated {
                         super::delegated::wait_for_records(
-                            dns_intents,
+                            &dns_intents[current_proofs_start..],
                             request.environment,
                             &self.certificate_store,
                             id,
