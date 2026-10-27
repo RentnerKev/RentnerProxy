@@ -1,3 +1,6 @@
+#[cfg(test)]
+#[path = "../../../tests/private/ddns/desec_automation.rs"]
+mod desec_tests;
 mod execution;
 mod models;
 mod persistence;

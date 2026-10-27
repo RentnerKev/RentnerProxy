@@ -12,6 +12,7 @@ pub(super) fn id(value: &str) -> Result<(), Error> {
 }
 pub(super) fn zone_id(value: &str) -> bool {
     crate::runtime::dns::capabilities::ProviderId::Cloudflare.valid_zone_id(value)
+        || crate::runtime::dns::capabilities::ProviderId::Desec.valid_zone_id(value)
 }
 pub(super) fn token(value: &str) -> Result<(), Error> {
     (!value.is_empty() && value.len() <= 512 && value.bytes().all(|b| (0x21..=0x7e).contains(&b)))
@@ -62,8 +63,9 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
     id(&m.id)?;
     id(&m.created_by_user_id)?;
     name(&m.name)?;
-    if crate::runtime::dns::capabilities::ProviderId::parse(&m.provider).is_none()
-        || m.ownership != "instance"
+    let provider = crate::runtime::dns::capabilities::ProviderId::parse(&m.provider)
+        .ok_or(Error::InvalidInput)?;
+    if m.ownership != "instance"
         || m.revision == 0
         || timestamp(&m.updated_at)? < timestamp(&m.created_at)?
     {
@@ -96,7 +98,12 @@ pub(super) fn metadata(m: &Metadata) -> Result<(), Error> {
     if let Some(checked_at) = &m.verification.checked_at {
         timestamp(checked_at)?;
     }
-    if m.zones.iter().any(|z| !is_canonical_domain(&z.name)) || m.references.len() > 10000 {
+    if m.zones.iter().any(|z| {
+        !is_canonical_domain(&z.name)
+            || !provider.valid_zone_id(&z.id)
+            || (provider == crate::runtime::dns::capabilities::ProviderId::Desec && z.id != z.name)
+    }) || m.references.len() > 10000
+    {
         return Err(Error::InvalidInput);
     }
     let mut refs = BTreeSet::new();
@@ -120,6 +127,9 @@ pub(super) async fn permitted(
         return Err(Error::InvalidInput);
     }
     match provider {
+        crate::runtime::dns::capabilities::ProviderId::Desec => {
+            super::desec::permitted(endpoint, token).await
+        }
         crate::runtime::dns::capabilities::ProviderId::Cloudflare => {
             permitted_cloudflare(endpoint, token).await
         }

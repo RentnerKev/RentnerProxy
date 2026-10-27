@@ -15,7 +15,7 @@ use super::{
         MAX_REQUEST_BODY_BYTES, RECORDS_PER_PAGE, map_provider_error,
     },
     capabilities::{Operation, ProviderId},
-    config::{DnsProviderConfig, endpoint_for_environment},
+    config::{DnsProviderConfig, endpoint_for_provider_environment},
     models::{DnsRecordHandle, DnsRecordIntent},
     validation::{
         bare_authorization_name, dns_names_equal, domain_is_in_zone, is_safe_record_id,
@@ -33,6 +33,7 @@ pub(crate) struct DnsProvider {
     pub(super) client: Client,
     pub(super) base_url: Url,
     pub(super) cached_zone_name: Arc<OnceCell<String>>,
+    pub(super) desec_minimum_ttl: Arc<OnceCell<u32>>,
 }
 
 impl fmt::Debug for DnsProvider {
@@ -51,17 +52,15 @@ impl DnsProvider {
         endpoint: &str,
     ) -> Result<Self, CertificateError> {
         config.validate()?;
-        Self::new(
-            config,
-            Url::parse(endpoint).map_err(|_| CertificateError::DnsProviderInvalid)?,
-        )
+        let base_url = Url::parse(endpoint).map_err(|_| CertificateError::DnsProviderInvalid)?;
+        Self::new(config, base_url)
     }
     pub(crate) fn from_config(
         config: DnsProviderConfig,
         environment: CertificateEnvironment,
     ) -> Result<Self, CertificateError> {
         config.validate()?;
-        let base_url = endpoint_for_environment(environment)?;
+        let base_url = endpoint_for_provider_environment(config.provider_id(), environment)?;
         Self::new(config, base_url)
     }
 
@@ -71,7 +70,8 @@ impl DnsProvider {
         endpoint: &str,
     ) -> Result<Self, CertificateError> {
         config.validate()?;
-        let base_url = super::config::parse_api_endpoint(endpoint, true)?;
+        let base_url =
+            super::config::parse_provider_api_endpoint(config.provider_id(), endpoint, true)?;
         Self::new(config, base_url)
     }
 
@@ -80,15 +80,21 @@ impl DnsProvider {
             return Err(CertificateError::DnsCredentialsUnavailable);
         }
         match config.provider_id() {
-            ProviderId::Cloudflare => Self::cloudflare(config, base_url),
+            ProviderId::Cloudflare | ProviderId::Desec => Self::http(config, base_url),
         }
     }
 
-    fn cloudflare(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
+    fn http(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
         crate::runtime::tls::ensure_crypto_provider();
-        let client = Client::builder()
+        let builder = Client::builder()
             .timeout(REQUEST_TIMEOUT)
-            .redirect(Policy::none())
+            .redirect(Policy::none());
+        let builder = if config.provider_id() == ProviderId::Desec {
+            builder.retry(reqwest::retry::never())
+        } else {
+            builder
+        };
+        let client = builder
             .build()
             .map_err(|_| CertificateError::DnsProviderUnavailable)?;
         Ok(Self {
@@ -96,10 +102,14 @@ impl DnsProvider {
             client,
             base_url,
             cached_zone_name: Arc::new(OnceCell::new()),
+            desec_minimum_ttl: Arc::new(OnceCell::new()),
         })
     }
 
     pub(crate) async fn zone_name(&self) -> Result<String, CertificateError> {
+        if self.config.provider_id() == ProviderId::Desec {
+            return self.desec_zone_name().await;
+        }
         if let Some(name) = self.cached_zone_name.get() {
             return Ok(name.clone());
         }
@@ -136,6 +146,9 @@ impl DnsProvider {
         }
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
+        if self.config.provider_id() == ProviderId::Desec {
+            return self.desec_present(intent, &owner_name).await;
+        }
         let existing = self
             .find_owned_records_for_owner(intent, &owner_name)
             .await?;
@@ -184,6 +197,9 @@ impl DnsProvider {
     ) -> Result<Vec<DnsRecordHandle>, CertificateError> {
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
+        if self.config.provider_id() == ProviderId::Desec {
+            return self.desec_find_owned_records(intent, &owner_name).await;
+        }
         self.find_owned_records_for_owner(intent, &owner_name).await
     }
 
@@ -196,6 +212,9 @@ impl DnsProvider {
         }
         if intents.len() > MAX_INTENTS {
             return Err(CertificateError::DnsCleanupFailed);
+        }
+        if self.config.provider_id() == ProviderId::Desec {
+            return self.desec_cleanup_intents(intents).await;
         }
         let mut deleted_ids = BTreeSet::new();
         let mut failed = false;
@@ -223,7 +242,10 @@ impl DnsProvider {
         }
     }
 
-    async fn validate_intent(&self, intent: &DnsRecordIntent) -> Result<String, CertificateError> {
+    pub(super) async fn validate_intent(
+        &self,
+        intent: &DnsRecordIntent,
+    ) -> Result<String, CertificateError> {
         let zone = self.zone_name().await?;
         let bare_name =
             bare_authorization_name(&intent.name).ok_or(CertificateError::DnsProviderInvalid)?;

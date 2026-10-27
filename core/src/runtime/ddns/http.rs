@@ -32,6 +32,21 @@ pub(super) async fn send(
     request: reqwest::RequestBuilder,
     deadline: Instant,
 ) -> Result<Vec<u8>, Failure> {
+    send_inner(request, deadline, false).await
+}
+
+pub(super) async fn send_unpaginated(
+    request: reqwest::RequestBuilder,
+    deadline: Instant,
+) -> Result<Vec<u8>, Failure> {
+    send_inner(request, deadline, true).await
+}
+
+async fn send_inner(
+    request: reqwest::RequestBuilder,
+    deadline: Instant,
+    reject_pagination: bool,
+) -> Result<Vec<u8>, Failure> {
     if Instant::now() >= deadline {
         return Err(Error::TimeBudgetExceeded.into());
     }
@@ -57,6 +72,33 @@ pub(super) async fn send(
                     .and_then(|value| value.to_str().ok())
                     .and_then(retry_after);
                 return Err(Failure { code, retry_after });
+            }
+            if reject_pagination
+                && response
+                    .headers()
+                    .get_all(reqwest::header::LINK)
+                    .iter()
+                    .any(|value| {
+                        value.to_str().map_or(true, |value| {
+                            value.split(',').any(|link| {
+                                link.split(';').skip(1).any(|parameter| {
+                                    parameter
+                                        .trim()
+                                        .split_once('=')
+                                        .is_some_and(|(key, value)| {
+                                            key.trim().eq_ignore_ascii_case("rel")
+                                                && value
+                                                    .trim()
+                                                    .trim_matches('"')
+                                                    .split_ascii_whitespace()
+                                                    .any(|relation| relation == "next")
+                                        })
+                                })
+                            })
+                        })
+                    })
+            {
+                return Err(Error::InvalidProviderResponse.into());
             }
             if !response
                 .headers()

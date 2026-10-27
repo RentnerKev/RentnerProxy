@@ -1182,8 +1182,8 @@
                 "domainsHint": "Utilisez des noms DNS publics, par exemple example.com ou www.example.com.",
                 "challengeType": "Défi ACME",
                 "httpChallengeHint": "HTTP-01 valide chaque nom via le port 80 accessible. Les noms joker nécessitent DNS-01.",
-                "dnsWildcardHint": "DNS-01 accepte les noms joker et ordinaires ensemble. Tous les noms doivent appartenir à la même zone Cloudflare.",
-                "dnsProviderHint": "Les identifiants DNS Cloudflare sont utilisés uniquement pendant la validation et ne sont jamais renvoyés avec les métadonnées du certificat.",
+                "dnsWildcardHint": "DNS-01 accepte les noms joker et ordinaires ensemble. Tous les noms doivent appartenir à la même zone fournisseur DNS.",
+                "dnsProviderHint": "Les identifiants DNS fournisseur DNS sont utilisés uniquement pendant la validation et ne sont jamais renvoyés avec les métadonnées du certificat.",
                 "dnsZoneId": "ID de zone Cloudflare",
                 "dnsApiToken": "Jeton API Cloudflare",
                 "environment": "Environnement ACME",
@@ -1198,7 +1198,7 @@
             },
             "challenge": {
                 "http01": "HTTP-01",
-                "dns01": "DNS-01 (Cloudflare)"
+                "dns01": "DNS-01 (fournisseur DNS)"
             },
             "request": {
                 "title": "Demander un certificat ACME",
@@ -1273,9 +1273,9 @@
                 "publicDomain": "Utilisez un domaine DNS public.",
                 "wildcardRequiresDns01": "Les noms joker nécessitent le défi DNS-01.",
                 "duplicateDomain": "Chaque domaine ne peut apparaître qu’une seule fois.",
-                "dnsProviderRequired": "Indiquez un fournisseur DNS Cloudflare pour DNS-01.",
+                "dnsProviderRequired": "Indiquez un fournisseur DNS fournisseur DNS pour DNS-01.",
                 "dnsProviderHttp": "HTTP-01 n’accepte pas les identifiants d’un fournisseur DNS.",
-                "dnsZoneId": "Saisissez un ID de zone Cloudflare de 32 caractères minuscules.",
+                "dnsZoneId": "Choisissez une zone valide pour le fournisseur DNS sélectionné.",
                 "dnsApiToken": "Saisissez un jeton API Cloudflare valide sans espaces.",
                 "email": "Saisissez une adresse e-mail valide.",
                 "terms": "Acceptez les conditions d’ACME."
@@ -2701,14 +2701,15 @@
                 "label": "Fournisseur DNS",
                 "cloudflare": "Cloudflare",
                 "capabilities": "Fonctions prises en charge (les autorisations du jeton sont vérifiées séparément).",
-                "unavailable": "Les fonctions DNS sont indisponibles ou incompatibles. Vérifiez la connexion au contrôleur puis réessayez."
+                "unavailable": "Les fonctions DNS sont indisponibles ou incompatibles. Vérifiez la connexion au contrôleur puis réessayez.",
+                "desec": "deSEC"
             },
             "page": {
                 "eyebrow": "Administration",
                 "title": "Fournisseurs",
                 "description": "Configurez une fois vos connexions nommées et réutilisez-les pour les certificats et le DDNS."
             },
-            "provider": "Cloudflare · Connexion d’instance",
+            "provider": "fournisseur DNS · Connexion d’instance",
             "usage": "Références des consommateurs : {{count}}",
             "actions": {
                 "add": "Ajouter une connexion DNS",
@@ -2719,12 +2720,12 @@
                 "refreshDraft": "Abandonner le brouillon et recharger les connexions actuelles"
             },
             "form": {
-                "description": "Enregistrez une connexion nommée et les zones Cloudflare qu’elle peut utiliser.",
+                "description": "Enregistrez une connexion nommée et les zones fournisseur DNS qu’elle peut utiliser.",
                 "name": "Nom de la connexion",
-                "token": "Jeton d’API Cloudflare",
+                "token": "Jeton d’API fournisseur DNS",
                 "tokenHint": "Le jeton est enregistré sous forme chiffrée et ne sera plus affiché.",
                 "replaceHint": "Laissez ce champ vide pour conserver le jeton enregistré. Saisissez-en un nouveau pour le remplacer.",
-                "readOnlyHint": "Le test lit uniquement les zones Cloudflare. Les futurs consommateurs DNS nécessitent l’autorisation Zone / DNS / Edit, que ce test en lecture seule ne vérifie pas. L’enregistrement vérifie à nouveau toutes les zones sélectionnées.",
+                "readOnlyHint": "L’accès en lecture des zones a été vérifié. L’accès en écriture DNS n’a pas été vérifié.",
                 "zones": "Zones sélectionnées : {{count}} / {{max}}",
                 "zonesHint": "Sélectionnez au moins une zone. Les zones sélectionnées précédemment restent visibles après le test d’un nouveau jeton ; leur accès est vérifié à nouveau lors de l’enregistrement.",
                 "noZones": "Testez le jeton pour charger les zones accessibles. Si aucune zone n’apparaît, vérifiez la portée du jeton.",
@@ -2735,7 +2736,7 @@
                 "loading": "Chargement des métadonnées des connexions DNS…",
                 "error": "Connexions DNS indisponibles",
                 "empty": "Aucune connexion DNS pour le moment",
-                "emptyDescription": "Créez une connexion Cloudflare et sélectionnez les zones accessibles aux futurs consommateurs DNS.",
+                "emptyDescription": "Créez une connexion fournisseur DNS et sélectionnez les zones accessibles aux futurs consommateurs DNS.",
                 "waiting": "En attente de la connexion. La liste se met à jour automatiquement."
             },
             "confirm": {
@@ -2743,8 +2744,8 @@
                 "description": "Supprimer « {{name}} » et son jeton enregistré ? Cette action est irréversible."
             },
             "validation": {
-                "zone": "Sélectionnez une zone Cloudflare valide.",
-                "token": "Saisissez un jeton d’API Cloudflare valide.",
+                "zone": "Sélectionnez une zone fournisseur DNS valide.",
+                "token": "Saisissez un jeton d’API fournisseur DNS valide.",
                 "name": "Saisissez un nom de connexion de 1 à 100 caractères, sans caractère de contrôle.",
                 "zones": "Sélectionnez entre 1 et 50 zones distinctes."
             },
@@ -2760,12 +2761,12 @@
                 "connection_conflict": "Cette connexion a été modifiée depuis son ouverture. Abandonnez le brouillon, rechargez la liste et rouvrez la connexion avant de l’enregistrer.",
                 "connection_in_use": "Cette connexion ou cette zone est utilisée. Supprimez d’abord ses références, puis rechargez la liste.",
                 "connection_limit": "La limite de connexions de l’instance est atteinte.",
-                "token_required": "Saisissez un jeton d’API Cloudflare.",
+                "token_required": "Saisissez un jeton d’API fournisseur DNS.",
                 "zone_not_permitted": "Au moins une zone sélectionnée n’est pas accessible avec ce jeton. Vérifiez sa portée ou modifiez la sélection.",
                 "zone_limit": "Le jeton peut accéder à 500 zones au maximum ; sélectionnez-en jusqu’à 50.",
-                "provider_unauthorized": "Cloudflare a refusé le jeton. Vérifiez sa validité et son autorisation de lecture des zones.",
-                "provider_unavailable": "Cloudflare est temporairement indisponible. Réessayez le test de lecture plus tard.",
-                "provider_rate_limited": "La limite de Cloudflare ou des tests de connexion a été atteinte. Patientez un instant, puis réessayez.",
+                "provider_unauthorized": "fournisseur DNS a refusé le jeton. Vérifiez sa validité et son autorisation de lecture des zones.",
+                "provider_unavailable": "fournisseur DNS est temporairement indisponible. Réessayez le test de lecture plus tard.",
+                "provider_rate_limited": "La limite de fournisseur DNS ou des tests de connexion a été atteinte. Patientez un instant, puis réessayez.",
                 "store_unavailable": "Le stockage des connexions est indisponible. Réessayez plus tard.",
                 "credentials_unavailable": "Le jeton enregistré est illisible. Remplacez-le ou restaurez le chiffrement des identifiants.",
                 "controller_unavailable": "Le contrôleur est indisponible. Rétablissez-le, puis rechargez la liste.",
@@ -2775,6 +2776,10 @@
                 "zoneCount": "Zones : {{count}}",
                 "references": "Utilisée par {{count}} services",
                 "delete": "Supprimer la connexion {{name}}"
+            },
+            "providerHints": {
+                "cloudflare": "Le test lit uniquement les zones Cloudflare. Les futurs consommateurs DNS nécessitent l’autorisation Zone / DNS / Edit, que ce test en lecture seule ne vérifie pas. L’enregistrement vérifie à nouveau toutes les zones sélectionnées.",
+                "desec": "deSEC : utilisez un jeton API avec découverte des domaines et lecture/écriture des RRsets dans les zones choisies, y compris le RRset TXT _acme-challenge à la racine pour les tests de droits et les enregistrements A/AAAA des noms DDNS choisis. Les zones sont des domaines ASCII en minuscules sans point final (punycode pour les IDN). Les nouveaux enregistrements utilisent le TTL minimum de la zone ; les TTL existants sont conservés. DDNS respecte les limites et Retry-After. Aucun proxy Cloudflare."
             }
         },
         "ddns": {
@@ -2806,7 +2811,7 @@
                 "ipv6": "IPv6 · enregistrements AAAA",
                 "updateOnStart": "Vérifier au démarrage",
                 "familyHint": "Des lignes sont ajoutées pour les familles actives. Les autres restent en pause. Pour ajouter AAAA ensuite, activez IPv6, décochez IPv4 temporairement et ajoutez les domaines.",
-                "connection": "Connexion Cloudflare",
+                "connection": "Connexion fournisseur DNS",
                 "chooseConnection": "Choisir une connexion",
                 "zone": "Zone des nouveaux enregistrements",
                 "autoZone": "Associer automatiquement les zones autorisées",
@@ -2895,7 +2900,7 @@
                 "settingsSaved": "Réglages DDNS sauvegardés.",
                 "recordEnabled": "Enregistrement activé.",
                 "recordDisabled": "Enregistrement désactivé.",
-                "recordDeleted": "Enregistrement retiré de DDNS. Le DNS chez Cloudflare est conservé.",
+                "recordDeleted": "Enregistrement retiré de DDNS. Le DNS chez fournisseur DNS est conservé.",
                 "actionChanged": "La configuration a changé pendant cette action. Rouvrez-la pour utiliser la version actuelle."
             },
             "validation": {
@@ -2933,11 +2938,11 @@
                 "family_disabled": "Famille désactivée. Enregistrements conservés sans mise à jour.",
                 "adoption_required": "Cet enregistrement doit être vérifié automatiquement. Sauvegardez-le ou activez-le pour vérifier son identité.",
                 "creation_required": "Aucun enregistrement n’existe. Sauvegardez ou activez la cible pour vérifier et créer ce nom et ce type.",
-                "record_conflict": "Doublons ou CNAME incompatible. Corrigez dans Cloudflare ; DDNS ne supprime rien.",
+                "record_conflict": "Doublons ou CNAME incompatible. Corrigez dans fournisseur DNS ; DDNS ne supprime rien.",
                 "record_changed": "Enregistrement remplacé. Retirez, ajoutez et vérifiez à nouveau.",
-                "provider_unauthorized": "Accès refusé. Vérifiez Zone Read et DNS Edit du jeton.",
+                "provider_unauthorized": "Le fournisseur DNS a refusé l’accès. Vérifiez les droits de lecture des domaines et d’écriture DNS dans les zones choisies et remplacez le jeton si nécessaire.",
                 "provider_rate_limited": "Limite atteint. Attendez le réessai ; le mode manuel ne le contourne pas.",
-                "provider_unavailable": "Cloudflare indisponible. Réessai prévu, dernière bonne valeur conservée.",
+                "provider_unavailable": "fournisseur DNS indisponible. Réessai prévu, dernière bonne valeur conservée.",
                 "invalid_provider_response": "Réponse inattendue. Vérifiez la disponibilité et relancez l’aperçu.",
                 "write_unconfirmed": "Écriture peut-être acceptée sans confirmation. Vérifiez avant réessai.",
                 "time_budget_exceeded": "Délai du lot dépassé. Les éléments restants seront réessayés selon leur calendrier.",
@@ -3007,7 +3012,7 @@
             },
             "delete": {
                 "title": "Retirer l’enregistrement géré ?",
-                "description": "Ne plus gérer {{name}} ? Son DNS chez Cloudflare reste inchangé."
+                "description": "Ne plus gérer {{name}} ? Son DNS chez fournisseur DNS reste inchangé."
             }
         },
         "dockerDiscovery": {
@@ -3565,9 +3570,9 @@
         "basicAuthUsername": "p. ex. service-user",
         "basicAuthPasswordEdit": "Laissez vide pour conserver le mot de passe actuel",
         "certificateName": "p. ex. TLS du serveur domestique",
-        "dnsApiToken": "Collez ici le jeton API Cloudflare",
+        "dnsApiToken": "Collez ici le jeton API fournisseur DNS",
         "trustedCaName": "p. ex. AC racine du réseau domestique",
-        "dnsConnectionName": "p. ex. Cloudflare réseau domestique",
+        "dnsConnectionName": "p. ex. fournisseur DNS réseau domestique",
         "dnsApiTokenReplacement": "Laissez vide pour conserver le jeton enregistré",
         "hostTagName": "p. ex. Production",
         "notificationChannelName": "p. ex. Alertes d’exploitation",

@@ -82,6 +82,14 @@ fn document(value: &Document) -> Result<(), AutomationError> {
                 || !timestamp(state.next_attempt_at)
                 || !timestamp(state.retry_not_before)
                 || state.connection_revision == Some(0)
+                || state.created_record_id.as_ref().is_some_and(|id| {
+                    !validation::provider_id(id)
+                        || !matches!(
+                            target.selection,
+                            crate::runtime::ddns::models::Selection::Create
+                        )
+                        || state.last_success_at.is_none()
+                })
                 || state.last_successful_address.is_some_and(|address| {
                     !target.record_type.matches(address) || !validation::public(address)
                 })

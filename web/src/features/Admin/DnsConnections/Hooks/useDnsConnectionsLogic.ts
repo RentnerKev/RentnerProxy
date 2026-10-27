@@ -362,7 +362,12 @@ export default function useDnsConnectionsLogic({
         },
         handler: {
             handleProviderChange: (id: DnsProviderId) => {
-                if (!editing && !pending.current) setProviderId(id)
+                if (!editing && !pending.current && id !== providerId) {
+                    setProviderId(id)
+                    form.setFieldValue('apiToken', '')
+                    form.setFieldValue('zoneIds', [])
+                    setZones([])
+                }
             },
             handleCreate,
             handleEdit,

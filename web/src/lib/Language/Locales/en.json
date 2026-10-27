@@ -1180,8 +1180,8 @@
                 "domainsHint": "Use public DNS names, for example example.com or www.example.com.",
                 "challengeType": "ACME challenge",
                 "httpChallengeHint": "HTTP-01 validates each name over reachable port 80. Wildcard names require DNS-01.",
-                "dnsWildcardHint": "DNS-01 supports wildcard and ordinary names together. All names must belong to the same Cloudflare zone.",
-                "dnsProviderHint": "Cloudflare DNS credentials are used only during validation and are never returned with certificate metadata.",
+                "dnsWildcardHint": "DNS-01 supports wildcard and ordinary names together. All names must belong to the same DNS provider zone.",
+                "dnsProviderHint": "DNS credentials are managed centrally and never returned with certificate metadata.",
                 "dnsZoneId": "Cloudflare zone ID",
                 "dnsApiToken": "Cloudflare API token",
                 "environment": "ACME environment",
@@ -1196,7 +1196,7 @@
             },
             "challenge": {
                 "http01": "HTTP-01",
-                "dns01": "DNS-01 (Cloudflare)"
+                "dns01": "DNS-01 (DNS provider)"
             },
             "request": {
                 "title": "Request ACME certificate",
@@ -1271,9 +1271,9 @@
                 "publicDomain": "Use a public DNS domain.",
                 "wildcardRequiresDns01": "Wildcard names require the DNS-01 challenge.",
                 "duplicateDomain": "Each domain may appear only once.",
-                "dnsProviderRequired": "Provide a Cloudflare DNS provider for DNS-01.",
+                "dnsProviderRequired": "Choose a DNS provider connection for DNS-01.",
                 "dnsProviderHttp": "HTTP-01 does not accept DNS provider credentials.",
-                "dnsZoneId": "Enter a 32-character lowercase Cloudflare zone ID.",
+                "dnsZoneId": "Choose a valid zone for the selected DNS provider.",
                 "dnsApiToken": "Enter a valid Cloudflare API token without whitespace.",
                 "email": "Enter a valid email address.",
                 "terms": "Accept the ACME terms."
@@ -2866,14 +2866,15 @@
                 "label": "DNS provider",
                 "cloudflare": "Cloudflare",
                 "capabilities": "Supported features (token permissions are checked separately).",
-                "unavailable": "DNS provider capabilities are unavailable or do not support this operation. Check the controller connection, then try again."
+                "unavailable": "DNS provider capabilities are unavailable or do not support this operation. Check the controller connection, then try again.",
+                "desec": "deSEC"
             },
             "page": {
                 "eyebrow": "Administration",
                 "title": "Providers",
                 "description": "Configure named provider connections once and reuse them for certificates and DDNS."
             },
-            "provider": "Cloudflare · Instance connection",
+            "provider": "DNS provider · Instance connection",
             "usage": "Consumer references: {{count}}",
             "actions": {
                 "add": "Add DNS connection",
@@ -2884,12 +2885,12 @@
                 "refreshDraft": "Discard draft and reload current connections"
             },
             "form": {
-                "description": "Save a named connection with the Cloudflare zones it may use.",
+                "description": "Save a named connection with the DNS provider zones it may use.",
                 "name": "Connection name",
-                "token": "Cloudflare API token",
+                "token": "DNS provider API token",
                 "tokenHint": "The token is stored encrypted and is never displayed again.",
                 "replaceHint": "Leave blank to keep the saved token. Enter a new token to replace it.",
-                "readOnlyHint": "Testing only reads Cloudflare zones. Future DNS consumers require Zone / DNS / Edit permission, which this read-only test does not verify. Saving rechecks all selected zones.",
+                "readOnlyHint": "Zone read access checked. DNS write access has not been verified.",
                 "zones": "Selected zones: {{count}} / {{max}}",
                 "zonesHint": "Select at least one zone. Previously selected zones remain visible after testing a replacement token; saving verifies their access again.",
                 "noZones": "Test the token to load accessible zones. If no zones are returned, check the token’s zone scope.",
@@ -2900,7 +2901,7 @@
                 "loading": "Loading DNS connection metadata…",
                 "error": "DNS connections unavailable",
                 "empty": "No DNS connections yet",
-                "emptyDescription": "Create a Cloudflare connection and select the zones available to future DNS consumers.",
+                "emptyDescription": "Create a DNS provider connection and select the zones available to future DNS consumers.",
                 "waiting": "Waiting for the connection to recover. The list updates automatically."
             },
             "confirm": {
@@ -2908,8 +2909,8 @@
                 "description": "Delete “{{name}}” and its stored token? This cannot be undone."
             },
             "validation": {
-                "zone": "Select a valid Cloudflare zone.",
-                "token": "Enter a valid Cloudflare API token.",
+                "zone": "Select a valid DNS provider zone.",
+                "token": "Enter a valid DNS provider API token.",
                 "name": "Enter a connection name of 1–100 characters without control characters.",
                 "zones": "Select between 1 and 50 distinct zones."
             },
@@ -2925,12 +2926,12 @@
                 "connection_conflict": "This connection changed since you opened it. Discard the draft, reload and reopen the connection before saving.",
                 "connection_in_use": "This connection or zone is in use. Remove its references first, then reload.",
                 "connection_limit": "The instance connection limit has been reached.",
-                "token_required": "Enter a Cloudflare API token.",
+                "token_required": "Enter a DNS provider API token.",
                 "zone_not_permitted": "At least one selected zone is not accessible with this token. Check the token scope or change the zone selection.",
                 "zone_limit": "Select no more than 50 zones and limit the token scope to at most 500 accessible zones.",
-                "provider_unauthorized": "Cloudflare rejected the token. Check its validity and zone read permissions.",
-                "provider_unavailable": "Cloudflare is temporarily unavailable. Try the read test again later.",
-                "provider_rate_limited": "Cloudflare or the connection test limit was reached. Wait briefly and retry.",
+                "provider_unauthorized": "DNS provider rejected the token. Check its validity and zone read permissions.",
+                "provider_unavailable": "DNS provider is temporarily unavailable. Try the read test again later.",
+                "provider_rate_limited": "DNS provider or the connection test limit was reached. Wait briefly and retry.",
                 "store_unavailable": "Connection storage is unavailable. Try again later.",
                 "credentials_unavailable": "The stored token cannot be read. Replace the token or restore credential encryption.",
                 "controller_unavailable": "The controller is unavailable. Restore it and reload.",
@@ -2940,13 +2941,17 @@
                 "zoneCount": "Zones: {{count}}",
                 "references": "Used by {{count}} consumers",
                 "delete": "Delete connection {{name}}"
+            },
+            "providerHints": {
+                "cloudflare": "Testing only reads Cloudflare zones. Future DNS consumers require Zone / DNS / Edit permission, which this read-only test does not verify. Saving rechecks all selected zones.",
+                "desec": "deSEC: use an API token with domain discovery and RRset read/write access for the selected zones, including the apex _acme-challenge TXT RRset for permission checks and A/AAAA records for the selected DDNS names. Zone IDs are lowercase ASCII domains (punycode for IDNs), without a trailing dot. New records use the zone minimum TTL; existing RRset TTLs are retained. DDNS respects rate limits and Retry-After. Cloudflare proxying is unavailable."
             }
         },
         "ddns": {
             "page": {
                 "eyebrow": "DNS automation",
                 "title": "Dynamic DNS",
-                "description": "Keep selected Cloudflare records on this server’s public IP address.",
+                "description": "Keep selected DNS provider records on this server’s public IP address.",
                 "networkHint": "DDNS changes DNS only. Port forwarding, firewall rules, certificates and tunnels are configured separately."
             },
             "actions": {
@@ -2971,7 +2976,7 @@
                 "ipv6": "IPv6 · AAAA records",
                 "updateOnStart": "Check on startup",
                 "familyHint": "Adding domains creates rows for enabled families. Turning a family off keeps its rows paused. To add AAAA later, enable IPv6 and add the specific domain again without duplicating A rows.",
-                "connection": "Cloudflare connection",
+                "connection": "DNS provider connection",
                 "chooseConnection": "Choose a connection",
                 "zone": "Zone for new records",
                 "autoZone": "Match permitted zones automatically",
@@ -2997,7 +3002,7 @@
             },
             "preview": {
                 "title": "2. Review · 3. Activate",
-                "hint": "Preview reads Cloudflare without changing DNS. Explicitly approve inspected records, then save paused. Stop the previous updater before enabling DDNS.",
+                "hint": "Preview reads DNS provider without changing DNS. Explicitly approve inspected records, then save paused. Stop the previous updater before enabling DDNS.",
                 "record": "Record preview",
                 "current": "Current",
                 "desired": "Desired",
@@ -3060,7 +3065,7 @@
                 "settingsSaved": "DDNS settings saved.",
                 "recordEnabled": "Record enabled.",
                 "recordDisabled": "Record disabled.",
-                "recordDeleted": "Record removed from DDNS. Its Cloudflare DNS record is retained.",
+                "recordDeleted": "Record removed from DDNS. Its DNS provider DNS record is retained.",
                 "actionChanged": "The configuration changed while this action was open. Open it again to use the current version."
             },
             "validation": {
@@ -3098,13 +3103,13 @@
                 "family_disabled": "This address family is disabled. Its records are kept without updates.",
                 "adoption_required": "This existing record needs automatic inspection. Save or enable it to check its identity.",
                 "creation_required": "No record exists. Save or enable this target to check and create the exact name and type.",
-                "record_conflict": "Multiple records or a conflicting CNAME were found. Resolve the Cloudflare conflict first; DDNS will not delete anything.",
+                "record_conflict": "Multiple records or a conflicting CNAME were found. Resolve the DNS provider conflict first; DDNS will not delete anything.",
                 "record_changed": "The approved record changed or was replaced. Remove this target, add it again and inspect the new record before approving.",
-                "provider_unauthorized": "Cloudflare denied access. Check Zone Read and DNS Edit permissions for the selected zones and rotate the connection token if needed.",
-                "provider_rate_limited": "Cloudflare rate limit reached. Wait for the displayed retry time; manual updates do not bypass it.",
-                "provider_unavailable": "Cloudflare is temporarily unavailable. The controller retries with backoff and retains the last good value.",
-                "invalid_provider_response": "Cloudflare returned an unexpected response. Check service availability and preview again.",
-                "write_unconfirmed": "Cloudflare may have accepted the write but confirmation failed. Check the record and preview before retrying.",
+                "provider_unauthorized": "The DNS provider denied access. Check domain read and DNS record write permissions for the selected zones and rotate the connection token if needed.",
+                "provider_rate_limited": "DNS provider rate limit reached. Wait for the displayed retry time; manual updates do not bypass it.",
+                "provider_unavailable": "DNS provider is temporarily unavailable. The controller retries with backoff and retains the last good value.",
+                "invalid_provider_response": "DNS provider returned an unexpected response. Check service availability and preview again.",
+                "write_unconfirmed": "DNS provider may have accepted the write but confirmation failed. Check the record and preview before retrying.",
                 "time_budget_exceeded": "The batch deadline was reached. Remaining records will retry according to their displayed schedule.",
                 "run_interrupted": "A previous controller run was interrupted. Check current DNS values before a manual retry.",
                 "target_disabled": "This record is disabled. Its DNS value is retained without updates."
@@ -3112,7 +3117,7 @@
             "confirm": {
                 "save": {
                     "title": "Save and pause this configuration?",
-                    "description": "DDNS will be paused, including an active configuration. {{removed}} existing targets leave DDNS; their Cloudflare records remain unchanged. Review and enable the saved list separately.",
+                    "description": "DDNS will be paused, including an active configuration. {{removed}} existing targets leave DDNS; their DNS provider records remain unchanged. Review and enable the saved list separately.",
                     "action": "Save paused"
                 },
                 "enable": {
@@ -3172,7 +3177,7 @@
             },
             "delete": {
                 "title": "Remove managed record?",
-                "description": "Stop managing {{name}}? Its Cloudflare DNS record remains unchanged."
+                "description": "Stop managing {{name}}? Its DNS provider DNS record remains unchanged."
             }
         },
         "hostTags": {
@@ -3563,9 +3568,9 @@
         "basicAuthUsername": "e.g. service-user",
         "basicAuthPasswordEdit": "Leave blank to keep the current password",
         "certificateName": "e.g. Home server TLS",
-        "dnsApiToken": "Paste the Cloudflare API token here",
+        "dnsApiToken": "Paste the DNS provider API token here",
         "trustedCaName": "e.g. Home network root CA",
-        "dnsConnectionName": "e.g. Cloudflare home network",
+        "dnsConnectionName": "e.g. DNS provider home network",
         "dnsApiTokenReplacement": "Leave blank to keep the saved token",
         "hostTagName": "e.g. Production",
         "notificationChannelName": "e.g. Operations alerts",

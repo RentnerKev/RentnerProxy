@@ -26,3 +26,28 @@ export const dnsProviderCatalogSchema = z.strictObject({
                 new Set(providers.map((provider) => provider.id)).size === providers.length,
         ),
 })
+
+export const cloudflareZoneIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
+export const desecZoneIdSchema = z
+    .string()
+    .max(191)
+    .refine(
+        (value) =>
+            value.includes('.') &&
+            !/^\d+(?:\.\d+){3}$/u.test(value) &&
+            value
+                .split('.')
+                .every(
+                    (label) =>
+                        label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label),
+                ),
+    )
+export const dnsZoneIdSchema = z.union([cloudflareZoneIdSchema, desecZoneIdSchema])
+
+export function isDnsZoneIdForProvider(
+    value: string,
+    provider: z.infer<typeof dnsProviderIdSchema>,
+) {
+    return (provider === 'desec' ? desecZoneIdSchema : cloudflareZoneIdSchema).safeParse(value)
+        .success
+}

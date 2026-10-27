@@ -2,6 +2,10 @@ mod automation;
 #[cfg(test)]
 #[path = "../../tests/private/ddns/beta2_fixture.rs"]
 mod beta2_fixture;
+mod desec;
+#[cfg(test)]
+#[path = "../../tests/private/ddns/desec_fixture.rs"]
+mod desec_fixture;
 mod discovery;
 #[cfg(test)]
 #[path = "../../tests/private/ddns/fixture.rs"]
@@ -345,6 +349,7 @@ fn same_records(before: &[Record], after: &[Record]) -> bool {
                     && a.content == b.content
                     && a.proxied == b.proxied
                     && a.comment == b.comment
+                    && a.ttl == b.ttl
             })
         })
 }

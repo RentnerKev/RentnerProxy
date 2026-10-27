@@ -9,6 +9,16 @@
                 "addressRecordTypes": ["A", "AAAA"],
                 "proxyOptions": "cloudflare"
             }
+        },
+        {
+            "id": "desec",
+            "capabilities": {
+                "zoneDiscovery": true,
+                "txtCreate": true,
+                "txtCleanup": true,
+                "addressRecordTypes": ["A", "AAAA"],
+                "proxyOptions": "none"
+            }
         }
     ]
 }

@@ -954,3 +954,66 @@ describe('DDNS administration UI', () => {
             expect(translationKeys(catalog.admin.ddns)).toEqual(expected)
     })
 })
+
+test('deSEC domain zones create both address families with proxy disabled', async () => {
+    const { api } = fixture()
+    const zone = { id: 'example.com', name: 'example.com' }
+    const desec = {
+        ...DDNS_CONNECTION,
+        provider: 'desec' as const,
+        name: 'Fixture deSEC',
+        zones: [zone],
+        verification: {
+            status: 'connected' as const,
+            checkedAt: DDNS_CONNECTION.updatedAt,
+            zoneIds: [zone.id],
+            error: null,
+        },
+    }
+    api.connections = mock(async () => [desec])
+    api.providers = mock(async () => ({
+        bindings: [{ connectionId: desec.id, provider: 'desec' as const }],
+        providers: [
+            {
+                id: 'desec' as const,
+                capabilities: {
+                    zoneDiscovery: true,
+                    txtCreate: true,
+                    txtCleanup: true,
+                    addressRecordTypes: ['A', 'AAAA'] as const,
+                    proxyOptions: 'none' as const,
+                },
+            },
+        ],
+    }))
+    await render(api)
+    await click(button('Add records'))
+    await select(0, 'Fixture deSEC')
+    const proxy = document.querySelector<HTMLInputElement>('input[name="proxied"]')!
+    expect(proxy.disabled).toBe(true)
+    expect(proxy.checked).toBe(false)
+    await select(2, 'IPv4 + IPv6')
+    await fill('domain-0', 'home.example.com')
+    await submit()
+    await waitFor(() => !!feedback.find((item) => item.kind === 'success'))
+    expect(api.apply).toHaveBeenCalledWith(
+        expect.objectContaining({
+            draft: expect.objectContaining({
+                targets: [
+                    expect.objectContaining({
+                        zoneId: 'example.com',
+                        name: 'home.example.com',
+                        recordType: 'A',
+                        proxied: false,
+                    }),
+                    expect.objectContaining({
+                        zoneId: 'example.com',
+                        name: 'home.example.com',
+                        recordType: 'AAAA',
+                        proxied: false,
+                    }),
+                ],
+            }),
+        }),
+    )
+})

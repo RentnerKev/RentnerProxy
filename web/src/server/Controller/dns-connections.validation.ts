@@ -1,3 +1,8 @@
+import {
+    dnsProviderIdSchema,
+    dnsZoneIdSchema,
+    isDnsZoneIdForProvider,
+} from '@/lib/DnsConnections/validation.ts'
 import { z } from 'zod'
 import {
     MAX_DNS_CONNECTIONS,
@@ -8,7 +13,7 @@ import {
 } from '@/config/dns-connections.config.ts'
 import { dnsConnectionReferenceSchema } from '@/features/Admin/DnsConnections/validation.ts'
 
-const zoneId = z.string().regex(/^[a-f0-9]{32}$/u)
+const zoneId = dnsZoneIdSchema
 const safeText = z
     .string()
     .min(1)
@@ -23,7 +28,7 @@ const zones = z
 export const dnsConnectionMetadataSchema = z
     .strictObject({
         id: z.uuidv7(),
-        provider: z.literal('cloudflare'),
+        provider: dnsProviderIdSchema,
         ownership: z.literal('instance'),
         name: safeText
             .max(MAX_DNS_CONNECTION_NAME_LENGTH)
@@ -51,6 +56,16 @@ export const dnsConnectionMetadataSchema = z
             })
             .optional(),
     })
+    .refine(
+        (value) =>
+            value.zones.every((item) => isDnsZoneIdForProvider(item.id, value.provider)) &&
+            value.references.every((reference) =>
+                isDnsZoneIdForProvider(reference.zoneId, value.provider),
+            ) &&
+            (value.verification?.zoneIds ?? []).every((id) =>
+                isDnsZoneIdForProvider(id, value.provider),
+            ),
+    )
     .refine((value) => {
         const verification = value.verification
         if (!verification) return true

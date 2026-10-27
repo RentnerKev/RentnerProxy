@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) enum ProviderId {
     #[default]
     Cloudflare,
+    Desec,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -80,13 +81,25 @@ const CLOUDFLARE: ProviderDescriptor = ProviderDescriptor {
 };
 
 pub(crate) fn catalog() -> &'static [ProviderDescriptor] {
-    &[CLOUDFLARE]
+    &[CLOUDFLARE, DESEC]
 }
+
+const DESEC: ProviderDescriptor = ProviderDescriptor {
+    id: ProviderId::Desec,
+    capabilities: Capabilities {
+        zone_discovery: true,
+        txt_create: true,
+        txt_cleanup: true,
+        address_record_types: &[AddressRecordType::A, AddressRecordType::Aaaa],
+        proxy_options: ProxyOptions::None,
+    },
+};
 
 impl ProviderId {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "cloudflare" => Some(Self::Cloudflare),
+            "desec" => Some(Self::Desec),
             _ => None,
         }
     }
@@ -94,25 +107,28 @@ impl ProviderId {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Cloudflare => "cloudflare",
+            Self::Desec => "desec",
         }
     }
 
     pub(crate) fn supports(self, operation: Operation) -> bool {
         match self {
             Self::Cloudflare => CLOUDFLARE.capabilities.supports(operation),
+            Self::Desec => DESEC.capabilities.supports(operation),
         }
     }
 
     pub(crate) fn valid_zone_id(self, value: &str) -> bool {
         match self {
             Self::Cloudflare => super::validation::is_cloudflare_zone_id(value),
+            Self::Desec => super::validation::is_desec_zone_id(value),
         }
     }
 
     pub(crate) fn valid_address_record_id(self, value: &str) -> bool {
         // Cloudflare address-record selection has always required canonical IDs;
         // the legacy TXT cleanup handle has a separate, less restrictive format.
-        self.valid_zone_id(value)
+        super::validation::is_cloudflare_zone_id(value)
     }
 }
 

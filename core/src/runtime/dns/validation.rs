@@ -10,6 +10,10 @@ pub(super) fn is_cloudflare_zone_id(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
+pub(super) fn is_desec_zone_id(value: &str) -> bool {
+    value.len() <= 191 && value.contains('.') && is_canonical_domain(value)
+}
+
 pub(super) fn is_safe_secret(value: &str, maximum_bytes: usize) -> bool {
     !value.is_empty()
         && value.len() <= maximum_bytes

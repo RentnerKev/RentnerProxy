@@ -3,7 +3,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 
 use crate::runtime::certificates::CertificateError;
 
-use super::provider::DnsProvider;
+use super::{capabilities::ProviderId, provider::DnsProvider};
 
 pub(super) const MAX_RESPONSE_BODY_BYTES: usize = 64 * 1024;
 pub(super) const MAX_REQUEST_BODY_BYTES: usize = 16 * 1024;
@@ -169,7 +169,14 @@ impl DnsProvider {
             .header(reqwest::header::ACCEPT, "application/json")
             .header(
                 reqwest::header::AUTHORIZATION,
-                format!("Bearer {}", self.config.api_token()),
+                format!(
+                    "{} {}",
+                    match self.config.provider_id() {
+                        ProviderId::Cloudflare => "Bearer",
+                        ProviderId::Desec => "Token",
+                    },
+                    self.config.api_token()
+                ),
             );
         if let Some(body) = body {
             if body.len() > MAX_REQUEST_BODY_BYTES {
@@ -184,6 +191,11 @@ impl DnsProvider {
             .await
             .map_err(|error| ProviderRequestError::from_reqwest(&error))?;
         let status = response.status();
+        if self.config.provider_id() == ProviderId::Desec && !status.is_success() {
+            // Status is sufficient for deSEC errors; never parse provider error
+            // payloads (which can contain private request or account details).
+            return Ok((status, Vec::new()));
+        }
         if response
             .content_length()
             .is_some_and(|length| length > MAX_RESPONSE_BODY_BYTES as u64)
