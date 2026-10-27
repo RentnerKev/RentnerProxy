@@ -6,9 +6,8 @@ mkdir -p "$REPORT_DIRECTORY"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
 printf '%s\n' "$REVISION" > "$REPORT_DIRECTORY/source-revision.txt"
 sha256sum "$SOURCE_DIRECTORY/core/Cargo.lock" > "$REPORT_DIRECTORY/cargo-lock.sha256"
-# --locked authenticates the release dependency graph using registry checksums.
 if [[ ! -x "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" ]]; then
-    cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/cargo-audit"
+    bash "$AUTOMATION_DIRECTORY/.github/scripts/security/install-cargo-audit.sh"
 fi
 database="$REPORT_DIRECTORY/rustsec-advisory-db"
 git clone --depth=1 https://github.com/RustSec/advisory-db.git "$database"
