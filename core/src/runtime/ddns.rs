@@ -10,6 +10,7 @@ mod discovery;
 #[cfg(test)]
 #[path = "../../tests/private/ddns/fixture.rs"]
 mod fixture;
+mod hetzner;
 mod http;
 mod models;
 mod provider;

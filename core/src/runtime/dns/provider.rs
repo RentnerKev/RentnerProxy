@@ -80,7 +80,9 @@ impl DnsProvider {
             return Err(CertificateError::DnsCredentialsUnavailable);
         }
         match config.provider_id() {
-            ProviderId::Cloudflare | ProviderId::Desec => Self::http(config, base_url),
+            ProviderId::Cloudflare | ProviderId::Desec | ProviderId::Hetzner => {
+                Self::http(config, base_url)
+            }
         }
     }
 
@@ -89,7 +91,10 @@ impl DnsProvider {
         let builder = Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .redirect(Policy::none());
-        let builder = if config.provider_id() == ProviderId::Desec {
+        let builder = if matches!(
+            config.provider_id(),
+            ProviderId::Desec | ProviderId::Hetzner
+        ) {
             builder.retry(reqwest::retry::never())
         } else {
             builder
@@ -107,6 +112,9 @@ impl DnsProvider {
     }
 
     pub(crate) async fn zone_name(&self) -> Result<String, CertificateError> {
+        if self.config.provider_id() == ProviderId::Hetzner {
+            return self.hetzner_zone_name().await;
+        }
         if self.config.provider_id() == ProviderId::Desec {
             return self.desec_zone_name().await;
         }
@@ -146,6 +154,9 @@ impl DnsProvider {
         }
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
+        if self.config.provider_id() == ProviderId::Hetzner {
+            return self.hetzner_present(intent, &owner_name).await;
+        }
         if self.config.provider_id() == ProviderId::Desec {
             return self.desec_present(intent, &owner_name).await;
         }
@@ -197,6 +208,9 @@ impl DnsProvider {
     ) -> Result<Vec<DnsRecordHandle>, CertificateError> {
         intent.validate()?;
         let owner_name = self.validate_intent(intent).await?;
+        if self.config.provider_id() == ProviderId::Hetzner {
+            return self.hetzner_find_owned_records(intent, &owner_name).await;
+        }
         if self.config.provider_id() == ProviderId::Desec {
             return self.desec_find_owned_records(intent, &owner_name).await;
         }
@@ -212,6 +226,9 @@ impl DnsProvider {
         }
         if intents.len() > MAX_INTENTS {
             return Err(CertificateError::DnsCleanupFailed);
+        }
+        if self.config.provider_id() == ProviderId::Hetzner {
+            return self.hetzner_cleanup_intents(intents).await;
         }
         if self.config.provider_id() == ProviderId::Desec {
             return self.desec_cleanup_intents(intents).await;

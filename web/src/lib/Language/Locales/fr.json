@@ -2702,7 +2702,8 @@
                 "cloudflare": "Cloudflare",
                 "capabilities": "Fonctions prises en charge (les autorisations du jeton sont vérifiées séparément).",
                 "unavailable": "Les fonctions DNS sont indisponibles ou incompatibles. Vérifiez la connexion au contrôleur puis réessayez.",
-                "desec": "deSEC"
+                "desec": "deSEC",
+                "hetzner": "Hetzner Cloud DNS"
             },
             "page": {
                 "eyebrow": "Administration",
@@ -2779,7 +2780,8 @@
             },
             "providerHints": {
                 "cloudflare": "Le test lit uniquement les zones Cloudflare. Les futurs consommateurs DNS nécessitent l’autorisation Zone / DNS / Edit, que ce test en lecture seule ne vérifie pas. L’enregistrement vérifie à nouveau toutes les zones sélectionnées.",
-                "desec": "deSEC : utilisez un jeton API avec découverte des domaines et lecture/écriture des RRsets dans les zones choisies, y compris le RRset TXT _acme-challenge à la racine pour les tests de droits et les enregistrements A/AAAA des noms DDNS choisis. Les zones sont des domaines ASCII en minuscules sans point final (punycode pour les IDN). Les nouveaux enregistrements utilisent le TTL minimum de la zone ; les TTL existants sont conservés. DDNS respecte les limites et Retry-After. Aucun proxy Cloudflare."
+                "desec": "deSEC : utilisez un jeton API avec découverte des domaines et lecture/écriture des RRsets dans les zones choisies, y compris le RRset TXT _acme-challenge à la racine pour les tests de droits et les enregistrements A/AAAA des noms DDNS choisis. Les zones sont des domaines ASCII en minuscules sans point final (punycode pour les IDN). Les nouveaux enregistrements utilisent le TTL minimum de la zone ; les TTL existants sont conservés. DDNS respecte les limites et Retry-After. Aucun proxy Cloudflare.",
+                "hetzner": "Hetzner Cloud DNS : utilisez un jeton API Read & Write du projet actuel Hetzner Console contenant la zone PRIMARY. Les jetons de l’ancienne DNS Console indépendante ne sont pas pris en charge. L’accès est limité au projet. Les nouveaux enregistrements utilisent le TTL par défaut de la zone ; les TTL et commentaires existants sont conservés. DDNS attend avant de réessayer lorsque le fournisseur limite les requêtes."
             }
         },
         "ddns": {

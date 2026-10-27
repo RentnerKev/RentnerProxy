@@ -1,5 +1,6 @@
 mod access;
 mod desec;
+mod hetzner;
 mod models;
 mod references;
 #[cfg(test)]
@@ -87,6 +88,7 @@ impl Store {
         match provider {
             ProviderId::Cloudflare => super::dns::CLOUDFLARE_API_BASE,
             ProviderId::Desec => super::dns::DESEC_API_BASE,
+            ProviderId::Hetzner => super::dns::HETZNER_API_BASE,
         }
     }
     async fn lock(&self) -> Result<MutexGuard<'_, Option<Registry>>, Error> {

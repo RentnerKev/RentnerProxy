@@ -76,6 +76,16 @@ describe('DNS connection controller boundary', () => {
                     proxyOptions: 'none',
                 },
             },
+            {
+                id: 'hetzner',
+                capabilities: {
+                    zoneDiscovery: true,
+                    txtCreate: true,
+                    txtCleanup: true,
+                    addressRecordTypes: ['A', 'AAAA'],
+                    proxyOptions: 'none',
+                },
+            },
         ])
     })
     test('rejects unknown provider descriptors and sanitizes catalogue failures', async () => {

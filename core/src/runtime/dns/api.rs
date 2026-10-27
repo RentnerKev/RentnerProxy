@@ -172,7 +172,7 @@ impl DnsProvider {
                 format!(
                     "{} {}",
                     match self.config.provider_id() {
-                        ProviderId::Cloudflare => "Bearer",
+                        ProviderId::Cloudflare | ProviderId::Hetzner => "Bearer",
                         ProviderId::Desec => "Token",
                     },
                     self.config.api_token()

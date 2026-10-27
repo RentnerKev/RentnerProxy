@@ -42,12 +42,26 @@ export const desecZoneIdSchema = z
                         label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label),
                 ),
     )
-export const dnsZoneIdSchema = z.union([cloudflareZoneIdSchema, desecZoneIdSchema])
+export const hetznerZoneIdSchema = z
+    .string()
+    .regex(/^[1-9][0-9]{0,18}$/u)
+    .refine(
+        (value) => value === value.trim() && (value.length < 19 || value <= '9223372036854775807'),
+    )
+export const dnsZoneIdSchema = z.union([
+    cloudflareZoneIdSchema,
+    desecZoneIdSchema,
+    hetznerZoneIdSchema,
+])
 
 export function isDnsZoneIdForProvider(
     value: string,
     provider: z.infer<typeof dnsProviderIdSchema>,
 ) {
-    return (provider === 'desec' ? desecZoneIdSchema : cloudflareZoneIdSchema).safeParse(value)
-        .success
+    const schemas = {
+        cloudflare: cloudflareZoneIdSchema,
+        desec: desecZoneIdSchema,
+        hetzner: hetznerZoneIdSchema,
+    }
+    return schemas[provider].safeParse(value).success
 }

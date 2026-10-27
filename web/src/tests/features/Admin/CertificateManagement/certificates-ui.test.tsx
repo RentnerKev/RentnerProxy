@@ -109,6 +109,11 @@ const getCertificateDnsProviders = mock(async () => {
             id: 'desec' as const,
             capabilities: { ...dnsProvider.capabilities, proxyOptions: 'none' as const },
         },
+        {
+            ...dnsProvider,
+            id: 'hetzner' as const,
+            capabilities: { ...dnsProvider.capabilities, proxyOptions: 'none' as const },
+        },
     ]
 })
 const getCertificateDnsConnections = mock(async () => [DDNS_CONNECTION])
@@ -1162,7 +1167,7 @@ describe('certificate management UI', () => {
         })
     })
 
-    test.each(['cloudflare', 'desec'] as const)(
+    test.each(['cloudflare', 'desec', 'hetzner'] as const)(
         'forwards DNS-01 wildcard requests through %s with a shared account and retains the draft while managing providers',
         async (providerId) => {
             const connection =
@@ -1171,12 +1176,17 @@ describe('certificate management UI', () => {
                     : {
                           ...DDNS_CONNECTION,
                           provider: providerId,
-                          name: 'Fixture deSEC',
-                          zones: [{ id: 'example.com', name: 'example.com' }],
+                          name: `Fixture ${providerId}`,
+                          zones: [
+                              {
+                                  id: providerId === 'hetzner' ? '123456' : 'example.com',
+                                  name: 'example.com',
+                              },
+                          ],
                           verification: {
                               status: 'connected' as const,
                               checkedAt: DDNS_CONNECTION.updatedAt,
-                              zoneIds: ['example.com'],
+                              zoneIds: [providerId === 'hetzner' ? '123456' : 'example.com'],
                               error: null,
                           },
                       }

@@ -14,6 +14,14 @@ pub(super) fn is_desec_zone_id(value: &str) -> bool {
     value.len() <= 191 && value.contains('.') && is_canonical_domain(value)
 }
 
+pub(super) fn is_hetzner_zone_id(value: &str) -> bool {
+    !value.starts_with('0')
+        && !value.is_empty()
+        && value.len() <= 19
+        && value.bytes().all(|byte| byte.is_ascii_digit())
+        && value.parse::<i64>().is_ok_and(|id| id > 0)
+}
+
 pub(super) fn is_safe_secret(value: &str, maximum_bytes: usize) -> bool {
     !value.is_empty()
         && value.len() <= maximum_bytes

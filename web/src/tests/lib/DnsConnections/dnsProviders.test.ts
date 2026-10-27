@@ -25,13 +25,23 @@ const cloudflare = catalog.providers[0]!
 describe('shared DNS provider contract', () => {
     test('accepts the same golden catalogue as the authoritative Rust runtime', () => {
         expect(fixture).toEqual(catalog)
-        expect(catalog.providers.map((provider) => provider.id)).toEqual(['cloudflare', 'desec'])
+        expect(catalog.providers.map((provider) => provider.id)).toEqual([
+            'cloudflare',
+            'desec',
+            'hetzner',
+        ])
         const desec = dnsProviderForId(catalog.providers, 'desec')
         expect(supportsDns01(desec)).toBe(true)
         expect(supportsDdns(desec, 'A')).toBe(true)
         expect(supportsDdns(desec, 'AAAA')).toBe(true)
         expect(supportsProxyOption(desec, false)).toBe(true)
         expect(supportsProxyOption(desec, true)).toBe(false)
+        const hetzner = dnsProviderForId(catalog.providers, 'hetzner')
+        expect(supportsDns01(hetzner)).toBe(true)
+        expect(supportsDdns(hetzner, 'A')).toBe(true)
+        expect(supportsDdns(hetzner, 'AAAA')).toBe(true)
+        expect(supportsProxyOption(hetzner, false)).toBe(true)
+        expect(supportsProxyOption(hetzner, true)).toBe(false)
         expect(supportsDns01(cloudflare)).toBe(true)
         expect(supportsDdns(cloudflare, 'A')).toBe(true)
         expect(supportsDdns(cloudflare, 'AAAA')).toBe(true)
