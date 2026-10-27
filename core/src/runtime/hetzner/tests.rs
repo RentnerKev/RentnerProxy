@@ -8,10 +8,15 @@ use axum::{
 use serde_json::{Value, json};
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(1);
 
 struct Reply {
     status: StatusCode,
@@ -51,6 +56,7 @@ struct Data {
 }
 struct Fixture {
     base: Url,
+    token: String,
     client: Client,
     data: Arc<Mutex<Data>>,
     task: tokio::task::JoinHandle<()>,
@@ -72,6 +78,11 @@ impl Fixture {
             .unwrap();
         Self {
             base,
+            // An OS may reuse a closed listener's port while its provider pause is live.
+            token: format!(
+                "contract-fixture-{}",
+                NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
+            ),
             client,
             data,
             task,
@@ -84,7 +95,7 @@ impl Fixture {
         Api::new(
             &self.client,
             &self.base,
-            "contract-fixture",
+            &self.token,
             Instant::now() + duration,
         )
     }
@@ -178,8 +189,8 @@ async fn zone_pagination_is_explicit_and_primary_filter_is_sent_without_exposing
             Some("50")
         );
         assert_eq!(pairs.get("page").unwrap().as_ref(), (index + 1).to_string());
-        assert_eq!(seen.token, "Bearer contract-fixture");
-        assert!(!seen.uri.contains("contract-fixture"));
+        assert_eq!(seen.token, format!("Bearer {}", fixture.token));
+        assert!(!seen.uri.contains(&fixture.token));
     }
 }
 #[tokio::test]
@@ -586,7 +597,7 @@ async fn provider_pause_is_shared_across_api_clients_but_scoped_to_base_and_toke
             Reply::json(json!({"zone":zone()})),
         ])
         .await;
-        super::clear_pause_for_test(&fixture.base, "contract-fixture");
+        super::clear_pause_for_test(&fixture.base, &fixture.token);
         let initial = fixture.api().zone("42").await.unwrap_err();
         assert_eq!(initial.kind, kind);
         assert_eq!(initial.retry_after, Some(47));
@@ -602,7 +613,7 @@ async fn provider_pause_is_shared_across_api_clients_but_scoped_to_base_and_toke
             let another_api = Api::new(
                 &another_client,
                 &fixture.base,
-                "contract-fixture",
+                &fixture.token,
                 Instant::now() + Duration::from_secs(3),
             );
             let paused = another_api.zone("42").await.unwrap_err();
@@ -630,8 +641,49 @@ async fn provider_pause_is_shared_across_api_clients_but_scoped_to_base_and_toke
 
         // A token's pause on one endpoint cannot suppress another API scope.
         let other_base = Fixture::new(vec![Reply::json(json!({"zone":zone()}))]).await;
-        assert_eq!(other_base.api().zone("42").await.unwrap().id, 42);
+        let other_base_api = Api::new(
+            &other_base.client,
+            &other_base.base,
+            &fixture.token,
+            Instant::now() + Duration::from_secs(3),
+        );
+        assert_eq!(other_base_api.zone("42").await.unwrap().id, 42);
         assert_eq!(other_base.count(), 1);
-        super::clear_pause_for_test(&fixture.base, "contract-fixture");
+        super::clear_pause_for_test(&fixture.base, &fixture.token);
     }
+}
+
+#[tokio::test]
+async fn fixture_credentials_isolate_cooldowns_even_when_an_endpoint_is_reused() {
+    let fixture = Fixture::new(vec![
+        Reply::status(StatusCode::UNAUTHORIZED).header("retry-after", 47),
+        Reply::json(json!({"zone":zone()})),
+    ])
+    .await;
+    assert_eq!(
+        fixture.api().zone("42").await.unwrap_err().kind,
+        ErrorKind::Unauthorized
+    );
+
+    let next_fixture = Fixture::new(vec![]).await;
+    assert_ne!(fixture.token, next_fixture.token);
+    // Keep the listener alive to model port reuse deterministically on every OS.
+    let next_scope = Api::new(
+        &next_fixture.client,
+        &fixture.base,
+        &next_fixture.token,
+        Instant::now() + Duration::from_secs(3),
+    );
+    assert_eq!(next_scope.zone("42").await.unwrap().id, 42);
+    assert_eq!(fixture.count(), 2);
+    assert_eq!(
+        fixture.api().zone("42").await.unwrap_err().kind,
+        ErrorKind::Unauthorized
+    );
+    assert_eq!(
+        fixture.count(),
+        2,
+        "the original scope must still honor its pause"
+    );
+    super::clear_pause_for_test(&fixture.base, &fixture.token);
 }
