@@ -1,4 +1,5 @@
 pub(super) mod dns_setup;
+pub(super) mod domain_diagnostics;
 use axum::{
     Json,
     http::{HeaderValue, StatusCode, header::CACHE_CONTROL},

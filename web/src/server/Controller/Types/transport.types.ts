@@ -1,5 +1,6 @@
 export interface ControllerRequestOptions {
     readonly timeoutMs: number
+    readonly signal?: AbortSignal
     readonly privileged?: boolean
     readonly confidential?: boolean
     readonly body?: string

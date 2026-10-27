@@ -27,6 +27,7 @@ export async function controllerRequest(
     path:
         | '/health'
         | '/ready'
+        | '/internal/v1/diagnostics/domain'
         | '/internal/v1/proxy/status'
         | '/internal/v1/proxy/version'
         | '/internal/v1/crowdsec/status'
@@ -50,6 +51,7 @@ export async function controllerRequest(
         | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
     options: ControllerRequestOptions,
 ): Promise<unknown> {
+    if (options.signal?.aborted) return null
     const baseUrl = getControllerBaseUrl()
     const safePath = path.split('?')[0] ?? path
     if (!baseUrl) return null
@@ -69,12 +71,14 @@ export async function controllerRequest(
         path.startsWith('/internal/v1/dns/connections/')
     const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
     const isDiscoveryRequest = path.startsWith('/internal/v1/discovery/docker/')
+    const isDiagnosticsRequest = path === '/internal/v1/diagnostics/domain'
     if (
         options.privileged ||
         isCertificateRequest ||
         isDnsConnectionRequest ||
         isDdnsRequest ||
-        isDiscoveryRequest
+        isDiscoveryRequest ||
+        isDiagnosticsRequest
     ) {
         const token = getControllerToken()
         if (
@@ -83,6 +87,7 @@ export async function controllerRequest(
                 (isCertificateRequest ||
                     isDdnsRequest ||
                     isDiscoveryRequest ||
+                    isDiagnosticsRequest ||
                     isDnsConnectionRequest ||
                     !isLoopbackControllerUrl(baseUrl)))
         )
@@ -92,6 +97,9 @@ export async function controllerRequest(
 
     if (options.body !== undefined) headers['content-type'] = 'application/json'
     const requestAbort = new AbortController()
+    const abortFromCaller = () => requestAbort.abort()
+    options.signal?.addEventListener('abort', abortFromCaller, { once: true })
+    if (options.signal?.aborted) requestAbort.abort()
     const timeout = setTimeout(() => requestAbort.abort(), options.timeoutMs)
 
     try {
@@ -129,6 +137,7 @@ export async function controllerRequest(
         console.warn('[controller] request unavailable', { path: safePath })
         return null
     } finally {
+        options.signal?.removeEventListener('abort', abortFromCaller)
         clearTimeout(timeout)
     }
 }
