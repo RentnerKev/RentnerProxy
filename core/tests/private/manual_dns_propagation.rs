@@ -13,7 +13,7 @@ use std::sync::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, UdpSocket},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 
 struct Fixture {
@@ -32,9 +32,10 @@ impl Drop for Fixture {
 
 impl Fixture {
     async fn start(handler: impl Fn(Message, bool) -> Message + Send + Sync + 'static) -> Self {
-        let udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-        let address = udp.local_addr().unwrap();
-        let tcp = TcpListener::bind(address).await.unwrap();
+        let (tcp, udp) = reserve_socket_pair("127.0.0.1:0".parse().unwrap())
+            .await
+            .expect("reserve a shared TCP/UDP DNS fixture port");
+        let address = tcp.local_addr().unwrap();
         let handler = Arc::new(handler);
         let queries = Arc::new(AtomicUsize::new(0));
         let udp_handler = handler.clone();
@@ -76,6 +77,67 @@ impl Fixture {
     fn resolver(&self) -> TokioResolver {
         resolver(Some(self.address)).unwrap()
     }
+}
+
+async fn reserve_socket_pair(
+    mut candidate: SocketAddr,
+) -> std::io::Result<(TcpListener, UdpSocket)> {
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        // TCP and UDP have independent port namespaces. Keep TCP reserved while
+        // binding UDP to its exact port; release both before choosing a new port.
+        let pair: std::io::Result<_> = async {
+            let tcp = TcpListener::bind(candidate).await?;
+            let udp = UdpSocket::bind(tcp.local_addr()?).await?;
+            Ok((tcp, udp))
+        }
+        .await;
+        match pair {
+            Ok(pair) => return Ok(pair),
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse && attempts < 32 => {
+                candidate.set_port(0);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[tokio::test]
+async fn socket_pair_reservation_retries_occupied_tcp_and_udp_candidates() {
+    let occupied_udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let udp_candidate = occupied_udp.local_addr().unwrap();
+    let (tcp, udp) = reserve_socket_pair(udp_candidate).await.unwrap();
+    assert_eq!(tcp.local_addr().unwrap(), udp.local_addr().unwrap());
+    assert_ne!(tcp.local_addr().unwrap(), udp_candidate);
+
+    let occupied_tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let tcp_candidate = occupied_tcp.local_addr().unwrap();
+    let (tcp, udp) = reserve_socket_pair(tcp_candidate).await.unwrap();
+    assert_eq!(tcp.local_addr().unwrap(), udp.local_addr().unwrap());
+    assert_ne!(tcp.local_addr().unwrap(), tcp_candidate);
+}
+
+#[tokio::test]
+async fn parallel_socket_pair_reservations_keep_both_transports_on_unique_shared_ports() {
+    timeout(Duration::from_secs(5), async {
+        let mut pending = JoinSet::new();
+        for _ in 0..32 {
+            pending.spawn(reserve_socket_pair("127.0.0.1:0".parse().unwrap()));
+        }
+        let mut held_pairs = Vec::new();
+        let mut addresses = BTreeSet::new();
+        while let Some(pair) = pending.join_next().await {
+            let (tcp, udp) = pair.unwrap().unwrap();
+            let address = tcp.local_addr().unwrap();
+            assert_eq!(udp.local_addr().unwrap(), address);
+            assert!(addresses.insert(address));
+            held_pairs.push((tcp, udp));
+        }
+        assert_eq!(held_pairs.len(), 32);
+    })
+    .await
+    .unwrap();
 }
 
 fn response(request: &Message) -> Message {
