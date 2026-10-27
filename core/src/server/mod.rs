@@ -109,6 +109,20 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             }),
         )
         .route(
+            "/internal/v1/certificates/dns-01/setup",
+            post({
+                let state = state.clone();
+                move |body| handlers::dns_setup::setup(state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/dns-01/check",
+            post({
+                let state = state.clone();
+                move |id, body| handlers::dns_setup::check(id, state.clone(), body)
+            }),
+        )
+        .route(
             "/internal/v1/certificates/{id}/dns-01/continue",
             post({
                 let state = state.clone();

@@ -1,3 +1,4 @@
+import useManualDnsReadOnlyCheck from '../../Hooks/useManualDnsReadOnlyCheck.ts'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts'
 import { useEffect, useRef } from 'react'
@@ -67,10 +68,29 @@ export default function useCertificateDetailsModalLogic(
         toast.error(t(`admin.certificates.errors.${errorCode}`), { title: t('toast.titles.error') })
     }, [open, certificate.id, certificate.currentOperation?.id, errorCode, errorTime, t])
     const canAct = certificate.currentOperation?.kind === 'renew' ? canRenew : canIssue
+    const manualCheck = useManualDnsReadOnlyCheck({
+        input:
+            certificate.currentOperation?.dnsMode === 'manual' &&
+            manualDns &&
+            manualDns.status === 'awaiting_input'
+                ? {
+                      certificateId: certificate.id,
+                      operationId: certificate.currentOperation.id,
+                      challengeSetId: manualDns.challengeSetId,
+                  }
+                : null,
+        proof: JSON.stringify(manualDns?.records ?? []),
+        expiresAt: manualDns?.expiresAt ?? null,
+        disabled: !open || !canAct,
+    })
     const manualAction = useMutation({
         mutationFn: async (action: 'continue' | 'cancel') => {
             const operation = certificate.currentOperation
-            if (!operation?.manualDns || operation.manualDns.status !== 'awaiting_input')
+            if (
+                !operation?.manualDns ||
+                operation.manualDns.status !== 'awaiting_input' ||
+                Date.parse(operation.manualDns.expiresAt) <= Date.now()
+            )
                 throw new Error('stale')
             const data = {
                 certificateId: certificate.id,
@@ -146,6 +166,10 @@ export default function useCertificateDetailsModalLogic(
     return {
         state: {
             manualDns,
+            manualCheck: manualCheck.state,
+            showManualCheck:
+                certificate.currentOperation?.dnsMode === 'manual' &&
+                manualDns?.status === 'awaiting_input',
             showDelegatedCancel:
                 canAct &&
                 certificate.currentOperation?.dnsMode === 'delegated' &&
@@ -157,7 +181,8 @@ export default function useCertificateDetailsModalLogic(
                     delegatedAction.data.success &&
                     delegatedAction.variables === certificate.currentOperation?.id),
             manualPending: manualAction.isPending,
-            canActOnManualDns: canAct && manualDns?.status === 'awaiting_input',
+            canActOnManualDns:
+                canAct && manualDns?.status === 'awaiting_input' && !manualCheck.state.expired,
             manualCleanup: manualDns
                 ? ['complete', 'cancelled', 'expired', 'failed'].includes(manualDns.status)
                 : false,
@@ -175,6 +200,7 @@ export default function useCertificateDetailsModalLogic(
             formatDateTime: (value: Date | null) => formatDateTime(value, dateTimeFormatter),
         },
         handler: {
+            manualCheck: manualCheck.handler,
             cancelDelegated: () => {
                 const id = certificate.currentOperation?.id
                 if (

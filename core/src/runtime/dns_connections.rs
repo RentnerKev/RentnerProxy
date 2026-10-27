@@ -1,3 +1,5 @@
+mod setup;
+pub(in crate::runtime) use setup::SetupSnapshot;
 mod access;
 mod desec;
 mod hetzner;

@@ -6,6 +6,7 @@ pub(super) mod encryption;
 mod hetzner;
 mod models;
 mod provider;
+mod setup;
 mod txt;
 mod validation;
 

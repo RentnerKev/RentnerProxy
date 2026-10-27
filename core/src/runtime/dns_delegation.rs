@@ -320,3 +320,93 @@ async fn check_owner(
 #[cfg(test)]
 #[path = "../../tests/private/dns_delegation.rs"]
 mod tests;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::runtime) enum SetupObservation {
+    Ready(String),
+    Missing,
+    Conflicting(Option<String>),
+    LookupFailed,
+}
+
+pub(in crate::runtime) async fn inspect_setup(
+    original_owner: &str,
+    zone_name: &str,
+    desired: Option<&str>,
+    nameservers: &[String],
+    resolver: &TokioResolver,
+) -> SetupObservation {
+    if desired.is_none() {
+        match lookup(resolver, original_owner, RecordType::CNAME).await {
+            Ok(Some(answer)) => {
+                for record in answer.answers() {
+                    if let RData::CNAME(target) = &record.data
+                        && canonical_name(&record.name).ok().as_deref() == Some(original_owner)
+                    {
+                        return SetupObservation::Conflicting(canonical_name(&target.0).ok());
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(_) => return SetupObservation::LookupFailed,
+        }
+    }
+    let kind = if desired.is_some() {
+        RecordType::CNAME
+    } else {
+        RecordType::NS
+    };
+    let answer = match lookup(resolver, original_owner, kind).await {
+        Ok(Some(answer)) => answer,
+        Ok(None) => return SetupObservation::Missing,
+        Err(CertificateError::DnsDelegationInvalid) => return SetupObservation::Conflicting(None),
+        Err(_) => return SetupObservation::LookupFailed,
+    };
+    let mut observed = BTreeSet::new();
+    for record in answer.answers() {
+        let Ok(owner) = canonical_name(&record.name) else {
+            return SetupObservation::Conflicting(None);
+        };
+        if owner != original_owner {
+            continue;
+        }
+        let target = match (&record.data, desired) {
+            (RData::CNAME(target), Some(_)) => &target.0,
+            (RData::NS(target), None) => &target.0,
+            _ => continue,
+        };
+        match canonical_name(target) {
+            Ok(target) => {
+                observed.insert(target);
+            }
+            Err(_) => return SetupObservation::Conflicting(None),
+        }
+    }
+    if observed.is_empty() {
+        let has_alias = answer
+            .answers()
+            .iter()
+            .any(|record| matches!(record.data, RData::CNAME(_)));
+        return if has_alias {
+            SetupObservation::Conflicting(None)
+        } else {
+            SetupObservation::Missing
+        };
+    }
+    let target = desired.and_then(|_| observed.first().cloned());
+    let expected: BTreeSet<_> = match desired {
+        Some(target) => BTreeSet::from([target.to_owned()]),
+        None => nameservers.iter().cloned().collect(),
+    };
+    if observed != expected {
+        return SetupObservation::Conflicting(target);
+    }
+    match resolve_with_resolver(original_owner, zone_name, resolver).await {
+        Ok(binding) if desired.is_none_or(|desired| binding.target_owner == desired) => {
+            SetupObservation::Ready(binding.target_owner)
+        }
+        Ok(binding) => SetupObservation::Conflicting(Some(binding.target_owner)),
+        Err(CertificateError::DnsDelegationInvalid) => SetupObservation::Conflicting(target),
+        Err(_) => SetupObservation::LookupFailed,
+    }
+}

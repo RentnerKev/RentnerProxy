@@ -1,3 +1,4 @@
+pub(super) mod dns_setup;
 use axum::{
     Json,
     http::{HeaderValue, StatusCode, header::CACHE_CONTROL},

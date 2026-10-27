@@ -249,3 +249,10 @@ use material_files::material_at;
 pub(crate) use scheduling::renewal_timestamp;
 use scheduling::valid_timestamp;
 use validation::certificate_covers;
+
+pub(in crate::runtime) fn is_dns_setup_domain(
+    value: &str,
+    environment: CertificateEnvironment,
+) -> bool {
+    validation::is_acme_request_domain(value, AcmeChallengeType::Dns01, environment)
+}

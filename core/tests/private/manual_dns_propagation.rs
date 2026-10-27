@@ -33,6 +33,13 @@ impl Drop for Fixture {
 
 impl Fixture {
     async fn start(handler: impl Fn(Message, bool) -> Message + Send + Sync + 'static) -> Self {
+        Self::start_with_delay(Duration::ZERO, handler).await
+    }
+
+    async fn start_with_delay(
+        response_delay: Duration,
+        handler: impl Fn(Message, bool) -> Message + Send + Sync + 'static,
+    ) -> Self {
         let (tcp, udp) = reserve_socket_pair("127.0.0.1:0".parse().unwrap())
             .await
             .expect("reserve a shared TCP/UDP DNS fixture port");
@@ -47,6 +54,9 @@ impl Fixture {
                 let (length, peer) = udp.recv_from(&mut bytes).await.unwrap();
                 udp_queries.fetch_add(1, Ordering::SeqCst);
                 let request = Message::from_vec(&bytes[..length]).unwrap();
+                if !response_delay.is_zero() {
+                    tokio::time::sleep(response_delay).await;
+                }
                 let response = udp_handler(request, false).to_vec().unwrap();
                 udp.send_to(&response, peer).await.unwrap();
             }
@@ -60,6 +70,9 @@ impl Fixture {
                 stream.read_exact(&mut bytes).await.unwrap();
                 tcp_queries.fetch_add(1, Ordering::SeqCst);
                 let request = Message::from_vec(&bytes).unwrap();
+                if !response_delay.is_zero() {
+                    tokio::time::sleep(response_delay).await;
+                }
                 let response = handler(request, true).to_vec().unwrap();
                 stream
                     .write_u16(u16::try_from(response.len()).unwrap())
@@ -139,6 +152,17 @@ fn values(values: &[&str]) -> BTreeSet<Vec<u8>> {
         .collect()
 }
 
+fn match_data_values(
+    answers: &[RData],
+    expected: &BTreeSet<Vec<u8>>,
+) -> Result<(), CertificateError> {
+    let owner = Name::from_ascii("_acme-challenge.example.com.").unwrap();
+    let records: Vec<_> = answers
+        .iter()
+        .map(|data| Record::from_rdata(owner.clone(), 0, data.clone()))
+        .collect();
+    match_values(&records, &owner, expected)
+}
 fn groups(owner: &str, expected: &[&str]) -> ExpectedRecords {
     BTreeMap::from([(owner.to_owned(), values(expected))])
 }
@@ -162,17 +186,17 @@ fn joins_chunks_and_requires_all_complete_values() {
         txt(&["second"]),
         txt(&["unrelated"]),
     ];
-    assert!(match_values(&answers, &values(&["first-value", "second"])).is_ok());
+    assert!(match_data_values(&answers, &values(&["first-value", "second"])).is_ok());
     assert!(matches!(
-        match_values(&answers, &values(&["first"])),
+        match_data_values(&answers, &values(&["first"])),
         Err(CertificateError::ManualDnsNotPropagated)
     ));
     assert!(matches!(
-        match_values(&answers, &values(&["first-value", "missing"])),
+        match_data_values(&answers, &values(&["first-value", "missing"])),
         Err(CertificateError::ManualDnsNotPropagated)
     ));
     assert!(matches!(
-        match_values(&[], &values(&["first-value"])),
+        match_data_values(&[], &values(&["first-value"])),
         Err(CertificateError::ManualDnsNotPropagated)
     ));
 }
@@ -181,12 +205,12 @@ fn joins_chunks_and_requires_all_complete_values() {
 fn bounds_txt_bytes_and_record_count_even_for_unrelated_values() {
     let huge = "x".repeat(MAX_TXT_BYTES + 1);
     assert!(matches!(
-        match_values(&[txt(&[&huge])], &values(&["x"])),
+        match_data_values(&[txt(&[&huge])], &values(&["x"])),
         Err(CertificateError::ManualDnsLookupFailed)
     ));
     let many = vec![txt(&["x"]); MAX_TXT_RECORDS + 1];
     assert!(matches!(
-        match_values(&many, &values(&["x"])),
+        match_data_values(&many, &values(&["x"])),
         Err(CertificateError::ManualDnsLookupFailed)
     ));
 }
@@ -359,7 +383,7 @@ async fn queries_one_owner_for_multiple_values_and_observes_fresh_retries() {
             .await
             .is_ok()
     );
-    assert_eq!(fixture.queries.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.queries.load(Ordering::SeqCst), 4);
 }
 
 #[tokio::test]
@@ -388,7 +412,7 @@ async fn follows_cname_to_txt_target() {
         .await
         .is_ok()
     );
-    assert_eq!(fixture.queries.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.queries.load(Ordering::SeqCst), 3);
 }
 
 #[tokio::test]
@@ -451,7 +475,7 @@ async fn truncated_udp_retries_over_tcp() {
         .await
         .is_ok()
     );
-    assert_eq!(fixture.queries.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.queries.load(Ordering::SeqCst), 4);
 }
 
 #[tokio::test]
@@ -568,4 +592,133 @@ async fn total_deadline_bounds_many_slow_owners_and_limits_concurrency() {
         sent > 0 && sent <= MAX_CONCURRENT_OWNERS,
         "unexpected concurrent query count: {sent}"
     );
+}
+
+#[tokio::test]
+async fn requested_owner_wrong_value_plus_unrelated_expected_proof_is_not_propagated() {
+    let fixture = Fixture::start(|request, _| {
+        let mut answer = response(&request);
+        answer.add_answer(Record::from_rdata(
+            request.queries[0].name().clone(),
+            60,
+            txt(&["wrong-value"]),
+        ));
+        answer.add_answer(Record::from_rdata(
+            Name::from_ascii("unrelated.example.net.").unwrap(),
+            60,
+            txt(&["expected-proof"]),
+        ));
+        answer
+    })
+    .await;
+    assert!(matches!(
+        check_with_resolver(
+            groups("_acme-challenge.example.com.", &["expected-proof"]),
+            fixture.resolver(),
+            LOOKUP_TIMEOUT
+        )
+        .await,
+        Err(CertificateError::ManualDnsNotPropagated)
+    ));
+}
+
+#[tokio::test]
+async fn bounded_multihop_alias_accepts_only_terminal_chunked_complete_values() {
+    for complete in [true, false] {
+        let fixture = Fixture::start(move |request, _| {
+            let mut answer = response(&request);
+            let owner = request.queries[0].name().clone();
+            let alias = if owner == Name::from_ascii("_acme-challenge.example.com.").unwrap() {
+                Some("intermediate.example.net.")
+            } else if owner == Name::from_ascii("intermediate.example.net.").unwrap() {
+                Some("terminal.example.net.")
+            } else {
+                None
+            };
+            if let Some(target) = alias {
+                answer.add_answer(Record::from_rdata(
+                    owner,
+                    60,
+                    RData::CNAME(CNAME(Name::from_ascii(target).unwrap())),
+                ));
+            } else if request.queries[0].query_type() == RecordType::TXT {
+                answer.add_answer(Record::from_rdata(
+                    owner.clone(),
+                    60,
+                    txt(&["first-", "proof"]),
+                ));
+                if complete {
+                    answer.add_answer(Record::from_rdata(owner, 60, txt(&["second-proof"])));
+                }
+                answer.add_answer(Record::from_rdata(
+                    Name::from_ascii("unrelated.example.net.").unwrap(),
+                    60,
+                    txt(&["second-proof"]),
+                ));
+            }
+            answer
+        })
+        .await;
+        let result = check_with_resolver(
+            groups(
+                "_acme-challenge.example.com.",
+                &["first-proof", "second-proof"],
+            ),
+            fixture.resolver(),
+            LOOKUP_TIMEOUT,
+        )
+        .await;
+        if complete {
+            result.unwrap();
+        } else {
+            assert!(matches!(
+                result,
+                Err(CertificateError::ManualDnsNotPropagated)
+            ));
+        }
+        assert_eq!(fixture.queries.load(Ordering::SeqCst), 4);
+    }
+}
+
+#[tokio::test]
+async fn each_alias_question_gets_its_own_timeout_within_the_total_deadline() {
+    let fixture = Fixture::start_with_delay(Duration::from_millis(120), |request, _| {
+        let mut answer = response(&request);
+        let owner = request.queries[0].name().clone();
+        if request.queries[0].query_type() == RecordType::CNAME {
+            let target = match owner.to_ascii().as_str() {
+                "_acme-challenge.example.com." => Some("first.example.net."),
+                "first.example.net." => Some("second.example.net."),
+                "second.example.net." => Some("terminal.example.net."),
+                _ => None,
+            };
+            if let Some(target) = target {
+                answer.add_answer(Record::from_rdata(
+                    owner,
+                    0,
+                    RData::CNAME(CNAME(Name::from_ascii(target).unwrap())),
+                ));
+            }
+        } else {
+            answer.add_answer(Record::from_rdata(owner, 0, txt(&["complete-", "proof"])));
+        }
+        answer
+    })
+    .await;
+    let lookup_timeout = Duration::from_millis(400);
+    let started = tokio::time::Instant::now();
+    check_with_deadline(
+        groups("_acme-challenge.example.com.", &["complete-proof"]),
+        fixture.resolver(),
+        lookup_timeout,
+        Duration::from_secs(2),
+    )
+    .await
+    .unwrap();
+    assert_eq!(fixture.queries.load(Ordering::SeqCst), 5);
+    assert!(
+        started.elapsed() > lookup_timeout,
+        "the chain must outlive a single question's budget"
+    );
+    assert!(started.elapsed() < Duration::from_secs(2));
 }

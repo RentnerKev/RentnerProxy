@@ -92,10 +92,11 @@ export function createCertificateDnsConnectionsService(
                             provider.id === connection.provider && supportsDns01(provider),
                     ),
                 )
-                .map(({ id, name, provider, zones, verification }) => ({
+                .map(({ id, name, provider, revision, zones, verification }) => ({
                     id,
                     name,
                     provider,
+                    revision,
                     zones,
                     verification,
                 }))

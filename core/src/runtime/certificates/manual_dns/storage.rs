@@ -519,3 +519,41 @@ fn resumable(
             ManualDnsPhase::Validating | ManualDnsPhase::Finalizing
         ) || (order.phase == ManualDnsPhase::CheckingDns && order.records.is_empty()))
 }
+
+impl CertificateStore {
+    pub(in crate::runtime) async fn manual_dns_check_snapshot(
+        &self,
+        id: &str,
+        action: &ManualDnsActionRequest,
+    ) -> Result<(super::super::CertificateEnvironment, ManualDnsOrder), CertificateError> {
+        self.ensure_ready().await?;
+        let index = self.index.lock().await;
+        let entry = index
+            .certificates
+            .get(id)
+            .ok_or(CertificateError::NotFound)?;
+        let operation = entry
+            .metadata
+            .current_operation
+            .as_ref()
+            .ok_or(CertificateError::OperationInProgress)?;
+        let saved = order(entry)?;
+        if !action_matches(entry, action)
+            || !matches!(
+                operation.kind,
+                super::super::OperationKind::Issue | super::super::OperationKind::Renew
+            )
+            || !matches!(
+                (saved.phase, operation.stage),
+                (
+                    ManualDnsPhase::AwaitingInput,
+                    CertificateOperationStage::AwaitingDns
+                ) | (ManualDnsPhase::Expired, CertificateOperationStage::Expired)
+            )
+            || !manual_order_is_valid(entry, saved)
+        {
+            return Err(CertificateError::OperationInProgress);
+        }
+        Ok((request(entry)?.environment, saved.clone()))
+    }
+}

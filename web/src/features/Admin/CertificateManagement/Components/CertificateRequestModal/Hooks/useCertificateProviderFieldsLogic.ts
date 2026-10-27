@@ -1,3 +1,5 @@
+import useDnsSetupInspection from './useDnsSetupInspection.ts'
+import { connectionSupportsOperation } from '@/lib/DnsConnections/connectionEligibility.ts'
 import { useStore } from '@tanstack/react-form'
 import useCertificateDnsProviders from '../../../Hooks/useCertificateDnsProviders.ts'
 import { certificateConnectionZones } from '@/lib/DnsConnections/connectionEligibility.ts'
@@ -16,8 +18,24 @@ export default function useCertificateProviderFieldsLogic({
     const zones = connection
         ? certificateConnectionZones(connection, values.domains, values.dnsMode)
         : []
+    const inspection = useDnsSetupInspection(
+        form,
+        connection &&
+            connectionSupportsOperation(connection, dnsProviders, 'dns01') &&
+            zones.some((zone) => zone.id === values.dnsZoneId)
+            ? connection
+            : undefined,
+        disabled || connectionsLoading || connectionsError,
+    )
     return {
         state: {
+            dnsSetup: inspection.state,
+            delegated: values.dnsMode === 'delegated',
+            noConnection:
+                !connectionsLoading &&
+                !connections.some((item) =>
+                    connectionSupportsOperation(item, dnsProviders, 'dns01'),
+                ),
             connections,
             providers: dnsProviders,
             connectionId: values.dnsConnectionId ?? '',
@@ -28,6 +46,7 @@ export default function useCertificateProviderFieldsLogic({
             zoneLabel: t('admin.ddns.form.zone'),
         },
         handler: {
+            dnsSetup: inspection.handler,
             changeConnection: (id: string) => {
                 const selected = connections.find((item) => item.id === id)
                 form.setFieldValue('dnsConnectionId', id)

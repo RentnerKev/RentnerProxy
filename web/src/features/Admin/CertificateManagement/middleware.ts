@@ -5,6 +5,18 @@ import {
 import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
 import { searchCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import {
+    dnsSetupInputSchema,
+    manualDnsCheckInputSchema,
+} from '@/lib/Admin/CertificateManagement/dnsSetupValidation.ts'
+import type {
+    DnsSetupActionResult,
+    ManualDnsCheckActionResult,
+} from '@/lib/Admin/CertificateManagement/Types/dns-setup.types.ts'
+import {
+    inspectCertificateDnsSetupService,
+    checkManualDnsService,
+} from '@/server/Admin/CertificateManagement/dns-setup.service.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
@@ -35,7 +47,9 @@ function noStore(): void {
     setResponseHeader('Cache-Control', 'private, no-store')
 }
 
-function certificateActionFailure(error: unknown): CertificateActionResult {
+function certificateActionFailure(
+    error: unknown,
+): Extract<CertificateActionResult, { success: false }> {
     if (error instanceof CertificateDomainError) {
         setResponseStatus(
             error.code === 'certificate_not_found'
@@ -51,6 +65,28 @@ function certificateActionFailure(error: unknown): CertificateActionResult {
     }
     return localizedActionFailure(error, 'admin.certificates.errors.actionFailed')
 }
+
+export const inspectCertificateDnsSetupHandler = createServerFn({ method: 'POST' })
+    .validator(dnsSetupInputSchema)
+    .handler(async ({ data }): Promise<DnsSetupActionResult> => {
+        noStore()
+        try {
+            return { success: true, setup: await inspectCertificateDnsSetupService(data) }
+        } catch (error) {
+            return certificateActionFailure(error)
+        }
+    })
+
+export const checkManualDnsHandler = createServerFn({ method: 'POST' })
+    .validator(manualDnsCheckInputSchema)
+    .handler(async ({ data }): Promise<ManualDnsCheckActionResult> => {
+        noStore()
+        try {
+            return { success: true, check: await checkManualDnsService(data) }
+        } catch (error) {
+            return certificateActionFailure(error)
+        }
+    })
 
 async function certificateAction(
     action: () => Promise<string | void>,

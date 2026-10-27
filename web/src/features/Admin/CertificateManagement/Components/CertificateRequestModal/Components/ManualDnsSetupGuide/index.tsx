@@ -1,3 +1,4 @@
+import ManualDnsReadOnlyCheck from '../../../ManualDnsReadOnlyCheck/index.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
@@ -77,6 +78,9 @@ export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
                                   />
                               ))
                             : null}
+                        {props.dnsCheck && props.recordsReady ? (
+                            <ManualDnsReadOnlyCheck {...props.dnsCheck} />
+                        ) : null}
                         {props.recordsReady && props.expiresAt ? (
                             <p className="m-0 text-xs text-muted">
                                 {t('admin.certificates.manualDns.setup.expires', {
