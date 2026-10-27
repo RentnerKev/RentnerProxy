@@ -11,6 +11,7 @@ pub(crate) mod ddns;
 mod dns;
 pub(crate) mod dns_connections;
 mod dns_delegation;
+pub(crate) mod dns_setup;
 pub(crate) mod docker_discovery;
 mod engine;
 mod hetzner;
@@ -174,6 +175,7 @@ pub(crate) struct ProxyRuntime {
     crowdsec_dashboard_cache: Mutex<Option<crowdsec_dashboard::CrowdSecDashboardCache>>,
     binary_version_cache: Mutex<Option<(Instant, Option<String>)>>,
     binary_version_admission: Semaphore,
+    dns_assistant_admission: Semaphore,
 }
 
 impl ProxyRuntime {
@@ -249,6 +251,7 @@ impl ProxyRuntime {
             crowdsec_dashboard_cache: Mutex::new(None),
             binary_version_cache: Mutex::new(None),
             binary_version_admission: Semaphore::new(1),
+            dns_assistant_admission: Semaphore::new(2),
         })
     }
 }

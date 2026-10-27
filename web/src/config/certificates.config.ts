@@ -7,6 +7,12 @@ export const DEFAULT_ACME_ENVIRONMENT: AcmeEnvironment = 'production'
 export const ACME_TERMS_INFORMATION_URL = 'https://letsencrypt.org/repository/'
 export const ACME_CHALLENGE_TYPES = ['http-01', 'dns-01'] as const
 
+export const DNS_SETUP_CHECK_RATE_LIMIT = {
+    limit: 10,
+    scope: 'certificate-dns-check-user',
+    windowMs: 60_000,
+} as const
+
 export const CERTIFICATE_STORED_STATUSES = ['pending', 'valid', 'failed'] as const
 
 export const CERTIFICATE_OPERATIONS = ['idle', 'issuing', 'renewing'] as const

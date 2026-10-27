@@ -174,7 +174,7 @@ fn certificate_id(id: &str) -> Result<(), ApiError> {
     }
 }
 
-fn manual_dns_action(
+pub(super) fn manual_dns_action(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<crate::runtime::ManualDnsActionRequest, ApiError> {
     let body = body.map_err(|_| ApiError::validation_failed())?;

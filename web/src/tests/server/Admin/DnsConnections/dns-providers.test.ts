@@ -77,6 +77,7 @@ describe('certificate connection choices', () => {
                 id: DDNS_CONNECTION.id,
                 provider: 'cloudflare',
                 name: DDNS_CONNECTION.name,
+                revision: DDNS_CONNECTION.revision,
                 zones: DDNS_CONNECTION.zones,
                 verification: DDNS_CONNECTION.verification,
             },

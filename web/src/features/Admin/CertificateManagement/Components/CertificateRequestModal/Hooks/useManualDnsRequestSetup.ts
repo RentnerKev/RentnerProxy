@@ -1,3 +1,4 @@
+import useManualDnsReadOnlyCheck from '../../Hooks/useManualDnsReadOnlyCheck.ts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -289,7 +290,21 @@ export default function useManualDnsRequestSetup({
         onSuccess,
         t,
     ])
+    const dnsCheck = useManualDnsReadOnlyCheck({
+        input:
+            prepared && current.recordsReady && current.operation && current.manual
+                ? {
+                      certificateId: prepared.certificateId,
+                      operationId: current.operation.id,
+                      challengeSetId: current.manual.challengeSetId,
+                  }
+                : null,
+        proof: JSON.stringify(current.manual?.records ?? []),
+        expiresAt: current.manual?.expiresAt ?? null,
+        disabled: !enabled || !open || current.blocked || loadFailed || submitting,
+    })
     const guide: ManualDnsSetupGuideProps = {
+        dnsCheck,
         open,
         preparing,
         loading,

@@ -1,3 +1,4 @@
+import DnsSetupInstructions from './DnsSetupInstructions.tsx'
 import { CustomSelect } from '@rentnerkev/select/select'
 import ProviderConnectionSelect from '@/shared/ProviderConnections/ProviderConnectionSelect.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -9,9 +10,17 @@ export default function CertificateProviderFields(props: CertificateProviderFiel
     const { t } = useTranslationStore()
     return (
         <div className="grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3">
+            <h3 className="m-0 text-sm font-extrabold text-ink-soft">
+                {t('admin.certificates.dnsSetup.connection')}
+            </h3>
             <p className="m-0 text-sm leading-relaxed text-info-text">
                 {t('admin.providers.certificateHint')}
             </p>
+            {state.noConnection ? (
+                <p className="m-0 text-sm text-muted">
+                    {t('admin.certificates.dnsSetup.noConnection')}
+                </p>
+            ) : null}
             {state.unavailable ? (
                 <p role="alert" className="text-sm text-danger-text">
                     {t('admin.dnsConnections.errors.controller_unavailable')}
@@ -51,6 +60,12 @@ export default function CertificateProviderFields(props: CertificateProviderFiel
                     {t('admin.providers.noMatchingZone')}
                 </output>
             ) : null}
+            <DnsSetupInstructions
+                state={state.dnsSetup}
+                handler={handler.dnsSetup}
+                delegated={state.delegated}
+                disabled={state.disabled}
+            />
         </div>
     )
 }

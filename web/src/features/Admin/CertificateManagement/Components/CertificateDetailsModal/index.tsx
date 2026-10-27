@@ -1,3 +1,4 @@
+import ManualDnsReadOnlyCheck from '../ManualDnsReadOnlyCheck/index.tsx'
 import useCertificateDetailsModalLogic from './Hooks/useCertificateDetailsModalLogic.ts'
 import type { ReactNode } from 'react'
 
@@ -101,6 +102,12 @@ export default function CertificateDetailsModal({
                                 {state.formatDateTime(new Date(state.manualDns.lastCheckedAt))}
                             </p>
                         ) : null}
+                        {state.showManualCheck ? (
+                            <ManualDnsReadOnlyCheck
+                                state={state.manualCheck}
+                                handler={handler.manualCheck}
+                            />
+                        ) : null}
                         {state.canActOnManualDns ? (
                             <div className="flex flex-wrap gap-3">
                                 <ModalActionButton
@@ -161,8 +168,9 @@ export default function CertificateDetailsModal({
                             value={
                                 certificate.source === 'acme'
                                     ? t(
-                                          certificate.currentOperation?.dnsMode === 'manual'
-                                              ? 'admin.certificates.manualDns.manual'
+                                          (certificate.dnsMode ??
+                                              certificate.currentOperation?.dnsMode) === 'manual'
+                                              ? 'admin.certificates.dnsSetup.manualRenewal'
                                               : 'admin.certificates.details.autoRenewAcme',
                                       )
                                     : t('admin.certificates.details.autoRenewManual')

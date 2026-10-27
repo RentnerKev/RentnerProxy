@@ -1,6 +1,8 @@
+import type useManualDnsReadOnlyCheck from '../../../../Hooks/useManualDnsReadOnlyCheck.ts'
 import type { ManualDnsChallengeMetadata } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 
 export interface ManualDnsSetupGuideProps {
+    readonly dnsCheck?: ReturnType<typeof useManualDnsReadOnlyCheck>
     readonly open: boolean
     readonly preparing: boolean
     readonly loading: boolean

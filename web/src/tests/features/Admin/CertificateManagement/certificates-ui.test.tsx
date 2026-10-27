@@ -1,3 +1,10 @@
+import type {
+    DnsSetupActionResult,
+    DnsSetupInput,
+    DnsSetupResult,
+    ManualDnsCheckActionResult,
+    ManualDnsCheckInput,
+} from '@/lib/Admin/CertificateManagement/Types/dns-setup.types.ts'
 import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { generateKeyPairSync } from 'node:crypto'
@@ -131,7 +138,74 @@ const cancelDelegatedCertificateHandlerMock = mock(
         message: 'admin.certificates.delegatedDns.cancelling',
     }),
 )
+function setupResponse(
+    input: DnsSetupInput,
+    status: DnsSetupResult['results'][number]['status'] = 'ready',
+): DnsSetupActionResult {
+    const owner = `_acme-challenge.${input.domains[0]!.replace(/^\*\./u, '')}`
+    return {
+        success: true,
+        setup: {
+            connectionId: input.connectionId,
+            connectionRevision: input.expectedRevision,
+            zoneId: input.zoneId,
+            zoneName:
+                DDNS_CONNECTION.zones.find((zone) => zone.id === input.zoneId)?.name ??
+                'example.com',
+            provider: 'cloudflare',
+            dnsMode: input.dnsMode,
+            checkedAt: '2026-10-27T12:00:00Z',
+            results: [
+                {
+                    identifiers: input.domains,
+                    originalOwner: owner,
+                    instruction: {
+                        type:
+                            input.dnsMode === 'provider'
+                                ? 'TXT'
+                                : input.delegation?.type === 'ns'
+                                  ? 'NS'
+                                  : 'CNAME',
+                        owner,
+                        values:
+                            input.dnsMode === 'provider'
+                                ? []
+                                : input.delegation?.type === 'cname'
+                                  ? [input.delegation.targetOwner + '.']
+                                  : ['ns1.provider.example.', 'ns2.provider.example.'],
+                    },
+                    status,
+                    observedTarget:
+                        input.delegation?.type === 'cname' ? input.delegation.targetOwner : null,
+                },
+            ],
+        },
+    }
+}
+const inspectCertificateDnsSetupHandlerMock = mock(
+    async ({ data }: { data: DnsSetupInput }): Promise<DnsSetupActionResult> => setupResponse(data),
+)
+const checkManualDnsHandlerMock = mock(
+    async ({ data }: { data: ManualDnsCheckInput }): Promise<ManualDnsCheckActionResult> => ({
+        success: true,
+        check: {
+            ...data,
+            checkedAt: '2026-10-27T12:00:00Z',
+            expiresAt: '2099-01-01T00:00:00Z',
+            status: 'ready',
+            records: [
+                {
+                    owner: '_acme-challenge.example.com',
+                    identifiers: ['example.com', '*.example.com'],
+                    status: 'ready',
+                },
+            ],
+        },
+    }),
+)
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
+    inspectCertificateDnsSetupHandler: inspectCertificateDnsSetupHandlerMock,
+    checkManualDnsHandler: checkManualDnsHandlerMock,
     continueManualDnsHandler: continueManualDnsHandlerMock,
     cancelManualDnsHandler: cancelManualDnsHandlerMock,
     cancelDelegatedCertificateHandler: cancelDelegatedCertificateHandlerMock,
@@ -325,6 +399,11 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 }
 
 beforeEach(() => {
+    inspectCertificateDnsSetupHandlerMock.mockReset()
+    inspectCertificateDnsSetupHandlerMock.mockImplementation(async ({ data }) =>
+        setupResponse(data),
+    )
+    checkManualDnsHandlerMock.mockClear()
     continueManualDnsHandlerMock.mockClear()
     cancelManualDnsHandlerMock.mockClear()
     cancelDelegatedCertificateHandlerMock.mockReset()
@@ -1651,7 +1730,7 @@ const manualOperation: NonNullable<CertificateSummary['currentOperation']> = {
     manualDns: {
         challengeSetId: '0198d98a-0000-7000-8000-000000000003',
         status: 'awaiting_input',
-        expiresAt: '2026-10-25T11:00:00Z',
+        expiresAt: '2099-01-01T00:00:00Z',
         lastCheckedAt: null,
         lastErrorCode: null,
         records: [
@@ -1659,13 +1738,13 @@ const manualOperation: NonNullable<CertificateSummary['currentOperation']> = {
                 identifier: 'example.com',
                 owner: '_acme-challenge.example.com',
                 value: 'a'.repeat(43),
-                expiresAt: '2026-10-25T11:00:00Z',
+                expiresAt: '2099-01-01T00:00:00Z',
             },
             {
                 identifier: '*.example.com',
                 owner: '_acme-challenge.example.com',
                 value: 'b'.repeat(43),
-                expiresAt: '2026-10-25T11:00:00Z',
+                expiresAt: '2099-01-01T00:00:00Z',
             },
         ],
     },
@@ -2378,4 +2457,446 @@ test.each([
         ),
     ).toBeFalse()
     expect(cancelDelegatedCertificateHandlerMock).not.toHaveBeenCalled()
+})
+
+async function openDnsInspection(mode: 'provider' | 'delegated' = 'delegated') {
+    await renderPage(
+        [],
+        'en',
+        <CertificateRequestModal open onOpenChange={() => undefined} onSuccess={() => undefined} />,
+    )
+    await setValue(document.querySelector('#certificate-request-name')!, 'Guided edge')
+    await setValue(
+        certificateDomainInputs()[0]!,
+        mode === 'delegated' ? '*.customer.example.net' : '*.example.com',
+    )
+    await chooseDnsChallenge(mode)
+    await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+    await click(document.querySelector('[aria-label="Provider connection"]')!)
+    await waitFor(() => !!document.querySelector('[role=option]'))
+    await click(
+        [...document.querySelectorAll('[role=option]')].find((option) =>
+            option.textContent?.includes(DDNS_CONNECTION.name),
+        )!,
+    )
+}
+
+test('guided delegated setup shows exact CNAME records, copies absolute values and checks DNS without issuing', async () => {
+    const writeText = mock(async (_value: string) => undefined)
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+        await openDnsInspection()
+        expect(document.body.textContent).toContain('1. Choose how to prove domain ownership')
+        expect(document.body.textContent).toContain('2. Choose a verified connection and zone')
+        expect(document.body.textContent).toContain('3. Check the DNS instructions')
+        expect(
+            document.querySelector<HTMLInputElement>('#certificate-dns-target-owner')!.value,
+        ).toBe('acme.example.com')
+        await click(button('Check public DNS (read only)'))
+        await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+        expect(inspectCertificateDnsSetupHandlerMock).toHaveBeenCalledWith({
+            data: {
+                domains: ['*.customer.example.net'],
+                environment: 'production',
+                dnsMode: 'delegated',
+                connectionId: DDNS_CONNECTION.id,
+                expectedRevision: DDNS_CONNECTION.revision,
+                zoneId: DDNS_CONNECTION.zones[0]!.id,
+                delegation: { type: 'cname', targetOwner: 'acme.example.com' },
+            },
+        })
+        expect(
+            document.querySelector<HTMLInputElement>('#certificate-dns-record-owner-0')!.value,
+        ).toBe('_acme-challenge.customer.example.net')
+        expect(
+            document.querySelector<HTMLInputElement>('#certificate-dns-record-value-0-0')!.value,
+        ).toBe('acme.example.com.')
+        await click(document.querySelector('[aria-label="Copy DNS record value 1.1"]')!)
+        expect(writeText).toHaveBeenCalledWith('acme.example.com.')
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(continueManualDnsHandlerMock).not.toHaveBeenCalled()
+    } finally {
+        if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor)
+        else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+})
+
+test('setup inspection deduplicates clicks and discards old results after target edits, including edit and revert', async () => {
+    let resolve: ((value: DnsSetupActionResult) => void) | undefined
+    let sent: DnsSetupInput | undefined
+    inspectCertificateDnsSetupHandlerMock.mockImplementationOnce(({ data }) => {
+        sent = data
+        return new Promise((done) => {
+            resolve = done
+        })
+    })
+    await openDnsInspection()
+    const check = button('Check public DNS (read only)')
+    await click(check)
+    await click(check)
+    expect(inspectCertificateDnsSetupHandlerMock).toHaveBeenCalledTimes(1)
+    await setValue(document.querySelector('#certificate-dns-target-owner')!, 'changed.example.com')
+    await setValue(document.querySelector('#certificate-dns-target-owner')!, 'acme.example.com')
+    await act(async () => {
+        resolve!(setupResponse(sent!))
+        await Promise.resolve()
+    })
+    expect(document.body.textContent).not.toContain('Last check:')
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    await setValue(certificateDomainInputs()[0]!, '*.other.example.net')
+    expect(document.body.textContent).not.toContain('Last check:')
+    expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+})
+
+test.each(['missing', 'conflicting', 'lookup_failed', 'nameservers_unavailable'] as const)(
+    'guided setup shows the actual %s result and recovery guidance',
+    async (status) => {
+        inspectCertificateDnsSetupHandlerMock.mockImplementationOnce(async ({ data }) =>
+            setupResponse(data, status),
+        )
+        await openDnsInspection()
+        await click(button('Check public DNS (read only)'))
+        await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+        expect(document.querySelector('fieldset output')?.textContent).not.toBe('Ready')
+        expect(document.querySelector('fieldset output')?.textContent?.length).toBeGreaterThan(20)
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+    },
+)
+
+test('direct API inspection explains automatic TXT proofs without inventing values or creating orders', async () => {
+    await openDnsInspection('provider')
+    expect(document.body.textContent).toContain('Automatic renewal using this connection.')
+    expect(document.querySelector('#certificate-dns-target-owner')).toBeNull()
+    await click(button('Check saved connection and zone'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    expect(document.querySelector('#certificate-dns-record-value-0-0')).toBeNull()
+    expect(document.body.textContent).toContain('TXT values are generated automatically')
+    expect(document.querySelector('fieldset output')?.textContent).toContain(
+        'The verified saved connection covers this zone.',
+    )
+    expect(document.body.textContent).not.toContain('Check public DNS (read only)')
+    expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+})
+
+test('manual setup read-only DNS check preserves the accepted order and leaves CA continuation explicit', async () => {
+    mockManualPreparation()
+    await openManualSetup()
+    await waitFor(() => document.querySelector('#manual-dns-setup-value-1') !== null)
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    expect(checkManualDnsHandlerMock).toHaveBeenCalledWith({
+        data: {
+            certificateId: preparedManualCertificate.id,
+            operationId: preparedManualCertificate.currentOperation!.id,
+            challengeSetId: preparedManualCertificate.currentOperation!.manualDns!.challengeSetId,
+        },
+    })
+    expect(requestCertificateHandlerMock).toHaveBeenCalledTimes(1)
+    expect(continueManualDnsHandlerMock).not.toHaveBeenCalled()
+    await click(button('Done'))
+    expect(requestCertificateHandlerMock).toHaveBeenCalledTimes(1)
+})
+
+test('NS setup loads the selected challenge zone provider name servers and displays every exact value', async () => {
+    getCertificateDnsConnections.mockResolvedValueOnce([
+        {
+            ...DDNS_CONNECTION,
+            revision: 9,
+            zones: [
+                { id: DDNS_CONNECTION.zones[0]!.id, name: '_acme-challenge.customer.example.net' },
+            ],
+            verification: {
+                ...DDNS_CONNECTION.verification!,
+                zoneIds: [DDNS_CONNECTION.zones[0]!.id],
+            },
+        },
+    ])
+    await openDnsInspection()
+    await click(document.querySelector('[aria-label="Delegation type"]')!)
+    await waitFor(() => !!document.querySelector('[role=option]'))
+    await click(
+        [...document.querySelectorAll('[role=option]')].find(
+            (option) => option.textContent?.trim() === 'NS',
+        )!,
+    )
+    expect(document.querySelector('#certificate-dns-target-owner')).toBeNull()
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    expect(inspectCertificateDnsSetupHandlerMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({ expectedRevision: 9, delegation: { type: 'ns' } }),
+    })
+    expect(
+        document.querySelector<HTMLInputElement>('#certificate-dns-record-value-0-0')!.value,
+    ).toBe('ns1.provider.example.')
+    expect(
+        document.querySelector<HTMLInputElement>('#certificate-dns-record-value-0-1')!.value,
+    ).toBe('ns2.provider.example.')
+    expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+})
+
+test.each(['pending', 'lookup_failed', 'expired'] as const)(
+    'manual details read-only check displays actual %s without continuing the CA',
+    async (status) => {
+        checkManualDnsHandlerMock.mockImplementationOnce(async ({ data }) => ({
+            success: true,
+            check: {
+                ...data,
+                checkedAt: '2026-10-27T12:00:00Z',
+                expiresAt: '2099-01-01T00:00:00Z',
+                status,
+                records: [
+                    {
+                        owner: '_acme-challenge.example.com',
+                        identifiers: ['example.com', '*.example.com'],
+                        status: status === 'expired' ? 'pending' : status,
+                    },
+                ],
+            },
+        }))
+        await renderPage(
+            [],
+            'en',
+            <CertificateDetailsModal
+                open
+                onOpenChange={() => undefined}
+                canIssue
+                certificate={preparedManualCertificate}
+            />,
+        )
+        await click(button('Check public DNS (read only)'))
+        await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+        const checkPanel = document.querySelector(
+            'section[aria-label="Check public DNS (read only)"]',
+        )!
+        expect(checkPanel.textContent).not.toContain('Ready')
+        expect(checkPanel.querySelector('output')?.textContent?.length).toBeGreaterThan(20)
+        expect(continueManualDnsHandlerMock).not.toHaveBeenCalled()
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+    },
+)
+
+function ChangingManualProof() {
+    const [current, setCurrent] = useState(preparedManualCertificate)
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() =>
+                    setCurrent({
+                        ...preparedManualCertificate,
+                        currentOperation: {
+                            ...preparedManualCertificate.currentOperation!,
+                            manualDns: {
+                                ...preparedManualCertificate.currentOperation!.manualDns!,
+                                challengeSetId: '0198d98a-0000-7000-8000-000000000099',
+                            },
+                        },
+                    })
+                }
+            >
+                Replace proof
+            </button>
+            <CertificateDetailsModal
+                open
+                onOpenChange={() => undefined}
+                canIssue
+                certificate={current}
+            />
+        </>
+    )
+}
+
+test('manual checks discard stale challenge-set replies and deduplicate clicks', async () => {
+    let resolve: ((value: ManualDnsCheckActionResult) => void) | undefined
+    let sent: ManualDnsCheckInput | undefined
+    checkManualDnsHandlerMock.mockImplementationOnce(({ data }) => {
+        sent = data
+        return new Promise((done) => {
+            resolve = done
+        })
+    })
+    await renderPage([], 'en', <ChangingManualProof />)
+    const check = button('Check public DNS (read only)')
+    await click(check)
+    await click(check)
+    expect(checkManualDnsHandlerMock).toHaveBeenCalledTimes(1)
+    await click(button('Replace proof'))
+    await act(async () => {
+        resolve!({
+            success: true,
+            check: {
+                ...sent!,
+                checkedAt: '2026-10-27T12:00:00Z',
+                expiresAt: '2099-01-01T00:00:00Z',
+                status: 'ready',
+                records: [],
+            },
+        })
+    })
+    expect(document.body.textContent).not.toContain('Last check:')
+    expect(continueManualDnsHandlerMock).not.toHaveBeenCalled()
+})
+
+test('manual renewal wording uses persistent DNS mode after the current operation disappears', async () => {
+    await renderPage(
+        [],
+        'en',
+        <CertificateDetailsModal
+            open
+            onOpenChange={() => undefined}
+            certificate={{
+                ...certificate,
+                dnsMode: 'manual',
+                challengeType: 'dns-01',
+                currentOperation: null,
+            }}
+        />,
+    )
+    expect(document.body.textContent).toContain(
+        'When a renewal needs a new DNS proof, add the new TXT values yourself.',
+    )
+    expect(document.body.textContent).not.toContain('Active ACME')
+})
+
+test('missing verified connections explain administrator setup without losing the current draft', async () => {
+    getCertificateDnsConnections.mockResolvedValueOnce([])
+    await renderPage(
+        [],
+        'en',
+        <CertificateRequestModal open onOpenChange={() => undefined} onSuccess={() => undefined} />,
+    )
+    await setValue(document.querySelector('#certificate-request-name')!, 'Keep this draft')
+    await setValue(certificateDomainInputs()[0]!, 'customer.example.net')
+    await chooseDnsChallenge('delegated')
+    await waitFor(
+        () => document.body.textContent?.includes('No verified connection is available.') === true,
+    )
+    expect(button('Check public DNS (read only)').disabled).toBeTrue()
+    const manage = document.querySelector<HTMLAnchorElement>('a[href="/providers"]')!
+    expect(manage.target).toBe('_blank')
+    expect(manage.rel).toContain('noopener')
+    await click(manage)
+    expect(document.querySelector<HTMLInputElement>('#certificate-request-name')!.value).toBe(
+        'Keep this draft',
+    )
+    expect(inspectCertificateDnsSetupHandlerMock).not.toHaveBeenCalled()
+    expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+})
+
+test('provider revision and verification changes synchronously invalidate setup results', async () => {
+    await openDnsInspection()
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    await act(async () => {
+        activeQueryClient!.setQueryData(
+            ['dns-connections', 'certificates'],
+            [{ ...DDNS_CONNECTION, revision: DDNS_CONNECTION.revision + 1 }],
+        )
+        await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(document.body.textContent).not.toContain('Last check:')
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    expect(inspectCertificateDnsSetupHandlerMock).toHaveBeenLastCalledWith({
+        data: expect.objectContaining({ expectedRevision: DDNS_CONNECTION.revision + 1 }),
+    })
+    await act(async () => {
+        activeQueryClient!.setQueryData(
+            ['dns-connections', 'certificates'],
+            [
+                {
+                    ...DDNS_CONNECTION,
+                    verification: { status: 'failed', checkedAt: null, zoneIds: [], error: null },
+                },
+            ],
+        )
+        await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(document.body.textContent).not.toContain('Last check:')
+    expect(button('Check public DNS (read only)').disabled).toBeTrue()
+})
+
+test('expired manual details block both read-only lookup and CA continuation without hiding the actual records', async () => {
+    await renderPage(
+        [],
+        'en',
+        <CertificateDetailsModal
+            open
+            onOpenChange={() => undefined}
+            canIssue
+            certificate={{
+                ...preparedManualCertificate,
+                currentOperation: {
+                    ...preparedManualCertificate.currentOperation!,
+                    manualDns: {
+                        ...preparedManualCertificate.currentOperation!.manualDns!,
+                        expiresAt: '2000-01-01T00:00:00Z',
+                    },
+                },
+            }}
+        />,
+    )
+    expect(button('Check public DNS (read only)').disabled).toBeTrue()
+    expect(document.body.textContent).toContain('This proof expired.')
+    expect(
+        [...document.querySelectorAll('button')].some((item) =>
+            item.textContent?.includes('Check DNS and continue'),
+        ),
+    ).toBeFalse()
+    expect(document.querySelector('#manual-dns-details-value-0')).not.toBeNull()
+    expect(checkManualDnsHandlerMock).not.toHaveBeenCalled()
+    expect(continueManualDnsHandlerMock).not.toHaveBeenCalled()
+})
+
+test('invalid CNAME draft targets cannot be checked or copied, while a valid target restores exact instructions', async () => {
+    await openDnsInspection()
+    const target = document.querySelector<HTMLInputElement>('#certificate-dns-target-owner')!
+    for (const value of [
+        'https://acme.example.com',
+        'acme',
+        'acme.outside.example.net',
+        'notexample.com',
+    ]) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each edit checks the same mounted form before the next input.
+        await setValue(target, value)
+        expect(target.getAttribute('aria-invalid')).toBe('true')
+        expect(button('Check public DNS (read only)').disabled).toBeTrue()
+        expect(document.querySelector('#certificate-dns-record-value-0-0')).toBeNull()
+        expect(document.querySelector('[aria-label="Copy DNS record value 1.1"]')).toBeNull()
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Check the current invalid draft before replacing it.
+        await click(button('Check public DNS (read only)'))
+        expect(inspectCertificateDnsSetupHandlerMock).not.toHaveBeenCalled()
+    }
+    await setValue(target, 'ACME.Example.COM.')
+    expect(target.getAttribute('aria-invalid')).not.toBe('true')
+    expect(button('Check public DNS (read only)').disabled).toBeFalse()
+    expect(
+        document.querySelector<HTMLInputElement>('#certificate-dns-record-value-0-0')!.value,
+    ).toBe('acme.example.com.')
+    await setValue(certificateDomainInputs()[0]!, 'example.com')
+    await setValue(target, '_acme-challenge.example.com')
+    expect(target.getAttribute('aria-invalid')).toBe('true')
+    expect(document.querySelector('#certificate-dns-record-value-0-0')).toBeNull()
+    expect(button('Check public DNS (read only)').disabled).toBeTrue()
+    await setValue(target, 'acme.example.com')
+    for (const domain of [
+        'localhost',
+        '192.0.2.1',
+        '_acme-challenge.example.com',
+        'app.demo.test',
+    ]) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each edit checks the same mounted form before the next input.
+        await setValue(certificateDomainInputs()[0]!, domain)
+        expect(document.querySelector('#certificate-dns-record-owner-0')).toBeNull()
+        expect(document.querySelector('#certificate-dns-record-value-0-0')).toBeNull()
+        expect(button('Check public DNS (read only)').disabled).toBeTrue()
+    }
+    await setValue(certificateDomainInputs()[0]!, '*.customer.example.net')
+    expect(button('Check public DNS (read only)').disabled).toBeFalse()
+    await click(button('Check public DNS (read only)'))
+    await waitFor(() => document.body.textContent?.includes('Last check:') === true)
+    expect(inspectCertificateDnsSetupHandlerMock).toHaveBeenCalledTimes(1)
+    expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
 })

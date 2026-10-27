@@ -56,7 +56,7 @@ export default function CertificateRequestFields({
                             className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-challengeType"
                         >
-                            {t('admin.certificates.form.challengeType')}
+                            {t('admin.certificates.dnsSetup.choose')}
                         </label>
                         <div className="flex items-start gap-2 max-sm:flex-wrap">
                             <div className="min-w-0 flex-1">
@@ -125,6 +125,25 @@ export default function CertificateRequestFields({
                                 </button>
                             ) : null}
                         </div>
+                        {field.state.value === 'dns-01' ? (
+                            <div className="grid gap-2 rounded-lg border-l-4 border-accent-ring bg-info-bg p-3">
+                                <p className="m-0 text-sm font-extrabold text-ink-soft">
+                                    {t(
+                                        `admin.certificates.dnsSetup.${manualMode ? 'manual' : dnsMode === 'delegated' ? 'delegated' : 'provider'}`,
+                                    )}
+                                </p>
+                                <p className="m-0 text-sm leading-relaxed text-ink-soft">
+                                    {t(
+                                        `admin.certificates.dnsSetup.${manualMode ? 'manualHint' : dnsMode === 'delegated' ? 'delegatedHint' : 'providerHint'}`,
+                                    )}
+                                </p>
+                                <p className="m-0 text-xs leading-relaxed text-muted">
+                                    {t(
+                                        `admin.certificates.dnsSetup.${manualMode ? 'manualRenewal' : 'automaticRenewal'}`,
+                                    )}
+                                </p>
+                            </div>
+                        ) : null}
                         {!manualMode ? (
                             <p
                                 id="certificate-request-challengeType-hint"

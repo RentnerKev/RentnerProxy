@@ -8,7 +8,7 @@ use hickory_resolver::{
     TokioResolver,
     config::{NameServerConfig, ResolverConfig, ResolverOpts},
     net::runtime::TokioRuntimeProvider,
-    proto::rr::{RData, RecordType},
+    proto::rr::{Name, RData, Record, RecordType},
 };
 use tokio::{task::JoinSet, time::timeout};
 
@@ -20,6 +20,8 @@ const MAX_RECORDS: usize = 100;
 const MAX_CONCURRENT_OWNERS: usize = 4;
 const MAX_TXT_BYTES: usize = 64 * 1024;
 const MAX_TXT_RECORDS: usize = 256;
+const MAX_CNAME_HOPS: usize = 8;
+const MAX_DNS_RECORDS: usize = 256;
 const DNS_TEST_ADDR: &str = "RENTNERPROXY_ACME_TEST_DNS_ADDR";
 const ACME_TEST_DIRECTORY: &str = "RENTNERPROXY_ACME_TEST_DIRECTORY_URL";
 const ACME_TEST_ROOT: &str = "RENTNERPROXY_ACME_TEST_ROOT_CERT";
@@ -140,19 +142,9 @@ async fn check_with_resolver(
                 break;
             };
             let resolver = resolver.clone();
-            tasks.spawn(async move {
-                let answer = timeout(lookup_timeout, resolver.lookup(owner, RecordType::TXT))
-                    .await
-                    .map_err(|_| CertificateError::ManualDnsLookupFailed)?
-                    .map_err(|error| {
-                        if error.is_no_records_found() {
-                            CertificateError::ManualDnsNotPropagated
-                        } else {
-                            CertificateError::ManualDnsLookupFailed
-                        }
-                    })?;
-                match_values(answer.answers().iter().map(|record| &record.data), &values)
-            });
+            tasks.spawn(
+                async move { check_owner(&owner, &values, &resolver, lookup_timeout).await },
+            );
         }
         let Some(result) = tasks.join_next().await else {
             return Ok(());
@@ -161,15 +153,117 @@ async fn check_with_resolver(
     }
 }
 
+// Exact CNAME queries do not trigger Hickory's internal alias chasing. Resolve
+// the chain explicitly so TXT owner provenance survives preserve_intermediates=false.
+async fn check_owner(
+    owner: &str,
+    expected: &BTreeSet<Vec<u8>>,
+    resolver: &TokioResolver,
+    lookup_timeout: Duration,
+) -> Result<(), CertificateError> {
+    let mut current = Name::from_ascii(owner)
+        .map_err(|_| CertificateError::ManualDnsLookupFailed)?
+        .to_lowercase();
+    let mut visited = BTreeSet::from([current.clone()]);
+    for hop in 0..=MAX_CNAME_HOPS {
+        let answer = timeout(
+            lookup_timeout,
+            resolver.lookup(current.clone(), RecordType::CNAME),
+        )
+        .await
+        .map_err(|_| CertificateError::ManualDnsLookupFailed)?;
+        let answer = match answer {
+            Ok(answer) => Some(answer),
+            Err(error) if error.is_no_records_found() => None,
+            Err(_) => return Err(CertificateError::ManualDnsLookupFailed),
+        };
+        let mut targets = BTreeSet::new();
+        if let Some(answer) = answer {
+            if answer.answers().len() + answer.authorities().len() + answer.additionals().len()
+                > MAX_DNS_RECORDS
+            {
+                return Err(CertificateError::ManualDnsLookupFailed);
+            }
+            for record in answer.answers() {
+                if record.name.to_lowercase() != current {
+                    continue;
+                }
+                if let RData::CNAME(target) = &record.data {
+                    let name = target.0.to_lowercase();
+                    let text = name.to_ascii();
+                    if !super::dns::is_canonical_dns_name(text.trim_end_matches('.')) {
+                        return Err(CertificateError::ManualDnsLookupFailed);
+                    }
+                    targets.insert(name);
+                }
+            }
+            if !targets.is_empty() {
+                for record in answer
+                    .answers()
+                    .iter()
+                    .chain(answer.authorities())
+                    .chain(answer.additionals())
+                {
+                    if record.name.to_lowercase() != current {
+                        continue;
+                    }
+                    match &record.data {
+                        RData::CNAME(target) if targets.contains(&target.0.to_lowercase()) => {}
+                        _ if matches!(
+                            record.record_type(),
+                            RecordType::RRSIG | RecordType::NSEC | RecordType::SIG
+                        ) => {}
+                        _ => return Err(CertificateError::ManualDnsLookupFailed),
+                    }
+                }
+            }
+        }
+        if targets.is_empty() {
+            let answer = timeout(
+                lookup_timeout,
+                resolver.lookup(current.clone(), RecordType::TXT),
+            )
+            .await
+            .map_err(|_| CertificateError::ManualDnsLookupFailed)?
+            .map_err(|error| {
+                if error.is_no_records_found() {
+                    CertificateError::ManualDnsNotPropagated
+                } else {
+                    CertificateError::ManualDnsLookupFailed
+                }
+            })?;
+            if answer.answers().len() + answer.authorities().len() + answer.additionals().len()
+                > MAX_DNS_RECORDS
+            {
+                return Err(CertificateError::ManualDnsLookupFailed);
+            }
+            return match_values(answer.answers(), &current, expected);
+        }
+        if targets.len() != 1 || hop == MAX_CNAME_HOPS {
+            return Err(CertificateError::ManualDnsLookupFailed);
+        }
+        current = targets
+            .into_iter()
+            .next()
+            .ok_or(CertificateError::ManualDnsLookupFailed)?;
+        if !visited.insert(current.clone()) {
+            return Err(CertificateError::ManualDnsLookupFailed);
+        }
+    }
+    Err(CertificateError::ManualDnsLookupFailed)
+}
 fn match_values<'a>(
-    answers: impl IntoIterator<Item = &'a RData>,
+    answers: impl IntoIterator<Item = &'a Record>,
+    owner: &Name,
     expected: &BTreeSet<Vec<u8>>,
 ) -> Result<(), CertificateError> {
     let mut values = BTreeSet::new();
     let mut total_bytes = 0_usize;
     let mut count = 0;
     for answer in answers {
-        let RData::TXT(txt) = answer else { continue };
+        let RData::TXT(txt) = &answer.data else {
+            continue;
+        };
         count += 1;
         if count > MAX_TXT_RECORDS {
             return Err(CertificateError::ManualDnsLookupFailed);
@@ -184,7 +278,9 @@ fn match_values<'a>(
             }
             logical.extend_from_slice(chunk);
         }
-        values.insert(logical);
+        if answer.name.to_lowercase() == *owner {
+            values.insert(logical);
+        }
     }
     if expected.is_subset(&values) {
         Ok(())
@@ -242,3 +338,16 @@ fn read_optional_env(name: &str) -> Result<Option<String>, CertificateError> {
 #[cfg(test)]
 #[path = "../../tests/private/manual_dns_propagation.rs"]
 mod tests;
+
+pub(in crate::runtime) async fn check_records_with_resolver(
+    records: &[ManualDnsRecord],
+    resolver: &TokioResolver,
+) -> Result<(), CertificateError> {
+    check_with_deadline(
+        expected_records(records)?,
+        resolver.clone(),
+        LOOKUP_TIMEOUT,
+        CHECK_TIMEOUT,
+    )
+    .await
+}

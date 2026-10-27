@@ -52,7 +52,7 @@ export interface DnsConnectionTestResult {
 
 export type DnsConnectionChoice = Pick<
     DnsConnection,
-    'id' | 'provider' | 'name' | 'zones' | 'verification'
+    'id' | 'provider' | 'name' | 'revision' | 'zones' | 'verification'
 >
 
 export interface ValidatedDnsConnectionReference {
