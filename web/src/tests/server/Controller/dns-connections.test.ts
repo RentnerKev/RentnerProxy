@@ -66,6 +66,16 @@ describe('DNS connection controller boundary', () => {
                     proxyOptions: 'cloudflare',
                 },
             },
+            {
+                id: 'desec',
+                capabilities: {
+                    zoneDiscovery: true,
+                    txtCreate: true,
+                    txtCleanup: true,
+                    addressRecordTypes: ['A', 'AAAA'],
+                    proxyOptions: 'none',
+                },
+            },
         ])
     })
     test('rejects unknown provider descriptors and sanitizes catalogue failures', async () => {
@@ -252,4 +262,29 @@ describe('DNS connection controller boundary', () => {
             })).delete(id, 1),
         ).rejects.toThrow('controller_unavailable')
     })
+})
+
+test('deSEC read tests accept domain zones and reject a substituted provider zone format', async () => {
+    const checkedAt = '2026-10-15T12:00:00Z'
+    const result = {
+        zones: [{ id: 'example.com', name: 'example.com' }],
+        selectedZoneIds: ['example.com'],
+        checkedAt,
+        dnsWriteVerified: false as const,
+    }
+    const controller = createDnsConnectionsController(async () => result)
+    await expect(
+        controller.test({ provider: 'desec', apiToken: 'fixture-token', zoneIds: ['example.com'] }),
+    ).resolves.toEqual(result)
+    await expect(
+        controller.test({ provider: 'cloudflare', apiToken: 'fixture-token' }),
+    ).rejects.toThrow('controller_unavailable')
+    const substituted = createDnsConnectionsController(async () => ({
+        ...result,
+        zones: [zone],
+        selectedZoneIds: [],
+    }))
+    await expect(
+        substituted.test({ provider: 'desec', apiToken: 'fixture-token' }),
+    ).rejects.toThrow('controller_unavailable')
 })

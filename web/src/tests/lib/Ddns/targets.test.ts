@@ -8,11 +8,17 @@ import {
     ddnsDraft,
     readyDdnsPreview,
 } from '@/lib/Ddns/targets.ts'
-import { ddnsDraftSchema, ddnsIdSchema } from '@/lib/Ddns/validation.ts'
+import {
+    ddnsDraftSchema,
+    ddnsIdSchema,
+    ddnsSnapshotSchema,
+    ddnsTargetSchema,
+} from '@/lib/Ddns/validation.ts'
 import {
     DDNS_CONNECTION,
     ddnsBatch,
     ddnsSettings,
+    ddnsSnapshot,
     ddnsTarget,
 } from '@/tests/Helpers/ddnsFixture.ts'
 
@@ -101,4 +107,38 @@ describe('explicit DDNS record selection', () => {
         expect(approved.targets[0]?.selection).toEqual({ mode: 'create' })
         expect(readyDdnsPreview(approved, batch)).toBe(false)
     })
+})
+
+test('snapshot creation recovery accepts only optional canonical record IDs', () => {
+    const snapshot = ddnsSnapshot(ddnsSettings())
+    expect(ddnsSnapshotSchema.safeParse(snapshot).success).toBe(true)
+    const withRecord = {
+        ...snapshot,
+        targets: snapshot.targets.map((target) => ({ ...target, createdRecordId: 'd'.repeat(32) })),
+    }
+    expect(ddnsSnapshotSchema.parse(withRecord).targets[0]?.createdRecordId).toBe('d'.repeat(32))
+    for (const createdRecordId of [
+        null,
+        '',
+        'D'.repeat(32),
+        'd'.repeat(31),
+        'example.com',
+        'd'.repeat(32) + '/',
+    ]) {
+        expect(
+            ddnsSnapshotSchema.safeParse({
+                ...snapshot,
+                targets: snapshot.targets.map((target) => ({ ...target, createdRecordId })),
+            }).success,
+        ).toBe(false)
+    }
+})
+
+test('creation recovery IDs cannot be supplied through DDNS configuration input', () => {
+    const target = { ...ddnsTarget(), createdRecordId: 'd'.repeat(32) }
+    expect(ddnsTargetSchema.safeParse(target).success).toBe(false)
+    expect(ddnsDraftSchema.safeParse(ddnsSettings([target])).success).toBe(false)
+    expect(
+        ddnsDraftSchema.safeParse({ ...ddnsSettings(), createdRecordId: 'd'.repeat(32) }).success,
+    ).toBe(false)
 })

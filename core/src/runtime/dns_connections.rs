@@ -1,4 +1,5 @@
 mod access;
+mod desec;
 mod models;
 mod references;
 #[cfg(test)]
@@ -74,12 +75,19 @@ impl Store {
         }
         encryption::encryption_key_from_environment().map_err(|_| Error::CredentialsUnavailable)
     }
+    #[cfg(test)]
     fn endpoint(&self) -> &str {
+        self.provider_endpoint(ProviderId::Cloudflare)
+    }
+    fn provider_endpoint(&self, provider: ProviderId) -> &str {
         #[cfg(test)]
         if let Some(endpoint) = self.endpoint.as_deref() {
             return endpoint;
         }
-        "https://api.cloudflare.com/client/v4/"
+        match provider {
+            ProviderId::Cloudflare => super::dns::CLOUDFLARE_API_BASE,
+            ProviderId::Desec => super::dns::DESEC_API_BASE,
+        }
     }
     async fn lock(&self) -> Result<MutexGuard<'_, Option<Registry>>, Error> {
         let mut state = self.state.lock().await;
@@ -209,7 +217,11 @@ impl Store {
             Some(token) => token,
             None => self.decrypt(entry.as_ref().ok_or(Error::TokenRequired)?)?,
         };
-        let zones = validation::permitted(provider, self.endpoint(), &token).await?;
+        if selected.iter().any(|id| !provider.valid_zone_id(id)) {
+            return Err(Error::InvalidInput);
+        }
+        let zones =
+            validation::permitted(provider, self.provider_endpoint(provider), &token).await?;
         select(&zones, &selected)?;
         // A test against a stored credential must not silently describe a stale revision.
         if let Some(entry) = entry {
@@ -251,6 +263,13 @@ impl Store {
                 .cloned()
         };
         let provider = resolve_provider(request.provider, old.as_ref())?;
+        if request
+            .zone_ids
+            .iter()
+            .any(|id| !provider.valid_zone_id(id))
+        {
+            return Err(Error::InvalidInput);
+        }
         if old.as_ref().is_some_and(|e| {
             e.metadata
                 .references
@@ -271,7 +290,8 @@ impl Store {
             Some(token) => token.clone(),
             None => self.decrypt(old.as_ref().ok_or(Error::TokenRequired)?)?,
         };
-        let permitted = validation::permitted(provider, self.endpoint(), &token).await?;
+        let permitted =
+            validation::permitted(provider, self.provider_endpoint(provider), &token).await?;
         let zones = select(&permitted, &request.zone_ids)?;
         let revision = request
             .expected_revision

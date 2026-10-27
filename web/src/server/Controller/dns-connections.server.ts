@@ -9,7 +9,10 @@ import type {
 } from './Types/dns-connections.types.ts'
 import { DnsConnectionDomainError } from '@/server/Admin/DnsConnections/dns-connections.errors.ts'
 import { controllerRequest } from './transport.server.ts'
-import { dnsProviderCatalogSchema } from '@/lib/DnsConnections/validation.ts'
+import {
+    dnsProviderCatalogSchema,
+    isDnsZoneIdForProvider,
+} from '@/lib/DnsConnections/validation.ts'
 import {
     dnsConnectionControllerErrorSchema,
     dnsConnectionMetadataSchema,
@@ -58,10 +61,13 @@ export function createDnsConnectionsController(
                 }),
                 dnsConnectionTestResultSchema,
             )
+            const provider = input.provider
             if (
-                input.zoneIds &&
-                (input.zoneIds.length !== result.selectedZoneIds.length ||
-                    input.zoneIds.some((id) => !result.selectedZoneIds.includes(id)))
+                (provider !== undefined &&
+                    result.zones.some((zone) => !isDnsZoneIdForProvider(zone.id, provider))) ||
+                (input.zoneIds &&
+                    (input.zoneIds.length !== result.selectedZoneIds.length ||
+                        input.zoneIds.some((id) => !result.selectedZoneIds.includes(id))))
             )
                 throw new DnsConnectionDomainError('controller_unavailable')
             return result
@@ -77,6 +83,7 @@ export function createDnsConnectionsController(
             )
             if (
                 result.id !== id ||
+                (input.provider !== undefined && result.provider !== input.provider) ||
                 result.revision !== input.expectedRevision + 1 ||
                 result.name !== input.name ||
                 (input.expectedRevision === 0 && result.createdByUserId !== input.actorUserId) ||

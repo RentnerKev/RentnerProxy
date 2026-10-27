@@ -8,7 +8,7 @@ use crate::{
     runtime::{
         ddns::{
             Engine,
-            models::{BatchResult, Error, Request, Status, TargetResult},
+            models::{BatchResult, Error, Request, Selection, Status, TargetResult},
             validation,
         },
         dns_connections::Store,
@@ -115,7 +115,21 @@ impl Automation {
             if eligible {
                 status.connection_revision = revision;
                 status.last_attempt_at = Some(now);
-                selected.push(target.clone());
+                let mut selected_target = target.clone();
+                // deSEC has no ownership comments. Reuse only the exact record
+                // acknowledged by a durably committed successful run for this
+                // unchanged target identity; configuration edits reset its state.
+                if matches!(target.selection, Selection::Create)
+                    && connections_metadata.iter().any(|connection| {
+                        connection.id == target.connection_id && connection.provider == "desec"
+                    })
+                    && let Some(record_id) = status.created_record_id.as_ref()
+                {
+                    selected_target.selection = Selection::Adopt {
+                        record_id: record_id.clone(),
+                    };
+                }
+                selected.push(selected_target);
             }
         }
         if selected.is_empty() {
@@ -188,6 +202,34 @@ impl Automation {
             .await?
             .clone();
         scheduling::complete(&mut next, &result, finished_at)?;
+        for target in &config.settings.targets {
+            if !matches!(target.selection, Selection::Create)
+                || !connections_metadata.iter().any(|connection| {
+                    connection.id == target.connection_id && connection.provider == "desec"
+                })
+                || !next.configuration.as_ref().is_some_and(|saved| {
+                    saved
+                        .settings
+                        .targets
+                        .iter()
+                        .any(|saved_target| saved_target == target)
+                })
+            {
+                continue;
+            }
+            if let Some(success) = result.targets.iter().find(|result| {
+                result.target_id == target.id
+                    && matches!(result.status, Status::Updated | Status::Unchanged)
+                    && result.error.is_none()
+            }) && let Some(current) = &success.current
+                && let Some(state) = next
+                    .targets
+                    .iter_mut()
+                    .find(|state| state.target_id == target.id)
+            {
+                state.created_record_id = Some(current.id.clone());
+            }
+        }
         self.commit(&mut state, next).await?;
         engine.mark_cooldown_persisted();
         Ok(Some(result))

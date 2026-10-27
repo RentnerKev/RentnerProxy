@@ -102,7 +102,14 @@ const dnsProvider = {
 let dnsProvidersUnavailable = false
 const getCertificateDnsProviders = mock(async () => {
     if (dnsProvidersUnavailable) throw new Error('offline')
-    return [dnsProvider]
+    return [
+        dnsProvider,
+        {
+            ...dnsProvider,
+            id: 'desec' as const,
+            capabilities: { ...dnsProvider.capabilities, proxyOptions: 'none' as const },
+        },
+    ]
 })
 const getCertificateDnsConnections = mock(async () => [DDNS_CONNECTION])
 const continueManualDnsHandlerMock = mock(async (_input: unknown) => ({
@@ -604,7 +611,7 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Valid until')
         expect(document.body.textContent).toContain('Automatic renewal')
         expect(document.body.textContent).toContain('Active ACME')
-        expect(document.body.textContent).toContain('DNS-01 (Cloudflare)')
+        expect(document.body.textContent).toContain('DNS-01 (DNS provider)')
         expect(document.body.textContent).toContain('Subject alternative names (SAN)')
         expect(document.body.textContent).toContain('Next renewal')
         expect(document.body.textContent).toContain('Last activation')
@@ -1155,51 +1162,73 @@ describe('certificate management UI', () => {
         })
     })
 
-    test('forwards DNS-01 wildcard requests with a shared account and retains the draft while managing providers', async () => {
-        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
-        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
-        await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
-        await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
-        await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
-        await click(button('Add another domain'))
-        await setValue(document.querySelector('#certificate-request-domain-1')!, 'example.com')
-        await chooseDnsChallenge()
-        await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
-        expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
-        const manage = document.querySelector<HTMLAnchorElement>('a[href="/providers"]')!
-        expect(manage.target).toBe('_blank')
-        expect(manage.rel).toContain('noopener')
-        await click(manage)
-        expect(document.querySelector<HTMLInputElement>('#certificate-request-name')!.value).toBe(
-            'Wildcard edge',
-        )
-        await click(document.querySelector('[aria-label="Provider connection"]')!)
-        await waitFor(() => !!document.querySelector('[role=option]'))
-        const option = [...document.querySelectorAll('[role=option]')].find((item) =>
-            item.textContent?.includes('Fixture Cloudflare'),
-        )!
-        expect(option.textContent).toContain('Connected')
-        await click(option)
-        await click(lastButton('Request with ACME'))
-        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
-        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
-            data: {
-                name: 'Wildcard edge',
-                domains: ['*.example.com', 'example.com'],
-                environment: 'production',
-                challengeType: 'dns-01',
-                dnsProvider: {
-                    type: 'connection',
-                    provider: 'cloudflare',
-                    connectionId: DDNS_CONNECTION.id,
-                    zoneId: 'a'.repeat(32),
+    test.each(['cloudflare', 'desec'] as const)(
+        'forwards DNS-01 wildcard requests through %s with a shared account and retains the draft while managing providers',
+        async (providerId) => {
+            const connection =
+                providerId === 'cloudflare'
+                    ? DDNS_CONNECTION
+                    : {
+                          ...DDNS_CONNECTION,
+                          provider: providerId,
+                          name: 'Fixture deSEC',
+                          zones: [{ id: 'example.com', name: 'example.com' }],
+                          verification: {
+                              status: 'connected' as const,
+                              checkedAt: DDNS_CONNECTION.updatedAt,
+                              zoneIds: ['example.com'],
+                              error: null,
+                          },
+                      }
+            getCertificateDnsConnections.mockResolvedValueOnce([connection])
+            await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+            await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+            await click(button('Request with ACME'))
+            await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+            await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
+            await setValue(
+                document.querySelector('#certificate-request-domain-0')!,
+                '*.example.com',
+            )
+            await click(button('Add another domain'))
+            await setValue(document.querySelector('#certificate-request-domain-1')!, 'example.com')
+            await chooseDnsChallenge()
+            await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+            expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
+            const manage = document.querySelector<HTMLAnchorElement>('a[href="/providers"]')!
+            expect(manage.target).toBe('_blank')
+            expect(manage.rel).toContain('noopener')
+            await click(manage)
+            expect(
+                document.querySelector<HTMLInputElement>('#certificate-request-name')!.value,
+            ).toBe('Wildcard edge')
+            await click(document.querySelector('[aria-label="Provider connection"]')!)
+            await waitFor(() => !!document.querySelector('[role=option]'))
+            const option = [...document.querySelectorAll('[role=option]')].find((item) =>
+                item.textContent?.includes(connection.name),
+            )!
+            expect(option.textContent).toContain('Connected')
+            await click(option)
+            await click(lastButton('Request with ACME'))
+            await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+            expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+                data: {
+                    name: 'Wildcard edge',
+                    domains: ['*.example.com', 'example.com'],
+                    environment: 'production',
+                    challengeType: 'dns-01',
+                    dnsProvider: {
+                        type: 'connection',
+                        provider: providerId,
+                        connectionId: connection.id,
+                        zoneId: connection.zones[0]!.id,
+                    },
+                    contactEmail: '',
+                    acceptTerms: true,
                 },
-                contactEmail: '',
-                acceptTerms: true,
-            },
-        })
-    })
+            })
+        },
+    )
 
     test('domain edits clear an ineligible displayed zone and allow selecting the new permitted zone', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])

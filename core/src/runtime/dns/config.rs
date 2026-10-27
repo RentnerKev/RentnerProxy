@@ -6,9 +6,13 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::runtime::{certificates::CertificateEnvironment, certificates::CertificateError};
 
-use super::validation::{is_cloudflare_zone_id, is_safe_secret};
+use super::{
+    capabilities::ProviderId,
+    validation::{is_cloudflare_zone_id, is_desec_zone_id, is_safe_secret},
+};
 
-pub(super) const CLOUDFLARE_API_BASE: &str = "https://api.cloudflare.com/client/v4/";
+pub(in crate::runtime) const CLOUDFLARE_API_BASE: &str = "https://api.cloudflare.com/client/v4/";
+pub(in crate::runtime) const DESEC_API_BASE: &str = "https://desec.io/api/v1/";
 const DNS_TEST_API_URL_ENV: &str = "RENTNERPROXY_DNS_TEST_API_URL";
 const ACME_TEST_DIRECTORY_ENV: &str = "RENTNERPROXY_ACME_TEST_DIRECTORY_URL";
 const ACME_TEST_ROOT_ENV: &str = "RENTNERPROXY_ACME_TEST_ROOT_CERT";
@@ -16,6 +20,8 @@ const ACME_TEST_ROOT_ENV: &str = "RENTNERPROXY_ACME_TEST_ROOT_CERT";
 #[derive(Clone, Serialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub(crate) enum DnsProviderConfig {
+    #[serde(skip)]
+    Desec { zone_id: String, api_token: String },
     #[serde(rename = "connection")]
     Connection {
         provider: super::capabilities::ProviderId,
@@ -83,6 +89,11 @@ impl<'de> Deserialize<'de> for DnsProviderConfig {
 impl fmt::Debug for DnsProviderConfig {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Desec { zone_id, .. } => formatter
+                .debug_struct("Desec")
+                .field("zone_id", zone_id)
+                .field("api_token", &"REDACTED")
+                .finish(),
             Self::Connection {
                 provider,
                 connection_id,
@@ -105,6 +116,7 @@ impl fmt::Debug for DnsProviderConfig {
 impl DnsProviderConfig {
     pub(crate) fn provider_id(&self) -> super::capabilities::ProviderId {
         match self {
+            Self::Desec { .. } => ProviderId::Desec,
             Self::Connection { provider, .. } => *provider,
             Self::Cloudflare { .. } => super::capabilities::ProviderId::Cloudflare,
         }
@@ -125,6 +137,11 @@ impl DnsProviderConfig {
 
     pub(crate) fn validate(&self) -> Result<(), CertificateError> {
         match self {
+            Self::Desec { zone_id, api_token } => {
+                if !is_desec_zone_id(zone_id) || !is_safe_secret(api_token, 512) {
+                    return Err(CertificateError::DnsProviderInvalid);
+                }
+            }
             Self::Connection {
                 provider,
                 connection_id,
@@ -147,6 +164,7 @@ impl DnsProviderConfig {
 
     pub(super) fn zone_id(&self) -> &str {
         match self {
+            Self::Desec { zone_id, .. } => zone_id,
             Self::Connection { zone_id, .. } => zone_id,
             Self::Cloudflare { zone_id, .. } => zone_id,
         }
@@ -154,6 +172,7 @@ impl DnsProviderConfig {
 
     pub(super) fn api_token(&self) -> &str {
         match self {
+            Self::Desec { api_token, .. } => api_token,
             Self::Connection { .. } => "",
             Self::Cloudflare { api_token, .. } => api_token,
         }
@@ -168,19 +187,20 @@ impl DnsProviderConfig {
                 connection_id,
                 zone_id,
             } => Some((*provider, connection_id, zone_id)),
-            Self::Cloudflare { .. } => None,
+            Self::Cloudflare { .. } | Self::Desec { .. } => None,
         }
     }
 
     pub(in crate::runtime) fn credential(&self) -> Option<(&str, &str)> {
         match self {
             Self::Cloudflare { zone_id, api_token } => Some((zone_id, api_token)),
-            Self::Connection { .. } => None,
+            Self::Connection { .. } | Self::Desec { .. } => None,
         }
     }
 }
 
-pub(super) fn endpoint_for_environment(
+pub(super) fn endpoint_for_provider_environment(
+    provider: ProviderId,
     environment: CertificateEnvironment,
 ) -> Result<Url, CertificateError> {
     let test_endpoint = read_optional_env(DNS_TEST_API_URL_ENV)?;
@@ -193,7 +213,8 @@ pub(super) fn endpoint_for_environment(
         {
             return Err(CertificateError::DnsProviderInvalid);
         }
-        return parse_api_endpoint(
+        return parse_provider_api_endpoint(
+            provider,
             test_endpoint
                 .as_deref()
                 .ok_or(CertificateError::DnsProviderInvalid)?,
@@ -205,10 +226,23 @@ pub(super) fn endpoint_for_environment(
     {
         return Err(CertificateError::DnsProviderInvalid);
     }
-    Url::parse(CLOUDFLARE_API_BASE).map_err(|_| CertificateError::DnsProviderInvalid)
+    Url::parse(match provider {
+        ProviderId::Cloudflare => CLOUDFLARE_API_BASE,
+        ProviderId::Desec => DESEC_API_BASE,
+    })
+    .map_err(|_| CertificateError::DnsProviderInvalid)
 }
 
+#[cfg(test)]
 pub(super) fn parse_api_endpoint(value: &str, allow_http: bool) -> Result<Url, CertificateError> {
+    parse_provider_api_endpoint(ProviderId::Cloudflare, value, allow_http)
+}
+
+pub(super) fn parse_provider_api_endpoint(
+    provider: ProviderId,
+    value: &str,
+    allow_http: bool,
+) -> Result<Url, CertificateError> {
     if value.is_empty() || value != value.trim() || value.len() > 2_048 {
         return Err(CertificateError::DnsProviderInvalid);
     }
@@ -227,8 +261,12 @@ pub(super) fn parse_api_endpoint(value: &str, allow_http: bool) -> Result<Url, C
         return Err(CertificateError::DnsProviderInvalid);
     }
     let mut path = url.path().trim_end_matches('/').to_owned();
-    if !path.ends_with("/client/v4") {
-        path.push_str("/client/v4");
+    let suffix = match provider {
+        ProviderId::Cloudflare => "/client/v4",
+        ProviderId::Desec => "/api/v1",
+    };
+    if !path.ends_with(suffix) {
+        path.push_str(suffix);
     }
     path.push('/');
     url.set_path(&path);
@@ -242,3 +280,6 @@ fn read_optional_env(name: &str) -> Result<Option<String>, CertificateError> {
         Err(env::VarError::NotUnicode(_)) => Err(CertificateError::DnsProviderInvalid),
     }
 }
+
+#[cfg(test)]
+mod tests;

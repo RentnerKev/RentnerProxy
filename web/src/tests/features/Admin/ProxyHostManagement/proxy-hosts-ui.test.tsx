@@ -1461,7 +1461,7 @@ describe('proxy host form tabs', () => {
             document.querySelector<HTMLInputElement>('#certificate-request-name')!,
             'Catalogue failure',
         )
-        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (DNS provider)')
         await click(getButton('Request certificate and save'))
         expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
         await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
@@ -1495,7 +1495,7 @@ describe('proxy host form tabs', () => {
             document.querySelector<HTMLInputElement>('#certificate-request-name')!,
             'Draft TLS',
         )
-        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (DNS provider)')
         await click(getButton('Provider connection'))
         await waitFor(() => document.querySelector('[role="option"]') !== null)
         await click(
@@ -1693,7 +1693,7 @@ describe('proxy host form tabs', () => {
         )
         await click(getHostTab('Certificate & HTTPS'))
         await chooseSelectOption('TLS certificate', 'Request with ACME')
-        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (DNS provider)')
         await click(getHostTab('Basics'))
         await click(getButton('Request certificate and save'))
         expect(getHostPanel('Certificate & HTTPS').hidden).toBeFalse()
@@ -3381,7 +3381,7 @@ describe('integrated proxy host setup guide', () => {
         await click(getButton('Next step'))
         await click(getButton('Next step'))
         expect(document.body.textContent).toContain('HTTP-01 needs public DNS')
-        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (DNS provider)')
         expect(document.body.textContent).toContain('DNS-01 needs the supported DNS provider')
         await click(getButton('Skip guide'))
         await click(getButton('Show setup guide'))

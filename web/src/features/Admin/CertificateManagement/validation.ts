@@ -1,6 +1,6 @@
 import type { CertificateRequestFormValues } from './Types/validation.types.ts'
 import { z } from 'zod'
-import { dnsProviderIdSchema } from '@/lib/DnsConnections/validation.ts'
+import { dnsProviderIdSchema, isDnsZoneIdForProvider } from '@/lib/DnsConnections/validation.ts'
 import {
     ACME_CHALLENGE_TYPES,
     ACME_ENVIRONMENTS,
@@ -101,18 +101,23 @@ const dnsApiTokenSchema = z
     .max(512, 'admin.certificates.validation.dnsApiToken')
     .regex(/^[\x21-\x7e]+$/u, 'admin.certificates.validation.dnsApiToken')
 const inlineDnsProviderSchema = z.strictObject({
-    type: dnsProviderIdSchema,
+    type: z.literal('cloudflare'),
     zoneId: z.string().regex(/^[a-f0-9]{32}$/u, 'admin.certificates.validation.dnsZoneId'),
     apiToken: dnsApiTokenSchema,
 })
 const dnsProviderSchema = z.discriminatedUnion('type', [
     inlineDnsProviderSchema,
-    z.strictObject({
-        type: z.literal('connection'),
-        provider: dnsProviderIdSchema,
-        connectionId: z.uuidv7('admin.providers.validation.connection'),
-        zoneId: z.string().regex(/^[a-f0-9]{32}$/u, 'admin.certificates.validation.dnsZoneId'),
-    }),
+    z
+        .strictObject({
+            type: z.literal('connection'),
+            provider: dnsProviderIdSchema,
+            connectionId: z.uuidv7('admin.providers.validation.connection'),
+            zoneId: z.string().max(253, 'admin.certificates.validation.dnsZoneId'),
+        })
+        .refine((value) => isDnsZoneIdForProvider(value.zoneId, value.provider), {
+            path: ['zoneId'],
+            message: 'admin.certificates.validation.dnsZoneId',
+        }),
 ])
 
 export const requestCertificateInputSchema = z

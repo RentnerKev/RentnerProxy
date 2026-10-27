@@ -3,7 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { DnsZone, DnsConnection } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
-import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import type {
     SaveDnsConnectionInput,
@@ -43,7 +43,14 @@ const provider = {
 }
 const getProviders = mock(async () => {
     if (providersFail) throw new Error('offline')
-    return [provider]
+    return [
+        provider,
+        {
+            ...provider,
+            id: 'desec' as const,
+            capabilities: { ...provider.capabilities, proxyOptions: 'none' as const },
+        },
+    ]
 })
 let queryFails = false
 let testFails = false
@@ -461,7 +468,7 @@ describe('Cloudflare DNS connection management', () => {
         await input('apiToken', 'replacement-secret')
         await click(button('Test read access and load zones'))
         await waitFor(() =>
-            feedback.some((message) => String(message).includes('Cloudflare rejected the token')),
+            feedback.some((message) => String(message).includes('DNS provider rejected the token')),
         )
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(
             true,
@@ -548,4 +555,50 @@ describe('Cloudflare DNS connection management', () => {
         })
         expect(getConnections.mock.calls.length).toBeGreaterThan(1)
     })
+})
+
+test('selects deSEC, clears provider drafts and creates a domain-zone connection', async () => {
+    await renderPage()
+    await click(button('Add DNS connection'))
+    await input('name', 'Office deSEC')
+    await input('apiToken', 'cloudflare-draft-token')
+    await click(button('Test read access and load zones'))
+    await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 2)
+    await click(document.querySelector('input[type="checkbox"]')!)
+    await click(document.querySelector('[role="combobox"]')!)
+    await waitFor(() => !!document.querySelector('[role="option"]'))
+    const option = [...document.querySelectorAll('[role="option"]')].find((item) =>
+        item.textContent?.includes('deSEC'),
+    )!
+    await click(option)
+    expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe('')
+    expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+    expect(document.body.textContent).toContain('zone minimum TTL')
+    await input('apiToken', 'desec-fixture-token')
+    availableZones = [{ id: 'example.com', name: 'example.com' }]
+    await click(button('Test read access and load zones'))
+    await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 1)
+    expect(testConnection.mock.calls.at(-1)?.[0].data).toMatchObject({
+        provider: 'desec',
+        apiToken: 'desec-fixture-token',
+    })
+    await click(document.querySelector('input[type="checkbox"]')!)
+    await submit()
+    await waitFor(() => saveConnection.mock.calls.length === 1)
+    expect(saveConnection.mock.calls[0]?.[0].data).toMatchObject({
+        provider: 'desec',
+        name: 'Office deSEC',
+        zoneIds: ['example.com'],
+        expectedRevision: 0,
+    })
+})
+
+test('all supported locales include deSEC guidance and provider names', () => {
+    for (const catalog of Object.values(catalogs)) {
+        expect(catalog.admin.dnsConnections.providers.desec).toBe('deSEC')
+        const hints = catalog.admin.dnsConnections.providerHints
+        expect(hints.cloudflare.length).toBeGreaterThan(0)
+        expect(hints.desec).toContain('TTL')
+        expect(hints.desec).toContain('Retry-After')
+    }
 })

@@ -1161,8 +1161,8 @@
                 "domainsHint": "Gebruik openbare DNS-namen, bijvoorbeeld example.com of www.example.com.",
                 "challengeType": "ACME-verificatie",
                 "httpChallengeHint": "HTTP-01 valideert elke naam via de bereikbare poort 80. Namen met een wildcard vereisen DNS-01.",
-                "dnsWildcardHint": "DNS-01 ondersteunt wildcardnamen en gewone namen samen. Alle namen moeten tot dezelfde Cloudflare-zone behoren.",
-                "dnsProviderHint": "Cloudflare DNS-inloggegevens worden alleen tijdens de validatie gebruikt en worden nooit met certificaatmetagegevens teruggestuurd.",
+                "dnsWildcardHint": "DNS-01 ondersteunt wildcardnamen en gewone namen samen. Alle namen moeten tot dezelfde DNS-provider-zone behoren.",
+                "dnsProviderHint": "DNS-inloggegevens worden centraal beheerd en nooit met certificaatmetagegevens teruggestuurd.",
                 "dnsZoneId": "Cloudflare-zone-ID",
                 "dnsApiToken": "Cloudflare-API-token",
                 "environment": "ACME-omgeving",
@@ -1177,7 +1177,7 @@
             },
             "challenge": {
                 "http01": "HTTP-01",
-                "dns01": "DNS-01 (Cloudflare)"
+                "dns01": "DNS-01 (DNS-provider)"
             },
             "request": {
                 "title": "ACME-certificaat aanvragen",
@@ -1252,9 +1252,9 @@
                 "publicDomain": "Gebruik een openbaar DNS-domein.",
                 "wildcardRequiresDns01": "Wildcardnamen vereisen DNS-01-verificatie.",
                 "duplicateDomain": "Elk domein mag maar één keer voorkomen.",
-                "dnsProviderRequired": "Geef een Cloudflare DNS-provider op voor DNS-01.",
+                "dnsProviderRequired": "Geef een DNS-provider DNS-provider op voor DNS-01.",
                 "dnsProviderHttp": "HTTP-01 accepteert geen DNS-providerinloggegevens.",
-                "dnsZoneId": "Voer een Cloudflare-zone-ID van 32 kleine letters en cijfers in.",
+                "dnsZoneId": "Kies een geldige zone voor de geselecteerde DNS-provider.",
                 "dnsApiToken": "Voer een geldig Cloudflare-API-token zonder witruimte in.",
                 "email": "Voer een geldig e-mailadres in.",
                 "terms": "Accepteer de ACME-voorwaarden."
@@ -2680,14 +2680,15 @@
                 "label": "DNS-provider",
                 "cloudflare": "Cloudflare",
                 "capabilities": "Ondersteunde functies (tokenrechten worden afzonderlijk gecontroleerd).",
-                "unavailable": "DNS-functies zijn niet beschikbaar of ondersteunen deze bewerking niet. Controleer de controllerverbinding en probeer opnieuw."
+                "unavailable": "DNS-functies zijn niet beschikbaar of ondersteunen deze bewerking niet. Controleer de controllerverbinding en probeer opnieuw.",
+                "desec": "deSEC"
             },
             "page": {
                 "eyebrow": "Beheer",
                 "title": "Providers",
                 "description": "Stel benoemde providerverbindingen één keer in en gebruik ze voor certificaten en DDNS."
             },
-            "provider": "Cloudflare · Instantieverbinding",
+            "provider": "DNS-provider · Instantieverbinding",
             "usage": "Verwijzingen van afnemers: {{count}}",
             "actions": {
                 "add": "DNS-verbinding toevoegen",
@@ -2698,12 +2699,12 @@
                 "refreshDraft": "Concept weggooien en huidige verbindingen opnieuw laden"
             },
             "form": {
-                "description": "Sla een verbinding met naam en de toegestane Cloudflare-zones op.",
+                "description": "Sla een verbinding met naam en de toegestane DNS-provider-zones op.",
                 "name": "Naam van de verbinding",
-                "token": "Cloudflare API-token",
+                "token": "DNS-provider API-token",
                 "tokenHint": "Het token wordt versleuteld opgeslagen en wordt nooit opnieuw getoond.",
                 "replaceHint": "Laat leeg om het opgeslagen token te behouden. Voer een nieuw token in om het te vervangen.",
-                "readOnlyHint": "De test leest alleen Cloudflare-zones. Toekomstige DNS-afnemers hebben Zone / DNS / Edit nodig; deze alleen-lezen test controleert die schrijfrechten niet. Bij het opslaan worden alle geselecteerde zones opnieuw gecontroleerd.",
+                "readOnlyHint": "Leesrechten voor zones gecontroleerd. DNS-schrijfrechten zijn niet gecontroleerd.",
                 "zones": "Geselecteerde zones: {{count}} / {{max}}",
                 "zonesHint": "Selecteer ten minste één zone. Eerder geselecteerde zones blijven zichtbaar na een test met een nieuw token; bij het opslaan wordt hun toegang opnieuw gecontroleerd.",
                 "noZones": "Test het token om toegankelijke zones te laden. Als er geen zones worden gevonden, controleer dan het zonebereik van het token.",
@@ -2714,7 +2715,7 @@
                 "loading": "Metadata van DNS-verbindingen laden…",
                 "error": "DNS-verbindingen niet beschikbaar",
                 "empty": "Nog geen DNS-verbindingen",
-                "emptyDescription": "Maak een Cloudflare-verbinding en selecteer de zones die toekomstige DNS-afnemers mogen gebruiken.",
+                "emptyDescription": "Maak een DNS-provider-verbinding en selecteer de zones die toekomstige DNS-afnemers mogen gebruiken.",
                 "waiting": "Wachten op verbinding. De lijst wordt automatisch bijgewerkt."
             },
             "confirm": {
@@ -2722,8 +2723,8 @@
                 "description": "“{{name}}” en het opgeslagen token verwijderen? Dit kan niet ongedaan worden gemaakt."
             },
             "validation": {
-                "zone": "Selecteer een geldige Cloudflare-zone.",
-                "token": "Voer een geldig Cloudflare API-token in.",
+                "zone": "Selecteer een geldige DNS-provider-zone.",
+                "token": "Voer een geldig DNS-provider API-token in.",
                 "name": "Voer een verbindingsnaam van 1–100 tekens zonder controletekens in.",
                 "zones": "Selecteer 1 tot en met 50 verschillende zones."
             },
@@ -2739,12 +2740,12 @@
                 "connection_conflict": "Deze verbinding is gewijzigd sinds je deze hebt geopend. Gooi het concept weg, laad de lijst opnieuw en open de verbinding opnieuw voordat je opslaat.",
                 "connection_in_use": "Deze verbinding of zone is in gebruik. Verwijder eerst de verwijzingen en laad daarna de lijst opnieuw.",
                 "connection_limit": "De verbindingslimiet van deze instantie is bereikt.",
-                "token_required": "Voer een Cloudflare API-token in.",
+                "token_required": "Voer een DNS-provider API-token in.",
                 "zone_not_permitted": "Ten minste één geselecteerde zone is niet toegankelijk met dit token. Controleer het tokenbereik of wijzig de zoneselectie.",
                 "zone_limit": "Het token heeft toegang tot maximaal 500 zones; selecteer er maximaal 50.",
-                "provider_unauthorized": "Cloudflare heeft het token geweigerd. Controleer of het geldig is en leesrechten voor zones heeft.",
-                "provider_unavailable": "Cloudflare is tijdelijk niet beschikbaar. Probeer de leestoegang later opnieuw.",
-                "provider_rate_limited": "De limiet van Cloudflare of voor verbindingstests is bereikt. Wacht even en probeer het opnieuw.",
+                "provider_unauthorized": "DNS-provider heeft het token geweigerd. Controleer of het geldig is en leesrechten voor zones heeft.",
+                "provider_unavailable": "DNS-provider is tijdelijk niet beschikbaar. Probeer de leestoegang later opnieuw.",
+                "provider_rate_limited": "De limiet van DNS-provider of voor verbindingstests is bereikt. Wacht even en probeer het opnieuw.",
                 "store_unavailable": "De opslag voor verbindingen is niet beschikbaar. Probeer het later opnieuw.",
                 "credentials_unavailable": "Het opgeslagen token kan niet worden gelezen. Vervang het token of herstel de versleuteling van inloggegevens.",
                 "controller_unavailable": "De controller is niet beschikbaar. Herstel deze en laad de lijst opnieuw.",
@@ -2754,6 +2755,10 @@
                 "zoneCount": "Zones: {{count}}",
                 "references": "Gebruikt door {{count}} diensten",
                 "delete": "Verbinding {{name}} verwijderen"
+            },
+            "providerHints": {
+                "cloudflare": "De test leest alleen Cloudflare-zones. Toekomstige DNS-afnemers hebben Zone / DNS / Edit nodig; deze alleen-lezen test controleert die schrijfrechten niet. Bij het opslaan worden alle geselecteerde zones opnieuw gecontroleerd.",
+                "desec": "deSEC: gebruik een API-token met domeinlezing en lees-/schrijfrechten voor RRsets in de gekozen zones, inclusief het TXT-RRset _acme-challenge op de zoneroot voor rechtencontroles en de A/AAAA-records van de gekozen DDNS-namen. Zones zijn kleine ASCII-domeinnamen zonder afsluitende punt (punycode voor IDN). Nieuwe records gebruiken de minimale zone-TTL; bestaande RRset-TTLs blijven behouden. DDNS respecteert limieten en Retry-After. Geen Cloudflare-proxy."
             }
         },
         "ddns": {
@@ -2785,7 +2790,7 @@
                 "ipv6": "IPv6 · AAAA-records",
                 "updateOnStart": "Controleren bij opstarten",
                 "familyHint": "Toevoegen maakt regels voor actieve families. Uitgeschakelde families blijven gepauzeerd. Voor AAAA later: zet IPv6 aan, IPv4 tijdelijk uit en voeg de domeinen toe.",
-                "connection": "Cloudflare-verbinding",
+                "connection": "DNS-provider-verbinding",
                 "chooseConnection": "Kies een verbinding",
                 "zone": "Zone voor nieuwe records",
                 "autoZone": "Toegestane zones automatisch koppelen",
@@ -2874,7 +2879,7 @@
                 "settingsSaved": "DDNS-instellingen opgeslagen.",
                 "recordEnabled": "Record ingeschakeld.",
                 "recordDisabled": "Record uitgeschakeld.",
-                "recordDeleted": "Record uit DDNS verwijderd. Het DNS-record bij Cloudflare blijft bestaan.",
+                "recordDeleted": "Record uit DDNS verwijderd. Het DNS-record bij DNS-provider blijft bestaan.",
                 "actionChanged": "De configuratie is tijdens deze actie gewijzigd. Open de actie opnieuw voor de huidige versie."
             },
             "validation": {
@@ -2912,11 +2917,11 @@
                 "family_disabled": "Familie uitgeschakeld. Records blijven zonder updates.",
                 "adoption_required": "Dit bestaande record moet automatisch worden gecontroleerd. Sla het op of schakel het in.",
                 "creation_required": "Het record bestaat niet. Sla het doel op of schakel het in om deze naam en dit type te controleren en maken.",
-                "record_conflict": "Dubbele records of CNAME-conflict. Los op in Cloudflare; DDNS verwijdert niets.",
+                "record_conflict": "Dubbele records of CNAME-conflict. Los op in DNS-provider; DDNS verwijdert niets.",
                 "record_changed": "Record vervangen. Verwijder, voeg toe en controleer opnieuw.",
-                "provider_unauthorized": "Toegang geweigerd. Controleer Zone Read en DNS Edit van token.",
+                "provider_unauthorized": "De DNS-provider heeft toegang geweigerd. Controleer domeinlees- en DNS-schrijfrechten voor de gekozen zones en vervang zo nodig het token.",
                 "provider_rate_limited": "Limiet bereikt. Wacht op volgende poging; handmatig omzeilt dit niet.",
-                "provider_unavailable": "Cloudflare niet beschikbaar. Nieuwe poging volgt; laatste waarde blijft.",
+                "provider_unavailable": "DNS-provider niet beschikbaar. Nieuwe poging volgt; laatste waarde blijft.",
                 "invalid_provider_response": "Onverwacht antwoord. Controleer beschikbaarheid en bekijk opnieuw.",
                 "write_unconfirmed": "Wijziging mogelijk geaccepteerd zonder bevestiging. Controleer vóór herhalen.",
                 "time_budget_exceeded": "Batchtijd verstreken. Resterende records volgen hun schema.",
@@ -2986,7 +2991,7 @@
             },
             "delete": {
                 "title": "Beheerd record verwijderen?",
-                "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
+                "description": "{{name}} niet meer beheren? Het DNS-record bij DNS-provider blijft ongewijzigd."
             }
         },
         "dockerDiscovery": {
@@ -3563,9 +3568,9 @@
         "basicAuthUsername": "bijv. service-user",
         "basicAuthPasswordEdit": "Laat leeg om het huidige wachtwoord te behouden",
         "certificateName": "bijv. TLS thuisserver",
-        "dnsApiToken": "Plak hier het Cloudflare API-token",
+        "dnsApiToken": "Plak hier het DNS-provider API-token",
         "trustedCaName": "bijv. Root-CA thuisnetwerk",
-        "dnsConnectionName": "bijv. Cloudflare thuisnetwerk",
+        "dnsConnectionName": "bijv. DNS-provider thuisnetwerk",
         "dnsApiTokenReplacement": "Laat leeg om het opgeslagen token te behouden",
         "hostTagName": "bijv. Productie",
         "notificationChannelName": "bijv. Operationele meldingen",

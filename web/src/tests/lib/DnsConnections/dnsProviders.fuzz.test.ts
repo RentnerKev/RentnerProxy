@@ -5,7 +5,9 @@ import { dnsProviderCatalogSchema, dnsProviderIdSchema } from '@/lib/DnsConnecti
 test('provider identifiers are a closed built-in set, never plugin names or paths', () => {
     fc.assert(
         fc.property(fc.string(), (value) => {
-            expect(dnsProviderIdSchema.safeParse(value).success).toBe(value === 'cloudflare')
+            expect(dnsProviderIdSchema.safeParse(value).success).toBe(
+                value === 'cloudflare' || value === 'desec',
+            )
         }),
         { numRuns: 500 },
     )

@@ -1,13 +1,14 @@
 import { z } from 'zod'
+import { dnsZoneIdSchema } from '@/lib/DnsConnections/validation.ts'
 import { MAX_DDNS_TARGETS } from '@/config/ddns.config.ts'
 
 export const ddnsIdSchema = z.uuidv7().regex(/^[a-f0-9-]+$/u)
 export const ddnsRevisionSchema = z.number().int().min(0).max(4_294_967_295)
-const ddnsProviderIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
+const ddnsRecordIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
 const ddnsSelectionSchema = z.discriminatedUnion('mode', [
     z.strictObject({ mode: z.literal('inspect') }),
     z.strictObject({ mode: z.literal('create') }),
-    z.strictObject({ mode: z.literal('adopt'), recordId: ddnsProviderIdSchema }),
+    z.strictObject({ mode: z.literal('adopt'), recordId: ddnsRecordIdSchema }),
 ])
 export const ddnsNameSchema = z
     .string()
@@ -28,7 +29,7 @@ export const ddnsNameSchema = z
 export const ddnsTargetSchema = z.strictObject({
     id: ddnsIdSchema,
     connectionId: ddnsIdSchema,
-    zoneId: ddnsProviderIdSchema,
+    zoneId: dnsZoneIdSchema,
     name: ddnsNameSchema,
     recordType: z.enum(['A', 'AAAA']),
     proxied: z.boolean(),
@@ -98,7 +99,7 @@ const address = z.union([z.ipv4(), z.ipv6()])
 const ddnsTargetResultSchema = z.strictObject({
     targetId: ddnsIdSchema,
     status: ddnsRecordStatusSchema,
-    current: z.strictObject({ id: ddnsProviderIdSchema, address, proxied: z.boolean() }).nullable(),
+    current: z.strictObject({ id: ddnsRecordIdSchema, address, proxied: z.boolean() }).nullable(),
     desiredAddress: address.nullable(),
     error: ddnsRecordErrorSchema.nullable(),
     retryAfterSeconds: z.number().int().min(1).max(86_400).nullable(),
@@ -142,6 +143,7 @@ export const ddnsSnapshotSchema = z
                     consecutiveFailures: z.number().int().min(0).max(32),
                     permanentFailure: z.boolean(),
                     connectionRevision: ddnsRevisionSchema.min(1).nullable(),
+                    createdRecordId: ddnsRecordIdSchema.optional(),
                     nextAttemptAt: timestamp,
                     retryNotBefore: timestamp,
                 }),

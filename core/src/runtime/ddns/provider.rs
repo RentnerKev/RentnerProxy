@@ -19,6 +19,7 @@ pub(super) struct Record {
     pub(super) content: String,
     pub(super) proxied: Option<bool>,
     pub(super) comment: Option<String>,
+    pub(super) ttl: Option<u32>,
 }
 impl Record {
     pub(super) fn address(&self, family: RecordType) -> Result<IpAddr, Failure> {
@@ -34,11 +35,11 @@ impl Record {
 }
 
 pub(super) struct Provider<'a> {
-    provider: ProviderId,
-    client: Client,
-    base: Url,
-    token: &'a str,
-    deadline: Instant,
+    pub(super) provider: ProviderId,
+    pub(super) client: Client,
+    pub(super) base: Url,
+    pub(super) token: &'a str,
+    pub(super) deadline: Instant,
 }
 impl<'a> Provider<'a> {
     pub(super) fn new(
@@ -50,6 +51,13 @@ impl<'a> Provider<'a> {
     ) -> Result<Self, Failure> {
         match provider {
             ProviderId::Cloudflare => Self::cloudflare(client, endpoint, token, deadline),
+            ProviderId::Desec => Ok(Self {
+                provider,
+                client,
+                base: Url::parse(endpoint).map_err(|_| Error::ProviderUnavailable)?,
+                token,
+                deadline,
+            }),
         }
     }
 
@@ -101,6 +109,9 @@ impl<'a> Provider<'a> {
     }
     pub(super) async fn records(&self, target: &Target) -> Result<Vec<Record>, Failure> {
         self.validate_operation(target)?;
+        if self.provider == ProviderId::Desec {
+            return super::desec::records(self, target).await;
+        }
         let mut url = self.url(target, "")?;
         // Read all types at the exact owner, so CNAME and duplicate A/AAAA
         // conflicts are detected without ever modifying TXT or other records.
@@ -155,6 +166,9 @@ impl<'a> Provider<'a> {
         record: Option<&Record>,
     ) -> Result<Record, Failure> {
         self.validate_operation(target)?;
+        if self.provider == ProviderId::Desec {
+            return super::desec::write(self, target, address, record).await;
+        }
         let (method, url, body) = if let Some(record) = record {
             (
                 Method::PATCH,
@@ -207,10 +221,14 @@ impl<'a> Provider<'a> {
             RecordType::A => AddressRecordType::A,
             RecordType::Aaaa => AddressRecordType::Aaaa,
         };
-        // `proxied` is a Cloudflare option even when explicitly false.
+        let proxy_options = match self.provider {
+            ProviderId::Cloudflare => ProxyOptions::Cloudflare,
+            ProviderId::Desec if !target.proxied => ProxyOptions::None,
+            ProviderId::Desec => return Err(Error::InvalidInput.into()),
+        };
         if !self.provider.supports(Operation::AddressUpdate {
             record_type,
-            proxy_options: ProxyOptions::Cloudflare,
+            proxy_options,
         }) || !self.provider.valid_zone_id(&target.zone_id)
         {
             return Err(Error::InvalidInput.into());

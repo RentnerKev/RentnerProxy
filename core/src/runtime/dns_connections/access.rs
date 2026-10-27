@@ -24,6 +24,10 @@ impl Store {
             return Err(Error::InvalidInput);
         }
         match provider {
+            super::ProviderId::Desec => Ok(crate::runtime::dns::DnsProviderConfig::Desec {
+                zone_id: zone_id.to_owned(),
+                api_token: access.token.clone(),
+            }),
             super::ProviderId::Cloudflare => {
                 Ok(crate::runtime::dns::DnsProviderConfig::Cloudflare {
                     zone_id: zone_id.to_owned(),
@@ -84,7 +88,7 @@ impl Store {
             zone_name,
             provider,
             token,
-            endpoint: self.endpoint(),
+            endpoint: self.provider_endpoint(provider),
         })
     }
 

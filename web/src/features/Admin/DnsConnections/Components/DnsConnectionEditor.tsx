@@ -134,7 +134,7 @@ export default function DnsConnectionEditor({
                     )}
                 </form.Field>
                 <p className="rounded-xl border border-border bg-surface-subtle p-3 text-sm leading-relaxed text-muted">
-                    {t('admin.dnsConnections.form.readOnlyHint')}
+                    {t(`admin.dnsConnections.providerHints.${state.providerId}`)}
                 </p>
                 <p className="text-sm leading-relaxed text-muted">
                     {t('admin.providers.permissionHint')}

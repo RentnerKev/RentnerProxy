@@ -27,7 +27,9 @@ pub(super) fn request(request: &Request) -> Result<(), Error> {
     for target in &request.targets {
         if !is_canonical_uuid_v7(&target.id)
             || !is_canonical_uuid_v7(&target.connection_id)
-            || !provider_id(&target.zone_id)
+            || !(provider_id(&target.zone_id)
+                || crate::runtime::dns::capabilities::ProviderId::Desec
+                    .valid_zone_id(&target.zone_id))
             || !name(&target.name)
             || !ids.insert(&target.id)
             || !records.insert((&target.zone_id, &target.name, target.record_type))

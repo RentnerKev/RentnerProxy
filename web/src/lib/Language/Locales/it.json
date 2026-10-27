@@ -1187,8 +1187,8 @@
                 "domainsHint": "Usa nomi DNS pubblici, ad esempio example.com o www.example.com.",
                 "challengeType": "Challenge ACME",
                 "httpChallengeHint": "HTTP-01 convalida ogni nome tramite la porta 80 raggiungibile. I nomi wildcard richiedono DNS-01.",
-                "dnsWildcardHint": "DNS-01 supporta insieme nomi wildcard e ordinari. Tutti i nomi devono appartenere alla stessa zona Cloudflare.",
-                "dnsProviderHint": "Le credenziali DNS di Cloudflare vengono usate solo durante la convalida e non vengono mai restituite nei metadati del certificato.",
+                "dnsWildcardHint": "DNS-01 supporta insieme nomi wildcard e ordinari. Tutti i nomi devono appartenere alla stessa zona provider DNS.",
+                "dnsProviderHint": "Le credenziali DNS sono gestite centralmente e non vengono mai restituite nei metadati del certificato.",
                 "dnsZoneId": "ID zona Cloudflare",
                 "dnsApiToken": "Token API Cloudflare",
                 "environment": "Ambiente ACME",
@@ -1203,7 +1203,7 @@
             },
             "challenge": {
                 "http01": "HTTP-01",
-                "dns01": "DNS-01 (Cloudflare)"
+                "dns01": "DNS-01 (provider DNS)"
             },
             "request": {
                 "title": "Richiedi certificato ACME",
@@ -1279,9 +1279,9 @@
                 "publicDomain": "Usa un dominio DNS pubblico.",
                 "wildcardRequiresDns01": "I nomi wildcard richiedono la challenge DNS-01.",
                 "duplicateDomain": "Ogni dominio può comparire una sola volta.",
-                "dnsProviderRequired": "Fornisci un provider DNS Cloudflare per DNS-01.",
+                "dnsProviderRequired": "Fornisci un provider DNS provider DNS per DNS-01.",
                 "dnsProviderHttp": "HTTP-01 non accetta credenziali del provider DNS.",
-                "dnsZoneId": "Inserisci un ID zona Cloudflare di 32 caratteri minuscoli.",
+                "dnsZoneId": "Scegli una zona valida per il provider DNS selezionato.",
                 "dnsApiToken": "Inserisci un token API Cloudflare valido senza spazi.",
                 "email": "Inserisci un indirizzo email valido.",
                 "terms": "Accetta i termini ACME."
@@ -2714,14 +2714,15 @@
                 "label": "Provider DNS",
                 "cloudflare": "Cloudflare",
                 "capabilities": "Funzioni supportate (i permessi del token vengono verificati separatamente).",
-                "unavailable": "Le funzioni DNS non sono disponibili o non supportano questa operazione. Verifica la connessione al controller e riprova."
+                "unavailable": "Le funzioni DNS non sono disponibili o non supportano questa operazione. Verifica la connessione al controller e riprova.",
+                "desec": "deSEC"
             },
             "page": {
                 "eyebrow": "Amministrazione",
                 "title": "Provider",
                 "description": "Configura una volta le connessioni con nome e riutilizzale per certificati e DDNS."
             },
-            "provider": "Cloudflare · Connessione dell’istanza",
+            "provider": "provider DNS · Connessione dell’istanza",
             "usage": "Riferimenti dei consumatori: {{count}}",
             "actions": {
                 "add": "Aggiungi connessione DNS",
@@ -2732,12 +2733,12 @@
                 "refreshDraft": "Elimina la bozza e ricarica le connessioni attuali"
             },
             "form": {
-                "description": "Salva una connessione con nome e le zone Cloudflare che può usare.",
+                "description": "Salva una connessione con nome e le zone provider DNS che può usare.",
                 "name": "Nome della connessione",
-                "token": "Token API Cloudflare",
+                "token": "Token API provider DNS",
                 "tokenHint": "Il token viene salvato in forma crittografata e non verrà più mostrato.",
                 "replaceHint": "Lascia il campo vuoto per mantenere il token salvato. Inseriscine uno nuovo per sostituirlo.",
-                "readOnlyHint": "Il test legge solo le zone Cloudflare. I futuri servizi DNS richiedono il permesso Zone / DNS / Edit, che questo test in sola lettura non verifica. Al salvataggio viene ricontrollato l’accesso a tutte le zone selezionate.",
+                "readOnlyHint": "Accesso in lettura alle zone verificato. L’accesso in scrittura DNS non è stato verificato.",
                 "zones": "Zone selezionate: {{count}} / {{max}}",
                 "zonesHint": "Seleziona almeno una zona. Le zone selezionate in precedenza restano visibili dopo il test con un nuovo token; al salvataggio il loro accesso viene verificato di nuovo.",
                 "noZones": "Verifica il token per caricare le zone accessibili. Se non ne viene restituita nessuna, controlla l’ambito delle zone del token.",
@@ -2748,7 +2749,7 @@
                 "loading": "Caricamento dei metadati delle connessioni DNS…",
                 "error": "Connessioni DNS non disponibili",
                 "empty": "Nessuna connessione DNS",
-                "emptyDescription": "Crea una connessione Cloudflare e seleziona le zone disponibili per i futuri servizi DNS.",
+                "emptyDescription": "Crea una connessione provider DNS e seleziona le zone disponibili per i futuri servizi DNS.",
                 "waiting": "In attesa della connessione. L’elenco si aggiorna automaticamente."
             },
             "confirm": {
@@ -2756,8 +2757,8 @@
                 "description": "Eliminare “{{name}}” e il token salvato? L’azione non può essere annullata."
             },
             "validation": {
-                "zone": "Seleziona una zona Cloudflare valida.",
-                "token": "Inserisci un token API Cloudflare valido.",
+                "zone": "Seleziona una zona provider DNS valida.",
+                "token": "Inserisci un token API provider DNS valido.",
                 "name": "Inserisci un nome per la connessione da 1 a 100 caratteri, senza caratteri di controllo.",
                 "zones": "Seleziona da 1 a 50 zone distinte."
             },
@@ -2773,12 +2774,12 @@
                 "connection_conflict": "La connessione è stata modificata dopo l’apertura. Elimina la bozza, ricarica l’elenco e riapri la connessione prima di salvarla.",
                 "connection_in_use": "Questa connessione o zona è in uso. Rimuovi prima i relativi riferimenti e poi ricarica.",
                 "connection_limit": "È stato raggiunto il limite di connessioni dell’istanza.",
-                "token_required": "Inserisci un token API Cloudflare.",
+                "token_required": "Inserisci un token API provider DNS.",
                 "zone_not_permitted": "Almeno una zona selezionata non è accessibile con questo token. Controlla l’ambito del token o modifica la selezione.",
                 "zone_limit": "Il token può accedere al massimo a 500 zone; selezionane fino a 50.",
-                "provider_unauthorized": "Cloudflare ha rifiutato il token. Verifica che sia valido e che disponga del permesso di lettura delle zone.",
-                "provider_unavailable": "Cloudflare è temporaneamente non disponibile. Riprova il test di lettura più tardi.",
-                "provider_rate_limited": "È stato raggiunto il limite di Cloudflare o dei test di connessione. Attendi un momento e riprova.",
+                "provider_unauthorized": "provider DNS ha rifiutato il token. Verifica che sia valido e che disponga del permesso di lettura delle zone.",
+                "provider_unavailable": "provider DNS è temporaneamente non disponibile. Riprova il test di lettura più tardi.",
+                "provider_rate_limited": "È stato raggiunto il limite di provider DNS o dei test di connessione. Attendi un momento e riprova.",
                 "store_unavailable": "Lo spazio di archiviazione delle connessioni non è disponibile. Riprova più tardi.",
                 "credentials_unavailable": "Impossibile leggere il token salvato. Sostituiscilo o ripristina la crittografia delle credenziali.",
                 "controller_unavailable": "Il controller non è disponibile. Ripristinalo e ricarica.",
@@ -2788,6 +2789,10 @@
                 "zoneCount": "Zone: {{count}}",
                 "references": "Usata da {{count}} servizi",
                 "delete": "Elimina connessione {{name}}"
+            },
+            "providerHints": {
+                "cloudflare": "Il test legge solo le zone Cloudflare. I futuri servizi DNS richiedono il permesso Zone / DNS / Edit, che questo test in sola lettura non verifica. Al salvataggio viene ricontrollato l’accesso a tutte le zone selezionate.",
+                "desec": "deSEC: usa un token API con lettura dei domini e lettura/scrittura dei RRset nelle zone selezionate, incluso il RRset TXT _acme-challenge alla radice per verificare i permessi e i record A/AAAA dei nomi DDNS selezionati. Le zone sono domini ASCII minuscoli senza punto finale (punycode per IDN). I nuovi record usano il TTL minimo della zona; i TTL esistenti sono mantenuti. DDNS rispetta i limiti e Retry-After. Proxy Cloudflare non disponibile."
             }
         },
         "ddns": {
@@ -2819,7 +2824,7 @@
                 "ipv6": "IPv6 · record AAAA",
                 "updateOnStart": "Verifica all’avvio",
                 "familyHint": "Si aggiungono righe per le famiglie attive. Le altre restano in pausa. Per aggiungere AAAA dopo, attiva IPv6, deseleziona IPv4 temporaneamente e aggiungi i domini.",
-                "connection": "Connessione Cloudflare",
+                "connection": "Connessione provider DNS",
                 "chooseConnection": "Scegli una connessione",
                 "zone": "Zona per nuovi record",
                 "autoZone": "Abbina automaticamente le zone consentite",
@@ -2908,7 +2913,7 @@
                 "settingsSaved": "Impostazioni DDNS salvate.",
                 "recordEnabled": "Record attivato.",
                 "recordDisabled": "Record disattivato.",
-                "recordDeleted": "Record rimosso da DDNS. Il record DNS su Cloudflare rimane.",
+                "recordDeleted": "Record rimosso da DDNS. Il record DNS su provider DNS rimane.",
                 "actionChanged": "La configurazione è cambiata durante questa azione. Riaprila per usare la versione attuale."
             },
             "validation": {
@@ -2946,11 +2951,11 @@
                 "family_disabled": "Famiglia disattivata. Record conservati senza aggiornamenti.",
                 "adoption_required": "Questo record richiede una verifica automatica. Salvalo o attivalo per verificarne l’identità.",
                 "creation_required": "Il record non esiste. Salva o attiva la destinazione per verificare e creare questo nome e tipo.",
-                "record_conflict": "Record multipli o CNAME incompatibile. Risolvi in Cloudflare; DDNS non elimina.",
+                "record_conflict": "Record multipli o CNAME incompatibile. Risolvi in provider DNS; DDNS non elimina.",
                 "record_changed": "Record cambiato. Rimuovi, aggiungi e verifica di nuovo.",
-                "provider_unauthorized": "Accesso negato. Verifica Zone Read e DNS Edit del token.",
+                "provider_unauthorized": "Il provider DNS ha negato l’accesso. Controlla i permessi di lettura domini e scrittura DNS nelle zone selezionate e sostituisci il token se necessario.",
                 "provider_rate_limited": "Limite raggiunto. Attendi il nuovo tentativo; il manuale non lo evita.",
-                "provider_unavailable": "Cloudflare non disponibile. Nuovo tentativo previsto, ultimo valore conservato.",
+                "provider_unavailable": "provider DNS non disponibile. Nuovo tentativo previsto, ultimo valore conservato.",
                 "invalid_provider_response": "Risposta inattesa. Verifica disponibilità e ripeti anteprima.",
                 "write_unconfirmed": "Scrittura forse accettata senza conferma. Verifica prima di riprovare.",
                 "time_budget_exceeded": "Tempo del lotto esaurito. I rimanenti saranno riprovati secondo piano.",
@@ -3020,7 +3025,7 @@
             },
             "delete": {
                 "title": "Rimuovere il record gestito?",
-                "description": "Smettere di gestire {{name}}? Il DNS su Cloudflare rimane invariato."
+                "description": "Smettere di gestire {{name}}? Il DNS su provider DNS rimane invariato."
             }
         },
         "dockerDiscovery": {
@@ -3578,9 +3583,9 @@
         "basicAuthUsername": "es. service-user",
         "basicAuthPasswordEdit": "Lascia vuoto per mantenere la password attuale",
         "certificateName": "es. TLS server domestico",
-        "dnsApiToken": "Incolla qui il token API di Cloudflare",
+        "dnsApiToken": "Incolla qui il token API di provider DNS",
         "trustedCaName": "es. CA radice della rete domestica",
-        "dnsConnectionName": "es. Cloudflare rete domestica",
+        "dnsConnectionName": "es. provider DNS rete domestica",
         "dnsApiTokenReplacement": "Lascia vuoto per mantenere il token salvato",
         "hostTagName": "es. Produzione",
         "notificationChannelName": "es. Avvisi operativi",

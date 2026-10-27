@@ -47,6 +47,10 @@ pub(crate) struct TargetState {
     pub(crate) last_successful_address: Option<IpAddr>,
     pub(crate) last_successful_proxied: Option<bool>,
     pub(crate) last_result: Option<TargetResult>,
+    // Authority established only by a confirmed deSEC Create. Keep it separate
+    // from the latest attempt, which can fail without revoking ownership.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) created_record_id: Option<String>,
     pub(crate) consecutive_failures: u32,
     pub(crate) permanent_failure: bool,
     pub(crate) connection_revision: Option<u32>,
@@ -62,6 +66,7 @@ impl TargetState {
             last_successful_address: None,
             last_successful_proxied: None,
             last_result: None,
+            created_record_id: None,
             consecutive_failures: 0,
             permanent_failure: false,
             connection_revision: None,
