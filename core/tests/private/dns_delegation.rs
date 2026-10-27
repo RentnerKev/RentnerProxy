@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::fixtures::reserve_dns_socket_pair;
 use hickory_resolver::{
     config::{NameServerConfig, ResolverConfig},
     net::runtime::TokioRuntimeProvider,
@@ -13,7 +14,7 @@ use hickory_resolver::{
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, UdpSocket},
+    net::UdpSocket,
     task::JoinHandle,
 };
 
@@ -34,9 +35,10 @@ impl Drop for Fixture {
 }
 impl Fixture {
     async fn start(handler: impl Fn(Message, bool) -> Message + Send + Sync + 'static) -> Self {
-        let udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-        let address = udp.local_addr().unwrap();
-        let tcp = TcpListener::bind(address).await.unwrap();
+        let (tcp, udp) = reserve_dns_socket_pair("127.0.0.1:0".parse().unwrap())
+            .await
+            .expect("reserve a shared TCP/UDP DNS fixture port");
+        let address = tcp.local_addr().unwrap();
         let handler = Arc::new(handler);
         let udp_handler = handler.clone();
         let udp_task = tokio::spawn(async move {
