@@ -1183,7 +1183,7 @@
                 "challengeType": "Défi ACME",
                 "httpChallengeHint": "HTTP-01 valide chaque nom via le port 80 accessible. Les noms joker nécessitent DNS-01.",
                 "dnsWildcardHint": "DNS-01 accepte les noms joker et ordinaires ensemble. Tous les noms doivent appartenir à la même zone fournisseur DNS.",
-                "dnsProviderHint": "Les identifiants DNS fournisseur DNS sont utilisés uniquement pendant la validation et ne sont jamais renvoyés avec les métadonnées du certificat.",
+                "dnsProviderHint": "Les identifiants DNS sont gérés de manière centralisée et ne sont jamais renvoyés avec les métadonnées du certificat.",
                 "dnsZoneId": "ID de zone Cloudflare",
                 "dnsApiToken": "Jeton API Cloudflare",
                 "environment": "Environnement ACME",

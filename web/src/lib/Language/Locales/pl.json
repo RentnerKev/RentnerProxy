@@ -1195,7 +1195,7 @@
                 "challengeType": "Wyzwanie ACME",
                 "httpChallengeHint": "Weryfikacja HTTP-01 sprawdza każdą nazwę przez dostępny port 80. Nazwy wieloznaczne wymagają DNS-01.",
                 "dnsWildcardHint": "DNS-01 obsługuje jednocześnie nazwy wieloznaczne i zwykłe. Wszystkie nazwy muszą należeć do tej samej strefy dostawca DNS.",
-                "dnsProviderHint": "Dane dostępowe dostawca DNS DNS są używane tylko podczas weryfikacji i nigdy nie są zwracane w metadanych certyfikatu.",
+                "dnsProviderHint": "Dane dostępowe DNS są zarządzane centralnie i nigdy nie są zwracane w metadanych certyfikatu.",
                 "dnsZoneId": "Identyfikator strefy Cloudflare",
                 "dnsApiToken": "Token API Cloudflare",
                 "environment": "Środowisko ACME",

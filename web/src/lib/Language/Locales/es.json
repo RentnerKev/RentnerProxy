@@ -1183,7 +1183,7 @@
                 "challengeType": "Desafío de ACME",
                 "httpChallengeHint": "HTTP-01 valida cada nombre mediante el puerto 80 accesible. Los comodines requieren DNS-01.",
                 "dnsWildcardHint": "DNS-01 admite nombres comodín y normales juntos. Todos deben pertenecer a la misma zona de proveedor DNS.",
-                "dnsProviderHint": "Las credenciales DNS de proveedor DNS solo se usan durante la validación y nunca se devuelven con los metadatos del certificado.",
+                "dnsProviderHint": "Las credenciales DNS se gestionan de forma centralizada y nunca se devuelven con los metadatos del certificado.",
                 "dnsZoneId": "ID de zona de Cloudflare",
                 "dnsApiToken": "Token de API de Cloudflare",
                 "environment": "Entorno de ACME",

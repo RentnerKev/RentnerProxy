@@ -1193,7 +1193,7 @@
                 "challengeType": "Desafio ACME",
                 "httpChallengeHint": "O HTTP-01 valida cada nome através da porta 80 acessível. Os nomes wildcard requerem DNS-01.",
                 "dnsWildcardHint": "O DNS-01 permite combinar nomes wildcard e comuns. Todos os nomes têm de pertencer à mesma zona provedor DNS.",
-                "dnsProviderHint": "As credenciais DNS da provedor DNS são usadas apenas durante a validação e nunca são devolvidas com os metadados do certificado.",
+                "dnsProviderHint": "As credenciais DNS são geridas centralmente e nunca são devolvidas com os metadados do certificado.",
                 "dnsZoneId": "ID da zona Cloudflare",
                 "dnsApiToken": "Token da API Cloudflare",
                 "environment": "Ambiente ACME",

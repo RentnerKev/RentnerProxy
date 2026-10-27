@@ -1162,7 +1162,7 @@
                 "challengeType": "ACME-verificatie",
                 "httpChallengeHint": "HTTP-01 valideert elke naam via de bereikbare poort 80. Namen met een wildcard vereisen DNS-01.",
                 "dnsWildcardHint": "DNS-01 ondersteunt wildcardnamen en gewone namen samen. Alle namen moeten tot dezelfde DNS-provider-zone behoren.",
-                "dnsProviderHint": "DNS-provider DNS-inloggegevens worden alleen tijdens de validatie gebruikt en worden nooit met certificaatmetagegevens teruggestuurd.",
+                "dnsProviderHint": "DNS-inloggegevens worden centraal beheerd en nooit met certificaatmetagegevens teruggestuurd.",
                 "dnsZoneId": "Cloudflare-zone-ID",
                 "dnsApiToken": "Cloudflare-API-token",
                 "environment": "ACME-omgeving",
