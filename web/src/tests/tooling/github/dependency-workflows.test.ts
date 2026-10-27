@@ -108,3 +108,77 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(integration).toBe('bash .github/scripts/security/rescan-dev-image.sh')
     expect(workflow.jobs['rescan-scope']).toBeUndefined()
 })
+
+test('audits exact source with base-revision automation outside PR configuration', async () => {
+    const workflow = Bun.YAML.parse(
+        await readFile(resolve(root, '.github/workflows/dependency-security.yml'), 'utf8'),
+    ) as {
+        permissions: Record<string, string>
+        jobs: Record<
+            string,
+            {
+                needs?: unknown
+                steps: {
+                    uses?: string
+                    with?: Record<string, unknown>
+                    env?: Record<string, string>
+                    run?: string
+                    'working-directory'?: string
+                }[]
+            }
+        >
+    }
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    for (const name of ['locked-source', 'production-candidate']) {
+        const job = workflow.jobs[name]!
+        expect(job.needs).toBeUndefined()
+        const checkouts = job.steps.filter((step) => step.uses?.startsWith('actions/checkout@'))
+        expect(checkouts).toHaveLength(2)
+        expect(checkouts.find((step) => step.with?.path === 'automation')?.with).toEqual({
+            'persist-credentials': false,
+            path: 'automation',
+            ref: '${{ github.event.pull_request.base.sha || github.workflow_sha }}',
+        })
+        expect(checkouts.find((step) => step.with?.path === 'source')?.with).toEqual({
+            'persist-credentials': false,
+            path: 'source',
+            ref: '${{ github.sha }}',
+        })
+        for (const step of job.steps) {
+            expect(step['working-directory']).toBeUndefined()
+            if (!step.run) continue
+            expect(step.run).not.toContain('source/.github/scripts')
+            expect(step.run).not.toMatch(/\bcd\s+source\b/u)
+            expect(step.run).not.toMatch(/\b(?:bun|npm|pnpm|yarn)\s+(?:install|run)\b/u)
+            expect(step.run).not.toMatch(/\bcargo\s+(?:build|run|test|install)\b/u)
+        }
+    }
+    const locked = workflow.jobs['locked-source']!
+    for (const scanner of ['audit-cargo.sh', 'audit-bun.sh']) {
+        const step = locked.steps.find((candidate) => candidate.run?.includes(scanner))!
+        expect(step.run).toContain(`bash automation/.github/scripts/security/${scanner}`)
+        expect(step.env?.AUTOMATION_DIRECTORY).toBe('automation')
+        expect(step.env?.SOURCE_DIRECTORY).toBe('source')
+    }
+    expect(locked.steps.find((step) => step.run?.includes('audit-cargo.sh'))?.run).toContain(
+        'REVISION="$(git -C source rev-parse HEAD)"',
+    )
+    const candidate = workflow.jobs['production-candidate']!
+    const build = candidate.steps.find((step) => step.run?.includes('docker buildx build'))!
+    expect(build.run).toContain('--file source/docker/production/Dockerfile')
+    expect(build.run).toContain(
+        '--label "org.opencontainers.image.revision=$(git -C source rev-parse HEAD)"',
+    )
+    expect(build.run?.trimEnd()).toEndWith(
+        '--output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" source',
+    )
+    expect(
+        candidate.steps.find((step) => step.run?.includes('install-dependency-tools.sh'))?.run,
+    ).toBe('bash automation/.github/scripts/security/install-dependency-tools.sh')
+    const scan = candidate.steps.find((step) => step.run?.includes('scan-image.sh'))!
+    expect(scan.env?.AUTOMATION_DIRECTORY).toBe('automation')
+    expect(scan.env?.IMAGE_SOURCE).toBe('oci-archive:${{ runner.temp }}/candidate-image.tar')
+    expect(scan.run).toBe(
+        'REVISION="$(git -C source rev-parse HEAD)" bash automation/.github/scripts/security/scan-image.sh',
+    )
+})

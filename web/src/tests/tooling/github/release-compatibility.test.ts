@@ -38,7 +38,7 @@ test('collects exact-revision publication evidence even for documentation-only m
     expect(workflow.on.push.branches).toContain('main')
     expect(workflow.on.push).not.toHaveProperty('paths')
     expect(workflow.on.push).not.toHaveProperty('paths-ignore')
-    expect(workflow.on.pull_request.paths).toContain('web/src/**')
+    expect(workflow.on.pull_request.paths).toContain('web/**')
 })
 
 const beta2 = {
