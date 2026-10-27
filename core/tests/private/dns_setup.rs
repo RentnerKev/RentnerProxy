@@ -524,7 +524,11 @@ async fn cname_setup_distinguishes_ready_missing_wrong_target_and_conflicting_da
         let before = fixture.bytes();
         let result = fixture
             .runtime
-            .dns_setup_inner(setup_request(true), Some(dns.resolver()))
+            .dns_setup_inner(
+                setup_request(true),
+                Some(dns.resolver()),
+                Instant::now() + BUDGET,
+            )
             .await
             .unwrap();
         assert_eq!(
@@ -554,7 +558,7 @@ async fn ns_setup_uses_only_provider_assigned_names_and_preserves_underscore_own
     let before = fixture.bytes();
     let result = fixture
         .runtime
-        .dns_setup_inner(request, Some(dns.resolver()))
+        .dns_setup_inner(request, Some(dns.resolver()), Instant::now() + BUDGET)
         .await
         .unwrap();
     assert_eq!(result.results[0].status, SetupStatus::Ready);
@@ -582,7 +586,7 @@ async fn revision_change_during_dns_check_discards_observation() {
     let resolver = dns.resolver();
     let check = tokio::spawn(async move {
         runtime
-            .dns_setup_inner(setup_request(true), Some(resolver))
+            .dns_setup_inner(setup_request(true), Some(resolver), Instant::now() + BUDGET)
             .await
     });
     tokio::time::timeout(Duration::from_secs(2), dns.started.notified())
@@ -635,7 +639,12 @@ async fn manual_check_requires_every_saved_value_without_ca_or_journal_writes() 
         let before = fixture.bytes();
         let result = fixture
             .runtime
-            .check_manual_dns_inner(CERTIFICATE, &action, Some(dns.resolver()))
+            .check_manual_dns_inner(
+                CERTIFICATE,
+                &action,
+                Some(dns.resolver()),
+                Instant::now() + BUDGET,
+            )
             .await
             .unwrap();
         assert_eq!(
@@ -672,7 +681,12 @@ async fn manual_expiry_and_stale_ids_are_read_only_and_do_not_query_dns() {
     assert_eq!(
         fixture
             .runtime
-            .check_manual_dns_inner(CERTIFICATE, &action, Some(dns.resolver()))
+            .check_manual_dns_inner(
+                CERTIFICATE,
+                &action,
+                Some(dns.resolver()),
+                Instant::now() + BUDGET
+            )
             .await
             .unwrap()
             .status,
@@ -682,7 +696,12 @@ async fn manual_expiry_and_stale_ids_are_read_only_and_do_not_query_dns() {
     assert!(
         fixture
             .runtime
-            .check_manual_dns_inner(CERTIFICATE, &action, Some(dns.resolver()))
+            .check_manual_dns_inner(
+                CERTIFICATE,
+                &action,
+                Some(dns.resolver()),
+                Instant::now() + BUDGET
+            )
             .await
             .is_err()
     );
@@ -708,7 +727,12 @@ async fn manual_cancellation_during_lookup_fences_ready_response() {
     let resolver = dns.resolver();
     let check = tokio::spawn(async move {
         runtime
-            .check_manual_dns_inner(CERTIFICATE, &check_action, Some(resolver))
+            .check_manual_dns_inner(
+                CERTIFICATE,
+                &check_action,
+                Some(resolver),
+                Instant::now() + BUDGET,
+            )
             .await
     });
     tokio::time::timeout(Duration::from_secs(2), dns.started.notified())
@@ -746,11 +770,64 @@ async fn admission_and_lookup_timeout_are_bounded() {
     let started = Instant::now();
     let result = fixture
         .runtime
-        .dns_setup_inner(setup_request(true), Some(dns.resolver()))
+        .dns_setup_inner(
+            setup_request(true),
+            Some(dns.resolver()),
+            Instant::now() + BUDGET,
+        )
         .await
         .unwrap();
     assert_eq!(result.results[0].status, SetupStatus::LookupFailed);
     assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+#[tokio::test]
+async fn lookup_deadline_returns_record_failures_before_the_overall_timeout() {
+    for manual in [false, true] {
+        let fixture = Fixture::new(ZONE, true).await;
+        let action = if manual {
+            Some(fixture.manual(false).await)
+        } else {
+            None
+        };
+        let dns = DnsFixture::new(|request, _| response(&request)).await;
+        dns.hold.store(true, Ordering::SeqCst);
+        let before = fixture.bytes();
+        let deadline = Instant::now() + Duration::from_millis(100);
+        if let Some(action) = action {
+            let result = tokio::time::timeout(
+                Duration::from_secs(2),
+                fixture.runtime.check_manual_dns_inner(
+                    CERTIFICATE,
+                    &action,
+                    Some(dns.resolver()),
+                    deadline,
+                ),
+            )
+            .await
+            .expect("manual check must retain its per-record result")
+            .unwrap();
+            assert_eq!(result.status, CheckStatus::LookupFailed);
+            assert_eq!(result.records.len(), 1);
+            assert_eq!(result.records[0].status, CheckStatus::LookupFailed);
+        } else {
+            let result = tokio::time::timeout(
+                Duration::from_secs(2),
+                fixture.runtime.dns_setup_inner(
+                    setup_request(true),
+                    Some(dns.resolver()),
+                    deadline,
+                ),
+            )
+            .await
+            .expect("setup check must retain its per-record result")
+            .unwrap();
+            assert_eq!(result.results.len(), 1);
+            assert_eq!(result.results[0].status, SetupStatus::LookupFailed);
+        }
+        assert_eq!(fixture.bytes(), before);
+        assert_eq!(fixture.api_calls.load(Ordering::SeqCst), 0);
+    }
 }
 
 #[tokio::test]
@@ -777,7 +854,7 @@ async fn ns_setup_reports_missing_wrong_servers_and_conflicting_alias() {
         request.delegation = Some(Delegation::Ns);
         let result = fixture
             .runtime
-            .dns_setup_inner(request, Some(dns.resolver()))
+            .dns_setup_inner(request, Some(dns.resolver()), Instant::now() + BUDGET)
             .await
             .unwrap();
         assert_eq!(
@@ -944,7 +1021,12 @@ async fn manual_check_rejects_saved_proofs_at_an_unrelated_answer_owner() {
     let before = fixture.bytes();
     let result = fixture
         .runtime
-        .check_manual_dns_inner(CERTIFICATE, &action, Some(dns.resolver()))
+        .check_manual_dns_inner(
+            CERTIFICATE,
+            &action,
+            Some(dns.resolver()),
+            Instant::now() + BUDGET,
+        )
         .await
         .unwrap();
     assert_eq!(result.status, CheckStatus::Pending);

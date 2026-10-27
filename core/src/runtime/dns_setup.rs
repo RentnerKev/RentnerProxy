@@ -202,22 +202,27 @@ impl ProxyRuntime {
         &self,
         request: SetupRequest,
     ) -> Result<SetupResult, CertificateError> {
-        timeout_at(Instant::now() + BUDGET, self.dns_setup_inner(request, None))
-            .await
-            .map_err(|_| CertificateError::DnsDelegationLookupFailed)?
+        let outer_deadline = Instant::now() + BUDGET;
+        // Leave time for the final snapshot check and assembly after DNS queries stop.
+        timeout_at(
+            outer_deadline,
+            self.dns_setup_inner(request, None, outer_deadline - Duration::from_secs(1)),
+        )
+        .await
+        .map_err(|_| CertificateError::DnsDelegationLookupFailed)?
     }
 
     async fn dns_setup_inner(
         &self,
         request: SetupRequest,
         fixture_resolver: Option<hickory_resolver::TokioResolver>,
+        deadline: Instant,
     ) -> Result<SetupResult, CertificateError> {
         let grouped = domains(&request)?;
         let _permit = self
             .dns_assistant_admission
             .try_acquire()
             .map_err(|_| CertificateError::OperationInProgress)?;
-        let deadline = Instant::now() + BUDGET;
         let snapshot = self
             .dns_connections
             .setup_snapshot(
@@ -350,9 +355,11 @@ impl ProxyRuntime {
         id: &str,
         action: &ManualDnsActionRequest,
     ) -> Result<CheckResult, CertificateError> {
+        let outer_deadline = Instant::now() + BUDGET;
+        // Leave time for the final snapshot check and assembly after DNS queries stop.
         timeout_at(
-            Instant::now() + BUDGET,
-            self.check_manual_dns_inner(id, action, None),
+            outer_deadline,
+            self.check_manual_dns_inner(id, action, None, outer_deadline - Duration::from_secs(1)),
         )
         .await
         .map_err(|_| CertificateError::ManualDnsLookupFailed)?
@@ -363,6 +370,7 @@ impl ProxyRuntime {
         id: &str,
         action: &ManualDnsActionRequest,
         fixture_resolver: Option<hickory_resolver::TokioResolver>,
+        deadline: Instant,
     ) -> Result<CheckResult, CertificateError> {
         let _permit = self
             .dns_assistant_admission
@@ -380,7 +388,6 @@ impl ProxyRuntime {
                 .push(record.clone());
         }
         let expired = manual_expired(&before.expires_at)?;
-        let deadline = Instant::now() + BUDGET;
         let resolver = if expired {
             None
         } else {
