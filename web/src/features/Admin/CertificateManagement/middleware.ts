@@ -12,6 +12,7 @@ import type { CertificateActionResult } from '@/lib/Admin/CertificateManagement/
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import {
     actOnManualDnsService,
+    cancelDelegatedCertificateService,
     deleteCertificateService,
     getAssignableCertificatesService,
     getCertificatesService,
@@ -23,6 +24,7 @@ import {
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
 import {
     manualDnsActionInputSchema,
+    cancelDelegatedCertificateInputSchema,
     certificateIdInputSchema,
     importCertificateInputSchema,
     replaceCertificateInputSchema,
@@ -185,5 +187,14 @@ export const cancelManualDnsHandler = createServerFn({ method: 'POST' })
         certificateAction(
             () => actOnManualDnsService(data, 'cancel'),
             'admin.certificates.manualDns.cancelled',
+        ),
+    )
+
+export const cancelDelegatedCertificateHandler = createServerFn({ method: 'POST' })
+    .validator(cancelDelegatedCertificateInputSchema)
+    .handler(({ data }) =>
+        certificateAction(
+            () => cancelDelegatedCertificateService(data),
+            'admin.certificates.delegatedDns.cancelling',
         ),
     )

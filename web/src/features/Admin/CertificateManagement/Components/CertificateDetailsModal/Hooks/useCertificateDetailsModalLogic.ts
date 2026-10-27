@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts'
 import { useEffect, useRef } from 'react'
-import { continueManualDnsHandler, cancelManualDnsHandler } from '../../../middleware.ts'
+import {
+    continueManualDnsHandler,
+    cancelManualDnsHandler,
+    cancelDelegatedCertificateHandler,
+} from '../../../middleware.ts'
 import { invalidateCertificateManagementCache } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import useTranslationStore, {
     useDateFormatter,
@@ -9,6 +13,7 @@ import useTranslationStore, {
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import {
+    canCancelDelegatedCertificate,
     getCertificateOperationDisplay,
     getCertificateRetryAt,
     getCertificateRetryError,
@@ -49,7 +54,13 @@ export default function useCertificateDetailsModalLogic(
     const errorTime = manualDns?.lastCheckedAt ?? certificate.lastErrorAt?.getTime() ?? ''
     const reportedError = useRef('')
     useEffect(() => {
-        if (!open || !errorCode || errorCode === 'manual_dns_cancelled') return
+        if (
+            !open ||
+            !errorCode ||
+            errorCode === 'manual_dns_cancelled' ||
+            errorCode === 'acme_cancelled'
+        )
+            return
         const event = `${certificate.id}:${certificate.currentOperation?.id}:${errorCode}:${errorTime}`
         if (reportedError.current === event) return
         reportedError.current = event
@@ -83,6 +94,39 @@ export default function useCertificateDetailsModalLogic(
             })
         },
     })
+    const requestedCancellation = useRef('')
+    const delegatedAction = useMutation({
+        mutationFn: (operationId: string) => {
+            if (
+                !canAct ||
+                !canCancelDelegatedCertificate(certificate) ||
+                certificate.currentOperation?.id !== operationId
+            )
+                throw new Error('stale')
+            return cancelDelegatedCertificateHandler({
+                data: { certificateId: certificate.id, operationId },
+            })
+        },
+        onSuccess: async (result) => {
+            if (!result.success) requestedCancellation.current = ''
+            await invalidateCertificateManagementCache(queryClient).catch(() => {
+                toast.error(t('admin.certificates.errors.loadFailed'), {
+                    title: t('toast.titles.error'),
+                })
+            })
+            if (result.success)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
+            else toast.error(t(result.message), { title: t('toast.titles.error') })
+        },
+        onError: async () => {
+            requestedCancellation.current = ''
+            await invalidateCertificateManagementCache(queryClient)
+            toast.error(t('admin.certificates.errors.actionFailed'), {
+                title: t('toast.titles.error'),
+            })
+        },
+    })
+    const delegatedCancellationEligible = canAct && canCancelDelegatedCertificate(certificate)
     const formatter = useDateFormatter()
     const dateTimeFormatter = useDateTimeFormatter()
     const scheduling = getCertificateSchedulingDates(certificate)
@@ -102,6 +146,16 @@ export default function useCertificateDetailsModalLogic(
     return {
         state: {
             manualDns,
+            showDelegatedCancel:
+                canAct &&
+                certificate.currentOperation?.dnsMode === 'delegated' &&
+                certificate.operation !== 'idle',
+            delegatedCancelDisabled:
+                !delegatedCancellationEligible ||
+                delegatedAction.isPending ||
+                (delegatedAction.isSuccess &&
+                    delegatedAction.data.success &&
+                    delegatedAction.variables === certificate.currentOperation?.id),
             manualPending: manualAction.isPending,
             canActOnManualDns: canAct && manualDns?.status === 'awaiting_input',
             manualCleanup: manualDns
@@ -112,13 +166,27 @@ export default function useCertificateDetailsModalLogic(
             retryStatus,
             operationStage,
             challengeLabel:
-                certificate.currentOperation?.dnsMode === 'manual'
-                    ? `DNS-01 (${t('admin.certificates.manualDns.manual')})`
-                    : certificateChallengeLabel(certificate.challengeType, t),
+                (certificate.dnsMode ?? certificate.currentOperation?.dnsMode) === 'delegated'
+                    ? t('admin.certificates.delegatedDns.label')
+                    : (certificate.dnsMode ?? certificate.currentOperation?.dnsMode) === 'manual'
+                      ? `DNS-01 (${t('admin.certificates.manualDns.manual')})`
+                      : certificateChallengeLabel(certificate.challengeType, t),
             formatDate: (value: Date | null) => formatCertificateDate(value, formatter),
             formatDateTime: (value: Date | null) => formatDateTime(value, dateTimeFormatter),
         },
         handler: {
+            cancelDelegated: () => {
+                const id = certificate.currentOperation?.id
+                if (
+                    !delegatedCancellationEligible ||
+                    !id ||
+                    delegatedAction.isPending ||
+                    requestedCancellation.current === id
+                )
+                    return
+                requestedCancellation.current = id
+                delegatedAction.mutate(id)
+            },
             continueManualDns: () => manualAction.mutate('continue'),
             cancelManualDns: () => manualAction.mutate('cancel'),
             copy: async (value: string) => {

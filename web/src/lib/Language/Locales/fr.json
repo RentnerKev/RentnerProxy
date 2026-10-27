@@ -1096,6 +1096,7 @@
                 "needs_attention": "Intervention requise",
                 "awaiting_dns": "En attente des enregistrements TXT",
                 "checking_dns": "Vérification du DNS public",
+                "cancelling": "Annulation en cours",
                 "cancelled": "Annulé",
                 "expired": "Expiré"
             },
@@ -1165,6 +1166,12 @@
             "replace": {
                 "title": "Remplacer le certificat",
                 "description": "Remplacez le matériel enregistré en conservant cette attribution de certificat."
+            },
+            "delegatedDns": {
+                "cancel": "Annuler l’émission",
+                "cancelling": "Annulation demandée. Les enregistrements DNS sont en cours de nettoyage.",
+                "label": "DNS-01 (délégué)",
+                "hint": "Configurez CNAME ou NS pour chaque nom _acme-challenge. Sélectionnez une connexion vérifiée et une zone cible, qui peut différer des domaines du certificat. RentnerProxy résout automatiquement la délégation."
             },
             "form": {
                 "name": "Nom",
@@ -1249,8 +1256,12 @@
                 "operation_in_progress": "Une autre opération sur un certificat est déjà en cours.",
                 "acme_terms_required": "Acceptez les conditions d’ACME avant de demander un certificat.",
                 "acme_domain_invalid": "ACME exige des domaines DNS publics.",
+                "acme_cancelled": "L’émission du certificat a été annulée.",
                 "acme_failed": "La commande ACME a échoué.",
                 "acme_dns_required": "DNS-01 nécessite un fournisseur DNS.",
+                "dns_delegation_invalid": "Délégation DNS invalide ou cible hors de la zone. Vérifiez les enregistrements CNAME ou NS de _acme-challenge et sélectionnez la zone vérifiée.",
+                "dns_delegation_lookup_failed": "Échec de résolution de la délégation DNS. Vérifiez la résolution DNS publique et réessayez.",
+                "dns_delegation_not_propagated": "Délégation DNS pas encore propagée. Vérifiez les enregistrements CNAME ou NS publics, attendez l’expiration des caches DNS et réessayez.",
                 "dns_provider_invalid": "La configuration du fournisseur DNS est invalide.",
                 "dns_provider_unavailable": "Le fournisseur DNS est inaccessible.",
                 "dns_provider_unauthorized": "Le fournisseur DNS a refusé les identifiants.",

@@ -230,6 +230,7 @@ async fn malformed_pagination_cannot_silently_truncate_discovery() {
 async fn redirect_is_not_followed_and_never_forwards_credentials_to_redirect_target() {
     let fixture = Fixture::new(vec![
         Reply::status(StatusCode::TEMPORARY_REDIRECT).header("location", "/credential-sink"),
+        Reply::status(StatusCode::TEMPORARY_REDIRECT).header("location", "/credential-sink"),
     ])
     .await;
     assert_eq!(

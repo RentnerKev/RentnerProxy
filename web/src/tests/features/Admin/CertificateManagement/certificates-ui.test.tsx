@@ -125,9 +125,16 @@ const cancelManualDnsHandlerMock = mock(async (_input: unknown) => ({
     success: true as const,
     message: 'admin.certificates.manualDns.cancelled',
 }))
+const cancelDelegatedCertificateHandlerMock = mock(
+    async (_input: unknown): Promise<CertificateActionResult> => ({
+        success: true,
+        message: 'admin.certificates.delegatedDns.cancelling',
+    }),
+)
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
     continueManualDnsHandler: continueManualDnsHandlerMock,
     cancelManualDnsHandler: cancelManualDnsHandlerMock,
+    cancelDelegatedCertificateHandler: cancelDelegatedCertificateHandlerMock,
     getCertificateDnsProvidersHandler: getCertificateDnsProviders,
     getCertificateDnsConnectionsHandler: getCertificateDnsConnections,
     getCertificatesHandler: getCertificatesHandlerMock,
@@ -294,11 +301,13 @@ function lastButton(label: string): HTMLButtonElement {
     return matches.at(-1)!
 }
 
-async function chooseDnsChallenge(): Promise<void> {
+async function chooseDnsChallenge(mode: 'provider' | 'delegated' = 'provider'): Promise<void> {
     await click(document.querySelector('[aria-label="ACME challenge"]')!)
     await waitFor(() => document.querySelector('[role=option]') !== null)
     const dnsOption = [...document.querySelectorAll('[role=option]')].find((option) =>
-        option.textContent?.includes('DNS-01'),
+        mode === 'delegated'
+            ? option.textContent?.includes('DNS-01 (delegated)')
+            : option.textContent?.trim() === 'DNS-01 (DNS provider)',
     )
     expect(dnsOption).toBeDefined()
     await click(dnsOption!)
@@ -318,6 +327,11 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 beforeEach(() => {
     continueManualDnsHandlerMock.mockClear()
     cancelManualDnsHandlerMock.mockClear()
+    cancelDelegatedCertificateHandlerMock.mockReset()
+    cancelDelegatedCertificateHandlerMock.mockResolvedValue({
+        success: true,
+        message: 'admin.certificates.delegatedDns.cancelling',
+    })
     dnsProvidersUnavailable = false
     getCertificateDnsProviders.mockClear()
     getCertificateDnsConnections.mockReset().mockResolvedValue([DDNS_CONNECTION])
@@ -623,6 +637,28 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Operation ID')
         expect(document.body.textContent).toContain('Operation stage')
         expect(document.body.textContent).toContain('Waiting for validation')
+    })
+
+    test('idle delegated certificates retain their challenge label without operation history', async () => {
+        getCertificatesHandlerMock.mockResolvedValueOnce([
+            {
+                ...certificate,
+                challengeType: 'dns-01',
+                dnsMode: 'delegated',
+                currentOperation: null,
+            },
+        ])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await openMenu(button('Open certificate actions'))
+        await click(
+            [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === 'Details',
+            )!,
+        )
+        await waitFor(() => document.body.textContent?.includes('Certificate metadata') === true)
+        expect(document.body.textContent).toContain('DNS-01 (delegated)')
+        expect(document.body.textContent).not.toContain('Manual DNS verification')
     })
 
     test('keeps completed operation history out of the table while preserving details and actions', async () => {
@@ -1167,9 +1203,16 @@ describe('certificate management UI', () => {
         })
     })
 
-    test.each(['cloudflare', 'desec', 'hetzner'] as const)(
-        'forwards DNS-01 wildcard requests through %s with a shared account and retains the draft while managing providers',
-        async (providerId) => {
+    test.each([
+        ['cloudflare', 'provider'],
+        ['desec', 'provider'],
+        ['hetzner', 'provider'],
+        ['cloudflare', 'delegated'],
+        ['desec', 'delegated'],
+        ['hetzner', 'delegated'],
+    ] as const)(
+        'forwards DNS-01 wildcard requests through %s in %s mode and retains the draft while managing providers',
+        async (providerId, mode) => {
             const connection =
                 providerId === 'cloudflare'
                     ? DDNS_CONNECTION
@@ -1198,11 +1241,14 @@ describe('certificate management UI', () => {
             await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
             await setValue(
                 document.querySelector('#certificate-request-domain-0')!,
-                '*.example.com',
+                mode === 'delegated' ? '*.customer.example.net' : '*.example.com',
             )
             await click(button('Add another domain'))
-            await setValue(document.querySelector('#certificate-request-domain-1')!, 'example.com')
-            await chooseDnsChallenge()
+            await setValue(
+                document.querySelector('#certificate-request-domain-1')!,
+                mode === 'delegated' ? 'customer.example.net' : 'example.com',
+            )
+            await chooseDnsChallenge(mode)
             await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
             expect(document.querySelector('#certificate-request-dns-api-token')).toBeNull()
             const manage = document.querySelector<HTMLAnchorElement>('a[href="/providers"]')!
@@ -1224,7 +1270,11 @@ describe('certificate management UI', () => {
             expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
                 data: {
                     name: 'Wildcard edge',
-                    domains: ['*.example.com', 'example.com'],
+                    domains:
+                        mode === 'delegated'
+                            ? ['*.customer.example.net', 'customer.example.net']
+                            : ['*.example.com', 'example.com'],
+                    ...(mode === 'delegated' ? { dnsMode: 'delegated' } : {}),
                     environment: 'production',
                     challengeType: 'dns-01',
                     dnsProvider: {
@@ -1306,33 +1356,39 @@ describe('certificate management UI', () => {
         )
     })
 
-    test('requires a verified connection and permits correction without losing the draft', async () => {
-        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
-        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
-        await click(button('Request with ACME'))
-        await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
-        await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
-        await setValue(document.querySelector('#certificate-request-domain-0')!, '*.example.com')
-        await chooseDnsChallenge()
-        await click(lastButton('Request with ACME'))
-        await waitForToast('error')
-        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
-            'Choose a verified connection and a permitted zone.',
-        )
-        expect(document.querySelector('form [role="alert"]')).toBeNull()
-        expect(document.querySelector('#certificate-request-dns-zone-id-error')).toBeNull()
-        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
-        await act(() => toast.dismissAll())
-        await click(document.querySelector('[aria-label="Provider connection"]')!)
-        await waitFor(() => !!document.querySelector('[role=option]'))
-        await click(
-            [...document.querySelectorAll('[role=option]')].find((item) =>
-                item.textContent?.includes('Fixture Cloudflare'),
-            )!,
-        )
-        await click(lastButton('Request with ACME'))
-        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
-    })
+    test.each(['provider', 'delegated'] as const)(
+        'requires a verified connection in %s mode and permits correction without losing the draft',
+        async (mode) => {
+            await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+            await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+            await click(button('Request with ACME'))
+            await waitFor(() => document.querySelector('#certificate-request-domain-0') !== null)
+            await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
+            await setValue(
+                document.querySelector('#certificate-request-domain-0')!,
+                '*.example.com',
+            )
+            await chooseDnsChallenge(mode)
+            await click(lastButton('Request with ACME'))
+            await waitForToast('error')
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                'Choose a verified connection and a permitted zone.',
+            )
+            expect(document.querySelector('form [role="alert"]')).toBeNull()
+            expect(document.querySelector('#certificate-request-dns-zone-id-error')).toBeNull()
+            expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+            await act(() => toast.dismissAll())
+            await click(document.querySelector('[aria-label="Provider connection"]')!)
+            await waitFor(() => !!document.querySelector('[role=option]'))
+            await click(
+                [...document.querySelectorAll('[role=option]')].find((item) =>
+                    item.textContent?.includes('Fixture Cloudflare'),
+                )!,
+            )
+            await click(lastButton('Request with ACME'))
+            await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        },
+    )
 
     test('shows the DNS-01 requirement as a toast for HTTP wildcard requests', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
@@ -2212,4 +2268,114 @@ test('manual DNS propagation failures use one toast per check and cancellation a
     } finally {
         errorToast.mockRestore()
     }
+})
+
+const delegatedOperation = {
+    ...manualOperation,
+    kind: 'renew' as const,
+    dnsMode: 'delegated' as const,
+    stage: 'preparing_challenge' as const,
+    manualDns: undefined,
+}
+
+test('delegated cancellation sends the fenced operation once and remains disabled after acceptance', async () => {
+    let resolve: ((value: CertificateActionResult) => void) | undefined
+    cancelDelegatedCertificateHandlerMock.mockImplementationOnce(
+        () =>
+            new Promise((done) => {
+                resolve = done
+            }),
+    )
+    await renderPage(
+        [],
+        'en',
+        <CertificateDetailsModal
+            open
+            onOpenChange={() => undefined}
+            canRenew
+            certificate={{
+                ...certificate,
+                operation: 'renewing',
+                currentOperation: delegatedOperation,
+            }}
+        />,
+    )
+    const cancel = button('Cancel issuance')
+    await click(cancel)
+    await waitFor(() => cancelDelegatedCertificateHandlerMock.mock.calls.length === 1)
+    expect(cancel.disabled).toBeTrue()
+    await click(cancel)
+    expect(cancelDelegatedCertificateHandlerMock).toHaveBeenCalledWith({
+        data: { certificateId: certificate.id, operationId: delegatedOperation.id },
+    })
+    await act(async () => {
+        resolve!({ success: true, message: 'admin.certificates.delegatedDns.cancelling' })
+    })
+    await waitForToast('success')
+    expect(cancel.disabled).toBeTrue()
+    expect(cancelDelegatedCertificateHandlerMock).toHaveBeenCalledTimes(1)
+    expect(cancelManualDnsHandlerMock).not.toHaveBeenCalled()
+})
+
+test.each(['finalizing', 'certificate_ready', 'applying', 'cancelling', 'cancelled'] as const)(
+    'delegated %s stages cannot be cancelled',
+    async (stage) => {
+        await renderPage(
+            [],
+            'en',
+            <CertificateDetailsModal
+                open
+                onOpenChange={() => undefined}
+                canRenew
+                certificate={{
+                    ...certificate,
+                    operation: 'renewing',
+                    currentOperation: { ...delegatedOperation, stage },
+                }}
+            />,
+        )
+        expect(button('Cancel issuance').disabled).toBeTrue()
+        await click(button('Cancel issuance'))
+        expect(cancelDelegatedCertificateHandlerMock).not.toHaveBeenCalled()
+    },
+)
+
+test.each([
+    'provider',
+    'manual',
+    'renew-with-issue-role',
+    'issue-with-renew-role',
+    'idle',
+] as const)('delegated cancel is unavailable for %s', async (scenario) => {
+    const mode = scenario === 'provider' || scenario === 'manual' ? scenario : 'delegated'
+    await renderPage(
+        [],
+        'en',
+        <CertificateDetailsModal
+            open
+            onOpenChange={() => undefined}
+            canIssue={scenario === 'renew-with-issue-role'}
+            canRenew={scenario !== 'renew-with-issue-role'}
+            certificate={{
+                ...certificate,
+                operation:
+                    scenario === 'idle'
+                        ? 'idle'
+                        : scenario === 'issue-with-renew-role'
+                          ? 'issuing'
+                          : 'renewing',
+                currentOperation: {
+                    ...delegatedOperation,
+                    kind: scenario === 'issue-with-renew-role' ? 'issue' : 'renew',
+                    dnsMode: mode,
+                },
+            }}
+        />,
+    )
+    expect(
+        [...document.querySelectorAll('button')].some((item) =>
+            item.textContent?.includes('Cancel issuance'),
+        ),
+    ).toBeFalse()
+    expect(cancelDelegatedCertificateHandlerMock).not.toHaveBeenCalled()
 })

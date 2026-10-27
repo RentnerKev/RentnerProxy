@@ -12,7 +12,7 @@ use crate::runtime::certificates::CertificateError;
 
 use super::{
     api::{MAX_REQUEST_BODY_BYTES, ProviderRequestError, map_provider_error},
-    models::{DnsRecordHandle, DnsRecordIntent},
+    models::{DnsPresentError, DnsRecordHandle, DnsRecordIntent},
     provider::DnsProvider,
 };
 
@@ -57,7 +57,7 @@ impl DnsProvider {
         &self,
         intent: &DnsRecordIntent,
         owner_name: &str,
-    ) -> Result<DnsRecordHandle, CertificateError> {
+    ) -> Result<DnsRecordHandle, DnsPresentError> {
         let subname = self.desec_subname(owner_name)?;
         let _guard = self.desec_lock(&subname).await?;
         let existing = self.desec_read_rrset(&subname).await?;
@@ -79,7 +79,7 @@ impl DnsProvider {
         rrset.records.push(quote_txt(&intent.value));
         self.desec_write_rrset(&subname, &rrset, create)
             .await
-            .map_err(map_provider_error)?;
+            .map_err(super::provider::present_request_error)?;
         Ok(self.desec_handle(intent, owner_name))
     }
 

@@ -1,3 +1,4 @@
+use super::cancellation::{delegated_cancellation_pending, settle_delegated_cancellation};
 use super::operations;
 use super::persistence::persist_index;
 use super::scheduling::{
@@ -78,7 +79,17 @@ impl CertificateStore {
         let mut index = self.index.lock().await;
         if let Some(entry) = index.certificates.get_mut(id) {
             let had_acme_operation = entry.metadata.operation != CertificateOperation::Idle;
-            let retryable = entry.metadata.source == CertificateSource::Acme || had_acme_operation;
+            let cancelled = delegated_cancellation_pending(entry);
+            let error = if cancelled {
+                CertificateError::AcmeCancelled
+            } else {
+                error
+            };
+            let retryable = !cancelled
+                && (entry.metadata.source == CertificateSource::Acme || had_acme_operation);
+            if cancelled {
+                settle_delegated_cancellation(entry, OffsetDateTime::now_utc());
+            }
             let operation_id = entry
                 .metadata
                 .current_operation
@@ -110,7 +121,9 @@ impl CertificateStore {
                 }
                 entry.metadata.last_error_at = Some(now.clone());
                 if let Some(operation) = entry.metadata.current_operation.as_mut() {
-                    operation.stage = if retryable {
+                    operation.stage = if cancelled {
+                        CertificateOperationStage::Cancelled
+                    } else if retryable {
                         CertificateOperationStage::RetryScheduled
                     } else {
                         CertificateOperationStage::Failed
@@ -121,7 +134,9 @@ impl CertificateStore {
                     utc_now().unwrap_or_else(|_| entry.metadata.updated_at.clone());
             }
             if let Some(operation_id) = operation_id {
-                let stage = if retryable {
+                let stage = if cancelled {
+                    CertificateOperationStage::Cancelled
+                } else if retryable {
                     CertificateOperationStage::RetryScheduled
                 } else {
                     CertificateOperationStage::Failed
@@ -130,8 +145,16 @@ impl CertificateStore {
                     &mut index,
                     &operation_id,
                     id,
-                    CertificateEventKind::Failed,
-                    CertificateOperationStage::Failed,
+                    if cancelled {
+                        CertificateEventKind::Cancelled
+                    } else {
+                        CertificateEventKind::Failed
+                    },
+                    if cancelled {
+                        CertificateOperationStage::Cancelled
+                    } else {
+                        CertificateOperationStage::Failed
+                    },
                     Some(error.code().to_owned()),
                 );
                 if retryable {

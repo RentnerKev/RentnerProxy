@@ -1,6 +1,7 @@
 import {
     dnsProviderIdSchema,
     dnsZoneIdSchema,
+    dnsZoneNameSchema,
     isDnsZoneIdForProvider,
 } from '@/lib/DnsConnections/validation.ts'
 import { z } from 'zod'
@@ -19,7 +20,7 @@ const safeText = z
     .min(1)
     .max(253)
     .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value))
-const zone = z.strictObject({ id: zoneId, name: safeText })
+const zone = z.strictObject({ id: zoneId, name: dnsZoneNameSchema })
 const revision = z.number().int().min(1).max(4_294_967_295)
 const zones = z
     .array(zone)

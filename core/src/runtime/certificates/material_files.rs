@@ -192,6 +192,11 @@ pub(super) fn public_metadata_with_candidate(
             .as_ref()
             .is_some_and(|acme| !acme.pending_dns_records.is_empty()),
         current_operation,
+        dns_mode: stored
+            .acme
+            .as_ref()
+            .filter(|acme| acme.challenge_type == super::AcmeChallengeType::Dns01)
+            .map(|acme| acme.dns_mode),
         challenge_type: stored
             .metadata
             .challenge_type

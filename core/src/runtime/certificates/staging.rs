@@ -1,3 +1,4 @@
+use super::cancellation::delegated_cancellation_pending;
 use super::material_files::{ParsedCertificate, ensure_material_version, material_id};
 use super::persistence::persist_index;
 use super::recovery::persist_candidate_manifest;
@@ -57,6 +58,7 @@ impl CertificateStore {
                     let mut active = previous.clone();
                     if let Some(acme) = active.acme.as_mut() {
                         acme.manual_order = None;
+                        acme.cancel_requested = false;
                     }
                     active.metadata.current_operation = Some(operation.clone());
                     active.metadata.updated_at = operation.updated_at.clone();
@@ -115,6 +117,9 @@ impl CertificateStore {
                 None => Err(CertificateError::NotFound),
                 Some(_) if index.pending_candidates.contains_key(id) => {
                     Err(CertificateError::OperationInProgress)
+                }
+                Some(current) if delegated_cancellation_pending(current) => {
+                    Err(CertificateError::AcmeCancelled)
                 }
                 Some(current)
                     if !matches!(
@@ -226,6 +231,7 @@ impl CertificateStore {
             manual_order: None,
             dns_provider,
             pending_dns_records: Vec::new(),
+            cancel_requested: false,
         })
     }
 

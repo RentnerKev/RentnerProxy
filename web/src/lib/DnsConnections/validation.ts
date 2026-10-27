@@ -28,9 +28,10 @@ export const dnsProviderCatalogSchema = z.strictObject({
 })
 
 export const cloudflareZoneIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
-export const desecZoneIdSchema = z
+/** Canonical ASCII DNS zone names may contain underscores (unlike certificate SANs). */
+export const dnsZoneNameSchema = z
     .string()
-    .max(191)
+    .max(253)
     .refine(
         (value) =>
             value.includes('.') &&
@@ -39,9 +40,10 @@ export const desecZoneIdSchema = z
                 .split('.')
                 .every(
                     (label) =>
-                        label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label),
+                        label.length <= 63 && /^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$/u.test(label),
                 ),
     )
+export const desecZoneIdSchema = dnsZoneNameSchema.max(191)
 export const hetznerZoneIdSchema = z
     .string()
     .regex(/^[1-9][0-9]{0,18}$/u)

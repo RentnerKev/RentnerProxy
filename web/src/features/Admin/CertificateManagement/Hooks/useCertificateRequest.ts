@@ -22,8 +22,7 @@ import type { CertificateRequestFormValues } from '../Types/validation.types.ts'
 import type { CertificateRequestInputs } from '../Types/certificate-management.types.ts'
 import {
     connectionSupportsOperation,
-    verifiedConnectionZones,
-    zoneCoversDomains,
+    certificateConnectionZones,
 } from '@/lib/DnsConnections/connectionEligibility.ts'
 import type { DnsConnectionChoice } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 
@@ -71,9 +70,8 @@ export default function useCertificateRequest({
                         'error' ||
                     !connection ||
                     !connectionSupportsOperation(connection, providers, 'dns01') ||
-                    !verifiedConnectionZones(connection).some(
-                        (zone) =>
-                            zone.id === value.dnsZoneId && zoneCoversDomains(zone, value.domains),
+                    !certificateConnectionZones(connection, value.domains, value.dnsMode).some(
+                        (zone) => zone.id === value.dnsZoneId,
                     )
                 )
                     throw new Error('admin.providers.validation.connection')

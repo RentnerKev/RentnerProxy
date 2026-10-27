@@ -116,6 +116,13 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             }),
         )
         .route(
+            "/internal/v1/certificates/{id}/cancel",
+            post({
+                let state = state.clone();
+                move |id, body| handlers::cancel_delegated_dns(id, state.clone(), body)
+            }),
+        )
+        .route(
             "/internal/v1/certificates/{id}/dns-01/cancel",
             post({
                 let state = state.clone();

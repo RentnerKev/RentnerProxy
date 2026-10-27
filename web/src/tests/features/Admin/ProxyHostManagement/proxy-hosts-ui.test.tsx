@@ -253,6 +253,10 @@ mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
         success: true as const,
         message: 'admin.certificates.manualDns.checking',
     })),
+    cancelDelegatedCertificateHandler: mock(async () => ({
+        success: true,
+        message: 'admin.certificates.delegatedDns.cancelling',
+    })),
     cancelManualDnsHandler: mock(async () => ({
         success: true as const,
         message: 'admin.certificates.manualDns.cancelled',

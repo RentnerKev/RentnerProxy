@@ -1,6 +1,7 @@
 mod accounts;
 #[path = "acme_http.rs"]
 mod acme_http;
+mod delegated;
 mod manual;
 mod order;
 use super::{
@@ -21,6 +22,7 @@ use tokio::{
 const ORDER_TIMEOUT: Duration = Duration::from_secs(120);
 const DNS_ORDER_TIMEOUT: Duration = Duration::from_secs(180);
 const DNS_CLEANUP_TIMEOUT: Duration = Duration::from_secs(60);
+const MAX_RETAINED_UNCONFIRMED_WRITES: usize = 128;
 static ACME_JOBS: Semaphore = Semaphore::const_new(4);
 
 #[cfg(test)]
@@ -246,45 +248,36 @@ impl ProxyRuntime {
                 }
             }
         };
-        let previous_intents = match self.certificate_store.pending_dns_records(&id).await {
+        let mut dns_intents = match self
+            .prepare_dns_challenges(&id, &request, dns_provider.as_ref())
+            .await
+        {
             Ok(intents) => intents,
             Err(error) => {
                 self.certificate_store.finish_failed(&id, error).await;
                 return;
             }
         };
-        if !previous_intents.is_empty() {
-            let cleanup = match dns_provider.as_ref() {
-                Some(provider) => {
-                    self.cleanup_dns_challenges(&id, provider, &previous_intents)
-                        .await
-                }
-                None => Err(CertificateError::DnsCleanupFailed),
-            };
-            if let Err(error) = cleanup {
-                self.certificate_store.finish_failed(&id, error).await;
-                return;
-            }
-        }
         let mut registered = Vec::new();
-        let mut dns_intents: Vec<DnsRecordIntent> = Vec::new();
-        let order_result = timeout(
-            if request.challenge_type == AcmeChallengeType::Dns01 {
-                DNS_ORDER_TIMEOUT
-            } else {
-                ORDER_TIMEOUT
-            },
-            self.issue_acme(
-                &id,
-                &request,
-                &challenges,
-                &mut registered,
-                dns_provider.as_ref(),
-                &mut dns_intents,
-            ),
-        )
-        .await
-        .unwrap_or(Err(CertificateError::AcmeFailed));
+        let order_result = {
+            timeout(
+                if request.challenge_type == AcmeChallengeType::Dns01 {
+                    DNS_ORDER_TIMEOUT
+                } else {
+                    ORDER_TIMEOUT
+                },
+                self.issue_acme(
+                    &id,
+                    &request,
+                    &challenges,
+                    &mut registered,
+                    dns_provider.as_ref(),
+                    &mut dns_intents,
+                ),
+            )
+            .await
+            .unwrap_or(Err(CertificateError::AcmeFailed))
+        };
         let (candidate, issue_error) = match order_result {
             Ok((certificate_pem, private_key_pem)) => {
                 match self
@@ -312,25 +305,83 @@ impl ProxyRuntime {
         self.recover_dns_cleanup_one(&id).await;
     }
 
+    async fn prepare_dns_challenges(
+        &self,
+        id: &str,
+        request: &CertificateIssueRequest,
+        provider: Option<&DnsProvider>,
+    ) -> Result<Vec<DnsRecordIntent>, CertificateError> {
+        let previous = self.certificate_store.pending_dns_records(id).await?;
+        if previous.is_empty() {
+            return Ok(Vec::new());
+        }
+        let provider = provider.ok_or(CertificateError::DnsCleanupFailed)?;
+        let retained = self
+            .reconcile_dns_challenges(id, provider, &previous)
+            .await?;
+        if retained.is_empty() {
+            return Ok(retained);
+        }
+        // Only stored-config retries/renewals can reach this path with pending records:
+        // begin_issue, manual import and deletion fence configuration changes. Preserve
+        // old authority without requiring its never-committed proof for a new order.
+        if request.challenge_type != AcmeChallengeType::Dns01
+            || request.dns_mode != DnsValidationMode::Delegated
+            || retained.len() > MAX_RETAINED_UNCONFIRMED_WRITES
+            || retained.len().saturating_add(request.domains.len()) > 256
+            || retained.iter().any(|intent| !intent.unconfirmed_write)
+        {
+            return Err(CertificateError::DnsCleanupFailed);
+        }
+        Ok(retained)
+    }
+
     async fn cleanup_dns_challenges(
         &self,
         id: &str,
         provider: &DnsProvider,
         intents: &[DnsRecordIntent],
     ) -> Result<(), CertificateError> {
+        if self
+            .reconcile_dns_challenges(id, provider, intents)
+            .await?
+            .is_empty()
+        {
+            Ok(())
+        } else {
+            Err(CertificateError::DnsCleanupFailed)
+        }
+    }
+
+    async fn reconcile_dns_challenges(
+        &self,
+        id: &str,
+        provider: &DnsProvider,
+        intents: &[DnsRecordIntent],
+    ) -> Result<Vec<DnsRecordIntent>, CertificateError> {
         if intents.is_empty() {
-            return Ok(());
+            return Ok(Vec::new());
         }
         timeout(DNS_CLEANUP_TIMEOUT, async {
+            let mut retained = Vec::new();
             for (index, intent) in intents.iter().enumerate() {
+                if intent.unconfirmed_write && provider.find_owned_records(intent).await?.is_empty()
+                {
+                    // An empty read is not a terminal outcome for an ambiguous POST.
+                    // Keep its authority, but still clean later confirmed proofs.
+                    retained.push(intent.clone());
+                    continue;
+                }
                 provider
                     .cleanup_intents(std::slice::from_ref(intent))
                     .await?;
+                let mut pending = retained.clone();
+                pending.extend_from_slice(&intents[index + 1..]);
                 self.certificate_store
-                    .set_pending_dns_records(id, intents[index + 1..].to_vec())
+                    .set_pending_dns_records(id, pending)
                     .await?;
             }
-            Ok(())
+            Ok(retained)
         })
         .await
         .map_err(|_| CertificateError::DnsCleanupFailed)?

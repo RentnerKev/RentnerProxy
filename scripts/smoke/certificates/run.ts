@@ -11,6 +11,7 @@ import { verifyCertificateHttpAcme } from './http-acme.ts'
 import { verifyCertificateActivationRecovery } from './activation-recovery.ts'
 import { verifyCertificateDnsAcme } from './dns-acme.ts'
 import { verifyCertificateManualDns } from './manual-dns.ts'
+import { verifyCertificateDelegatedDns } from './delegated-dns.ts'
 import { manualDnsForwarderName } from './dns-forwarder.ts'
 import { verifyCertificateAccessPolicies } from './access-policies.ts'
 import { verifyCertificateIpPolicies } from './ip-policies.ts'
@@ -30,6 +31,7 @@ async function runSmoke(): Promise<void> {
         await verifyCertificateActivationRecovery(acme)
         const dns = extendSmokeContext(acme, await verifyCertificateDnsAcme(acme))
         await verifyCertificateManualDns(dns)
+        await verifyCertificateDelegatedDns(dns)
         const policies = extendSmokeContext(dns, await verifyCertificateAccessPolicies(dns))
         await verifyCertificateIpPolicies(policies)
         await verifyCertificateLogsAndJobs(policies)

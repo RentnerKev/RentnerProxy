@@ -1108,6 +1108,7 @@
                 "needs_attention": "Wymaga uwagi",
                 "awaiting_dns": "Oczekiwanie na rekordy TXT",
                 "checking_dns": "Sprawdzanie publicznego DNS",
+                "cancelling": "Anulowanie",
                 "cancelled": "Anulowano",
                 "expired": "Wygasło"
             },
@@ -1177,6 +1178,12 @@
             "replace": {
                 "title": "Zastąp certyfikat",
                 "description": "Zastąp zapisane dane certyfikatu, zachowując jego przypisania."
+            },
+            "delegatedDns": {
+                "cancel": "Anuluj wydawanie",
+                "cancelling": "Zażądano anulowania. Trwa usuwanie rekordów DNS.",
+                "label": "DNS-01 (delegowany)",
+                "hint": "Skonfiguruj CNAME lub NS dla każdej nazwy _acme-challenge. Wybierz zweryfikowane połączenie i strefę docelową, która może różnić się od domen certyfikatu. RentnerProxy rozpoznaje delegację automatycznie."
             },
             "form": {
                 "name": "Nazwa",
@@ -1263,8 +1270,12 @@
                 "operation_in_progress": "Inna operacja na certyfikacie już trwa.",
                 "acme_terms_required": "Zaakceptuj warunki ACME przed zamówieniem certyfikatu.",
                 "acme_domain_invalid": "ACME wymaga publicznych domen DNS.",
+                "acme_cancelled": "Wydawanie certyfikatu zostało anulowane.",
                 "acme_failed": "Zamówienie ACME nie powiodło się.",
                 "acme_dns_required": "Wyzwanie DNS-01 wymaga dostawcy DNS.",
+                "dns_delegation_invalid": "Nieprawidłowa delegacja DNS lub cel poza strefą. Sprawdź rekordy CNAME lub NS dla _acme-challenge i wybierz zweryfikowaną strefę.",
+                "dns_delegation_lookup_failed": "Nie udało się rozpoznać delegacji DNS. Sprawdź publiczny DNS i spróbuj ponownie.",
+                "dns_delegation_not_propagated": "Delegacja DNS nie została rozpowszechniona. Sprawdź publiczne rekordy CNAME lub NS, poczekaj na wygaśnięcie pamięci podręcznej DNS i spróbuj ponownie.",
                 "dns_provider_invalid": "Konfiguracja dostawcy DNS jest nieprawidłowa.",
                 "dns_provider_unavailable": "Nie udało się połączyć z dostawcą DNS.",
                 "dns_provider_unauthorized": "Dostawca DNS odrzucił dane dostępowe.",

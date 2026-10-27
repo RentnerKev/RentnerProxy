@@ -54,6 +54,15 @@ export default function CertificateDetailsModal({
             description={t('admin.certificates.details.description')}
         >
             <div className="grid gap-5">
+                {state.showDelegatedCancel ? (
+                    <ModalActionButton
+                        variant="secondary"
+                        disabled={state.delegatedCancelDisabled}
+                        onClick={handler.cancelDelegated}
+                    >
+                        {t('admin.certificates.delegatedDns.cancel')}
+                    </ModalActionButton>
+                ) : null}
                 {certificate.currentOperation?.dnsMode === 'manual' && !state.manualDns ? (
                     <output className="text-sm text-info-text">
                         {t('admin.certificates.manualDns.preparing')}

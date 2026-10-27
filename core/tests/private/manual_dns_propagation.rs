@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::fixtures::reserve_dns_socket_pair as reserve_socket_pair;
 use hickory_resolver::proto::{
     op::{Message, ResponseCode},
     rr::{
@@ -76,30 +77,6 @@ impl Fixture {
 
     fn resolver(&self) -> TokioResolver {
         resolver(Some(self.address)).unwrap()
-    }
-}
-
-async fn reserve_socket_pair(
-    mut candidate: SocketAddr,
-) -> std::io::Result<(TcpListener, UdpSocket)> {
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-        // TCP and UDP have independent port namespaces. Keep TCP reserved while
-        // binding UDP to its exact port; release both before choosing a new port.
-        let pair: std::io::Result<_> = async {
-            let tcp = TcpListener::bind(candidate).await?;
-            let udp = UdpSocket::bind(tcp.local_addr()?).await?;
-            Ok((tcp, udp))
-        }
-        .await;
-        match pair {
-            Ok(pair) => return Ok(pair),
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse && attempts < 32 => {
-                candidate.set_port(0);
-            }
-            Err(error) => return Err(error),
-        }
     }
 }
 

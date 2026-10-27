@@ -17,7 +17,8 @@ export default function CertificateRequestFields({
 }: CertificateRequestFieldsProps) {
     const { t } = useTranslationStore()
     const inputsDisabled = isPending || locked
-    const manualMode = useStore(form.store, (state) => state.values.dnsMode === 'manual')
+    const dnsMode = useStore(form.store, (state) => state.values.dnsMode)
+    const manualMode = dnsMode === 'manual'
     return (
         <div className="grid gap-4">
             <form.Field name="name">
@@ -73,13 +74,20 @@ export default function CertificateRequestFields({
                                     }
                                     onBlur={field.handleBlur}
                                     value={
-                                        field.state.value === 'dns-01' && manualMode
-                                            ? 'dns-01-manual'
+                                        field.state.value === 'dns-01' &&
+                                        (manualMode || dnsMode === 'delegated')
+                                            ? `dns-01-${dnsMode}`
                                             : field.state.value
                                     }
                                     onValueChange={(value) => {
-                                        if (value === 'dns-01-manual') {
-                                            form.setFieldValue('dnsMode', 'manual')
+                                        if (
+                                            value === 'dns-01-manual' ||
+                                            value === 'dns-01-delegated'
+                                        ) {
+                                            form.setFieldValue(
+                                                'dnsMode',
+                                                value === 'dns-01-manual' ? 'manual' : 'delegated',
+                                            )
                                             field.handleChange('dns-01')
                                         } else if (value === 'http-01' || value === 'dns-01') {
                                             form.setFieldValue('dnsMode', 'provider')
@@ -98,6 +106,10 @@ export default function CertificateRequestFields({
                                         {
                                             label: `DNS-01 (${t('admin.certificates.manualDns.manual')})`,
                                             value: 'dns-01-manual',
+                                        },
+                                        {
+                                            label: t('admin.certificates.delegatedDns.label'),
+                                            value: 'dns-01-delegated',
                                         },
                                     ]}
                                 />
@@ -119,7 +131,11 @@ export default function CertificateRequestFields({
                                 className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                             >
                                 {field.state.value === 'dns-01'
-                                    ? t('admin.certificates.form.dnsWildcardHint')
+                                    ? t(
+                                          dnsMode === 'delegated'
+                                              ? 'admin.certificates.delegatedDns.hint'
+                                              : 'admin.certificates.form.dnsWildcardHint',
+                                      )
                                     : t('admin.certificates.form.httpChallengeHint')}
                             </p>
                         ) : null}

@@ -36,7 +36,7 @@ export interface ManualDnsChallengeMetadata {
 export interface CertificateCurrentOperationMetadata {
     readonly id: string
     readonly kind: CertificateOperationKind
-    readonly dnsMode?: 'provider' | 'manual' | undefined
+    readonly dnsMode?: 'provider' | 'manual' | 'delegated' | undefined
     readonly manualDns?: ManualDnsChallengeMetadata | undefined
     readonly stage: CertificateOperationStage
     readonly startedAt: string
@@ -46,7 +46,7 @@ export interface CertificateCurrentOperationMetadata {
 interface CertificateCurrentOperation {
     readonly id: string
     readonly kind: CertificateOperationKind
-    readonly dnsMode?: 'provider' | 'manual' | undefined
+    readonly dnsMode?: 'provider' | 'manual' | 'delegated' | undefined
     readonly manualDns?: ManualDnsChallengeMetadata | undefined
     readonly stage: CertificateOperationStage
     readonly startedAt: Date
@@ -96,6 +96,7 @@ export interface CertificateSummary {
     readonly status: CertificateStatus
     readonly operation: CertificateOperation
     readonly currentOperation?: CertificateCurrentOperation | null
+    readonly dnsMode?: 'provider' | 'manual' | 'delegated' | null
     readonly challengeType?: AcmeChallengeType | null
     readonly issuedAt: Date | null
     readonly expiresAt: Date | null

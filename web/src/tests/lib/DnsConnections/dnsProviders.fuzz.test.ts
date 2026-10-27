@@ -1,6 +1,11 @@
 import { expect, test } from 'bun:test'
 import * as fc from 'fast-check'
-import { dnsProviderCatalogSchema, dnsProviderIdSchema } from '@/lib/DnsConnections/validation.ts'
+import {
+    dnsProviderCatalogSchema,
+    dnsProviderIdSchema,
+    dnsZoneNameSchema,
+    desecZoneIdSchema,
+} from '@/lib/DnsConnections/validation.ts'
 
 test('provider identifiers are a closed built-in set, never plugin names or paths', () => {
     fc.assert(
@@ -29,5 +34,31 @@ test('malformed capability values cannot advertise a supported operation', () =>
             } else expect(parsed.success).toBe(false)
         }),
         { numRuns: 500 },
+    )
+})
+
+test('delegated DNS zone names accept canonical underscore labels without broadening SAN rules', () => {
+    const label = fc
+        .array(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789_'), {
+            minLength: 1,
+            maxLength: 63,
+        })
+        .map((characters) => characters.join(''))
+    fc.assert(
+        fc.property(label, label, (first, second) => {
+            const name = `${first}.${second}.example.com`
+            expect(dnsZoneNameSchema.safeParse(name).success).toBeTrue()
+            expect(desecZoneIdSchema.safeParse(name).success).toBeTrue()
+            for (const invalid of [
+                `${name}.`,
+                ` ${name}`,
+                `-${name}`,
+                `${first}..example.com`,
+                `${first}/example.com`,
+            ]) {
+                expect(dnsZoneNameSchema.safeParse(invalid).success).toBeFalse()
+            }
+        }),
+        { numRuns: 300 },
     )
 })

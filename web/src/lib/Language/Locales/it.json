@@ -1101,6 +1101,7 @@
                 "needs_attention": "Richiede attenzione",
                 "awaiting_dns": "In attesa dei record TXT",
                 "checking_dns": "Controllo del DNS pubblico",
+                "cancelling": "Annullamento in corso",
                 "cancelled": "Annullato",
                 "expired": "Scaduto"
             },
@@ -1170,6 +1171,12 @@
             "replace": {
                 "title": "Sostituisci certificato",
                 "description": "Sostituisci il materiale archiviato mantenendo l’assegnazione del certificato."
+            },
+            "delegatedDns": {
+                "cancel": "Annulla emissione",
+                "cancelling": "Annullamento richiesto. Pulizia dei record DNS in corso.",
+                "label": "DNS-01 (delegato)",
+                "hint": "Configura CNAME o NS per ogni nome _acme-challenge. Seleziona una connessione verificata e una zona di destinazione, che può differire dai domini del certificato. RentnerProxy risolve la delega automaticamente."
             },
             "form": {
                 "name": "Nome",
@@ -1255,8 +1262,12 @@
                 "operation_in_progress": "È già in corso un’altra operazione sul certificato.",
                 "acme_terms_required": "Accetta i termini ACME prima di richiedere un certificato.",
                 "acme_domain_invalid": "ACME richiede domini DNS pubblici.",
+                "acme_cancelled": "L’emissione del certificato è stata annullata.",
                 "acme_failed": "L’ordine ACME non è riuscito.",
                 "acme_dns_required": "DNS-01 richiede un provider DNS.",
+                "dns_delegation_invalid": "Delega DNS non valida o destinazione fuori dalla zona. Controlla i record CNAME o NS di _acme-challenge e seleziona la zona verificata.",
+                "dns_delegation_lookup_failed": "Risoluzione della delega DNS non riuscita. Controlla il DNS pubblico e riprova.",
+                "dns_delegation_not_propagated": "Delega DNS non ancora propagata. Controlla i record CNAME o NS pubblici, attendi la scadenza delle cache DNS e riprova.",
                 "dns_provider_invalid": "La configurazione del provider DNS non è valida.",
                 "dns_provider_unavailable": "Impossibile raggiungere il provider DNS.",
                 "dns_provider_unauthorized": "Il provider DNS ha rifiutato le credenziali.",

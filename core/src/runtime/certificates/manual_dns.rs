@@ -7,6 +7,7 @@ pub(crate) enum DnsValidationMode {
     #[default]
     Provider,
     Manual,
+    Delegated,
 }
 
 impl DnsValidationMode {

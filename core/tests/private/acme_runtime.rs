@@ -171,3 +171,6 @@ async fn background_issue_records_account_failure_and_releases_operation() {
             .is_empty()
     );
 }
+
+#[path = "delegated_acme_lifecycle.rs"]
+mod delegated_lifecycle;

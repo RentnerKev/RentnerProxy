@@ -120,6 +120,15 @@ impl CertificateStore {
         {
             return Err(CertificateError::DnsProviderInvalid);
         }
+        let acme = previous
+            .acme
+            .as_ref()
+            .ok_or(CertificateError::DnsProviderInvalid)?;
+        if records.iter().any(|intent| {
+            intent.delegation.is_some() != (acme.dns_mode == super::DnsValidationMode::Delegated)
+        }) {
+            return Err(CertificateError::DnsProviderInvalid);
+        }
         let mut updated = previous.clone();
         let now = utc_now()?;
         updated.metadata.updated_at = now;

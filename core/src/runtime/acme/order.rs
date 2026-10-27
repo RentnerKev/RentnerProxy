@@ -1,15 +1,17 @@
 use crate::{
     runtime::{
         CertificateOperationStage, ProxyRuntime,
-        certificates::{AcmeChallengeType, CertificateError, CertificateIssueRequest},
-        dns::{DnsProvider, DnsRecordIntent},
+        certificates::{
+            AcmeChallengeType, CertificateError, CertificateIssueRequest, DnsValidationMode,
+        },
+        dns::{DnsDelegationBinding, DnsProvider, DnsRecordIntent},
     },
     server::challenges::ChallengeStore,
 };
 use instant_acme::{
     AuthorizationStatus, ChallengeType, Identifier, NewOrder, OrderStatus, RetryPolicy,
 };
-use std::{sync::Arc, time::Duration};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use tokio::time::timeout;
 const ACCOUNT_TIMEOUT: Duration = Duration::from_secs(20);
 const DNS_PROPAGATION_WAIT: Duration = Duration::from_secs(30);
@@ -17,6 +19,7 @@ const DNS_PROPAGATION_WAIT: Duration = Duration::from_secs(30);
 struct ChallengeRegistrations<'a> {
     http: &'a mut Vec<(String, String)>,
     dns: &'a mut Vec<DnsRecordIntent>,
+    delegated: BTreeMap<String, DnsDelegationBinding>,
 }
 
 impl ProxyRuntime {
@@ -32,9 +35,16 @@ impl ProxyRuntime {
         self.certificate_store
             .record_operation_stage(id, CertificateOperationStage::CreatingOrder)
             .await?;
-        if let Some(provider) = dns_provider {
-            provider.validate_sans(&request.domains).await?;
-        }
+        let delegated = if let Some(provider) = dns_provider {
+            if request.dns_mode == DnsValidationMode::Delegated {
+                super::delegated::bindings(request, provider).await?
+            } else {
+                provider.validate_sans(&request.domains).await?;
+                BTreeMap::new()
+            }
+        } else {
+            BTreeMap::new()
+        };
         let account = timeout(ACCOUNT_TIMEOUT, self.acme_account(id, request))
             .await
             .map_err(|_| CertificateError::AcmeFailed)??;
@@ -45,6 +55,7 @@ impl ProxyRuntime {
             ChallengeRegistrations {
                 http: registered,
                 dns: dns_intents,
+                delegated,
             },
             dns_provider,
             account,
@@ -64,6 +75,7 @@ impl ProxyRuntime {
         let ChallengeRegistrations {
             http: registered,
             dns: dns_intents,
+            delegated,
         } = registrations;
         let identifiers = request
             .domains
@@ -116,6 +128,7 @@ impl ProxyRuntime {
             }
             AcmeChallengeType::Dns01 => {
                 let provider = dns_provider.ok_or(CertificateError::AcmeDnsRequired)?;
+                let current_proofs_start = dns_intents.len();
                 let mut presented = false;
                 let mut authorizations = order.authorizations();
                 while let Some(result) = authorizations.next().await {
@@ -132,16 +145,44 @@ impl ProxyRuntime {
                     let (_, bare_domain) =
                         requested_identifier(challenge.identifier(), &request.domains)?;
                     let value = challenge.key_authorization().dns_value();
-                    let intent = DnsRecordIntent::new(id, &bare_domain, &value)?;
-                    dns_intents.push(intent.clone());
-                    self.certificate_store
-                        .set_pending_dns_records(id, dns_intents.clone())
+                    let mut intent = DnsRecordIntent::new(id, &bare_domain, &value)?;
+                    if request.dns_mode == DnsValidationMode::Delegated {
+                        let binding = delegated
+                            .get(&bare_domain)
+                            .ok_or(CertificateError::DnsDelegationInvalid)?;
+                        super::delegated::recheck(binding, request.environment).await?;
+                        intent = intent.with_delegation(binding.clone())?;
+                    }
+                    if request.dns_mode == DnsValidationMode::Delegated {
+                        super::delegated::present(
+                            &self.certificate_store,
+                            id,
+                            provider,
+                            dns_intents,
+                            intent,
+                        )
                         .await?;
-                    provider.present(&intent).await?;
+                    } else {
+                        dns_intents.push(intent.clone());
+                        self.certificate_store
+                            .set_pending_dns_records(id, dns_intents.clone())
+                            .await?;
+                        provider.present(&intent).await?;
+                    }
                     presented = true;
                 }
                 if presented {
-                    tokio::time::sleep(DNS_PROPAGATION_WAIT).await;
+                    if request.dns_mode == DnsValidationMode::Delegated {
+                        super::delegated::wait_for_records(
+                            &dns_intents[current_proofs_start..],
+                            request.environment,
+                            &self.certificate_store,
+                            id,
+                        )
+                        .await?;
+                    } else {
+                        tokio::time::sleep(DNS_PROPAGATION_WAIT).await;
+                    }
                 }
                 let mut authorizations = order.authorizations();
                 while let Some(result) = authorizations.next().await {
@@ -157,6 +198,9 @@ impl ProxyRuntime {
                         .challenge(ChallengeType::Dns01)
                         .ok_or(CertificateError::AcmeFailed)?;
                     requested_identifier(challenge.identifier(), &request.domains)?;
+                    if request.dns_mode == DnsValidationMode::Delegated {
+                        super::delegated::check_cancelled(&self.certificate_store, id).await?;
+                    }
                     challenge
                         .set_ready()
                         .await

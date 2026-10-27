@@ -102,6 +102,7 @@ fn certificate(source: certificates::CertificateSource, days: i64) -> Certificat
     let expires = issued + time::Duration::days(days);
     let format = |value: OffsetDateTime| value.format(&Rfc3339).unwrap();
     CertificateMetadata {
+        dns_mode: None,
         id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
         source,
         environment: Some(certificates::CertificateEnvironment::Staging),

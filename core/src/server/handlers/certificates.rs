@@ -221,6 +221,29 @@ pub(in crate::server) async fn cancel_manual_dns(
     Ok(no_store_json(metadata))
 }
 
+pub(in crate::server) async fn cancel_delegated_dns(
+    Path(id): Path<String>,
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let body = body.map_err(|_| ApiError::validation_failed())?;
+    if body.len() > 1024 {
+        return Err(ApiError::validation_failed());
+    }
+    let action: crate::runtime::CertificateCancelRequest =
+        serde_json::from_slice(&body).map_err(|_| ApiError::validation_failed())?;
+    if !is_canonical_uuid_v7(&action.operation_id) {
+        return Err(ApiError::validation_failed());
+    }
+    let metadata = state
+        .runtime
+        .cancel_delegated_dns(&id, &action)
+        .await
+        .map_err(ApiError::certificate)?;
+    Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CertificateListResponse {

@@ -10,6 +10,7 @@ pub(crate) mod crowdsec_dashboard;
 pub(crate) mod ddns;
 mod dns;
 pub(crate) mod dns_connections;
+mod dns_delegation;
 pub(crate) mod docker_discovery;
 mod engine;
 mod hetzner;
@@ -25,13 +26,13 @@ mod trusted_cas;
 
 use crate::models::ValidatedProxyConfig;
 use certificates::StagedCertificate;
+pub(crate) use certificates::{
+    CertificateCancelRequest, CertificateError, CertificateEventPage, CertificateImportRequest,
+    CertificateIssueRequest, CertificateMetadata, CertificateOperationStage, CertificateStore,
+    CertificateStoreReadiness, ManualDnsActionRequest,
+};
 #[cfg(test)]
 pub(crate) use certificates::{CertificateEnvironment, CertificateSource, CertificateStatus};
-pub(crate) use certificates::{
-    CertificateError, CertificateEventPage, CertificateImportRequest, CertificateIssueRequest,
-    CertificateMetadata, CertificateOperationStage, CertificateStore, CertificateStoreReadiness,
-    ManualDnsActionRequest,
-};
 pub(crate) use crowdsec::CrowdSecError;
 pub(crate) use engine::{CaddyProcess, EngineEnvironment, EngineError, EngineFuture, ProxyEngine};
 use renderer::RenderSettings;

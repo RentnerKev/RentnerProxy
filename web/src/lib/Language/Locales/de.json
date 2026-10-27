@@ -1094,6 +1094,7 @@
                 "needs_attention": "Aufmerksamkeit erforderlich",
                 "awaiting_dns": "Wartet auf deine TXT-Einträge",
                 "checking_dns": "Öffentliches DNS wird geprüft",
+                "cancelling": "Wird abgebrochen",
                 "cancelled": "Abgebrochen",
                 "expired": "Abgelaufen"
             },
@@ -1163,6 +1164,12 @@
             "replace": {
                 "title": "Zertifikat ersetzen",
                 "description": "Ersetze das gespeicherte Material und behalte diese Zertifikatszuweisung bei."
+            },
+            "delegatedDns": {
+                "cancel": "Ausstellung abbrechen",
+                "cancelling": "Abbruch angefordert. DNS-Einträge werden aufgeräumt.",
+                "label": "DNS-01 (delegiert)",
+                "hint": "Richte zuerst CNAME- oder NS-Delegierungen für jeden _acme-challenge-Namen ein. Wähle eine verifizierte Verbindung und Zielzone, die von den Zertifikatsdomains abweichen darf. RentnerProxy ermittelt die Delegierung automatisch."
             },
             "form": {
                 "name": "Bezeichnung",
@@ -1247,8 +1254,12 @@
                 "operation_in_progress": "Ein anderer Zertifikatsvorgang läuft bereits.",
                 "acme_terms_required": "Akzeptiere die ACME-Bedingungen, bevor du ein Zertifikat anforderst.",
                 "acme_domain_invalid": "ACME erfordert öffentliche DNS-Domains.",
+                "acme_cancelled": "Die Zertifikatsausstellung wurde abgebrochen.",
                 "acme_failed": "Die ACME-Bestellung ist fehlgeschlagen.",
                 "acme_dns_required": "DNS-01 erfordert einen DNS-Anbieter.",
+                "dns_delegation_invalid": "DNS-Delegierung ungültig oder Ziel außerhalb der gewählten Zone. Prüfe die CNAME- oder NS-Einträge von _acme-challenge und wähle die verifizierte Zielzone.",
+                "dns_delegation_lookup_failed": "DNS-Delegierung konnte nicht aufgelöst werden. Prüfe die öffentliche DNS-Auflösung und versuche es erneut.",
+                "dns_delegation_not_propagated": "DNS-Delegierung noch nicht verbreitet. Prüfe öffentliche CNAME- oder NS-Einträge, warte auf den Ablauf der DNS-Caches und versuche es erneut.",
                 "dns_provider_invalid": "Die DNS-Anbieterkonfiguration ist ungültig.",
                 "dns_provider_unavailable": "Der DNS-Anbieter ist nicht erreichbar.",
                 "dns_provider_unauthorized": "Der DNS-Anbieter hat die Zugangsdaten abgelehnt.",

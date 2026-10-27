@@ -1,6 +1,7 @@
 import { afterEach, expect, spyOn, test } from 'bun:test'
 import {
     actOnControllerManualDns,
+    cancelControllerDelegatedCertificate,
     issueControllerCertificate,
 } from '@/server/Controller/certificates.server.ts'
 import {
@@ -193,4 +194,82 @@ test('manual issuance forwards manual mode without a provider payload', async ()
         environment: 'production',
         acceptTerms: true,
     })
+})
+
+test('delegated mode survives current and idle metadata without requiring it from old cores', () => {
+    for (const mode of ['provider', 'manual', 'delegated', null] as const) {
+        expect(certificateMetadataSchema.parse({ ...metadata, dnsMode: mode }).dnsMode).toBe(mode)
+    }
+    expect(
+        certificateMetadataSchema.parse({
+            ...metadata,
+            dnsMode: 'delegated',
+            currentOperation: {
+                ...metadata.currentOperation,
+                dnsMode: 'delegated',
+                manualDns: undefined,
+            },
+        }).currentOperation?.dnsMode,
+    ).toBe('delegated')
+    expect(
+        certificateMetadataSchema.parse({
+            ...metadata,
+            dnsMode: 'delegated',
+            operation: 'idle',
+            currentOperation: null,
+        }).dnsMode,
+    ).toBe('delegated')
+    expect(
+        certificateMetadataSchema.safeParse({ ...metadata, dnsMode: 'arbitrary' }).success,
+    ).toBeFalse()
+})
+
+const cancellingMetadata = {
+    ...metadata,
+    dnsMode: 'delegated',
+    currentOperation: {
+        ...metadata.currentOperation,
+        dnsMode: 'delegated',
+        stage: 'cancelling',
+        manualDns: undefined,
+    },
+}
+
+test('delegated cancellation transport posts only the exact operation ID and validates acceptance metadata', async () => {
+    const requests: { url: string; options?: RequestInit | undefined }[] = []
+    mockControllerResponse(cancellingMetadata, 202, requests)
+    await expect(
+        cancelControllerDelegatedCertificate(metadata.id, operationId),
+    ).resolves.toMatchObject({
+        currentOperation: { id: operationId, dnsMode: 'delegated', stage: 'cancelling' },
+    })
+    expect(requests).toHaveLength(1)
+    expect(requests[0]!.url).toEndWith(`/certificates/${metadata.id}/cancel`)
+    expect(requests[0]!.options?.method).toBe('POST')
+    expect(JSON.parse(String(requests[0]!.options?.body))).toEqual({ operationId })
+})
+
+test.each([
+    { ...cancellingMetadata, id: '0198d98a-0000-7000-8000-000000000009' },
+    {
+        ...cancellingMetadata,
+        currentOperation: {
+            ...cancellingMetadata.currentOperation,
+            id: '0198d98a-0000-7000-8000-000000000009',
+        },
+    },
+    {
+        ...cancellingMetadata,
+        currentOperation: { ...cancellingMetadata.currentOperation, dnsMode: 'manual' },
+    },
+    {
+        ...cancellingMetadata,
+        currentOperation: { ...cancellingMetadata.currentOperation, stage: 'finalizing' },
+    },
+    { ...cancellingMetadata, operation: 'idle' },
+])('delegated cancellation rejects substituted or unaccepted metadata', async (payload) => {
+    mockControllerResponse(payload, 202, [])
+    await expect(
+        cancelControllerDelegatedCertificate(metadata.id, operationId),
+    ).rejects.toMatchObject({ code: 'controller_unavailable' })
 })

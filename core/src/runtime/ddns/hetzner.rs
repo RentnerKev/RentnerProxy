@@ -11,7 +11,7 @@ fn failure(error: crate::runtime::hetzner::Error) -> Failure {
         code: match error.kind {
             ErrorKind::Unauthorized => Error::ProviderUnauthorized,
             ErrorKind::RateLimited => Error::ProviderRateLimited,
-            ErrorKind::Unavailable => Error::ProviderUnavailable,
+            ErrorKind::Unavailable | ErrorKind::Rejected => Error::ProviderUnavailable,
             ErrorKind::InvalidResponse => Error::InvalidProviderResponse,
             ErrorKind::NotFound => Error::RecordChanged,
             ErrorKind::Conflict => Error::RecordConflict,

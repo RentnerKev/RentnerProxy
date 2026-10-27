@@ -83,7 +83,7 @@ export const certificateMetadataSchema = z
                 id: z.uuid(),
                 kind: z.enum(CERTIFICATE_OPERATION_KINDS),
                 stage: z.enum(CERTIFICATE_OPERATION_STAGES),
-                dnsMode: z.enum(['provider', 'manual']).optional(),
+                dnsMode: z.enum(['provider', 'manual', 'delegated']).optional(),
                 manualDns: manualDnsSchema.optional(),
                 startedAt: timestamp,
                 updatedAt: timestamp,
@@ -91,6 +91,7 @@ export const certificateMetadataSchema = z
             .nullable()
             .optional(),
         challengeType: z.enum(ACME_CHALLENGE_TYPES).nullable().optional(),
+        dnsMode: z.enum(['provider', 'manual', 'delegated']).nullable().optional(),
         issuedAt: timestamp.nullable(),
         expiresAt: timestamp.nullable(),
         issuer: z.string().max(512).nullable(),

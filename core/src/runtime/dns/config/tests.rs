@@ -2,6 +2,63 @@ use super::*;
 use serde_json::json;
 
 #[test]
+fn saved_connection_test_endpoint_keeps_existing_staging_guards() {
+    const CASE: &str = "RENTNERPROXY_CONNECTION_ENDPOINT_TEST_CASE";
+    if let Ok(case) = std::env::var(CASE) {
+        let endpoint = connection_test_endpoint(ProviderId::Cloudflare);
+        match case.as_str() {
+            "none" => assert!(endpoint.unwrap().is_none()),
+            "valid" => assert_eq!(
+                endpoint.unwrap().unwrap().as_str(),
+                "http://127.0.0.1:61234/client/v4/"
+            ),
+            _ => assert!(endpoint.is_err()),
+        }
+        return;
+    }
+    for case in [
+        "none",
+        "missing-directory",
+        "missing-root",
+        "valid",
+        "bad-url",
+    ] {
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+        child.args(["--exact", "runtime::dns::config::tests::saved_connection_test_endpoint_keeps_existing_staging_guards", "--nocapture"])
+            .env(CASE, case)
+            .env_remove(DNS_TEST_API_URL_ENV)
+            .env_remove(ACME_TEST_DIRECTORY_ENV)
+            .env_remove(ACME_TEST_ROOT_ENV);
+        if case != "none" {
+            child.env(
+                DNS_TEST_API_URL_ENV,
+                if case == "bad-url" {
+                    "http://fixture-token@127.0.0.1:61234"
+                } else {
+                    "http://127.0.0.1:61234"
+                },
+            );
+            if case != "missing-directory" {
+                child.env(ACME_TEST_DIRECTORY_ENV, "https://fixture.invalid/dir");
+            }
+            if case != "missing-root" {
+                child.env(
+                    ACME_TEST_ROOT_ENV,
+                    std::env::temp_dir().join("synthetic-fixture-root.pem"),
+                );
+            }
+        }
+        let output = child.output().unwrap();
+        assert!(
+            output.status.success(),
+            "isolated endpoint guard {case} failed: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
 fn hetzner_references_validate_int64_ids_and_keep_credentials_internal() {
     for zone in ["1", "42", "9223372036854775807"] {
         let value = json!({"type":"connection","provider":"hetzner",
@@ -87,7 +144,6 @@ fn desec_zone_and_record_identifiers_have_distinct_provider_contracts() {
         "example",
         "example.com/../other",
         "example..com",
-        "_acme.example.com",
     ] {
         assert!(!ProviderId::Desec.valid_zone_id(zone), "{zone}");
     }
@@ -95,6 +151,10 @@ fn desec_zone_and_record_identifiers_have_distinct_provider_contracts() {
     assert!(ProviderId::Desec.valid_zone_id(&max));
     assert!(!ProviderId::Desec.valid_zone_id(&format!("a.{max}")));
     assert!(ProviderId::Desec.valid_address_record_id(&"a".repeat(32)));
+    assert!(ProviderId::Desec.valid_zone_id("_acme-challenge.example.com"));
+    assert!(!crate::proxy::is_canonical_domain(
+        "_acme-challenge.example.com"
+    ));
     assert!(!ProviderId::Desec.valid_address_record_id("example.com"));
     assert!(!ProviderId::Cloudflare.valid_zone_id("example.com"));
 }

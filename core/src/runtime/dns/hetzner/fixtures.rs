@@ -18,6 +18,7 @@ pub(super) struct MockState {
     pub(super) rrsets: BTreeMap<String, Value>,
     pub(super) requests: Vec<(Method, String, Value)>,
     pub(super) write_status: Option<StatusCode>,
+    pub(super) read_status: Option<StatusCode>,
     pub(super) ambiguous_write: bool,
     pub(super) discard_write: bool,
     pub(super) wrong_action_resource: bool,
@@ -91,6 +92,11 @@ async fn handler(
     state
         .requests
         .push((method.clone(), uri.path().to_owned(), body.clone()));
+    if method == Method::GET
+        && let Some(status) = state.read_status
+    {
+        return status.into_response();
+    }
     if uri.path() == "/v1/zones/42" {
         return Json(json!({"zone": {"id": 42, "name": "example.com", "mode": state.zone_mode.as_deref().unwrap_or("primary"), "ttl": 3600}})).into_response();
     }

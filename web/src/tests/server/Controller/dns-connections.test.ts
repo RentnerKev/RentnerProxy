@@ -298,3 +298,28 @@ test('deSEC read tests accept domain zones and reject a substituted provider zon
         substituted.test({ provider: 'desec', apiToken: 'fixture-token' }),
     ).rejects.toThrow('controller_unavailable')
 })
+
+test('controller accepts delegated underscore DNS zones and rejects noncanonical zone names', () => {
+    const target = '_acme-challenge.example.com'
+    expect(
+        dnsConnectionMetadataSchema.safeParse({
+            ...metadata(),
+            provider: 'desec',
+            zones: [{ id: target, name: target }],
+        }).success,
+    ).toBeTrue()
+    for (const name of [
+        'UPPER.example.com',
+        'bad..example.com',
+        '-bad.example.com',
+        'bad-.example.com',
+        '192.0.2.1',
+        'bad.example.com.',
+        'bad/example.com',
+    ]) {
+        expect(
+            dnsConnectionMetadataSchema.safeParse({ ...metadata(), zones: [{ id: zoneId, name }] })
+                .success,
+        ).toBeFalse()
+    }
+})

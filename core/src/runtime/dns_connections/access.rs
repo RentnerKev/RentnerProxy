@@ -8,7 +8,7 @@ pub(in crate::runtime) struct RecordAccess<'a> {
     pub(in crate::runtime) zone_name: String,
     pub(in crate::runtime) provider: crate::runtime::dns::capabilities::ProviderId,
     pub(in crate::runtime) token: String,
-    pub(in crate::runtime) endpoint: &'a str,
+    pub(in crate::runtime) endpoint: String,
 }
 
 impl Store {
@@ -92,7 +92,7 @@ impl Store {
             zone_name,
             provider,
             token,
-            endpoint: self.provider_endpoint(provider),
+            endpoint: self.provider_endpoint(provider)?,
         })
     }
 

@@ -29,6 +29,12 @@ pub(crate) struct CertificateIssueRequest {
     pub(crate) accept_terms: bool,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct CertificateCancelRequest {
+    pub(crate) operation_id: String,
+}
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub(crate) enum AcmeChallengeType {
     #[default]
@@ -102,6 +108,7 @@ pub(crate) struct CertificateMetadata {
     pub(crate) dns_cleanup_pending: bool,
     pub(crate) current_operation: Option<CurrentOperation>,
     pub(crate) challenge_type: Option<AcmeChallengeType>,
+    pub(crate) dns_mode: Option<super::DnsValidationMode>,
     pub(crate) last_activated_at: Option<String>,
     pub(crate) last_error_at: Option<String>,
 }
@@ -124,12 +131,16 @@ pub(crate) enum CertificateError {
     TermsRequired,
     AcmeDomainInvalid,
     AcmeFailed,
+    AcmeCancelled,
     AcmeDnsRequired,
     DnsProviderInvalid,
     DnsProviderUnavailable,
     DnsProviderUnauthorized,
     DnsCleanupFailed,
     DnsCredentialsUnavailable,
+    DnsDelegationInvalid,
+    DnsDelegationLookupFailed,
+    DnsDelegationNotPropagated,
     ManualDnsNotPropagated,
     ManualDnsLookupFailed,
     ManualDnsExpired,
@@ -152,12 +163,16 @@ impl CertificateError {
             Self::TermsRequired => "acme_terms_required",
             Self::AcmeDomainInvalid => "acme_domain_invalid",
             Self::AcmeFailed => "acme_failed",
+            Self::AcmeCancelled => "acme_cancelled",
             Self::AcmeDnsRequired => "acme_dns_required",
             Self::DnsProviderInvalid => "dns_provider_invalid",
             Self::DnsProviderUnavailable => "dns_provider_unavailable",
             Self::DnsProviderUnauthorized => "dns_provider_unauthorized",
             Self::DnsCleanupFailed => "dns_cleanup_failed",
             Self::DnsCredentialsUnavailable => "dns_credentials_unavailable",
+            Self::DnsDelegationInvalid => "dns_delegation_invalid",
+            Self::DnsDelegationLookupFailed => "dns_delegation_lookup_failed",
+            Self::DnsDelegationNotPropagated => "dns_delegation_not_propagated",
             Self::ManualDnsNotPropagated => "manual_dns_not_propagated",
             Self::ManualDnsLookupFailed => "manual_dns_lookup_failed",
             Self::ManualDnsExpired => "manual_dns_expired",

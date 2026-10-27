@@ -9,6 +9,7 @@ pub(in crate::runtime) enum ErrorKind {
     InvalidResponse,
     NotFound,
     Conflict,
+    Rejected,
     TimeBudgetExceeded,
     WriteUnconfirmed,
 }
@@ -72,7 +73,7 @@ impl Zone {
             .to_ascii_lowercase();
         if self.id == 0
             || self.id > i64::MAX as u64
-            || !crate::proxy::is_canonical_domain(&self.name)
+            || !crate::runtime::dns::is_canonical_dns_name(&self.name)
             || !matches!(self.mode.as_str(), "primary" | "secondary")
             || self.ttl < 60
         {

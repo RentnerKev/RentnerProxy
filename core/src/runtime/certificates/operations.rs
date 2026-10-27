@@ -26,6 +26,7 @@ pub(crate) enum CertificateOperationStage {
     AwaitingDns,
     CheckingDns,
     WaitingForValidation,
+    Cancelling,
     Finalizing,
     CertificateReady,
     Applying,
@@ -150,6 +151,7 @@ pub(crate) fn event_kind_for_stage(
         | CertificateOperationStage::CreatingOrder
         | CertificateOperationStage::PreparingChallenge
         | CertificateOperationStage::CheckingDns
+        | CertificateOperationStage::Cancelling
         | CertificateOperationStage::WaitingForValidation
         | CertificateOperationStage::Finalizing
         | CertificateOperationStage::Applying
@@ -308,6 +310,10 @@ pub(super) fn known_error_code(code: &str) -> bool {
             | "acme_terms_required"
             | "acme_domain_invalid"
             | "acme_failed"
+            | "acme_cancelled"
+            | "dns_delegation_invalid"
+            | "dns_delegation_lookup_failed"
+            | "dns_delegation_not_propagated"
             | "acme_dns_required"
             | "dns_provider_invalid"
             | "dns_provider_unavailable"

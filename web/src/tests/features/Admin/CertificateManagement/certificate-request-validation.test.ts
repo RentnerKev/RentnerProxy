@@ -138,3 +138,48 @@ test('certificate detail search accepts only a UUID selection and rejects arbitr
         }).success,
     ).toBeFalse()
 })
+
+test('delegated DNS requires a saved connection and rejects inline credentials and HTTP', () => {
+    const form = {
+        ...request,
+        challengeType: 'dns-01',
+        dnsMode: 'delegated',
+        domains: ['*.example.com', 'example.com'],
+        dnsConnectionId: '0198d98a-0000-7000-8000-000000000002',
+        dnsConnectionProvider: 'desec' as const,
+        dnsZoneId: '_acme-challenge.validation.example.net',
+        dnsApiToken: 'stale-secret',
+    }
+    const input = certificateRequestInputFromForm(form)
+    expect(requestCertificateInputSchema.parse(input)).toMatchObject({
+        dnsMode: 'delegated',
+        dnsProvider: { type: 'connection', provider: 'desec', zoneId: form.dnsZoneId },
+    })
+    expect(JSON.stringify(input)).not.toContain('stale-secret')
+    expect(certificateRequestFormSchema.safeParse(form).success).toBeTrue()
+    expect(
+        certificateRequestFormSchema.safeParse({ ...form, dnsConnectionId: '' }).success,
+    ).toBeFalse()
+    expect(
+        certificateRequestFormSchema.safeParse({ ...form, dnsConnectionId: undefined }).success,
+    ).toBeFalse()
+    expect(
+        requestCertificateInputSchema.safeParse({ ...input, challengeType: 'http-01' }).success,
+    ).toBeFalse()
+    expect(
+        requestCertificateInputSchema.safeParse({
+            ...input,
+            dnsProvider: { type: 'cloudflare', apiToken: 'fixture', zoneId: 'a'.repeat(32) },
+        }).success,
+    ).toBeFalse()
+    for (const domain of [
+        '_acme-challenge.example.com',
+        '*.foo.*.example.com',
+        'localhost',
+        '192.0.2.1',
+    ]) {
+        expect(
+            requestCertificateInputSchema.safeParse({ ...input, domains: [domain] }).success,
+        ).toBeFalse()
+    }
+})
