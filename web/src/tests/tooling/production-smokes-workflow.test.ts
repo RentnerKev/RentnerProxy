@@ -61,11 +61,11 @@ describe('production smokes workflow security and toolchain', () => {
         expect(source).not.toContain('upload-artifact')
     })
 
-    test('pins the established checkout and Bun actions', async () => {
+    test('pins the established checkout, Bun and Docker actions', async () => {
         const source = await workflow()
         const references = externalActionReferences(source)
 
-        expect(references).toHaveLength(2)
+        expect(references).toHaveLength(6)
         expect(references.some((reference) => reference.startsWith('actions/checkout@'))).toBeTrue()
         expect(
             references.some((reference) => reference.startsWith('oven-sh/setup-bun@')),
@@ -85,6 +85,59 @@ describe('production smokes workflow security and toolchain', () => {
 })
 
 describe('production smokes workflow execution contract', () => {
+    test('loads three local images with bounded isolated caches and action-managed authentication', async () => {
+        const document = Bun.YAML.parse(await workflow()) as {
+            env: Record<string, string>
+            jobs: {
+                'production-smokes': {
+                    steps: { uses?: string; run?: string; with?: Record<string, unknown> }[]
+                }
+            }
+        }
+        const steps = document.jobs['production-smokes'].steps
+        const builds = steps.filter((step) => step.uses?.startsWith('docker/build-push-action@'))
+        expect(builds).toHaveLength(3)
+        expect(
+            steps.findIndex((step) => step.uses?.startsWith('docker/setup-buildx-action@')),
+        ).toBeLessThan(steps.indexOf(builds[0]!))
+        const kinds = ['proxy-runtime', 'appliance', 'http3-client']
+        const dockerfiles = [
+            'docker/proxy-runtime/Dockerfile',
+            'docker/production/Dockerfile',
+            'scripts/smoke/http3/Dockerfile',
+        ]
+        for (let index = 0; index < kinds.length; index += 1) {
+            const kind = kinds[index]!
+            const inputs = builds[index]!.with!
+            expect(inputs.context).toBe('.')
+            expect(inputs.file).toBe(dockerfiles[index])
+            expect(inputs.load).toBeTrue()
+            expect(inputs.push).toBeFalse()
+            expect(inputs.tags).toBe('rentnerproxy-smoke-${{ env.RENTNERPROXY_SMOKE_RUN }}:' + kind)
+            expect(inputs.labels).toBe(
+                [
+                    'io.rentnerproxy.smoke-run=${{ env.RENTNERPROXY_SMOKE_RUN }}',
+                    'io.rentnerproxy.smoke-source=${{ github.sha }}',
+                    'io.rentnerproxy.smoke-image=' + kind,
+                    '',
+                ].join('\n'),
+            )
+            const cache = 'type=gha,version=2,scope=production-smokes-' + kind + '-v1'
+            expect(inputs['cache-from']).toBe(cache + ',timeout=2m')
+            expect(inputs['cache-to']).toBe(cache + ',mode=max,timeout=2m,ignore-error=true')
+            expect(inputs['github-token']).toBeUndefined()
+        }
+        const verify = steps.findIndex((step) =>
+            step.run?.endsWith('production-smoke-ci.ts verify-images'),
+        )
+        expect(verify).toBeGreaterThan(steps.indexOf(builds.at(-1)!))
+        expect(document.env.DOCKER_BUILD_SUMMARY).toBe('false')
+        expect(document.env.DOCKER_BUILD_RECORD_UPLOAD).toBe('false')
+        expect(await workflow()).not.toContain('ACTIONS_RUNTIME_TOKEN')
+        const runner = await repositoryFile('.github/scripts/ci/production-smoke-ci.ts')
+        expect(runner).toContain("suite === 'prepare' ? prepareSmokeImages : verifySmokeImages")
+    })
+
     test('prepares scoped images before consumers and leaves final cleanup enabled', async () => {
         const document = Bun.YAML.parse(await workflow()) as {
             env: Record<string, string>
@@ -94,7 +147,7 @@ describe('production smokes workflow execution contract', () => {
         const steps = document.jobs['production-smokes'].steps
         const commands = steps.flatMap((step) => (step.run ? [step.run] : []))
         const prepare = commands.findIndex((command) =>
-            command.endsWith('production-smoke-ci.ts prepare'),
+            command.endsWith('production-smoke-ci.ts verify-images'),
         )
         const proxy = commands.findIndex((command) =>
             command.endsWith('production-smoke-ci.ts proxy'),
@@ -102,7 +155,7 @@ describe('production smokes workflow execution contract', () => {
         expect(prepare).toBeGreaterThan(-1)
         expect(proxy).toBeGreaterThan(prepare)
         expect(
-            commands.filter((command) => command.endsWith('production-smoke-ci.ts prepare')),
+            commands.filter((command) => command.endsWith('production-smoke-ci.ts verify-images')),
         ).toHaveLength(1)
         expect(steps.at(-1)?.if).toBe("always() && steps.bun.outcome == 'success'")
     })

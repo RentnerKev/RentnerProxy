@@ -68,11 +68,22 @@ export async function prepareSmokeImages(command: Http3Command): Promise<void> {
             { timeoutMs: 1_800_000 },
         )
         await verifySharedSmokeImage(command, kind)
-        if (kind === 'http3-client') {
-            const version = await command(
-                smokeDockerArguments(['docker', 'run', '--rm', image, '--version']),
-            )
-            assert.match(version, /Features:.*\bHTTP2\b.*\bHTTP3\b/u)
-        }
     }
+    await verifyHttp3Features(command)
+}
+
+async function verifyHttp3Features(command: Http3Command): Promise<void> {
+    const image = sharedSmokeImage('http3-client')
+    assert.ok(image, 'Shared smoke images require explicit reuse mode')
+    const version = await command(
+        smokeDockerArguments(['docker', 'run', '--rm', image, '--version']),
+    )
+    assert.match(version, /Features:.*\bHTTP2\b.*\bHTTP3\b/u)
+}
+
+export async function verifySmokeImages(command: Http3Command): Promise<void> {
+    for (const kind of Object.keys(imageDockerfiles) as SmokeImageKind[]) {
+        await verifySharedSmokeImage(command, kind)
+    }
+    await verifyHttp3Features(command)
 }

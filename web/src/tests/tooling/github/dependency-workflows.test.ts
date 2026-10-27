@@ -164,14 +164,26 @@ test('audits exact source with base-revision automation outside PR configuration
         'REVISION="$(git -C source rev-parse HEAD)"',
     )
     const candidate = workflow.jobs['production-candidate']!
-    const build = candidate.steps.find((step) => step.run?.includes('docker buildx build'))!
-    expect(build.run).toContain('--file source/docker/production/Dockerfile')
-    expect(build.run).toContain(
-        '--label "org.opencontainers.image.revision=$(git -C source rev-parse HEAD)"',
+    const build = candidate.steps.find((step) =>
+        step.uses?.startsWith('docker/build-push-action@'),
+    )!
+    expect(build.run).toBeUndefined()
+    expect(build.with?.context).toBe('source')
+    expect(build.with?.file).toBe('source/docker/production/Dockerfile')
+    expect(build.with?.labels).toBe('org.opencontainers.image.revision=${{ github.sha }}')
+    expect(build.with?.platforms).toBe('linux/amd64')
+    expect(build.with?.push).toBe(false)
+    expect(build.with?.tags).toBeUndefined()
+    expect(build.with?.provenance).toBe('mode=max')
+    expect(build.with?.sbom).toBe(true)
+    expect(build.with?.outputs).toBe('type=oci,dest=${{ runner.temp }}/candidate-image.tar')
+    expect(build.with?.['cache-from']).toBe(
+        'type=gha,version=2,scope=dependency-audit-appliance-amd64-v1,timeout=2m',
     )
-    expect(build.run?.trimEnd()).toEndWith(
-        '--output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" source',
+    expect(build.with?.['cache-to']).toBe(
+        'type=gha,version=2,mode=max,scope=dependency-audit-appliance-amd64-v1,timeout=2m,ignore-error=true',
     )
+    expect(JSON.stringify(build)).not.toMatch(/scope=(?:dev|release|production-smokes)/u)
     expect(
         candidate.steps.find((step) => step.run?.includes('install-dependency-tools.sh'))?.run,
     ).toBe('bash automation/.github/scripts/security/install-dependency-tools.sh')

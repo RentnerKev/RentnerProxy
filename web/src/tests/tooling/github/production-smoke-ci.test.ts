@@ -10,6 +10,19 @@ import {
 } from '../../../../../scripts/smoke/resources.ts'
 
 describe('production smoke CI output boundary', () => {
+    test('identifies the fixed manual DNS wait without exposing other timeout labels', () => {
+        const progress = smokeProgress('certificates')
+        progress.consume('error: Timed out waiting for manual DNS operator input')
+        progress.consume('at scripts/smoke/certificates/manual-dns.ts:89:9')
+        expect(progress.result(1).diagnostic).toBe(
+            'Manual DNS operator input timed out at scripts/smoke/certificates/manual-dns.ts:89:9',
+        )
+        const other = smokeProgress('certificates')
+        other.consume('error: Timed out waiting for private-value')
+        expect(other.result(1).diagnostic).toBe('Readiness polling timed out')
+        expect(JSON.stringify(other.result(1))).not.toContain('private-value')
+    })
+
     test('keeps only fixed startup scenarios through subsequent failure output', () => {
         for (const scenario of ['restart', 'recreate', 'postgres', 'valkey']) {
             const progress = smokeProgress('production')

@@ -91,6 +91,7 @@ export async function verifyCertificateManualDns(
             },
             'manual DNS operator input',
             90_000,
+            (error) => !(error instanceof assert.AssertionError),
         )
         assert.ok(result)
         return result

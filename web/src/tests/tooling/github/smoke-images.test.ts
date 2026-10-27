@@ -4,6 +4,7 @@ import {
     sharedSmokeImage,
     prepareSmokeImages,
     verifySharedSmokeImage,
+    verifySmokeImages,
 } from '../../../../../scripts/smoke/images.ts'
 import { buildHttp3Client } from '../../../../../scripts/smoke/http3/client.ts'
 import type { Http3Command } from '../../../../../scripts/smoke/http3/Types/client.types.ts'
@@ -114,4 +115,51 @@ test('prepare rejects a client missing HTTP3 capability', async () => {
     const docker = fakeDocker()
     docker.setFeatures('Features: HTTP2')
     await expect(prepareSmokeImages(docker.command)).rejects.toThrow()
+})
+
+test('prebuilt verification inspects every image and probes HTTP3 without building', async () => {
+    const docker = fakeDocker()
+    await prepareSmokeImages(docker.command)
+    docker.calls.length = 0
+    await verifySmokeImages(docker.command)
+    expect(docker.calls.filter((args) => args[1] === 'image').map((args) => args.at(-1))).toEqual([
+        sharedSmokeImage('proxy-runtime'),
+        sharedSmokeImage('appliance'),
+        sharedSmokeImage('http3-client'),
+    ])
+    expect(docker.calls.filter((args) => args[1] === 'run')).toHaveLength(1)
+    expect(docker.calls.some((args) => args[1] === 'build')).toBeFalse()
+})
+
+test('prebuilt verification rejects missing or foreign labels on every image without rebuilding', async () => {
+    const docker = fakeDocker()
+    await expect(verifySmokeImages(docker.command)).rejects.toThrow('Image missing')
+    await prepareSmokeImages(docker.command)
+    docker.calls.length = 0
+    for (const labels of docker.images.values()) {
+        for (const key of [
+            'io.rentnerproxy.smoke-run',
+            'io.rentnerproxy.smoke-source',
+            'io.rentnerproxy.smoke-image',
+        ]) {
+            const original = labels[key]!
+            labels[key] = 'foreign'
+            await expect(verifySmokeImages(docker.command)).rejects.toThrow()
+            delete labels[key]
+            await expect(verifySmokeImages(docker.command)).rejects.toThrow()
+            labels[key] = original
+        }
+    }
+    expect(docker.calls.some((args) => args[1] === 'build')).toBeFalse()
+})
+
+test('prebuilt verification rejects HTTP2 or HTTP3 capability loss without rebuilding', async () => {
+    const docker = fakeDocker()
+    await prepareSmokeImages(docker.command)
+    docker.calls.length = 0
+    for (const features of ['Features: HTTP2', 'Features: HTTP3']) {
+        docker.setFeatures(features)
+        await expect(verifySmokeImages(docker.command)).rejects.toThrow()
+    }
+    expect(docker.calls.some((args) => args[1] === 'build')).toBeFalse()
 })

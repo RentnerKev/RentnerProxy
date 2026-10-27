@@ -87,11 +87,17 @@ async function buildRuntimeImage(): Promise<void> {
     }
 }
 
-function waitFor(check: () => Promise<boolean>, label: string, timeoutMs = 45_000): Promise<void> {
+function waitFor(
+    check: () => Promise<boolean>,
+    label: string,
+    timeoutMs = 45_000,
+    retryOnError?: (error: unknown) => boolean,
+): Promise<void> {
     return waitForSmoke(check, {
         timeoutMs,
         intervalMs: 250,
         timeoutError: () => new Error('Timed out waiting for ' + label),
+        ...(retryOnError === undefined ? {} : { retryOnError }),
     })
 }
 
