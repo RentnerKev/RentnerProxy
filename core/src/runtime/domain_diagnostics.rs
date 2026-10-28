@@ -208,7 +208,7 @@ impl ProxyRuntime {
                         &addresses,
                         &snapshot.cas,
                         &self.settings.system_ca_bundle,
-                        stage_deadline,
+                        network_deadline.min(Instant::now() + Duration::from_secs(3)),
                     )
                     .await;
                     result.stages.upstream.duration_ms =

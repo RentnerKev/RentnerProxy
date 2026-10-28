@@ -200,6 +200,11 @@ impl Drop for DnsFixture {
 }
 impl DnsFixture {
     async fn new(handler: impl Fn(Message) -> Message + Send + Sync + 'static) -> Self {
+        Self::new_filtered(move |request| Some(handler(request))).await
+    }
+    async fn new_filtered(
+        handler: impl Fn(Message) -> Option<Message> + Send + Sync + 'static,
+    ) -> Self {
         let (tcp, udp) = reserve_dns_socket_pair("127.0.0.1:0".parse().unwrap())
             .await
             .unwrap();
@@ -212,8 +217,8 @@ impl DnsFixture {
             let mut bytes = vec![0; 65535];
             loop {
                 tokio::select! {
-                    packet=udp.recv_from(&mut bytes)=>{let(n,peer)=packet.unwrap();let request=Message::from_vec(&bytes[..n]).unwrap();observed.lock().await.push(request.queries[0].name().to_ascii());let response=handler(request).to_vec().unwrap();udp.send_to(&response,peer).await.unwrap();},
-                    accepted=tcp.accept()=>{let(mut stream,_)=accepted.unwrap();let handler=handler.clone();let observed=observed.clone();children.spawn(async move{let n=stream.read_u16().await.unwrap();let mut bytes=vec![0;usize::from(n)];stream.read_exact(&mut bytes).await.unwrap();let request=Message::from_vec(&bytes).unwrap();observed.lock().await.push(request.queries[0].name().to_ascii());let answer=handler(request).to_vec().unwrap();stream.write_u16(answer.len() as u16).await.unwrap();stream.write_all(&answer).await.unwrap();});},
+                    packet=udp.recv_from(&mut bytes)=>{let(n,peer)=packet.unwrap();let request=Message::from_vec(&bytes[..n]).unwrap();observed.lock().await.push(request.queries[0].name().to_ascii());if let Some(response)=handler(request){udp.send_to(&response.to_vec().unwrap(),peer).await.unwrap();}},
+                    accepted=tcp.accept()=>{let(mut stream,_)=accepted.unwrap();let handler=handler.clone();let observed=observed.clone();children.spawn(async move{let n=stream.read_u16().await.unwrap();let mut bytes=vec![0;usize::from(n)];stream.read_exact(&mut bytes).await.unwrap();let request=Message::from_vec(&bytes).unwrap();observed.lock().await.push(request.queries[0].name().to_ascii());if let Some(answer)=handler(request){let answer=answer.to_vec().unwrap();stream.write_u16(answer.len() as u16).await.unwrap();stream.write_all(&answer).await.unwrap();}});},
                     _=children.join_next(),if !children.is_empty()=>{}
                 }
             }
@@ -238,7 +243,7 @@ impl DnsFixture {
         );
         builder.options_mut().cache_size = 0;
         builder.options_mut().attempts = 1;
-        builder.options_mut().preserve_intermediates = false;
+        builder.options_mut().preserve_intermediates = true;
         builder.build().unwrap()
     }
 }
@@ -589,7 +594,11 @@ async fn cname_cycles_and_foreign_address_records_cannot_produce_dns_success() {
     for cycle in [false, true] {
         let dns = DnsFixture::new(move |request| {
             let mut result = response(&request);
-            if request.queries[0].query_type() == RecordType::CNAME && cycle {
+            if matches!(
+                request.queries[0].query_type(),
+                RecordType::A | RecordType::AAAA
+            ) && cycle
+            {
                 let target = if request.queries[0].name() == &name(DOMAIN) {
                     "cycle.example.net"
                 } else {
@@ -613,7 +622,7 @@ async fn cname_cycles_and_foreign_address_records_cannot_produce_dns_success() {
         let fixture = Fixture::new(1).await;
         let result = fixture.probe(&dns).await;
         assert_ne!(result.stages.dns.status, Status::Passed);
-        assert!(dns.queries.lock().await.len() <= 6);
+        assert!(dns.queries.lock().await.len() <= 20);
         fixture.assert_pure();
     }
 }
@@ -1097,5 +1106,250 @@ async fn dead_engine_before_or_during_probe_never_returns_an_active_success() {
     assert_eq!(result.stages.configuration.code, Code::ConfigurationChanged);
     assert_eq!(result.stages.upstream.code, Code::Skipped);
     assert!(fixture.liveness_reads.load(Ordering::SeqCst) >= 3);
+    fixture.assert_pure();
+}
+
+#[tokio::test]
+async fn fast_direct_a_survives_stalled_cname_and_aaaa_without_optional_queries() {
+    let cnames = Arc::new(AtomicUsize::new(0));
+    let seen = cnames.clone();
+    let dns = DnsFixture::new_filtered(move |request| match request.queries[0].query_type() {
+        RecordType::CNAME => {
+            seen.fetch_add(1, Ordering::SeqCst);
+            None
+        }
+        RecordType::AAAA => None,
+        _ => Some(answer(request, Some(Ipv4Addr::LOCALHOST))),
+    })
+    .await;
+    let started = Instant::now();
+    let ips = dns::addresses(
+        &dns.resolver(),
+        "backend-tls",
+        Instant::now() + Duration::from_millis(180),
+    )
+    .await
+    .unwrap();
+    assert_eq!(ips, vec![std::net::IpAddr::V4(Ipv4Addr::LOCALHOST)]);
+    assert_eq!(cnames.load(Ordering::SeqCst), 0);
+    assert!(started.elapsed() < Duration::from_secs(1));
+}
+
+#[tokio::test]
+async fn upstream_http_keeps_its_budget_after_dns_waits_for_the_other_family() {
+    let http = HttpFixture::new(200, None, false).await;
+    let fixture = Fixture::new(http.port).await;
+    fixture
+        .runtime
+        .active_configuration
+        .lock()
+        .await
+        .as_mut()
+        .unwrap()
+        .proxy_hosts[0]
+        .forward_host = "backend-tls".into();
+    let dns = DnsFixture::new_filtered(|request| {
+        if request.queries[0].query_type() == RecordType::CNAME
+            || (request.queries[0].query_type() == RecordType::AAAA
+                && request.queries[0].name() == &name("backend-tls"))
+        {
+            None
+        } else {
+            Some(answer(request, Some(Ipv4Addr::LOCALHOST)))
+        }
+    })
+    .await;
+    let start = Instant::now();
+    let result = fixture.probe(&dns).await;
+    assert_eq!(result.stages.upstream.code, Code::UpstreamResponded);
+    assert!(start.elapsed() < Duration::from_secs(5));
+    assert_eq!(http.requests.lock().await.len(), 1);
+    fixture.assert_pure();
+}
+
+#[tokio::test]
+async fn address_family_chain_proofs_are_rooted_and_malformed_peer_is_fatal() {
+    use hickory_resolver::{
+        lookup::Lookup,
+        proto::{op::Query, rr::rdata::AAAA},
+    };
+    let origin = name(BACKEND);
+    let target = name("alias.example.net");
+    let make =
+        |kind, records| Lookup::new_with_max_ttl(Query::query(origin.clone(), kind), records);
+    let chain = make(
+        RecordType::A,
+        vec![
+            Record::from_rdata(origin.clone(), 0, RData::CNAME(CNAME(target.clone()))),
+            Record::from_rdata(target.clone(), 0, RData::A(A(Ipv4Addr::LOCALHOST))),
+            Record::from_rdata(
+                name("unrelated.example.net"),
+                0,
+                RData::A(A(Ipv4Addr::new(169, 254, 169, 254))),
+            ),
+        ],
+    );
+    assert_eq!(
+        dns::proven_addresses(&chain, &origin, RecordType::A).unwrap(),
+        vec![std::net::IpAddr::V4(Ipv4Addr::LOCALHOST)]
+    );
+    let foreign = make(
+        RecordType::A,
+        vec![Record::from_rdata(
+            name("unrelated.example.net"),
+            0,
+            RData::A(A(Ipv4Addr::LOCALHOST)),
+        )],
+    );
+    assert!(matches!(
+        dns::proven_addresses(&foreign, &origin, RecordType::A),
+        Err(dns::DnsError::Missing)
+    ));
+    let dns = DnsFixture::new(move |request| {
+        let mut result = response(&request);
+        if request.queries[0].query_type() == RecordType::A {
+            result.add_answer(Record::from_rdata(
+                request.queries[0].name().clone(),
+                0,
+                RData::A(A(Ipv4Addr::LOCALHOST)),
+            ));
+        } else {
+            result.add_answer(Record::from_rdata(
+                origin.clone(),
+                0,
+                RData::CNAME(CNAME(target.clone())),
+            ));
+            result.add_answer(Record::from_rdata(
+                target.clone(),
+                0,
+                RData::CNAME(CNAME(origin.clone())),
+            ));
+            result.add_answer(Record::from_rdata(
+                origin.clone(),
+                0,
+                RData::AAAA(AAAA(std::net::Ipv6Addr::LOCALHOST)),
+            ));
+        }
+        result
+    })
+    .await;
+    assert!(matches!(
+        dns::addresses(
+            &dns.resolver(),
+            BACKEND,
+            Instant::now() + Duration::from_secs(1)
+        )
+        .await,
+        Err(dns::DnsError::Invalid)
+    ));
+}
+
+#[tokio::test]
+async fn non_in_class_records_at_rooted_owners_cannot_authorize_an_address_or_alias() {
+    use hickory_resolver::proto::rr::DNSClass;
+    use hickory_resolver::{lookup::Lookup, proto::op::Query};
+    let origin = name(BACKEND);
+    for data in [
+        RData::A(A(Ipv4Addr::LOCALHOST)),
+        RData::CNAME(CNAME(name("alias.example.net"))),
+    ] {
+        let mut wrong = Record::from_rdata(origin.clone(), 0, data);
+        wrong.dns_class = DNSClass::CH;
+        let lookup = Lookup::new_with_max_ttl(
+            Query::query(origin.clone(), RecordType::A),
+            [
+                Record::from_rdata(origin.clone(), 0, RData::A(A(Ipv4Addr::LOCALHOST))),
+                wrong,
+            ],
+        );
+        assert!(matches!(
+            dns::proven_addresses(&lookup, &origin, RecordType::A),
+            Err(dns::DnsError::Invalid)
+        ));
+    }
+    for alias in [false, true] {
+        let dns = DnsFixture::new(move |request| {
+            let mut result = answer(request.clone(), Some(Ipv4Addr::LOCALHOST));
+            if request.queries[0].query_type() == RecordType::A {
+                let data = if alias {
+                    RData::CNAME(CNAME(name("foreign-class.example.net")))
+                } else {
+                    RData::A(A(Ipv4Addr::new(169, 254, 169, 254)))
+                };
+                let mut foreign = Record::from_rdata(request.queries[0].name().clone(), 0, data);
+                foreign.dns_class = DNSClass::CH;
+                result.add_answer(foreign);
+            }
+            result
+        })
+        .await;
+        let result = dns::addresses(
+            &dns.resolver(),
+            BACKEND,
+            Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+        assert!(
+            matches!(result, Err(dns::DnsError::Invalid)),
+            "alias={alias}, result={result:?}"
+        );
+    }
+}
+#[tokio::test]
+async fn positive_multihop_alias_keeps_its_own_address_proof_and_ignores_foreign_chains() {
+    let http = HttpFixture::new(200, None, false).await;
+    let fixture = Fixture::new(http.port).await;
+    fixture
+        .runtime
+        .active_configuration
+        .lock()
+        .await
+        .as_mut()
+        .unwrap()
+        .proxy_hosts[0]
+        .forward_host = BACKEND.into();
+    let dns = DnsFixture::new(|request| {
+        let owner = request.queries[0].name().clone();
+        let next = if owner == name(BACKEND) {
+            Some("middle.example.net")
+        } else if owner == name("middle.example.net") {
+            Some("terminal.example.net")
+        } else {
+            None
+        };
+        let mut result = if let Some(next) = next {
+            let mut result = response(&request);
+            result.add_answer(Record::from_rdata(
+                owner,
+                0,
+                RData::CNAME(CNAME(name(next))),
+            ));
+            result
+        } else {
+            answer(request.clone(), Some(Ipv4Addr::LOCALHOST))
+        };
+        result.add_answer(Record::from_rdata(
+            name("foreign.example.net"),
+            0,
+            RData::CNAME(CNAME(name("wrong.example.net"))),
+        ));
+        result.add_answer(Record::from_rdata(
+            name("wrong.example.net"),
+            0,
+            RData::A(A(Ipv4Addr::new(169, 254, 169, 254))),
+        ));
+        result
+    })
+    .await;
+    let result = fixture.probe(&dns).await;
+    assert_eq!(result.stages.upstream.code, Code::UpstreamResponded);
+    assert!(
+        !dns.queries
+            .lock()
+            .await
+            .iter()
+            .any(|name| name == "foreign.example.net." || name == "wrong.example.net.")
+    );
+    assert_eq!(http.requests.lock().await.len(), 1);
     fixture.assert_pure();
 }

@@ -2,8 +2,9 @@ use super::{Code, Stage, Status};
 use hickory_resolver::{
     TokioResolver,
     config::{ResolveHosts, ResolverConfig, ResolverOpts},
-    net::runtime::TokioRuntimeProvider,
-    proto::rr::{Name, RData, RecordType},
+    lookup::Lookup,
+    net::{DnsError as NetDnsError, NetError, runtime::TokioRuntimeProvider},
+    proto::rr::{DNSClass, Name, RData, RecordType},
 };
 use std::{collections::BTreeSet, net::IpAddr, time::Duration};
 use tokio::time::{Instant, timeout_at};
@@ -13,6 +14,7 @@ pub(super) enum DnsError {
     Missing,
     Failed,
     Timeout,
+    Invalid,
 }
 impl DnsError {
     pub(super) fn stage(self, start: Instant) -> Stage {
@@ -20,7 +22,7 @@ impl DnsError {
             Status::Failed,
             match self {
                 Self::Missing => Code::DnsNotFound,
-                Self::Failed => Code::DnsFailed,
+                Self::Failed | Self::Invalid => Code::DnsFailed,
                 Self::Timeout => Code::DnsTimeout,
             },
         )
@@ -39,7 +41,10 @@ pub(super) fn resolver(
     options.cache_size = 0;
     options.num_concurrent_reqs = 1;
     options.max_active_requests = 4;
-    options.preserve_intermediates = false;
+    // This resolver is diagnostics-only. Preserve each family's own rooted
+    // chain instead of issuing optional CNAME questions that Docker may forward.
+    // Hickory 0.26.3 also bounds its internal auto-follow depth at eight lookups.
+    options.preserve_intermediates = true;
     options.try_tcp_on_error = true;
     options.use_hosts_file = ResolveHosts::Never;
     builder.build().map_err(|_| DnsError::Failed)
@@ -62,88 +67,75 @@ async fn lookup(
     name: Name,
     kind: RecordType,
     deadline: Instant,
-) -> std::result::Result<Option<hickory_resolver::lookup::Lookup>, DnsError> {
+) -> std::result::Result<Option<Lookup>, DnsError> {
     match timeout_at(deadline, resolver.lookup(name, kind)).await {
         Ok(Ok(answer)) => {
             if answer.answers().len() + answer.authorities().len() + answer.additionals().len()
                 > 256
             {
-                return Err(DnsError::Failed);
+                return Err(DnsError::Invalid);
             }
             Ok(Some(answer))
         }
         Ok(Err(error)) if error.is_no_records_found() => Ok(None),
-        Ok(Err(_)) => Err(DnsError::Failed),
+        Ok(Err(NetError::Timeout)) => Err(DnsError::Timeout),
+        Ok(Err(NetError::Io(error))) if error.kind() != std::io::ErrorKind::InvalidData => {
+            Err(DnsError::Failed)
+        }
+        Ok(Err(
+            NetError::Busy | NetError::NoConnections | NetError::Dns(NetDnsError::ResponseCode(_)),
+        )) => Err(DnsError::Failed),
+        // Only a positively identified transport/server failure may be ignored
+        // when the peer family has a proof. Unknown semantic errors fail closed.
+        Ok(Err(_)) => Err(DnsError::Invalid),
         Err(_) => Err(DnsError::Timeout),
     }
 }
-/// Resolve one configured name through bounded exact CNAME questions. Only the
-/// terminal owner's A/AAAA records authorize a socket; other answers are ignored.
-pub(super) async fn addresses(
-    resolver: &TokioResolver,
-    host: &str,
-    deadline: Instant,
+/// Validate one family independently. Foreign records cannot introduce chain
+/// edges or addresses, and a malformed rooted family remains fatal to the call.
+pub(super) fn proven_addresses(
+    answer: &Lookup,
+    requested: &Name,
+    kind: RecordType,
 ) -> std::result::Result<Vec<IpAddr>, DnsError> {
-    if let Ok(ip) = host.parse::<IpAddr>() {
-        return Ok(vec![ip]);
-    }
-    let mut name = Name::from_ascii(format!("{host}."))
-        .map_err(|_| DnsError::Failed)?
-        .to_lowercase();
-    let mut visited = BTreeSet::from([name.clone()]);
+    let mut current = requested.to_lowercase();
+    let mut visited = BTreeSet::from([current.clone()]);
     for hop in 0..=8 {
+        if answer
+            .answers()
+            .iter()
+            .chain(answer.authorities())
+            .chain(answer.additionals())
+            .any(|record| record.name.to_lowercase() == current && record.dns_class != DNSClass::IN)
+        {
+            return Err(DnsError::Invalid);
+        }
         let mut targets = BTreeSet::new();
-        if let Some(answer) = lookup(resolver, name.clone(), RecordType::CNAME, deadline).await? {
-            for record in answer.answers() {
-                if record.name.to_lowercase() == name
-                    && let RData::CNAME(target) = &record.data
-                {
-                    let target = target.0.to_lowercase();
-                    if !valid_name(&target) {
-                        return Err(DnsError::Failed);
-                    }
-                    targets.insert(target);
+        for record in answer.answers() {
+            if record.name.to_lowercase() == current
+                && let RData::CNAME(target) = &record.data
+            {
+                let target = target.0.to_lowercase();
+                if !valid_name(&target) {
+                    return Err(DnsError::Invalid);
                 }
-            }
-            if !targets.is_empty() {
-                for record in answer
-                    .answers()
-                    .iter()
-                    .chain(answer.authorities())
-                    .chain(answer.additionals())
-                {
-                    if record.name.to_lowercase() != name {
-                        continue;
-                    }
-                    match &record.data {
-                        RData::CNAME(target) if targets.contains(&target.0.to_lowercase()) => {}
-                        _ if matches!(
-                            record.record_type(),
-                            RecordType::RRSIG | RecordType::NSEC | RecordType::SIG
-                        ) => {}
-                        _ => return Err(DnsError::Failed),
-                    }
-                }
+                targets.insert(target);
             }
         }
         if targets.is_empty() {
             let mut ips = BTreeSet::new();
-            for kind in [RecordType::A, RecordType::AAAA] {
-                if let Some(answer) = lookup(resolver, name.clone(), kind, deadline).await? {
-                    for record in answer.answers() {
-                        if record.name.to_lowercase() != name {
-                            continue;
-                        }
-                        let ip = match &record.data {
-                            RData::A(ip) if kind == RecordType::A => IpAddr::V4(ip.0),
-                            RData::AAAA(ip) if kind == RecordType::AAAA => IpAddr::V6(ip.0),
-                            _ => continue,
-                        };
-                        ips.insert(ip);
-                        if ips.len() > 16 {
-                            return Err(DnsError::Failed);
-                        }
-                    }
+            for record in answer.answers() {
+                if record.name.to_lowercase() != current {
+                    continue;
+                }
+                let ip = match &record.data {
+                    RData::A(ip) if kind == RecordType::A => IpAddr::V4(ip.0),
+                    RData::AAAA(ip) if kind == RecordType::AAAA => IpAddr::V6(ip.0),
+                    _ => continue,
+                };
+                ips.insert(ip);
+                if ips.len() > 16 {
+                    return Err(DnsError::Invalid);
                 }
             }
             return if ips.is_empty() {
@@ -153,12 +145,84 @@ pub(super) async fn addresses(
             };
         }
         if targets.len() != 1 || hop == 8 {
-            return Err(DnsError::Failed);
+            return Err(DnsError::Invalid);
         }
-        name = targets.into_iter().next().ok_or(DnsError::Failed)?;
-        if !visited.insert(name.clone()) {
-            return Err(DnsError::Failed);
+        for record in answer
+            .answers()
+            .iter()
+            .chain(answer.authorities())
+            .chain(answer.additionals())
+        {
+            if record.name.to_lowercase() != current {
+                continue;
+            }
+            match &record.data {
+                RData::CNAME(target) if targets.contains(&target.0.to_lowercase()) => {}
+                _ if matches!(
+                    record.record_type(),
+                    RecordType::RRSIG | RecordType::NSEC | RecordType::SIG
+                ) => {}
+                _ => return Err(DnsError::Invalid),
+            }
+        }
+        current = targets.into_iter().next().ok_or(DnsError::Invalid)?;
+        if !visited.insert(current.clone()) {
+            return Err(DnsError::Invalid);
         }
     }
-    Err(DnsError::Failed)
+    Err(DnsError::Invalid)
+}
+async fn family(
+    resolver: &TokioResolver,
+    name: Name,
+    kind: RecordType,
+    deadline: Instant,
+) -> std::result::Result<Vec<IpAddr>, DnsError> {
+    match lookup(resolver, name.clone(), kind, deadline).await? {
+        Some(answer) => proven_addresses(&answer, &name, kind),
+        None => Err(DnsError::Missing),
+    }
+}
+/// A and AAAA are independent observations under one DNS deadline. A valid
+/// family survives a missing/timed-out peer without constructing a synthetic
+/// cross-family chain; every returned address has its own rooted proof.
+pub(super) async fn addresses(
+    resolver: &TokioResolver,
+    host: &str,
+    deadline: Instant,
+) -> std::result::Result<Vec<IpAddr>, DnsError> {
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return Ok(vec![ip]);
+    }
+    let name = Name::from_ascii(format!("{host}."))
+        .map_err(|_| DnsError::Invalid)?
+        .to_lowercase();
+    let (a, aaaa) = tokio::join!(
+        family(resolver, name.clone(), RecordType::A, deadline),
+        family(resolver, name, RecordType::AAAA, deadline)
+    );
+    let mut ips = BTreeSet::new();
+    let mut timeout = false;
+    let mut failed = false;
+    for result in [a, aaaa] {
+        match result {
+            Ok(family) => ips.extend(family),
+            Err(DnsError::Invalid) => return Err(DnsError::Invalid),
+            Err(DnsError::Timeout) => timeout = true,
+            Err(DnsError::Failed) => failed = true,
+            Err(DnsError::Missing) => {}
+        }
+    }
+    if ips.len() > 16 {
+        return Err(DnsError::Invalid);
+    }
+    if !ips.is_empty() {
+        Ok(ips.into_iter().collect())
+    } else if timeout {
+        Err(DnsError::Timeout)
+    } else if failed {
+        Err(DnsError::Failed)
+    } else {
+        Err(DnsError::Missing)
+    }
 }
