@@ -11,7 +11,7 @@ use tokio::time::{Instant, timeout_at};
 pub(super) fn allowed(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ip) => {
-            let [a, b, _, _] = ip.octets();
+            let [a, b, c, _] = ip.octets();
             !ip.is_unspecified()
                 && !ip.is_multicast()
                 && !ip.is_broadcast()
@@ -20,7 +20,7 @@ pub(super) fn allowed(ip: IpAddr) -> bool {
                 && a < 224
                 && ip.octets() != [100, 100, 100, 200]
                 && ip.octets() != [168, 63, 129, 16]
-                && !(a == 192 && b == 0)
+                && !(a == 192 && b == 0 && matches!(c, 0 | 2))
         }
         IpAddr::V6(ip) => {
             if let Some(v4) = ip.to_ipv4_mapped() {

@@ -566,11 +566,17 @@ async fn dns_owner_provenance_rebinding_and_pinned_backend_are_bounded() {
         "224.0.0.1",
         "100.100.100.200",
         "168.63.129.16",
+        "192.0.0.1",
+        "192.0.0.255",
+        "192.0.2.0",
+        "192.0.2.255",
         "::",
         "fe80::1",
         "ff02::1",
         "fd00:ec2::254",
         "::ffff:169.254.169.254",
+        "::ffff:192.0.0.1",
+        "::ffff:192.0.2.1",
     ] {
         assert!(!upstream::allowed(ip.parse().unwrap()), "unsafe {ip}");
     }
@@ -580,6 +586,11 @@ async fn dns_owner_provenance_rebinding_and_pinned_backend_are_bounded() {
         "192.168.1.1",
         "172.16.1.1",
         "100.64.0.1",
+        "192.0.1.1",
+        "192.0.3.1",
+        "192.0.78.1",
+        "192.0.255.255",
+        "::ffff:192.0.78.1",
         "fd12::1",
         "::1",
     ] {
