@@ -160,6 +160,14 @@ jobs:
             - name: Check database migrations
               run: bun --no-env-file run db:check
 
+            - name: Check schema migration coverage
+              run: |
+                  timeout 60s bun --no-env-file run db:generate --name ci_schema_check
+                  if test -n "$(git status --porcelain --untracked-files=normal -- web/drizzle)"; then
+                      echo '::error::The database schema has uncommitted migration changes. Generate, review and commit the migration files.'
+                      exit 1
+                  fi
+
             - name: Apply database migrations
               run: bun --no-env-file run db:migrate
 
