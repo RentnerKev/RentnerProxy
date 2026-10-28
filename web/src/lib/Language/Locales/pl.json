@@ -2398,6 +2398,7 @@
                     "trusted-ca": "Zaufany urząd CA",
                     "proxy-runtime-settings": "Ustawienia środowiska proxy",
                     "proxy-host-settings": "Ustawienia hosta proxy",
+                    "host-monitoring": "Monitorowanie hosta",
                     "proxy-runtime": "Środowisko proxy",
                     "crowdsec": "CrowdSec",
                     "npm-import": "Import NPM",

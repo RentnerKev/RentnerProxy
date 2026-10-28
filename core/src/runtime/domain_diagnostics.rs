@@ -9,6 +9,35 @@ pub(crate) use models::{Request, Result};
 use std::{sync::atomic::Ordering, time::Duration};
 use tokio::time::{Instant, timeout_at};
 
+// Admission caps this registry at two entries. The key deliberately excludes
+// revision and domain so a host edit cannot bypass an executing check.
+#[derive(Default)]
+pub(super) struct ActiveChecks(std::sync::Mutex<std::collections::HashSet<(HostType, String)>>);
+struct ActiveCheck<'a> {
+    checks: &'a ActiveChecks,
+    key: (HostType, String),
+}
+impl ActiveChecks {
+    fn acquire(&self, request: &Request) -> std::result::Result<ActiveCheck<'_>, Error> {
+        let key = (request.host_type, request.host_id.clone());
+        let registry_key = key.clone();
+        let mut checks = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        if !checks.insert(registry_key) {
+            return Err(Error::Busy);
+        }
+        Ok(ActiveCheck { checks: self, key })
+    }
+}
+impl Drop for ActiveCheck<'_> {
+    fn drop(&mut self) {
+        self.checks
+            .0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .remove(&self.key);
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Error {
     InvalidInput,
@@ -117,6 +146,7 @@ impl ProxyRuntime {
             .diagnostics_admission
             .try_acquire()
             .map_err(|_| Error::Busy)?;
+        let _active = self.diagnostics_active.acquire(&request)?;
         let start = Instant::now();
         let deadline = start + budget;
         let network_deadline = deadline - budget.div_f64(12.0).min(Duration::from_secs(1));
@@ -158,7 +188,9 @@ impl ProxyRuntime {
         let resolver = fixture_resolver
             .map(Ok)
             .unwrap_or_else(resolver::Resolver::system);
-        if wildcard {
+        if request.upstream_only {
+            // Scheduled checks observe only the active upstream, never public DNS.
+        } else if wildcard {
             result.stages.dns = Stage::new(Status::NotApplicable, Code::WildcardDomain);
         } else {
             let dns_start = Instant::now();
@@ -187,7 +219,11 @@ impl ProxyRuntime {
             result.stages.tls = Stage::new(Status::NotApplicable, Code::RedirectHost);
         } else if let Some(host) = &snapshot.proxy {
             let upstream_start = Instant::now();
-            let stage_deadline = network_deadline.min(upstream_start + Duration::from_secs(3));
+            let shared_deadline = request.timeout_ms.map(|timeout| {
+                network_deadline.min(upstream_start + Duration::from_millis(u64::from(timeout)))
+            });
+            let stage_deadline = shared_deadline
+                .unwrap_or_else(|| network_deadline.min(upstream_start + Duration::from_secs(3)));
             let resolved = if let Ok(ip) = host.forward_host.parse() {
                 Ok(vec![ip])
             } else {
@@ -208,7 +244,9 @@ impl ProxyRuntime {
                         &addresses,
                         &snapshot.cas,
                         &self.settings.system_ca_bundle,
-                        network_deadline.min(Instant::now() + Duration::from_secs(3)),
+                        shared_deadline.unwrap_or_else(|| {
+                            network_deadline.min(Instant::now() + Duration::from_secs(3))
+                        }),
                     )
                     .await;
                     result.stages.upstream.duration_ms =

@@ -2370,6 +2370,7 @@
                     "trusted-ca": "Trusted CA",
                     "proxy-runtime-settings": "Proxy runtime settings",
                     "proxy-host-settings": "Proxy host settings",
+                    "host-monitoring": "Host monitoring",
                     "proxy-runtime": "Proxy runtime",
                     "crowdsec": "CrowdSec",
                     "npm-import": "NPM import",

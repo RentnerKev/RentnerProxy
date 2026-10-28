@@ -46,6 +46,8 @@ import { Route as ApiMigrationExportRouteImport } from './routes/api/migration/e
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-logo/$accent'
 import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admin/diagnostics/domain'
+import { Route as ApiAdminMonitoringHistoryRouteImport } from './routes/api/admin/monitoring/history'
+import { Route as ApiAdminMonitoringPolicyRouteImport } from './routes/api/admin/monitoring/policy'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -237,6 +239,18 @@ const ApiAdminDiagnosticsDomainRoute =
     path: '/api/admin/diagnostics/domain',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminMonitoringHistoryRoute =
+  ApiAdminMonitoringHistoryRouteImport.update({
+    id: '/api/admin/monitoring/history',
+    path: '/api/admin/monitoring/history',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAdminMonitoringPolicyRoute =
+  ApiAdminMonitoringPolicyRouteImport.update({
+    id: '/api/admin/monitoring/policy',
+    path: '/api/admin/monitoring/policy',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -274,6 +288,8 @@ export interface FileRoutesByFullPath {
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login/': typeof PublicLoginIndexRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
+  '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
+  '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -310,6 +326,8 @@ export interface FileRoutesByTo {
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login': typeof PublicLoginIndexRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
+  '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
+  '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -350,6 +368,8 @@ export interface FileRoutesById {
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/_public/login/': typeof PublicLoginIndexRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
+  '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
+  '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -389,6 +409,8 @@ export interface FileRouteTypes {
     | '/media/mail-logo/$accent'
     | '/login/'
     | '/api/admin/diagnostics/domain'
+    | '/api/admin/monitoring/history'
+    | '/api/admin/monitoring/policy'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -425,6 +447,8 @@ export interface FileRouteTypes {
     | '/media/mail-logo/$accent'
     | '/login'
     | '/api/admin/diagnostics/domain'
+    | '/api/admin/monitoring/history'
+    | '/api/admin/monitoring/policy'
   id:
     | '__root__'
     | '/_authenticated'
@@ -464,6 +488,8 @@ export interface FileRouteTypes {
     | '/media/mail-logo/$accent'
     | '/_public/login/'
     | '/api/admin/diagnostics/domain'
+    | '/api/admin/monitoring/history'
+    | '/api/admin/monitoring/policy'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -477,6 +503,8 @@ export interface RootRouteChildren {
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
   MediaMailLogoAccentRoute: typeof MediaMailLogoAccentRoute
   ApiAdminDiagnosticsDomainRoute: typeof ApiAdminDiagnosticsDomainRoute
+  ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
+  ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -740,6 +768,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminDiagnosticsDomainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/monitoring/history': {
+      id: '/api/admin/monitoring/history'
+      path: '/api/admin/monitoring/history'
+      fullPath: '/api/admin/monitoring/history'
+      preLoaderRoute: typeof ApiAdminMonitoringHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/monitoring/policy': {
+      id: '/api/admin/monitoring/policy'
+      path: '/api/admin/monitoring/policy'
+      fullPath: '/api/admin/monitoring/policy'
+      preLoaderRoute: typeof ApiAdminMonitoringPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -847,6 +889,8 @@ const rootRouteChildren: RootRouteChildren = {
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
   MediaMailLogoAccentRoute: MediaMailLogoAccentRoute,
   ApiAdminDiagnosticsDomainRoute: ApiAdminDiagnosticsDomainRoute,
+  ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
+  ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

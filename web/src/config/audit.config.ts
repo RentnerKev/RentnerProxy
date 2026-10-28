@@ -47,6 +47,7 @@ export const AUDIT_RESOURCES = [
     'trusted-ca',
     'proxy-runtime-settings',
     'proxy-host-settings',
+    'host-monitoring',
     'proxy-runtime',
     'crowdsec',
     'npm-import',

@@ -17,6 +17,12 @@ import {
     assertDiagnosticsNotAborted,
 } from '@/server/RuntimeDiagnostics/domain-diagnostics.errors.ts'
 import { controllerRequest } from './transport.server.ts'
+import type { DomainDiagnosticsProbeOptions } from './Types/domain-diagnostics.types.ts'
+
+const probeOptionsSchema = z.strictObject({
+    upstreamOnly: z.boolean().optional(),
+    timeoutMs: z.number().int().min(1000).max(10_000).optional(),
+})
 
 export function createDomainDiagnosticsController(
     request: typeof controllerRequest = controllerRequest,
@@ -24,15 +30,18 @@ export function createDomainDiagnosticsController(
     return async (
         input: DomainDiagnosticsControllerInput,
         signal?: AbortSignal,
+        options?: DomainDiagnosticsProbeOptions,
     ): Promise<DomainDiagnosticsResult> => {
         assertDiagnosticsNotAborted(signal)
         const parsed = domainDiagnosticsControllerInputSchema.safeParse(input)
-        if (!parsed.success) throw new DomainDiagnosticsError('invalid_input')
+        const probeOptions = probeOptionsSchema.safeParse(options === undefined ? {} : options)
+        if (!parsed.success || !probeOptions.success)
+            throw new DomainDiagnosticsError('invalid_input')
         let payload: unknown
         try {
             payload = await request('/internal/v1/diagnostics/domain', {
                 method: 'POST',
-                body: JSON.stringify(parsed.data),
+                body: JSON.stringify({ ...parsed.data, ...probeOptions.data }),
                 privileged: true,
                 confidential: true,
                 timeoutMs: DOMAIN_DIAGNOSTICS_CONTROLLER_TIMEOUT_MS,

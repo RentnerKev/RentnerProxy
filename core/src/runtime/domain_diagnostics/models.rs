@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum HostType {
     Proxy,
@@ -13,11 +13,19 @@ pub(crate) struct Request {
     pub(crate) host_id: String,
     pub(crate) domain: String,
     pub(crate) expected_revision: String,
+    #[serde(default)]
+    pub(crate) upstream_only: bool,
+    pub(crate) timeout_ms: Option<u32>,
 }
 impl Request {
     pub(super) fn validate(&self) -> std::result::Result<(), super::Error> {
         let name = self.domain.strip_prefix("*.").unwrap_or(&self.domain);
-        if !crate::proxy::is_canonical_uuid(&self.host_id)
+        if self
+            .timeout_ms
+            .is_some_and(|timeout| !(1000..=10000).contains(&timeout))
+            || (self.upstream_only
+                && (self.host_type != HostType::Proxy || self.domain.starts_with("*.")))
+            || !crate::proxy::is_canonical_uuid(&self.host_id)
             || self.domain.len() > 253
             || !crate::proxy::is_canonical_domain(name)
             || !self

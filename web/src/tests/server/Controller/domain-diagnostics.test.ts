@@ -79,3 +79,39 @@ test('transport requires bearer auth even on loopback and composes caller abort/
     )
     expect(JSON.parse(output)).toEqual({ denied: null, calls: 2, added: 1, removed: 1, aborted: 2 })
 })
+
+test('private probe options preserve legacy payload and reject unknown or unbounded values', async () => {
+    const payloads: unknown[] = []
+    const inspect = createDomainDiagnosticsController(async (_path, options) => {
+        payloads.push(JSON.parse(options.body!))
+        return domainDiagnosticsFixture()
+    })
+    await inspect(input)
+    await inspect(input, undefined, {})
+    await inspect(input, undefined, { upstreamOnly: false, timeoutMs: 1000 })
+    await inspect(input, undefined, { upstreamOnly: true, timeoutMs: 10_000 })
+    expect(payloads).toEqual([
+        input,
+        input,
+        { ...input, upstreamOnly: false, timeoutMs: 1000 },
+        { ...input, upstreamOnly: true, timeoutMs: 10_000 },
+    ])
+    for (const options of [
+        { timeoutMs: 999 },
+        { timeoutMs: 10_001 },
+        { timeoutMs: 1000.5 },
+        { upstreamOnly: 'true' },
+        { url: 'http://169.254.169.254/' },
+    ]) {
+        await expect(inspect(input, undefined, options as never)).rejects.toMatchObject({
+            code: 'invalid_input',
+        })
+    }
+    expect(payloads).toHaveLength(4)
+    const aborted = new AbortController()
+    aborted.abort()
+    await expect(
+        inspect(input, aborted.signal, { upstreamOnly: true, timeoutMs: 1000 }),
+    ).rejects.toMatchObject({ code: 'aborted' })
+    expect(payloads).toHaveLength(4)
+})

@@ -2372,6 +2372,7 @@
                     "trusted-ca": "AC de confiance",
                     "proxy-runtime-settings": "Paramètres d’exécution du proxy",
                     "proxy-host-settings": "Paramètres de l’hôte proxy",
+                    "host-monitoring": "Surveillance de l’hôte",
                     "proxy-runtime": "Exécution du proxy",
                     "crowdsec": "CrowdSec",
                     "npm-import": "Import NPM",

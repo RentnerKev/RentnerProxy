@@ -55,7 +55,20 @@ export async function runDomainDiagnosticsSmoke({
             'diagnostics must omit upstream bodies and TLS material',
         )
 
+    const scheduledResponse = await inspect({ ...input, upstreamOnly: true, timeoutMs: 2_000 })
+    assert.equal(scheduledResponse.status, 200)
+    const scheduledRaw: unknown = await scheduledResponse.json()
+    const scheduled = domainDiagnosticsResultSchema.parse(scheduledRaw)
+    assert.equal(scheduled.stages.configuration.code, 'configuration_active')
+    assert.equal(scheduled.stages.dns.code, 'skipped')
+    assert.deepEqual(scheduled.stages.dns.addresses, [])
+    assert.equal(scheduled.stages.upstream.code, upstreamCode)
+    assert.equal(scheduled.stages.tls.code, tlsCode)
+    assert.equal(scheduled.publicReachability, 'not_checked')
+
     if (checkBoundary) {
+        const invalidTimeout = await inspect({ ...input, upstreamOnly: true, timeoutMs: 10_001 })
+        assert.equal(invalidTimeout.status, 422)
         const stale = await inspect({ ...input, expectedRevision: 'sha256:' + '0'.repeat(64) })
         assert.equal(stale.status, 200)
         const staleResult = domainDiagnosticsResultSchema.parse(await stale.json())

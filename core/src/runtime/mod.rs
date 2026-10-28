@@ -178,6 +178,7 @@ pub(crate) struct ProxyRuntime {
     binary_version_admission: Semaphore,
     dns_assistant_admission: Semaphore,
     diagnostics_admission: Semaphore,
+    diagnostics_active: domain_diagnostics::ActiveChecks,
 }
 
 impl ProxyRuntime {
@@ -255,6 +256,7 @@ impl ProxyRuntime {
             binary_version_admission: Semaphore::new(1),
             dns_assistant_admission: Semaphore::new(2),
             diagnostics_admission: Semaphore::new(2),
+            diagnostics_active: domain_diagnostics::ActiveChecks::default(),
         })
     }
 }
