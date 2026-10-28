@@ -1,15 +1,6 @@
-import {
-    useCallback,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState,
-    useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     QUICK_SEARCH_DEBOUNCE_MS,
@@ -32,6 +23,7 @@ import { searchRedirectHostsHandler } from '@/features/Admin/RedirectHostManagem
 import { searchCertificatesHandler } from '@/features/Admin/CertificateManagement/middleware.ts'
 import { searchAccessPoliciesHandler } from '@/features/Admin/AccessPolicyManagement/middleware.ts'
 import type { QuickSearchLogicResult, QuickSearchProps } from '../Types/quick-search.types.ts'
+import useQuickSearchShortcuts from './useQuickSearchShortcuts.ts'
 
 const searchHandlers = {
     proxyHosts: searchProxyHostsHandler,
@@ -39,11 +31,6 @@ const searchHandlers = {
     certificates: searchCertificatesHandler,
     accessPolicies: searchAccessPoliciesHandler,
 }
-
-const unsubscribePlatform = () => undefined
-const subscribePlatform = () => unsubscribePlatform
-const getShortcut = () => formatForDisplay('Mod+K')
-const getServerShortcut = () => 'Ctrl+K'
 
 export default function useQuickSearchLogic({
     userId,
@@ -56,18 +43,12 @@ export default function useQuickSearchLogic({
     const handoff = useRef<{ result: QuickSearchResult; scope: string } | null>(null)
     const id = useId()
     const input = useRef<HTMLInputElement>(null)
-    const [inputTarget, setInputTarget] = useState<HTMLInputElement | null>(null)
-    const bindInput = useCallback((element: HTMLInputElement | null) => {
-        input.current = element
-        setInputTarget(element)
-    }, [])
     const [open, setOpen] = useState(false)
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const [highlightedId, setHighlightedId] = useState<string | null>(null)
     const [openingScope, setOpeningScope] = useState<string | null>(null)
     const [unavailableScope, setUnavailableScope] = useState<string | null>(null)
-    const shortcut = useSyncExternalStore(subscribePlatform, getShortcut, getServerShortcut)
     const attempt = useRef(0)
     const scope = useMemo(
         () => `${userId}:${permissions.toSorted().join(',')}`,
@@ -156,27 +137,6 @@ export default function useQuickSearchLogic({
             setHighlightedId(null)
         }
     }, [])
-    const openSearch = useCallback(() => {
-        if (document.querySelector('[role="dialog"][data-state="open"]')) return
-        changeOpen(true)
-    }, [changeOpen])
-    useHotkey(
-        'Mod+K',
-        (event) => {
-            if (document.querySelector('[role="dialog"][data-state="open"]')) return
-            event.preventDefault()
-            event.stopPropagation()
-            changeOpen(true)
-        },
-        {
-            enabled: !open,
-            ignoreInputs: true,
-            requireReset: true,
-            preventDefault: false,
-            stopPropagation: false,
-        },
-    )
-
     const select = async (result: QuickSearchResult) => {
         if (isOpening) return
         const source = QUICK_SEARCH_CATEGORIES.find((item) => item.category === result.category)
@@ -217,23 +177,14 @@ export default function useQuickSearchLogic({
         const index = active ? results.indexOf(active) : 0
         setHighlightedId(results[(index + direction + results.length) % results.length]!.id)
     }
-    useHotkey('ArrowDown', () => move(1), {
-        target: inputTarget,
-        enabled: open && inputTarget !== null,
-        ignoreInputs: false,
-    })
-    useHotkey('ArrowUp', () => move(-1), {
-        target: inputTarget,
-        enabled: open && inputTarget !== null,
-        ignoreInputs: false,
-    })
-    useHotkey(
-        'Enter',
-        () => {
+    const shortcuts = useQuickSearchShortcuts({
+        open,
+        onOpen: () => changeOpen(true),
+        onMove: move,
+        onSelect: () => {
             if (active) void select(active)
         },
-        { target: inputTarget, enabled: open && inputTarget !== null, ignoreInputs: false },
-    )
+    })
 
     useEffect(() => {
         if (!open || !activeOptionId) return
@@ -247,7 +198,7 @@ export default function useQuickSearchLogic({
             inputId: `${id}-input`,
             listId: `${id}-results`,
             hintId: `${id}-hint`,
-            shortcut,
+            shortcut: shortcuts.state.shortcut,
             groups,
             activeOptionId,
             isLoading,
@@ -265,7 +216,8 @@ export default function useQuickSearchLogic({
                 if (pending?.scope === selectionScope.current && pending?.result.actionId)
                     actions?.request(pending.result.actionId)
             },
-            open: openSearch,
+            open: shortcuts.handler.open,
+            inputKeyDown: shortcuts.handler.inputKeyDown,
             focusInput: (event) => {
                 event.preventDefault()
                 input.current?.focus()
@@ -289,6 +241,6 @@ export default function useQuickSearchLogic({
                 }
             },
         },
-        refs: { input: bindInput },
+        refs: { input },
     }
 }

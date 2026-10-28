@@ -40,10 +40,10 @@ const {
 } = await import('@tanstack/react-router')
 const { default: QuickSearch } = await import('@/features/QuickSearch/index.tsx')
 const { Modal } = await import('@/shared/Modal/index.tsx')
-const { HotkeysProvider } = await import('@tanstack/react-hotkeys')
 
 let root: Root | null = null
 let client: QueryClient | null = null
+const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform')
 const allPermissions = Object.values(PERMISSIONS)
 const entities = [
     {
@@ -97,7 +97,8 @@ function ActionTargets({ ready }: { readonly ready: boolean }) {
     )
 }
 
-async function mount(permissions: readonly string[] = allPermissions, platform?: 'mac') {
+async function mount(permissions: readonly string[] = allPermissions, platform = 'Win32') {
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: platform })
     const container = document.createElement('div')
     document.body.append(container)
     root = withLanguageRoot(createRoot(container))
@@ -129,12 +130,10 @@ async function mount(permissions: readonly string[] = allPermissions, platform?:
             root?.render(
                 <RouterContextProvider router={router}>
                     <QueryClientProvider client={client!}>
-                        <HotkeysProvider defaultOptions={platform ? { hotkey: { platform } } : {}}>
-                            <QuickActionsProvider key={userId} permissions={nextPermissions}>
-                                <QuickSearch userId={userId} permissions={nextPermissions} />
-                                <ActionTargets ready={ready} />
-                            </QuickActionsProvider>
-                        </HotkeysProvider>
+                        <QuickActionsProvider key={userId} permissions={nextPermissions}>
+                            <QuickSearch userId={userId} permissions={nextPermissions} />
+                            <ActionTargets ready={ready} />
+                        </QuickActionsProvider>
                     </QueryClientProvider>
                 </RouterContextProvider>,
             )
@@ -152,22 +151,16 @@ async function click(element: Element) {
         await Bun.sleep(10)
     })
 }
-async function key(
-    target: Element,
-    value: string,
-    modifiers: { ctrlKey?: boolean; metaKey?: boolean } = {},
-) {
+async function key(target: Element, value: string, options: KeyboardEventInit = {}) {
     const event = new KeyboardEvent('keydown', {
         key: value,
         bubbles: true,
         cancelable: true,
-        ...modifiers,
+        ...options,
     })
     await act(async () => {
         target.dispatchEvent(event)
-        target.dispatchEvent(
-            new KeyboardEvent('keyup', { key: value, bubbles: true, ...modifiers }),
-        )
+        target.dispatchEvent(new KeyboardEvent('keyup', { key: value, bubbles: true, ...options }))
         await Bun.sleep(20)
     })
     await act(async () => {
@@ -214,6 +207,8 @@ afterEach(async () => {
     root = null
     client?.clear()
     client = null
+    if (originalPlatform) Object.defineProperty(navigator, 'platform', originalPlatform)
+    else Reflect.deleteProperty(navigator, 'platform')
     document.body.replaceChildren()
     for (const lookup of lookups) {
         lookup.mockReset()
@@ -346,12 +341,129 @@ describe('global quick search', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
 
-    test('Cmd+K works through the TanStack macOS binding', async () => {
-        const { trigger } = await mount([], 'mac')
-        trigger.focus()
-        const event = await key(trigger, 'k', { metaKey: true })
+    test.each(['MacIntel', 'iPad'])(
+        'uses Command and the matching shortcut label on %s',
+        async (platform) => {
+            const { trigger } = await mount([], platform)
+            expect(trigger.querySelector('kbd')?.textContent).toBe('⌘ K')
+            trigger.focus()
+            expect((await key(trigger, 'k', { ctrlKey: true })).defaultPrevented).toBe(false)
+            const event = await key(trigger, 'k', { metaKey: true })
+            expect(event.defaultPrevented).toBe(true)
+            expect(document.activeElement === input()).toBe(true)
+        },
+    )
+
+    test('uses Control on Linux and accepts an uppercase key without Shift', async () => {
+        const { trigger } = await mount([], 'Linux x86_64')
+        expect(trigger.querySelector('kbd')?.textContent).toBe('Ctrl+K')
+        const event = await key(trigger, 'K', { ctrlKey: true })
         expect(event.defaultPrevented).toBe(true)
         expect(document.activeElement === input()).toBe(true)
+    })
+
+    test.each([
+        {},
+        { metaKey: true },
+        { ctrlKey: true, metaKey: true },
+        { ctrlKey: true, altKey: true },
+        { ctrlKey: true, shiftKey: true },
+        { ctrlKey: true, repeat: true },
+        { ctrlKey: true, isComposing: true },
+        { ctrlKey: true, keyCode: 229 },
+    ] satisfies KeyboardEventInit[])(
+        'leaves unsupported, repeated or composing global shortcuts untouched (%j)',
+        async (options) => {
+            const { trigger } = await mount()
+            const event = await key(trigger, 'k', options)
+            expect(event.defaultPrevented).toBe(false)
+            expect(document.querySelector('[role="dialog"]')).toBeNull()
+        },
+    )
+
+    test('respects a global shortcut already handled by its target', async () => {
+        const { trigger } = await mount()
+        trigger.addEventListener('keydown', (event) => event.preventDefault(), { once: true })
+        await key(trigger, 'k', { ctrlKey: true })
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+    })
+
+    test('does not reset an open search or react to keys outside its input', async () => {
+        const { trigger, router } = await mount([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await click(trigger)
+        await query('proxy')
+        const active = selectedText()
+        await key(input(), 'k', { ctrlKey: true })
+        expect(input().value).toBe('proxy')
+        const closeButton = document.querySelector('[role="dialog"] button')!
+        expect((await key(closeButton, 'ArrowDown')).defaultPrevented).toBe(false)
+        expect((await key(closeButton, 'Enter')).defaultPrevented).toBe(false)
+        expect(selectedText()).toBe(active)
+        expect(router.state.location.pathname).toBe('/')
+        await key(input(), 'Escape')
+        expect((await key(trigger, 'ArrowDown')).defaultPrevented).toBe(false)
+        expect(router.state.location.pathname).toBe('/')
+    })
+
+    test.each([
+        { isComposing: true },
+        { keyCode: 229 },
+        { altKey: true },
+        { ctrlKey: true },
+        { metaKey: true },
+        { shiftKey: true },
+    ] satisfies KeyboardEventInit[])(
+        'preserves search editing and IME confirmation (%j)',
+        async (options) => {
+            const { trigger, router } = await mount([PERMISSIONS.PROXY_HOSTS_VIEW])
+            await click(trigger)
+            await key(input(), 'ArrowDown')
+            const active = selectedText()
+            expect(active).toContain('Proxy hosts')
+            const checkKey = async (value: string) => {
+                const event = await key(input(), value, options)
+                expect(event.defaultPrevented).toBe(false)
+                expect(selectedText()).toBe(active)
+                expect(router.state.location.pathname).toBe('/')
+            }
+            await checkKey('ArrowDown')
+            await checkKey('ArrowUp')
+            await checkKey('Enter')
+            await key(input(), 'Enter')
+            expect(router.state.location.pathname).toBe('/proxy-hosts')
+        },
+    )
+
+    test('wraps arrow navigation, allows held arrows and suppresses held Enter', async () => {
+        const { trigger, router } = await mount([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await click(trigger)
+        expect(selectedText()).toContain('Overview')
+        await key(input(), 'ArrowUp')
+        expect(selectedText()).toContain('Proxy hosts')
+        await key(input(), 'ArrowDown', { repeat: true })
+        expect(selectedText()).toContain('Overview')
+        await key(input(), 'ArrowDown', { repeat: true })
+        expect(selectedText()).toContain('Proxy hosts')
+        expect((await key(input(), 'Enter', { repeat: true })).defaultPrevented).toBe(true)
+        expect(router.state.location.pathname).toBe('/')
+        await key(input(), 'Enter')
+        expect(router.state.location.pathname).toBe('/proxy-hosts')
+    })
+
+    test('respects a search key already handled by the input', async () => {
+        const { trigger } = await mount([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await click(trigger)
+        input().addEventListener('keydown', (event) => event.preventDefault(), { once: true })
+        await key(input(), 'ArrowDown')
+        expect(selectedText()).toContain('Overview')
+    })
+
+    test('removes the global shortcut listener on unmount', async () => {
+        await mount()
+        await act(async () => root?.unmount())
+        root = null
+        expect((await key(document.body, 'k', { ctrlKey: true })).defaultPrevented).toBe(false)
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
 
     test('opens the existing account setting directly without loading entities', async () => {
@@ -365,26 +477,64 @@ describe('global quick search', () => {
         for (const lookup of lookups) expect(lookup).not.toHaveBeenCalled()
     })
 
-    test.each(['input', 'textarea', 'div'])('leaves an editing %s untouched', async (tag) => {
-        await mount()
-        const editor = document.createElement(tag)
-        if (tag === 'div') editor.contentEditable = 'true'
-        document.body.append(editor)
-        const event = await key(editor, 'k', { ctrlKey: true })
-        expect(event.defaultPrevented).toBe(false)
-        expect(document.querySelector('[role="dialog"]')).toBeNull()
-    })
+    test.each(['input', 'textarea', 'select', 'div'])(
+        'leaves an editing %s untouched',
+        async (tag) => {
+            await mount()
+            const editor = document.createElement(tag)
+            if (tag === 'div') editor.contentEditable = 'true'
+            document.body.append(editor)
+            const event = await key(editor, 'k', { ctrlKey: true })
+            expect(event.defaultPrevented).toBe(false)
+            expect(document.querySelector('[role="dialog"]')).toBeNull()
+        },
+    )
 
-    test('leaves unrelated dialogs untouched', async () => {
-        await mount()
-        const otherDialog = document.createElement('div')
-        otherDialog.setAttribute('role', 'dialog')
-        otherDialog.dataset.state = 'open'
-        document.body.append(otherDialog)
-        const event = await key(document.body, 'k', { ctrlKey: true })
-        expect(event.defaultPrevented).toBe(false)
-        expect(document.querySelector('[role="combobox"]')).toBeNull()
-    })
+    test.each(['', 'true', 'plaintext-only', 'textbox'])(
+        'leaves nested editable content untouched (%s)',
+        async (mode) => {
+            await mount()
+            const editor = document.createElement('div')
+            if (mode === 'textbox') editor.setAttribute('role', 'textbox')
+            else editor.setAttribute('contenteditable', mode)
+            const child = document.createElement('span')
+            editor.append(child)
+            document.body.append(editor)
+            expect((await key(child, 'k', { ctrlKey: true })).defaultPrevented).toBe(false)
+            expect(document.querySelector('[role="dialog"]')).toBeNull()
+        },
+    )
+
+    test.each(['radix', 'dialog', 'alertdialog', 'native'])(
+        'leaves unrelated %s dialogs untouched by keyboard and button',
+        async (kind) => {
+            const { trigger } = await mount()
+            const otherDialog = document.createElement(kind === 'native' ? 'dialog' : 'div')
+            if (kind === 'native') otherDialog.setAttribute('open', '')
+            else otherDialog.setAttribute('role', kind === 'alertdialog' ? kind : 'dialog')
+            if (kind === 'radix') otherDialog.dataset.state = 'open'
+            document.body.append(otherDialog)
+            const event = await key(document.body, 'k', { ctrlKey: true })
+            expect(event.defaultPrevented).toBe(false)
+            await click(trigger)
+            expect(document.querySelector('[role="combobox"]')).toBeNull()
+        },
+    )
+
+    test.each(['closed', 'hidden', 'aria-hidden', 'native'])(
+        'ignores inactive dialogs when opening search (%s)',
+        async (kind) => {
+            const { trigger } = await mount()
+            const otherDialog = document.createElement(kind === 'native' ? 'dialog' : 'div')
+            otherDialog.setAttribute('role', 'dialog')
+            if (kind === 'closed') otherDialog.dataset.state = 'closed'
+            else if (kind === 'hidden') otherDialog.hidden = true
+            else if (kind === 'aria-hidden') otherDialog.setAttribute('aria-hidden', 'true')
+            document.body.append(otherDialog)
+            expect((await key(trigger, 'k', { ctrlKey: true })).defaultPrevented).toBe(true)
+            expect(document.activeElement === input()).toBe(true)
+        },
+    )
 
     test('searches every allowed category and confirms an exact target before keyboard navigation', async () => {
         for (const [index, lookup] of lookups.entries())

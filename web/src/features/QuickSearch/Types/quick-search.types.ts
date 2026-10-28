@@ -1,4 +1,4 @@
-import type { RefCallback } from 'react'
+import type { KeyboardEventHandler, RefObject } from 'react'
 import type { QuickSearchResult } from '@/lib/QuickSearch/Types/quick-search.types.ts'
 import type { PreventableEvent } from '@/shared/Modal/Types/modal.types.ts'
 
@@ -6,6 +6,21 @@ export interface QuickSearchProps {
     readonly userId: string
     readonly permissions: readonly string[]
     readonly onNavigate?: (() => void) | undefined
+}
+
+export interface QuickSearchShortcutsOptions {
+    readonly open: boolean
+    readonly onOpen: () => void
+    readonly onMove: (direction: number) => void
+    readonly onSelect: () => void
+}
+
+export interface QuickSearchShortcutsResult {
+    readonly state: { readonly shortcut: string }
+    readonly handler: {
+        readonly open: () => void
+        readonly inputKeyDown: KeyboardEventHandler<HTMLInputElement>
+    }
 }
 
 export interface QuickSearchLogicResult {
@@ -36,9 +51,10 @@ export interface QuickSearchLogicResult {
         readonly focusInput: (event: PreventableEvent) => void
         readonly setOpen: (open: boolean) => void
         readonly changeQuery: (query: string) => void
+        readonly inputKeyDown: KeyboardEventHandler<HTMLInputElement>
         readonly highlight: (id: string) => void
         readonly select: (result: QuickSearchResult) => void
         readonly retry: () => void
     }
-    readonly refs: { readonly input: RefCallback<HTMLInputElement> }
+    readonly refs: { readonly input: RefObject<HTMLInputElement | null> }
 }
