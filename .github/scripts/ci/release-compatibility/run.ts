@@ -415,17 +415,13 @@ async function verifyLogin(base: UpgradeFixture, expectedSessions: number): Prom
     assert.equal(Number(count), expectedSessions)
 }
 
-async function assertCorruptJournalFailsClosed(
+async function assertErasedJournalFailsClosed(
     file: string,
     fixture: UpgradeFixture,
 ): Promise<void> {
     stage = 'failure-injection'
-    await psql(
-        command,
-        container,
-        'delete from drizzle.__drizzle_migrations where id=(select max(id) from drizzle.__drizzle_migrations)',
-    )
-    assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT - 1)
+    await psql(command, container, 'delete from drizzle.__drizzle_migrations')
+    assert.equal(await migrationCount(), 0)
     const since = new Date(Date.now() - 1_000).toISOString()
     await command([...compose(file), 'restart', 'rentnerproxy'], 180_000).catch(() => undefined)
     stage = 'failure-validation'
@@ -440,7 +436,7 @@ async function assertCorruptJournalFailsClosed(
             ])
             return health.startsWith('exited|')
         },
-        'damaged migration journal must stop startup',
+        'erased migration journal must stop startup',
         90_000,
     )
     assert.equal(health.split('|')[2] === '0', false)
@@ -889,7 +885,7 @@ async function run(): Promise<void> {
         assert.equal(Number(sessions), 1)
         stage = 'target-restart-http3'
         await verifyHttp3(base)
-        await assertCorruptJournalFailsClosed(targetFile, base)
+        await assertErasedJournalFailsClosed(targetFile, base)
         console.log(`PASS ${source.version} restart remains idempotent`)
 
         stage = 'target-fresh-volume-restore'

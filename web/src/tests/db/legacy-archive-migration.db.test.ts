@@ -202,6 +202,34 @@ describe('legacy archive migration', () => {
     )
 
     integrationTest(
+        'refuses startup with erased applied history and preserves archived settings',
+        async () => {
+            await withIsolatedDatabase(async (client, databaseUrl) => {
+                await runMigrate({ databaseUrl, migrationsFolder })
+                const archiveId = randomUUID()
+                await client`
+                    insert into rentnerproxy.proxy_host_legacy_settings
+                        (id, proxy_host_id, advanced_config)
+                    values (${archiveId}, ${randomUUID()}, 'retained through migration failure')
+                `
+                const before = await client`select * from rentnerproxy.proxy_host_legacy_settings`
+                await client`delete from drizzle.__drizzle_migrations`
+
+                await expect(runMigrate({ databaseUrl, migrationsFolder })).rejects.toBeDefined()
+
+                expect(await client`select * from rentnerproxy.proxy_host_legacy_settings`).toEqual(
+                    before,
+                )
+                expect(
+                    await client`select count(*)::int as count from drizzle.__drizzle_migrations`,
+                ).toEqual([{ count: 0 }])
+                await assertArchiveSchema(client)
+            })
+        },
+        { timeout: 30_000 },
+    )
+
+    integrationTest(
         'preserves 0026 archive rows, dangling host IDs and dependent foreign keys',
         async () => {
             await withIsolatedDatabase(async (client, databaseUrl) => {
