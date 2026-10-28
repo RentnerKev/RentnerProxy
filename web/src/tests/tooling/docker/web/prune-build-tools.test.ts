@@ -35,7 +35,7 @@ describe('web runtime dependency pruning', () => {
             '@tanstack/start-server-core/index.js',
             'i18next/index.js',
             'drizzle-orm/index.js',
-            'maxmind/index.js',
+            'mmdb-lib/lib/index.js',
         ]
         try {
             await Promise.all(
