@@ -117,7 +117,7 @@ async function command(
     )
     if (exitCode !== 0 || timedOut) {
         if (args[0] === 'docker' && args[1] === 'build')
-            console.error(dockerBuildDiagnostic(stderr))
+            console.error(dockerBuildDiagnostic(stdout, stderr))
         // Docker, SQL and application output can contain private fixture material.
         const diagnostic = restoreSmokeDiagnostic(stderr)
         if (diagnostic) console.error(diagnostic)

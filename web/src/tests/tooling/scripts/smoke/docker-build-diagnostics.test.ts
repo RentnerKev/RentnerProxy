@@ -9,12 +9,15 @@ describe('Docker build diagnostics', () => {
         ['toomanyrequests: rate exceeded', 'registry-rate-limit'],
         ['write /private/fixture: no space left on device', 'disk-space'],
         ['process did not complete successfully: exit code: 137', 'memory'],
+        ['compile: signal: killed', 'memory'],
         ['sha256sum: WARNING: 1 of 1 computed checksums did NOT match', 'checksum-mismatch'],
         ['Could not resolve "@/private/module"', 'source-import'],
         ['error TS6133: private fixture is unused', 'typescript'],
         ['x509: certificate signed by unknown authority', 'tls'],
         ['failed to resolve source metadata for private.invalid', 'base-image'],
         ['Temporary failure resolving private.invalid', 'dependency-download'],
+        ['stream error: stream ID 53; INTERNAL_ERROR; received from peer', 'dependency-download'],
+        ['read tcp private.invalid: connection reset by peer', 'dependency-download'],
         ['arbitrary private fixture output', 'unknown'],
     ])('classifies failure without returning private output: %s', (output, category) => {
         const message = dockerBuildDiagnostic(
@@ -24,6 +27,17 @@ describe('Docker build diagnostics', () => {
         expect(isDockerBuildDiagnostic(message)).toBeTrue()
         expect(message).not.toContain('fixture-secret')
         expect(message).not.toContain('PRIVATE KEY')
+    })
+
+    test('classifies both Docker output streams without exposing either stream', () => {
+        const message = dockerBuildDiagnostic(
+            'private build output: compile: signal: killed',
+            'process did not complete successfully: exit code: 1; password=fixture-secret',
+        )
+        expect(message).toBe('Docker build diagnostic: memory')
+        expect(isDockerBuildDiagnostic(message)).toBeTrue()
+        expect(message).not.toContain('private')
+        expect(message).not.toContain('fixture-secret')
     })
 
     test('rejects private or injected content appended to a valid category', () => {

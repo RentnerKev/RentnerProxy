@@ -76,7 +76,7 @@ async function command(args: string[], options: CommandOptions = {}): Promise<st
     if (timedOut) throw new ReliabilityError('timeout', 'bounded command timed out')
     if (exitCode !== 0 && !options.acceptableExitCodes?.includes(exitCode)) {
         if (args[0] === 'docker' && args[1] === 'build')
-            console.error(dockerBuildDiagnostic(stderr))
+            console.error(dockerBuildDiagnostic(stdout, stderr))
         throw new ReliabilityError('command', 'command failed: ' + args.slice(0, 2).join(' '))
     }
     return (options.includeStderr ? stdout + '\n' + stderr : stdout).trim()

@@ -1,7 +1,7 @@
 const buildFailureCategories = [
     ['registry-rate-limit', /too\s*many\s*requests|pull rate limit/iu],
     ['disk-space', /no space left on device|\bENOSPC\b/iu],
-    ['memory', /out of memory|cannot allocate memory|exit code:?\s*137\b/iu],
+    ['memory', /out of memory|cannot allocate memory|exit code:?\s*137\b|signal: killed/iu],
     ['checksum-mismatch', /computed checksums? did NOT match|GeoIP asset checksum mismatch/iu],
     ['source-import', /could not resolve|cannot find module|\bTS(?:2307|6053)\b/iu],
     ['typescript', /error TS\d{4}\b/iu],
@@ -9,11 +9,12 @@ const buildFailureCategories = [
     ['base-image', /failed to resolve source metadata|failed to fetch (?:anonymous|oauth) token/iu],
     [
         'dependency-download',
-        /failed to (?:fetch|download)|connection timed out|temporary failure resolving|unable to fetch|GeoIP (?:asset|checksum|metadata) download failed/iu,
+        /failed to (?:fetch|download)|connection timed out|temporary failure resolving|unable to fetch|stream error:.*INTERNAL_ERROR|connection reset by peer|GeoIP (?:asset|checksum|metadata) download failed/iu,
     ],
 ] as const
 
-export function dockerBuildDiagnostic(output: string): string {
+export function dockerBuildDiagnostic(...outputs: string[]): string {
+    const output = outputs.join('\n')
     const category =
         buildFailureCategories.find(([, pattern]) => pattern.test(output))?.[0] ?? 'unknown'
     return 'Docker build diagnostic: ' + category
