@@ -45,6 +45,7 @@ import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login
 import { Route as ApiMigrationExportRouteImport } from './routes/api/migration/export'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-logo/$accent'
+import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admin/diagnostics/domain'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -230,6 +231,12 @@ const MediaMailLogoAccentRoute = MediaMailLogoAccentRouteImport.update({
   path: '/media/mail-logo/$accent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminDiagnosticsDomainRoute =
+  ApiAdminDiagnosticsDomainRouteImport.update({
+    id: '/api/admin/diagnostics/domain',
+    path: '/api/admin/diagnostics/domain',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -266,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login/': typeof PublicLoginIndexRoute
+  '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -301,6 +309,7 @@ export interface FileRoutesByTo {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login': typeof PublicLoginIndexRoute
+  '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -340,6 +349,7 @@ export interface FileRoutesById {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/_public/login/': typeof PublicLoginIndexRoute
+  '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/login/'
+    | '/api/admin/diagnostics/domain'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -413,6 +424,7 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/login'
+    | '/api/admin/diagnostics/domain'
   id:
     | '__root__'
     | '/_authenticated'
@@ -451,6 +463,7 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/_public/login/'
+    | '/api/admin/diagnostics/domain'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -463,6 +476,7 @@ export interface RootRouteChildren {
   HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
   MediaMailLogoAccentRoute: typeof MediaMailLogoAccentRoute
+  ApiAdminDiagnosticsDomainRoute: typeof ApiAdminDiagnosticsDomainRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -719,6 +733,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaMailLogoAccentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/diagnostics/domain': {
+      id: '/api/admin/diagnostics/domain'
+      path: '/api/admin/diagnostics/domain'
+      fullPath: '/api/admin/diagnostics/domain'
+      preLoaderRoute: typeof ApiAdminDiagnosticsDomainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -825,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
   MediaMailLogoAccentRoute: MediaMailLogoAccentRoute,
+  ApiAdminDiagnosticsDomainRoute: ApiAdminDiagnosticsDomainRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

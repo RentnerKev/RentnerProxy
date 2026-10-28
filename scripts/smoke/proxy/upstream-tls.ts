@@ -12,6 +12,7 @@ import { createProxyRuntimeSnapshot } from '../../../web/src/server/ProxyRuntime
 import { sharedSmokeImage, verifySharedSmokeImage } from '../images.ts'
 import { smokeDockerArguments } from '../resources.ts'
 import { runDiscoverySmoke } from './discovery.ts'
+import { runDomainDiagnosticsSmoke } from './domain-diagnostics.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -452,6 +453,18 @@ async function runSmoke(): Promise<void> {
         assert.match(httpResponse.body, /backend-http-ok/u)
         passed('HTTP upstream reaches a real backend')
 
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: httpSnapshot,
+            host: httpHost,
+            upstreamCode: 'upstream_responded',
+            tlsCode: 'http_upstream',
+            checkBoundary: true,
+        })
+        passed(
+            'read-only domain diagnostics honor the active HTTP target and reject arbitrary inputs',
+        )
+
         const secureHost: ProxyHost = {
             id: Bun.randomUUIDv7(),
             domains: ['secure-upstream.test'],
@@ -467,6 +480,15 @@ async function runSmoke(): Promise<void> {
         await waitForProxyBody('secure-upstream.test', 502, /.*/u, 'system-trust rejection route')
         await activeConfig()
         passed('HTTPS upstream with an unknown CA is rejected against the explicit system bundle')
+
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: systemSnapshot,
+            host: secureHost,
+            upstreamCode: 'upstream_unreachable',
+            tlsCode: 'tls_failed',
+        })
+        passed('domain diagnostics reject an upstream certificate outside configured system trust')
 
         const caOne = await validateCa(await readFile(caOnePath, 'utf8'))
         const customHost: ProxyHost = {
@@ -493,6 +515,15 @@ async function runSmoke(): Promise<void> {
         await activeConfig()
         passed('custom CA verifies the IP-targeted HTTPS upstream and backend observes correct SNI')
 
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: customSnapshot,
+            host: customHost,
+            upstreamCode: 'upstream_responded',
+            tlsCode: 'tls_verified',
+        })
+        passed('domain diagnostics verify the configured custom CA and explicit SNI')
+
         const automaticDnsHost: ProxyHost = {
             id: Bun.randomUUIDv7(),
             domains: ['automatic-dns-upstream.test'],
@@ -514,6 +545,15 @@ async function runSmoke(): Promise<void> {
         assert.match(automaticDnsResponse.body, /sni=backend\.test/u)
         passed('DNS target with automatic identity verifies and sends backend.test SNI')
 
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: automaticDnsSnapshot,
+            host: automaticDnsHost,
+            upstreamCode: 'upstream_responded',
+            tlsCode: 'tls_verified',
+        })
+        passed('domain diagnostics pin the configured DNS target while using its TLS identity')
+
         const wrongNameSnapshot = createHttpsSnapshot(
             {
                 ...customHost,
@@ -531,6 +571,15 @@ async function runSmoke(): Promise<void> {
             'wrong TLS identity rejection route',
         )
         passed('correct CA with a wrong TLS identity is rejected')
+
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: wrongNameSnapshot,
+            host: customHost,
+            upstreamCode: 'upstream_unreachable',
+            tlsCode: 'tls_failed',
+        })
+        passed('domain diagnostics report TLS identity rejection with the correct CA')
 
         const restoreCustom = await apply(customSnapshot)
         assert.equal(restoreCustom.httpStatus, 200)
@@ -577,6 +626,15 @@ async function runSmoke(): Promise<void> {
         await activeConfig()
         passed('explicit verification disable succeeds while preserving DNS SNI')
 
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: insecureSnapshot,
+            host: customHost,
+            upstreamCode: 'upstream_responded',
+            tlsCode: 'tls_verification_disabled',
+        })
+        passed('domain diagnostics distinguish a reachable upstream from verified TLS')
+
         const aliasHost: ProxyHost = { ...customHost, forwardHost: 'backend-tls' }
         const aliasSnapshot = createHttpsSnapshot(aliasHost, [caOne])
         assert.equal((await apply(aliasSnapshot)).httpStatus, 200)
@@ -587,6 +645,15 @@ async function runSmoke(): Promise<void> {
             /backend-one/u,
             'backend alias HTTPS route',
         )
+
+        await runDomainDiagnosticsSmoke({
+            controller: controllerRequest,
+            snapshot: aliasSnapshot,
+            host: aliasHost,
+            upstreamCode: 'upstream_responded',
+            tlsCode: 'tls_verified',
+        })
+        passed('domain diagnostics resolve a configured short Docker network alias')
 
         await command(['docker', 'rm', '--force', backendContainer])
         await startBackend(backendTwoConfig)

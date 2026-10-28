@@ -13,6 +13,7 @@ pub(crate) mod dns_connections;
 mod dns_delegation;
 pub(crate) mod dns_setup;
 pub(crate) mod docker_discovery;
+pub(crate) mod domain_diagnostics;
 mod engine;
 mod hetzner;
 mod lifecycle;
@@ -176,6 +177,7 @@ pub(crate) struct ProxyRuntime {
     binary_version_cache: Mutex<Option<(Instant, Option<String>)>>,
     binary_version_admission: Semaphore,
     dns_assistant_admission: Semaphore,
+    diagnostics_admission: Semaphore,
 }
 
 impl ProxyRuntime {
@@ -252,6 +254,7 @@ impl ProxyRuntime {
             binary_version_cache: Mutex::new(None),
             binary_version_admission: Semaphore::new(1),
             dns_assistant_admission: Semaphore::new(2),
+            diagnostics_admission: Semaphore::new(2),
         })
     }
 }

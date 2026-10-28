@@ -9,17 +9,21 @@ pub(crate) async fn reserve_dns_socket_pair(
     let mut attempts = 0;
     loop {
         attempts += 1;
-        // TCP and UDP have independent port namespaces. Keep TCP reserved while
-        // binding UDP to its exact port; release both before choosing a new port.
+        // Start with UDP so Windows avoids UDP-reserved ranges when choosing an
+        // ephemeral port. Keep it reserved while binding TCP to the same port.
         let pair: std::io::Result<_> = async {
-            let tcp = tokio::net::TcpListener::bind(candidate).await?;
-            let udp = tokio::net::UdpSocket::bind(tcp.local_addr()?).await?;
+            let udp = tokio::net::UdpSocket::bind(candidate).await?;
+            let tcp = tokio::net::TcpListener::bind(udp.local_addr()?).await?;
             Ok((tcp, udp))
         }
         .await;
         match pair {
             Ok(pair) => return Ok(pair),
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse && attempts < 32 => {
+            Err(error)
+                if (error.kind() == std::io::ErrorKind::AddrInUse
+                    || (cfg!(windows) && error.kind() == std::io::ErrorKind::PermissionDenied))
+                    && attempts < 32 =>
+            {
                 candidate.set_port(0);
             }
             Err(error) => return Err(error),
