@@ -19,6 +19,7 @@ export interface ProxyHostManagementLogicResult {
         readonly canEnable: boolean
         readonly canUpdate: boolean
         readonly domainCheckTarget: ProxyHostSummary | null
+        readonly monitoringTarget: ProxyHostSummary | null
         readonly deleteTarget: ProxyHostSummary | null
         readonly disableTarget: ProxyHostSummary | null
         readonly isDeleting: boolean
@@ -46,6 +47,8 @@ export interface ProxyHostManagementLogicResult {
         readonly handleFormSuccess: () => void
         readonly handleCertificateRequestSuccess: () => void
         readonly openDomainCheck: (host: ProxyHostSummary) => void
+        readonly openMonitoring: (host: ProxyHostSummary) => void
+        readonly setMonitoringOpen: (open: boolean) => void
         readonly setDomainCheckOpen: (open: boolean) => void
         readonly openCreate: () => void
         readonly openDuplicate: (host: ProxyHostSummary) => void

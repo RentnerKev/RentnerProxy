@@ -144,6 +144,136 @@ describe('scheduled monitoring service authorization and persistence', () => {
     })
 
     integrationTest(
+        'summary includes unconfigured hosts, omits deleted IDs and projects eligibility and freshness',
+        async () => {
+            const monitor = service()
+            const missingId = randomUUID()
+            const unconfigured = await monitor.getSummary({ proxyHostIds: [hostId, missingId] })
+            expect(unconfigured.summaries).toEqual([{ proxyHostId: hostId, policy: null }])
+            expect(unconfigured.checkedAt).toBeInstanceOf(Date)
+            const saved = await monitor.savePolicy(input())
+            const summary = async () =>
+                (await monitor.getSummary({ proxyHostIds: [hostId] })).summaries[0]?.policy
+            expect((await summary())?.availability).toBe('not_checked')
+            await db
+                .update(hostCheckPolicies)
+                .set({
+                    lastCheckedAt: new Date(Date.now() - 3_600_000),
+                    lastOutcome: 'healthy',
+                    state: 'healthy',
+                })
+                .where(eq(hostCheckPolicies.id, saved.id))
+            expect((await summary())?.availability).toBe('stale')
+            await db
+                .update(hostCheckPolicies)
+                .set({ lastCheckedAt: new Date() })
+                .where(eq(hostCheckPolicies.id, saved.id))
+            expect((await summary())?.availability).toBe('healthy')
+            await db.update(proxyHosts).set({ enabled: false }).where(eq(proxyHosts.id, hostId))
+            expect((await summary())?.availability).toBe('host_disabled')
+            await db.update(proxyHosts).set({ enabled: true }).where(eq(proxyHosts.id, hostId))
+            await db.delete(hostDomains).where(eq(hostDomains.proxyHostId, hostId))
+            const removed = await summary()
+            expect(removed?.availability).toBe('domain_removed')
+            expect(removed?.nextCheckAt).toBeNull()
+            for (const internal of ['leaseToken', 'contextProof', 'configuredBy'])
+                expect(removed).not.toHaveProperty(internal)
+            await grant([])
+            await expect(monitor.getSummary({ proxyHostIds: [hostId] })).rejects.toMatchObject({
+                code: 'permission_denied',
+            })
+        },
+    )
+
+    integrationTest('summary rechecks VIEW after outer authorization', async () => {
+        const monitor = createHostMonitoringService({
+            database: () => db,
+            requireActor: async () => {
+                await grant([])
+                return { id: actorId }
+            },
+            rateLimit: async () => undefined,
+        })
+        await expect(monitor.getSummary({ proxyHostIds: [hostId] })).rejects.toMatchObject({
+            code: 'permission_denied',
+        })
+    })
+
+    integrationTest(
+        'history filters before pagination and retains an older open outage',
+        async () => {
+            const policy = await service().savePolicy(input())
+            const since = new Date(Date.now() - 60_000)
+            const checkedAt = new Date(since.getTime() + 1_000)
+            const ids = Array.from({ length: 3 }, () => randomUUID()).toSorted()
+            await db.insert(hostCheckObservations).values([
+                ...ids.map((id) => ({
+                    id,
+                    policyId: policy.id,
+                    policyVersion: policy.version,
+                    checkedAt,
+                    status: 'unhealthy' as const,
+                    code: 'upstream_timeout' as const,
+                })),
+                {
+                    policyId: policy.id,
+                    policyVersion: policy.version,
+                    checkedAt: new Date(),
+                    status: 'healthy' as const,
+                    code: 'expected_status' as const,
+                },
+                {
+                    policyId: policy.id,
+                    policyVersion: policy.version,
+                    checkedAt: new Date(since.getTime() - 1),
+                    status: 'unhealthy' as const,
+                    code: 'upstream_timeout' as const,
+                },
+            ])
+            const old = new Date(since.getTime() - 60_000)
+            await db.insert(hostCheckIncidents).values([
+                {
+                    policyId: policy.id,
+                    startedAt: old,
+                    detectedAt: old,
+                    failureCode: 'upstream_timeout',
+                },
+                {
+                    policyId: policy.id,
+                    startedAt: old,
+                    detectedAt: old,
+                    failureCode: 'upstream_timeout',
+                    closedAt: old,
+                    closedReason: 'policy_changed',
+                },
+                {
+                    policyId: policy.id,
+                    startedAt: old,
+                    detectedAt: old,
+                    failureCode: 'upstream_timeout',
+                    closedAt: checkedAt,
+                    closedReason: 'policy_changed',
+                },
+            ])
+            const query = {
+                proxyHostId: hostId,
+                status: 'unhealthy',
+                since: since.toISOString(),
+                limit: 2,
+            }
+            const first = await service().getHistory(query)
+            expect(first.observations.map((row) => row.id)).toEqual(ids.toReversed().slice(0, 2))
+            expect(first.incidents).toHaveLength(2)
+            expect(first.incidents.some((row) => row.closedAt === null)).toBe(true)
+            const single = await service().getHistory({ ...query, limit: 1 })
+            expect(single.incidents[0]?.closedAt).toBeNull()
+            const next = await service().getHistory({ ...query, before: first.nextCursor })
+            expect(next.observations.map((row) => row.id)).toEqual([ids[0]!])
+            expect(next.nextCursor).toBeNull()
+        },
+    )
+
+    integrationTest(
         'VIEW and UPDATE are independently enforced for policies and history',
         async () => {
             await grant([PERMISSIONS.PROXY_HOSTS_VIEW])

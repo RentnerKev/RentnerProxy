@@ -4,6 +4,13 @@ import { HOST_MONITORING_DEFAULTS } from '@/config/host-monitoring.config.ts'
 
 const uuid = z.uuid().refine((value) => value === value.toLowerCase())
 export const hostMonitoringSelectorSchema = z.strictObject({ proxyHostId: uuid })
+export const hostMonitoringSummarySchema = z.strictObject({
+    proxyHostIds: z
+        .array(uuid)
+        .min(1)
+        .max(100)
+        .refine((ids) => new Set(ids).size === ids.length),
+})
 
 export const hostMonitoringSettingsSchema = z.strictObject({
     domain: z
@@ -53,6 +60,8 @@ export const saveHostMonitoringPolicySchema = hostMonitoringSelectorSchema.exten
 })
 
 export const hostMonitoringHistorySchema = hostMonitoringSelectorSchema.extend({
+    status: z.enum(['all', 'healthy', 'unhealthy', 'unknown']).default('all'),
+    since: z.iso.datetime().optional(),
     before: z.strictObject({ checkedAt: z.iso.datetime(), id: uuid }).optional(),
     limit: z.number().int().min(1).max(100).default(50),
 })

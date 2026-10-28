@@ -1,4 +1,5 @@
 import DomainCheckDialog from '@/features/Admin/RuntimeDiagnostics/Components/DomainCheckDialog/index.tsx'
+import { lazy, Suspense } from 'react'
 import useProxyHostManagementLogic from './Hooks/useProxyHostManagementLogic.ts'
 import type { ProxyHostManagementPageProps } from './Types/proxy-host-management.types.ts'
 import { Plus, Settings } from 'lucide-react'
@@ -17,6 +18,8 @@ import ProxyHostsTable from './Components/ProxyHostsTable/index.tsx'
 import ProxyRuntimeStatusPanel from './Components/ProxyRuntimeStatusPanel.tsx'
 import RuntimeSupportDownload from '@/features/Admin/RuntimeDiagnostics/index.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
+
+const HostMonitoringDialog = lazy(() => import('@/features/Admin/HostMonitoring/index.tsx'))
 
 export default function ProxyHostManagementPage(props: ProxyHostManagementPageProps) {
     const { state, handler } = useProxyHostManagementLogic(props)
@@ -111,6 +114,11 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     canRequestCertificate={state.canRequestCertificate}
                     isPending={state.isMutating}
                     {...(state.canView ? { onDomainCheck: handler.openDomainCheck } : {})}
+                    {...(state.canView
+                        ? {
+                              onMonitoring: handler.openMonitoring,
+                          }
+                        : {})}
                     onEdit={handler.openEditor}
                     onDuplicate={handler.openDuplicate}
                     onConfig={handler.openConfigEditor}
@@ -129,6 +137,23 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     host={state.domainCheckTarget}
                     permissions={props.permissions}
                 />
+            ) : null}
+            {state.monitoringTarget ? (
+                <Suspense
+                    fallback={
+                        <output className="text-sm text-muted">
+                            {t('admin.hostMonitoring.loading')}
+                        </output>
+                    }
+                >
+                    <HostMonitoringDialog
+                        key={state.monitoringTarget.id}
+                        open
+                        onOpenChange={handler.setMonitoringOpen}
+                        host={state.monitoringTarget}
+                        permissions={props.permissions}
+                    />
+                </Suspense>
             ) : null}
             {state.configTarget ? (
                 <ProxyConfigEditorModal

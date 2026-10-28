@@ -15,6 +15,7 @@ import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { ProxyHostsTableProps } from '../../../Types/proxy-host-table.types.ts'
 import useProxyHostsTableColumns from './useProxyHostsTableColumns.ts'
+import useHostMonitoringSummaries from '../../../Hooks/useHostMonitoringSummaries.ts'
 
 const getProxyHostRowId = (host: ProxyHostSummary) => host.id
 
@@ -38,6 +39,7 @@ export default function useProxyHostsTableLogic(
     const { locale, t } = useTranslationStore()
     const [showColumnFilters, setShowColumnFilters] = useState(false)
     const data = useMemo(() => [...props.proxyHosts], [props.proxyHosts])
+    const monitoringRows = useHostMonitoringSummaries(props.proxyHosts, Boolean(props.onMonitoring))
     const selection = useHostBulkSelection<ProxyHostSummary>({
         kind: 'proxy',
         permissions: props.bulkPermissions ?? [],
@@ -125,6 +127,7 @@ export default function useProxyHostsTableLogic(
     return {
         table: tableLogic.table,
         state: {
+            monitoringRows,
             bulkIds: selection.state.ids,
             bulkOpen: selection.state.open,
             bulkEnabled: selection.state.enabled,

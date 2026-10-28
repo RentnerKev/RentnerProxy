@@ -12,6 +12,7 @@ export interface ProxyHostTableActionInputs {
     readonly onDelete: (value: ProxyHostSummary) => void
     readonly onDisable: (value: ProxyHostSummary) => void
     readonly onDomainCheck?: (value: ProxyHostSummary) => void
+    readonly onMonitoring?: (value: ProxyHostSummary) => void
     readonly onEdit: (value: ProxyHostSummary) => void
     readonly onDuplicate?: (value: ProxyHostSummary) => void
     readonly onEnable: (value: ProxyHostSummary) => void

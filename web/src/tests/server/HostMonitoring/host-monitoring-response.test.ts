@@ -7,6 +7,7 @@ import type { HostMonitoringHttpDependencies } from '@/server/HostMonitoring/Typ
 import type { HostMonitoringPolicyView } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
 import {
     hostMonitoringSelectorSchema,
+    hostMonitoringSummarySchema,
     hostMonitoringSettingsSchema,
     hostMonitoringHistorySchema,
     saveHostMonitoringPolicySchema,
@@ -42,6 +43,12 @@ function harness(
     const handlers = createHostMonitoringHttpHandlers({
         origin: () => configuredOrigin,
         service: {
+            getSummary: async (raw) => {
+                if (!hostMonitoringSummarySchema.safeParse(raw).success)
+                    throw new HostMonitoringError('invalid_input')
+                reads.push(raw)
+                return { summaries: [{ proxyHostId, policy }], checkedAt: new Date(0) }
+            },
             getPolicy: async (raw) => {
                 if (!hostMonitoringSelectorSchema.safeParse(raw).success)
                     throw new HostMonitoringError('invalid_input')
@@ -85,6 +92,71 @@ function checkHeaders(response: Response, status: number) {
 }
 
 describe('host monitoring HTTP adapter', () => {
+    test('summary accepts one bounded batch and returns sanitized policy views', async () => {
+        const handlers = harness()
+        const response = await handlers.summary(
+            new Request(`${origin}/api/admin/monitoring/summary?proxyHostIds=${proxyHostId}`),
+        )
+        checkHeaders(response, 200)
+        expect(handlers.reads).toEqual([{ proxyHostIds: [proxyHostId] }])
+        expect(await response.json()).toEqual({
+            summaries: [{ proxyHostId, policy }],
+            checkedAt: new Date(0).toISOString(),
+        })
+    })
+
+    test.each([
+        '',
+        '?proxyHostIds=',
+        '?proxyHostIds=invalid',
+        `?proxyHostIds=${proxyHostId},${proxyHostId}`,
+        `?proxyHostIds=${proxyHostId}&proxyHostIds=${proxyHostId}`,
+        `?proxyHostIds=${proxyHostId}&extra=1`,
+        `?proxyHostIds=${Array.from({ length: 101 }, (_, index) => `0198d98a-0000-7000-8000-${String(index).padStart(12, '0')}`).join(',')}`,
+    ])('summary rejects malformed batches %s', async (suffix) => {
+        const handlers = harness()
+        const response = await handlers.summary(
+            new Request(`${origin}/api/admin/monitoring/summary${suffix}`),
+        )
+        checkHeaders(response, 400)
+        expect(handlers.reads).toEqual([])
+    })
+
+    test('summary is read only and propagates VIEW denial', async () => {
+        const handlers = harness({
+            getSummary: async () => {
+                throw new AuthDomainError('permission_denied', 'Denied')
+            },
+        })
+        const url = `${origin}/api/admin/monitoring/summary?proxyHostIds=${proxyHostId}`
+        checkHeaders(await handlers.summary(new Request(url)), 403)
+        const postResponse = await handlers.summary(new Request(url, { method: 'POST' }))
+        checkHeaders(postResponse, 405)
+        expect(postResponse.headers.get('allow')).toBe('GET')
+        expect(handlers.writes).toEqual([])
+    })
+
+    test('history forwards status and time filters and rejects invalid filters', async () => {
+        const handlers = harness()
+        const since = '2026-01-01T00:00:00.000Z'
+        const url = `${origin}/api/admin/monitoring/history?proxyHostId=${proxyHostId}`
+        checkHeaders(
+            await handlers.history(new Request(`${url}&status=unhealthy&since=${since}`)),
+            200,
+        )
+        expect(handlers.histories).toEqual([{ proxyHostId, status: 'unhealthy', since }])
+        await Promise.all(
+            [
+                '&status=bad',
+                '&since=yesterday',
+                '&status=healthy&status=unknown',
+                '&since=2026-01-01',
+            ].map(async (query) =>
+                checkHeaders(await handlers.history(new Request(`${url}${query}`)), 400),
+            ),
+        )
+    })
+
     test.each([null, '', 'null', 'https://foreign.example.com'])(
         'blocks origin %s before service writes',
         async (requestOrigin) => {

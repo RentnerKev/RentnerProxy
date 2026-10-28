@@ -6,6 +6,7 @@ import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagem
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import useHostListInput from '@/features/Admin/HostTags/Hooks/useHostListInput.ts'
+import { hostMonitoringQueryKeys } from '@/lib/HostMonitoring/hostMonitoringCache.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts'
@@ -54,6 +55,7 @@ export default function useProxyHostManagementLogic({
         useState<ProxyHostSummary | null>(null)
     const [selectedProxyHost, setSelectedProxyHost] = useState<ProxyHostSummary | null>(null)
     const [domainCheckTarget, setDomainCheckTarget] = useState<ProxyHostSummary | null>(null)
+    const [monitoringTarget, setMonitoringTarget] = useState<ProxyHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<ProxyHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<ProxyHostSummary | null>(null)
     const queryClient = useQueryClient()
@@ -64,6 +66,21 @@ export default function useProxyHostManagementLogic({
         enabled: canView,
         placeholderData: (previous) => previous,
     })
+    const currentMonitoringTarget = monitoringTarget
+        ? (proxyHostsQuery.data?.hosts.find((host) => host.id === monitoringTarget.id) ??
+          monitoringTarget)
+        : null
+    if (currentMonitoringTarget && currentMonitoringTarget !== monitoringTarget)
+        setMonitoringTarget(currentMonitoringTarget)
+    const openMonitoring = useCallback(
+        (host: ProxyHostSummary) => {
+            if (canView) setMonitoringTarget(host)
+        },
+        [canView],
+    )
+    const setMonitoringOpen = useCallback((open: boolean) => {
+        if (!open) setMonitoringTarget(null)
+    }, [])
     const currentDomainCheckTarget = domainCheckTarget
         ? (proxyHostsQuery.data?.hosts.find((host) => host.id === domainCheckTarget.id) ??
           domainCheckTarget)
@@ -91,7 +108,7 @@ export default function useProxyHostManagementLogic({
         topic: 'proxy-hosts',
         query: {},
         enabled: canView,
-        queryKeys: [proxyHostManagementQueryKeys.all],
+        queryKeys: [proxyHostManagementQueryKeys.all, hostMonitoringQueryKeys.all],
     })
     const invalidateProxyHostQueries = useCallback(async () => {
         await Promise.all([
@@ -309,6 +326,7 @@ export default function useProxyHostManagementLogic({
         state: {
             canView,
             domainCheckTarget: currentDomainCheckTarget,
+            monitoringTarget: canView ? currentMonitoringTarget : null,
             canApply,
             canAssignCertificates,
             canAssignPolicies,
@@ -357,6 +375,8 @@ export default function useProxyHostManagementLogic({
         },
         handler: {
             openDomainCheck,
+            openMonitoring,
+            setMonitoringOpen,
             setDomainCheckOpen,
             apply,
             confirmDelete,
