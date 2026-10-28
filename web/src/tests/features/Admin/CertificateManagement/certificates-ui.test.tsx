@@ -1337,6 +1337,11 @@ describe('certificate management UI', () => {
             expect(
                 document.querySelector<HTMLInputElement>('#certificate-request-name')!.value,
             ).toBe('Wildcard edge')
+            await waitFor(
+                () =>
+                    document.querySelector<HTMLButtonElement>('[aria-label="Provider connection"]')
+                        ?.disabled === false,
+            )
             await click(document.querySelector('[aria-label="Provider connection"]')!)
             await waitFor(() => !!document.querySelector('[role=option]'))
             const option = [...document.querySelectorAll('[role=option]')].find((item) =>
@@ -1376,6 +1381,11 @@ describe('certificate management UI', () => {
         await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
         await chooseDnsChallenge()
         await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+        await waitFor(
+            () =>
+                document.querySelector<HTMLButtonElement>('[aria-label="Provider connection"]')
+                    ?.disabled === false,
+        )
         await click(document.querySelector('[aria-label="Provider connection"]')!)
         await waitFor(() => !!document.querySelector('[role=option]'))
         await click(
@@ -1413,6 +1423,11 @@ describe('certificate management UI', () => {
         await setValue(document.querySelector('#certificate-request-domain-0')!, 'example.com')
         await chooseDnsChallenge()
         await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+        await waitFor(
+            () =>
+                document.querySelector<HTMLButtonElement>('[aria-label="Provider connection"]')
+                    ?.disabled === false,
+        )
         await click(document.querySelector('[aria-label="Provider connection"]')!)
         await waitFor(() => !!document.querySelector('[role=option]'))
         await click(
@@ -1457,6 +1472,11 @@ describe('certificate management UI', () => {
             expect(document.querySelector('#certificate-request-dns-zone-id-error')).toBeNull()
             expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
             await act(() => toast.dismissAll())
+            await waitFor(
+                () =>
+                    document.querySelector<HTMLButtonElement>('[aria-label="Provider connection"]')
+                        ?.disabled === false,
+            )
             await click(document.querySelector('[aria-label="Provider connection"]')!)
             await waitFor(() => !!document.querySelector('[role=option]'))
             await click(
@@ -2472,6 +2492,11 @@ async function openDnsInspection(mode: 'provider' | 'delegated' = 'delegated') {
     )
     await chooseDnsChallenge(mode)
     await waitFor(() => getCertificateDnsConnections.mock.calls.length > 0)
+    await waitFor(
+        () =>
+            document.querySelector<HTMLButtonElement>('[aria-label="Provider connection"]')
+                ?.disabled === false,
+    )
     await click(document.querySelector('[aria-label="Provider connection"]')!)
     await waitFor(() => !!document.querySelector('[role=option]'))
     await click(

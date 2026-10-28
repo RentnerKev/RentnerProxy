@@ -49,10 +49,15 @@ export interface UseModalLogicParams {
     readonly onOpenChange: (open: boolean) => void
 }
 export interface ModalLogicResult {
+    readonly state: { readonly selectPortalContainer: HTMLDivElement | null }
+    readonly setter: {
+        readonly setSelectPortalContainer: (container: HTMLDivElement | null) => void
+    }
     readonly handler: {
         readonly handleCloseAutoFocus: (event: PreventableEvent) => void
         readonly handleOpenAutoFocus: (event: PreventableEvent) => void
         readonly handleOpenChange: (nextOpen: boolean) => void
+        readonly handleEscapeKeyDown: (event: PreventableEvent) => void
         readonly preventClose: (event: PreventableEvent) => void
     }
 }

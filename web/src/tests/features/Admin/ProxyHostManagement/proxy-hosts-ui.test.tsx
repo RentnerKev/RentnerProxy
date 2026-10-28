@@ -451,11 +451,10 @@ async function chooseSelectOption(ariaLabel: string, optionLabel: string): Promi
     const trigger = getButton(ariaLabel)
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -964,11 +963,10 @@ describe('ProxyHost management table', () => {
             assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')!
         await act(async () => {
             trigger.dispatchEvent(
-                new PointerEvent('pointerdown', {
+                new MouseEvent('click', {
                     bubbles: true,
                     button: 0,
                     cancelable: true,
-                    pointerType: 'mouse',
                 }),
             )
         })
@@ -1532,6 +1530,7 @@ describe('proxy host form tabs', () => {
             'Draft TLS',
         )
         await chooseSelectOption('ACME challenge', 'DNS-01 (DNS provider)')
+        await waitFor(() => !getButton('Provider connection').disabled)
         await click(getButton('Provider connection'))
         await waitFor(() => document.querySelector('[role="option"]') !== null)
         await click(

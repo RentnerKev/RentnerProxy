@@ -291,6 +291,7 @@ describe('localized accessible host tags', () => {
                 assignmentDialog.querySelector<HTMLButtonElement>('button[role="combobox"]')!
             await act(async () => {
                 trigger.dispatchEvent(mousePointer('pointerdown', 100))
+                trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
             })
             await waitFor(() => document.querySelectorAll('[role="option"]').length === 2)
             const searchInput = document.querySelector<HTMLInputElement>(

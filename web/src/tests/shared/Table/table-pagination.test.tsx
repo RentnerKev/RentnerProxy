@@ -77,11 +77,10 @@ async function choosePageSize(value: string): Promise<void> {
     expect(trigger).not.toBeNull()
     await act(async () => {
         trigger!.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()

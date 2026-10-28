@@ -120,11 +120,10 @@ async function chooseSelectOption(
     expect(trigger).not.toBeNull()
     await act(async () => {
         trigger?.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -341,7 +340,7 @@ describe('audit log UI', () => {
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
         await click(getButton(container, 'Filters'))
         const calendars = container.querySelectorAll<HTMLButtonElement>(
-            'button[aria-label="Period (local time)"]',
+            'button[aria-label^="Period (local time):"]',
         )
         expect(calendars).toHaveLength(1)
         expect(container.querySelector('input[type="time"]')).toBeNull()

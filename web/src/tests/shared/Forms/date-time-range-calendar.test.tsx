@@ -45,7 +45,7 @@ async function render(initialValue: UtcDateTimeRangeValue = initialRange) {
 }
 
 function trigger(): HTMLButtonElement {
-    return document.querySelector<HTMLButtonElement>('button[aria-label="Period (local time)"]')!
+    return document.querySelector<HTMLButtonElement>('button[aria-label^="Period (local time):"]')!
 }
 
 function currentValue(): UtcDateTimeRangeValue {

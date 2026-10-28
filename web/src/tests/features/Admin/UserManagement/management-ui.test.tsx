@@ -165,11 +165,10 @@ async function chooseSelectOption(ariaLabel: string, optionLabel: string): Promi
 
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -441,21 +440,20 @@ describe('shared table preset', () => {
             'utf8',
         )
         expect(stylesheet).toContain("@import '@rentnerkev/select/tailwind.css'")
-        expect(packageStylesheet).toContain('[data-radix-select-viewport]')
+        expect(packageStylesheet).toContain('[data-rentner-select-viewport]')
         await render(<TableHarness />)
         await click(getButton('Filters'))
         await act(async () => {
             getButton('All statuses').dispatchEvent(
-                new PointerEvent('pointerdown', {
+                new MouseEvent('click', {
                     bubbles: true,
                     button: 0,
                     cancelable: true,
-                    pointerType: 'mouse',
                 }),
             )
         })
         await waitFor(() => document.querySelector('[role="listbox"]') !== null)
-        expect(document.querySelector('[data-radix-select-viewport]')).not.toBeNull()
+        expect(document.querySelector('[data-rentner-select-viewport]')).not.toBeNull()
     })
 
     test('sorts, filters, and resets through TanStack Table state', async () => {

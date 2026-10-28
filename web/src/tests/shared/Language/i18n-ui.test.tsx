@@ -155,11 +155,10 @@ describe('authenticated language UI', () => {
             const trigger = container.querySelector<HTMLButtonElement>('[role="combobox"]')!
             await act(async () => {
                 trigger.dispatchEvent(
-                    new PointerEvent('pointerdown', {
+                    new MouseEvent('click', {
                         bubbles: true,
                         button: 0,
                         cancelable: true,
-                        pointerType: 'mouse',
                     }),
                 )
             })
@@ -265,11 +264,10 @@ describe('authenticated language UI', () => {
         expect(trigger.querySelector('img[src$="/GB.svg"]')).not.toBeNull()
         await act(async () => {
             trigger.dispatchEvent(
-                new PointerEvent('pointerdown', {
+                new MouseEvent('click', {
                     bubbles: true,
                     button: 0,
                     cancelable: true,
-                    pointerType: 'mouse',
                 }),
             )
         })

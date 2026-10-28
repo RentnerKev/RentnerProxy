@@ -104,11 +104,10 @@ async function chooseSelectOption(ariaLabel: string, optionLabel: string): Promi
     const trigger = getButton(ariaLabel)
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
