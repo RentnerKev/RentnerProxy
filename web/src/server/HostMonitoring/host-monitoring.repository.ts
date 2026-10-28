@@ -343,7 +343,7 @@ export async function completeHostMonitoringClaim(
                         ),
                     )
             }
-            await pruneHistoryInTransaction(transaction)
+            await prunePolicyHistoryInTransaction(transaction, policy)
             const updated = await transaction
                 .update(hostCheckPolicies)
                 .set({
@@ -378,6 +378,41 @@ export async function completeHostMonitoringClaim(
         })
 }
 
+async function prunePolicyHistoryInTransaction(
+    transaction: AuthTransaction,
+    policy: HostMonitoringPolicy,
+): Promise<void> {
+    await transaction.execute(sql`
+        delete from "rentnerproxy"."host_check_observations" as observation
+        using (
+            select id from "rentnerproxy"."host_check_observations"
+            where policy_id = ${policy.id}::uuid
+                and checked_at < clock_timestamp() - ${policy.retentionDays} * interval '1 day'
+            union
+            (select id from "rentnerproxy"."host_check_observations"
+             where policy_id = ${policy.id}::uuid
+             order by checked_at desc, id desc offset ${policy.sampleLimit})
+        ) expired where observation.id = expired.id
+    `)
+    await transaction.execute(sql`
+        delete from "rentnerproxy"."host_check_incidents" as incident
+        using (
+            select id from "rentnerproxy"."host_check_incidents"
+            where policy_id = ${policy.id}::uuid and closed_reason is not null
+                and closed_at < clock_timestamp() - ${policy.retentionDays} * interval '1 day'
+            union
+            (select id from "rentnerproxy"."host_check_incidents"
+             where policy_id = ${policy.id}::uuid and closed_reason is not null
+             order by closed_at desc, id desc
+             offset greatest(${policy.incidentLimit} - (
+                 select count(*) from "rentnerproxy"."host_check_incidents"
+                 where policy_id = ${policy.id}::uuid and closed_reason is null
+             ), 0))
+        ) expired where incident.id = expired.id
+    `)
+}
+
+// The periodic sweep and policy edits reconcile global retention targets.
 async function pruneHistoryInTransaction(transaction: AuthTransaction): Promise<void> {
     await transaction.execute(sql`
         delete from "rentnerproxy"."host_check_observations" as observation

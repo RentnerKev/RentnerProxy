@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { createHostMonitoringHttpHandlers } from '@/server/HostMonitoring/host-monitoring-response.server.ts'
 import { HostMonitoringError } from '@/server/HostMonitoring/host-monitoring.errors.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
@@ -307,6 +307,40 @@ describe('host monitoring HTTP adapter', () => {
             ),
         ).toEqual([{ error: code }, { error: code }, { error: code }])
     })
+
+    test.each([new TypeError('PRIVATE driver data'), new SyntaxError('PRIVATE service data')])(
+        'internal service type/parsing errors remain server failures and log no private data: %s',
+        async (error) => {
+            const logger = spyOn(console, 'error').mockImplementation(() => undefined)
+            try {
+                const fail = async () => {
+                    throw error
+                }
+                const handlers = harness({ getPolicy: fail, savePolicy: fail })
+                const responses = await Promise.all([
+                    handlers.policy(
+                        new Request(
+                            `${origin}/api/admin/monitoring/policy?proxyHostId=${proxyHostId}`,
+                        ),
+                    ),
+                    handlers.policy(post()),
+                ])
+                for (const response of responses) {
+                    checkHeaders(response, 503)
+                }
+                expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
+                    { error: 'service_unavailable' },
+                    { error: 'service_unavailable' },
+                ])
+                expect(logger.mock.calls).toEqual([
+                    ['[host-monitoring] API temporarily unavailable.'],
+                    ['[host-monitoring] API temporarily unavailable.'],
+                ])
+            } finally {
+                logger.mockRestore()
+            }
+        },
+    )
 
     test('an already aborted request returns empty 499 without invoking service', async () => {
         const handlers = harness()

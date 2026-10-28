@@ -20,8 +20,9 @@ struct ActiveCheck<'a> {
 impl ActiveChecks {
     fn acquire(&self, request: &Request) -> std::result::Result<ActiveCheck<'_>, Error> {
         let key = (request.host_type, request.host_id.clone());
-        let mut checks = self.0.try_lock().map_err(|_| Error::Busy)?;
-        if !checks.insert(key.clone()) {
+        let registry_key = key.clone();
+        let mut checks = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        if !checks.insert(registry_key) {
             return Err(Error::Busy);
         }
         Ok(ActiveCheck { checks: self, key })

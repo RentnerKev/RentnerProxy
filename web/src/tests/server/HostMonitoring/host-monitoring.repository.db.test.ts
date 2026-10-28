@@ -485,6 +485,107 @@ describe('durable scheduled monitoring repository', () => {
     )
 
     integrationTest(
+        'completion trims only its own policy while the periodic sweep reconciles other history',
+        async () => {
+            const settings = {
+                sampleLimit: 10,
+                incidentLimit: 2,
+                retentionDays: 1,
+                failureThreshold: 1,
+            }
+            const current = await fixture(settings)
+            const other = await fixture({ ...settings, enabled: false })
+            await finish(current, unhealthy)
+            const old = new Date(Date.now() - 3 * 86_400_000)
+            const now = new Date()
+            await db.insert(hostCheckObservations).values(
+                [current, other].flatMap((policy) =>
+                    Array.from({ length: 15 }, (_, index) => ({
+                        policyId: policy.id,
+                        policyVersion: policy.version,
+                        status: 'healthy' as const,
+                        code: 'expected_status' as const,
+                        checkedAt: index === 0 ? old : new Date(now.getTime() - index),
+                    })),
+                ),
+            )
+            await db.insert(hostCheckIncidents).values(
+                [current, other].flatMap((policy) =>
+                    Array.from({ length: 3 }, (_, index) => ({
+                        policyId: policy.id,
+                        startedAt: old,
+                        detectedAt: old,
+                        failureCode: 'upstream_timeout' as const,
+                        closedReason: 'policy_changed' as const,
+                        closedAt: index === 0 ? old : new Date(now.getTime() - index),
+                    })),
+                ),
+            )
+            const [otherOpen] = await db
+                .insert(hostCheckIncidents)
+                .values({
+                    policyId: other.id,
+                    startedAt: old,
+                    detectedAt: old,
+                    failureCode: 'upstream_timeout',
+                })
+                .returning({ id: hostCheckIncidents.id })
+            const otherObservations = await db
+                .select()
+                .from(hostCheckObservations)
+                .where(eq(hostCheckObservations.policyId, other.id))
+            const otherIncidents = await db
+                .select()
+                .from(hostCheckIncidents)
+                .where(eq(hostCheckIncidents.policyId, other.id))
+            await finish(current, unknown)
+            const currentObservations = await db
+                .select()
+                .from(hostCheckObservations)
+                .where(eq(hostCheckObservations.policyId, current.id))
+            const currentIncidents = await db
+                .select()
+                .from(hostCheckIncidents)
+                .where(eq(hostCheckIncidents.policyId, current.id))
+            expect(currentObservations).toHaveLength(10)
+            expect(currentObservations.every((observation) => observation.checkedAt > old)).toBe(
+                true,
+            )
+            expect(currentIncidents).toHaveLength(2)
+            expect(currentIncidents.some((incident) => incident.closedReason === null)).toBe(true)
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckObservations)
+                    .where(eq(hostCheckObservations.policyId, other.id)),
+            ).toEqual(otherObservations)
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckIncidents)
+                    .where(eq(hostCheckIncidents.policyId, other.id)),
+            ).toEqual(otherIncidents)
+            await pruneHostMonitoringHistory()
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckObservations)
+                    .where(eq(hostCheckObservations.policyId, other.id)),
+            ).toHaveLength(10)
+            const sweptIncidents = await db
+                .select()
+                .from(hostCheckIncidents)
+                .where(eq(hostCheckIncidents.policyId, other.id))
+            expect(sweptIncidents).toHaveLength(2)
+            expect(
+                sweptIncidents.some(
+                    (incident) => incident.id === otherOpen?.id && incident.closedReason === null,
+                ),
+            ).toBe(true)
+        },
+    )
+
+    integrationTest(
         'a long outage remains in history for the retention period after recovery',
         async () => {
             const policy = await fixture({

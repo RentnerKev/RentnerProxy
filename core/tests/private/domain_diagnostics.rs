@@ -1530,3 +1530,98 @@ async fn active_host_guard_rejects_duplicates_allows_other_hosts_and_releases_on
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn poisoned_active_host_registry_recovers_and_allows_network_probes() {
+    let http = HttpFixture::new(200, None, false).await;
+    let fixture = Fixture::new(http.port).await;
+    let runtime = fixture.runtime.clone();
+    assert!(
+        std::thread::spawn(move || {
+            let _guard = runtime.diagnostics_active.0.lock().unwrap();
+            panic!("Synthetic registry poisoning");
+        })
+        .join()
+        .is_err()
+    );
+    assert!(fixture.runtime.diagnostics_active.0.is_poisoned());
+    let mut request = fixture.request();
+    request.upstream_only = true;
+    for _ in 0..2 {
+        let result = fixture
+            .runtime
+            .diagnose_domain(request.clone())
+            .await
+            .unwrap();
+        assert_eq!(result.stages.upstream.code, Code::UpstreamResponded);
+    }
+    assert_eq!(http.requests.lock().await.len(), 2);
+    assert_eq!(fixture.runtime.diagnostics_admission.available_permits(), 2);
+    assert!(
+        fixture
+            .runtime
+            .diagnostics_active
+            .0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn active_host_registry_contention_waits_for_the_short_lock_without_false_busy() {
+    let fixture = Fixture::new(12345).await;
+    let first_request = fixture.request();
+    let first = fixture
+        .runtime
+        .diagnostics_active
+        .acquire(&first_request)
+        .unwrap();
+    let mut other_request = first_request.clone();
+    other_request.host_id = "0198d98a-0000-7000-8000-000000000286".into();
+    let registry_lock = fixture.runtime.diagnostics_active.0.lock().unwrap();
+    let runtime = fixture.runtime.clone();
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
+    let (result_tx, result_rx) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        started_tx.send(()).unwrap();
+        let acquired = runtime.diagnostics_active.acquire(&other_request);
+        result_tx.send(acquired.is_ok()).unwrap();
+        if let Ok(_guard) = acquired {
+            assert!(matches!(
+                runtime.diagnostics_active.acquire(&other_request),
+                Err(Error::Busy)
+            ));
+        }
+    });
+    started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    let while_locked = result_rx.recv_timeout(Duration::from_millis(50));
+    drop(registry_lock);
+    worker.join().unwrap();
+    assert_eq!(
+        while_locked,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+    );
+    assert!(result_rx.recv_timeout(Duration::from_secs(2)).unwrap());
+    assert!(matches!(
+        fixture.runtime.diagnostics_active.acquire(&first_request),
+        Err(Error::Busy)
+    ));
+    drop(first);
+    assert!(
+        fixture
+            .runtime
+            .diagnostics_active
+            .acquire(&first_request)
+            .is_ok()
+    );
+    assert!(
+        fixture
+            .runtime
+            .diagnostics_active
+            .0
+            .lock()
+            .unwrap()
+            .is_empty()
+    );
+}

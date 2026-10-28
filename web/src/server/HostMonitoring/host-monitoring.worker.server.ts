@@ -4,7 +4,7 @@ import { HOST_MONITORING_LIMITS } from '@/config/host-monitoring.config.ts'
 import { hostCheckPolicies } from '@/db/schema.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { inspectControllerDomain } from '@/server/Controller/domain-diagnostics.server.ts'
-import { readDomainDiagnosticsContextInTransaction } from '@/server/RuntimeDiagnostics/domain-diagnostics-data.ts'
+import { readHostMonitoringContextInTransaction } from '@/server/RuntimeDiagnostics/domain-diagnostics-data.ts'
 import { DomainDiagnosticsError } from '@/server/RuntimeDiagnostics/domain-diagnostics.errors.ts'
 import { createHostMonitoringWorker } from './host-monitoring.worker.ts'
 import { createHostMonitoringProbe } from './host-monitoring.probe.ts'
@@ -38,7 +38,7 @@ const runClaim = createHostMonitoringProbe({
                     .limit(1)
                 if (!current) return null
                 try {
-                    return await readDomainDiagnosticsContextInTransaction(transaction, {
+                    return await readHostMonitoringContextInTransaction(transaction, {
                         hostType: 'proxy',
                         hostId: claim.policy.proxyHostId,
                         domain: claim.policy.domain,
@@ -58,7 +58,7 @@ const runClaim = createHostMonitoringProbe({
             outcome,
             async (transaction, policy) => {
                 try {
-                    const after = await readDomainDiagnosticsContextInTransaction(transaction, {
+                    const after = await readHostMonitoringContextInTransaction(transaction, {
                         hostType: 'proxy',
                         hostId: policy.proxyHostId,
                         domain: policy.domain,
@@ -74,7 +74,7 @@ const runClaim = createHostMonitoringProbe({
                     throw error
                 }
             },
-            before,
+            before.availability,
         ),
     release: releaseHostMonitoringClaim,
 })

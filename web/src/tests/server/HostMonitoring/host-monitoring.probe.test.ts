@@ -51,7 +51,12 @@ function fixture(): HostMonitoringClaim {
     }
 }
 
-const context = { enabled: true, proof: 'fixture-proof', revision: diagnosticRevision }
+const context = {
+    enabled: true,
+    proof: 'fixture-proof',
+    revision: diagnosticRevision,
+    availability: { proof: 'availability-proof', revision: diagnosticRevision },
+}
 
 function harness(overrides: Partial<HostMonitoringProbeDependencies> = {}) {
     const outcomes: HostMonitoringOutcome[] = []

@@ -47,12 +47,9 @@ function errorResponse(error: unknown, headers: Headers): Response {
         const status = error.code === 'host_not_found' ? 404 : error.code === 'conflict' ? 409 : 400
         return Response.json({ error: error.code }, { status, headers })
     }
-    if (
-        error instanceof SyntaxError ||
-        error instanceof TypeError ||
-        error instanceof ResponseBodyLimitError
-    )
+    if (error instanceof ResponseBodyLimitError)
         return Response.json({ error: 'invalid_input' }, { status: 400, headers })
+    console.error('[host-monitoring] API temporarily unavailable.')
     return Response.json({ error: 'service_unavailable' }, { status: 503, headers })
 }
 
@@ -99,9 +96,12 @@ export function createHostMonitoringHttpHandlers(
                 HOST_MONITORING_LIMITS.inputLimitBytes,
                 request.signal,
             )
-            const input: unknown = JSON.parse(
-                new TextDecoder('utf-8', { fatal: true }).decode(bytes),
-            )
+            let input: unknown
+            try {
+                input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+            } catch {
+                throw new HostMonitoringError('invalid_input')
+            }
             const policy = await dependencies.service.savePolicy(input)
             return Response.json(policy, { headers })
         } catch (error) {
