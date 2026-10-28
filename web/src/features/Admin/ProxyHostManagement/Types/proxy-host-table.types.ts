@@ -17,6 +17,7 @@ export interface ProxyHostsTableProps {
     readonly canDisable: boolean
     readonly canRequestCertificate?: boolean
     readonly isPending: boolean
+    readonly onDomainCheck?: (host: ProxyHostSummary) => void
     readonly onEdit: (host: ProxyHostSummary) => void
     readonly onDuplicate?: (host: ProxyHostSummary) => void
     readonly onConfig?: (host: ProxyHostSummary) => void
@@ -35,6 +36,7 @@ export type ProxyHostTableActionProps = Pick<
     | 'canDisable'
     | 'canRequestCertificate'
     | 'isPending'
+    | 'onDomainCheck'
     | 'onEdit'
     | 'onDuplicate'
     | 'onConfig'

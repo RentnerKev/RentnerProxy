@@ -37,6 +37,7 @@ export default function useRedirectHostManagementLogic({
     const queryClient = useQueryClient()
     const [showCreate, setShowCreate] = useState(false)
     const [selected, setSelected] = useState<RedirectHostSummary | null>(null)
+    const [domainCheckTarget, setDomainCheckTarget] = useState<RedirectHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<RedirectHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<RedirectHostSummary | null>(null)
     const hostList = useHostListInput()
@@ -46,6 +47,24 @@ export default function useRedirectHostManagementLogic({
         enabled: canView,
         placeholderData: (previous) => previous,
     })
+    const currentDomainCheckTarget = domainCheckTarget
+        ? (hostsQuery.data?.hosts.find((host) => host.id === domainCheckTarget.id) ??
+          domainCheckTarget)
+        : null
+    // Retain the latest host snapshot when pagination or filters move it out of the list.
+    if (currentDomainCheckTarget && currentDomainCheckTarget !== domainCheckTarget) {
+        setDomainCheckTarget(currentDomainCheckTarget)
+    }
+    const openDomainCheck = useCallback(
+        (host: RedirectHostSummary) => {
+            if (!canView) return
+            setDomainCheckTarget(host)
+        },
+        [canView],
+    )
+    const setDomainCheckOpen = useCallback((open: boolean) => {
+        if (!open) setDomainCheckTarget(null)
+    }, [])
     const runtimeQuery = useQuery({
         queryKey: redirectHostManagementQueryKeys.runtimeStatus,
         queryFn: () => getRedirectRuntimeStatusHandler(),
@@ -176,6 +195,8 @@ export default function useRedirectHostManagementLogic({
     useQuickAction('createRedirectHost', openCreate, canView && canCreate)
     return {
         state: {
+            canView,
+            domainCheckTarget: currentDomainCheckTarget,
             canApply: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_APPLY),
             canCreate,
             canDuplicate,
@@ -209,6 +230,8 @@ export default function useRedirectHostManagementLogic({
             showCreate,
         },
         handler: {
+            openDomainCheck,
+            setDomainCheckOpen,
             apply: () => applyMutation.mutate(),
             confirmDelete: async () => {
                 if (deleteTarget)

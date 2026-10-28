@@ -54,14 +54,23 @@ export default function RuntimeSupportDownload(props: RuntimeSupportDownloadProp
                     )}
                 </button>
             </CustomTooltip>
-            <output aria-live="polite" className="sr-only">
+            <output
+                aria-live="polite"
+                className={
+                    props.inlineFeedback &&
+                    (state.feedback === 'failed' || state.feedback === 'partial')
+                        ? `order-last basis-full text-sm leading-relaxed ${state.feedback === 'failed' ? 'text-danger-text' : 'text-warning-text'}`
+                        : 'sr-only'
+                }
+            >
                 {state.feedback
                     ? t(
                           `admin.runtimeDiagnostics.${state.feedback === 'failed' ? 'downloadFailed' : state.feedback === 'partial' ? 'downloadPartial' : 'downloadComplete'}`,
                       )
                     : null}
             </output>
-            {state.feedback === 'failed' || state.feedback === 'partial' ? (
+            {!props.inlineFeedback &&
+            (state.feedback === 'failed' || state.feedback === 'partial') ? (
                 <PageAlert
                     severity={state.feedback === 'failed' ? 'error' : 'warning'}
                     title={t('admin.runtimeDiagnostics.title')}

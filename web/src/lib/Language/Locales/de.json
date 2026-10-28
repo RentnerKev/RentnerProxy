@@ -3334,6 +3334,157 @@
             "validation": {
                 "connection": "Wähle eine geprüfte Verbindung und eine erlaubte Zone."
             }
+        },
+        "domainCheck": {
+            "title": "Domain prüfen",
+            "description": "Prüft, wie sich die ausgewählte Domain vom RentnerProxy-Server aus verhält.",
+            "observation": "Die Diagnose läuft vom RentnerProxy-Gerät oder -Server aus. Sie bestätigt weder die Erreichbarkeit aus dem öffentlichen Internet noch das Zertifikat, das ein Browser sieht.",
+            "probeNote": "Für die Upstream-Prüfung wird HEAD / mit der ausgewählten Domain gesendet. Weiterleitungsziele werden nicht aufgerufen oder geprüft.",
+            "domain": "Domain",
+            "run": "Prüfung starten",
+            "runAgain": "Erneut prüfen",
+            "cancel": "Prüfung abbrechen",
+            "copy": "Zusammenfassung kopieren",
+            "copyPrivacy": "Kopiert Status und Dauer ohne Domains, IP-Adressen oder Zugangsdaten.",
+            "copied": "Zusammenfassung kopiert.",
+            "copyFailed": "Die Zusammenfassung konnte nicht kopiert werden.",
+            "checkedAt": "Geprüft {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Starte eine Prüfung, um das Ergebnis zu sehen.",
+            "pending": "Domain wird geprüft…",
+            "cancelled": "Prüfung abgebrochen.",
+            "changed": "Der Host oder die aktive Konfiguration hat sich geändert. Starte eine neue Prüfung.",
+            "permissionDenied": "Du darfst diese Domain nicht prüfen.",
+            "statuses": {
+                "pending": "Ausstehend",
+                "not_checked": "Nicht geprüft",
+                "passed": "Bestätigt",
+                "failed": "Fehlgeschlagen",
+                "unknown": "Unbekannt",
+                "not_applicable": "Nicht anwendbar"
+            },
+            "stages": {
+                "configuration": "Aktive Konfiguration",
+                "dns": "DNS",
+                "upstream": "Erreichbarkeit des Ziels",
+                "tls": "TLS zum Ziel"
+            },
+            "errors": {
+                "invalid_input": "Die Anfrage zur Domain-Prüfung ist ungültig. Prüfe den ausgewählten Host und die Domain und versuche es erneut.",
+                "permission_denied": "Du darfst diese Prüfung nicht ausführen. Bitte eine Administration, deine Berechtigung zu prüfen.",
+                "authentication_required": "Deine Sitzung ist möglicherweise abgelaufen. Melde dich erneut an und starte die Prüfung noch einmal.",
+                "configuration_changed": "Der Host oder die aktive Konfiguration hat sich während der Prüfung geändert. Wende bei Bedarf die aktuelle Konfiguration an und starte eine neue Prüfung.",
+                "rate_limited": "Es wurden zu viele Prüfungen angefordert. Warte kurz und versuche es erneut.",
+                "busy": "Eine andere Aktion läuft gerade im Proxy-Dienst. Warte, bis sie abgeschlossen ist, und versuche es erneut.",
+                "runtime_unavailable": "Der Proxy-Dienst ist nicht verfügbar. Prüfe, ob er läuft und die aktuelle Konfiguration aktiv ist, und versuche es erneut.",
+                "invalid_response": "Der Server hat ein unerwartetes Ergebnis zurückgegeben. Versuche es erneut; falls das anhält, bitte die Administration, den Server zu prüfen.",
+                "request_failed": "Die Prüfung konnte nicht abgeschlossen werden. Prüfe deine Verbindung und versuche es erneut.",
+                "timeout": "Die Prüfung hat zu lange gedauert. Prüfe Runtime und Ziel und versuche es erneut."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "Der ausgewählte Host ist in der aktiven Konfiguration vorhanden.",
+                    "advice": "Keine Aktion erforderlich."
+                },
+                "configuration_stale": {
+                    "description": "Die aktive Konfiguration entspricht nicht der zuletzt gespeicherten Konfiguration.",
+                    "advice": "Wende die aktuelle Soll-Konfiguration an und starte die Prüfung erneut."
+                },
+                "configuration_changed": {
+                    "description": "Die aktive Konfiguration hat sich während der Prüfung geändert.",
+                    "advice": "Warte, bis die Konfigurationsänderungen abgeschlossen sind, und starte eine neue Prüfung."
+                },
+                "host_not_active": {
+                    "description": "Der ausgewählte Host mit dieser Domain ist in der Runtime nicht aktiv.",
+                    "advice": "Aktiviere den Host und wende die Konfiguration an, wenn diese Domain erreichbar sein soll."
+                },
+                "runtime_unavailable": {
+                    "description": "Die RentnerProxy-Runtime ist für Prüfungen nicht verfügbar.",
+                    "advice": "Prüfe, ob die Runtime läuft, und versuche es erneut."
+                },
+                "skipped": {
+                    "description": "Diese Prüfung wurde übersprungen, weil die Konfigurationsprüfung nicht erfolgreich war.",
+                    "advice": "Behebe das Konfigurationsproblem und starte eine neue Prüfung."
+                },
+                "dns_resolved": {
+                    "description": "Der Resolver des Geräts hat eine oder mehrere Adressen für diese Domain gefunden.",
+                    "advice": "Keine Aktion erforderlich. Das bestätigt nicht das öffentliche DNS."
+                },
+                "dns_not_found": {
+                    "description": "Der Resolver des Geräts hat keine Adresse für diese Domain gefunden.",
+                    "advice": "Prüfe die DNS-Einträge der Domain und den Resolver des Geräts."
+                },
+                "dns_failed": {
+                    "description": "Der Resolver des Geräts konnte diese Domain nicht auflösen.",
+                    "advice": "Prüfe die Verfügbarkeit des Resolvers und die DNS-Einträge der Domain und versuche es erneut."
+                },
+                "dns_timeout": {
+                    "description": "Die DNS-Abfrage wurde nicht rechtzeitig abgeschlossen.",
+                    "advice": "Prüfe, ob der Resolver antwortet, und versuche es erneut."
+                },
+                "wildcard_domain": {
+                    "description": "Eine Wildcard-Domain kann nicht direkt geprüft werden.",
+                    "advice": "Wähle einen konkreten Hostnamen, der diesem Host zugeordnet ist."
+                },
+                "upstream_responded": {
+                    "description": "Das Ziel hat erfolgreich auf HEAD / geantwortet.",
+                    "advice": "Keine Aktion erforderlich. Das bestätigt eine Antwort des Ziels, nicht seine Erreichbarkeit aus dem Internet."
+                },
+                "upstream_unreachable": {
+                    "description": "Das Ziel hat die Prüfverbindung nicht angenommen.",
+                    "advice": "Prüfe Zieladresse, Dienst und Firewall."
+                },
+                "upstream_timeout": {
+                    "description": "Das Ziel hat nicht rechtzeitig geantwortet.",
+                    "advice": "Prüfe Zieldienst, Adresse und Firewall und versuche es erneut."
+                },
+                "upstream_dns_failed": {
+                    "description": "Das Gerät konnte die Zieladresse nicht auflösen.",
+                    "advice": "Prüfe den konfigurierten Zielhostnamen und den Resolver des Geräts."
+                },
+                "access_denied": {
+                    "description": "Das Ziel hat geantwortet, den Zugriff für die Prüfung aber verweigert.",
+                    "advice": "Prüfe Authentifizierung und Zugriffsregeln des Ziels."
+                },
+                "upstream_error": {
+                    "description": "Das Ziel hat einen Serverfehler zurückgegeben.",
+                    "advice": "Prüfe den Zieldienst und seine Protokolle."
+                },
+                "redirect_not_followed": {
+                    "description": "Das Ziel hat weitergeleitet; das Weiterleitungsziel wurde nicht geprüft.",
+                    "advice": "Prüfe das Weiterleitungsziel bei Bedarf separat."
+                },
+                "unexpected_status": {
+                    "description": "Das Ziel hat einen Status zurückgegeben, den diese Prüfung nicht bestätigen kann.",
+                    "advice": "Möglicherweise unterstützt das Ziel HEAD nicht. Prüfe Dienst, Authentifizierung, Firewall und Adresse."
+                },
+                "tls_verified": {
+                    "description": "Der Proxy hat das TLS-Zertifikat und den Hostnamen des Ziels verifiziert.",
+                    "advice": "Keine Aktion erforderlich. Das ist das Zertifikat zwischen Proxy und Ziel, nicht das öffentliche Zertifikat."
+                },
+                "tls_verification_disabled": {
+                    "description": "Die TLS-Prüfung für das Ziel ist deaktiviert; sein Zertifikat wurde daher nicht bestätigt.",
+                    "advice": "Aktiviere die Prüfung und richte bei Bedarf eine vertrauenswürdige Zertifizierungsstelle ein."
+                },
+                "tls_failed": {
+                    "description": "Der Proxy konnte das TLS-Zertifikat des Ziels nicht verifizieren.",
+                    "advice": "Prüfe Zertifikat, Hostnamen, Ablaufdatum und vertrauenswürdige Zertifizierungsstellen."
+                },
+                "tls_unconfirmed": {
+                    "description": "Das TLS-Zertifikat des Ziels konnte nicht bestätigt werden.",
+                    "advice": "Prüfe die Erreichbarkeit und das Vertrauen des Zertifikats und versuche es erneut."
+                },
+                "http_upstream": {
+                    "description": "Das Ziel verwendet HTTP, daher ist TLS nicht anwendbar.",
+                    "advice": "Keine Aktion erforderlich."
+                },
+                "redirect_host": {
+                    "description": "Dies ist ein Redirect-Host; ein Upstream-Ziel wird nicht geprüft.",
+                    "advice": "Keine Aktion erforderlich. Weiterleitungsziele werden nicht geprüft."
+                }
+            },
+            "action": "Domain prüfen"
         }
     },
     "permissions": {

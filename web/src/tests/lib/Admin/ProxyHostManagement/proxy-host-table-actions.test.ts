@@ -98,3 +98,41 @@ describe('Proxy Host certificate table action', () => {
         expect(actionFor('failed', { isPending: true }).action.disabled).toBe(true)
     })
 })
+
+describe('Proxy Host domain check action', () => {
+    const props = {
+        canUpdate: false,
+        canDelete: false,
+        canEnable: false,
+        canDisable: false,
+        isPending: false,
+        host,
+        onEdit: () => {},
+        onDelete: () => {},
+        onDisable: () => {},
+        onEnable: () => {},
+    }
+
+    test('offers a domain check to a read-only viewer with a handler', () => {
+        const selected: ProxyHostSummary[] = []
+        expect(getProxyHostTableActionItems(props, (key) => key)).toEqual([])
+        const items = getProxyHostTableActionItems(
+            { ...props, onDomainCheck: (candidate) => selected.push(candidate) },
+            (key) => key,
+        )
+        expect(items).toHaveLength(1)
+        expect(items[0]?.label).toBe('admin.domainCheck.action')
+        expect(items[0]?.disabled).toBeFalse()
+        items[0]?.onSelect()
+        expect(selected).toEqual([host])
+    })
+
+    test('disables domain checks while a host mutation is pending', () => {
+        const items = getProxyHostTableActionItems(
+            { ...props, isPending: true, onDomainCheck: () => {} },
+            (key) => key,
+        )
+        expect(items).toHaveLength(1)
+        expect(items[0]?.disabled).toBeTrue()
+    })
+})

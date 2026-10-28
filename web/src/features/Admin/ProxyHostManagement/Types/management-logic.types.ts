@@ -5,6 +5,7 @@ import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table
 export interface ProxyHostManagementLogicResult {
     readonly state: {
         readonly remote: HostTableRemote
+        readonly canView: boolean
         readonly canApply: boolean
         readonly canAssignCertificates: boolean
         readonly canAssignPolicies: boolean
@@ -17,6 +18,7 @@ export interface ProxyHostManagementLogicResult {
         readonly canDisable: boolean
         readonly canEnable: boolean
         readonly canUpdate: boolean
+        readonly domainCheckTarget: ProxyHostSummary | null
         readonly deleteTarget: ProxyHostSummary | null
         readonly disableTarget: ProxyHostSummary | null
         readonly isDeleting: boolean
@@ -43,6 +45,8 @@ export interface ProxyHostManagementLogicResult {
         readonly enable: (value: ProxyHostSummary) => void
         readonly handleFormSuccess: () => void
         readonly handleCertificateRequestSuccess: () => void
+        readonly openDomainCheck: (host: ProxyHostSummary) => void
+        readonly setDomainCheckOpen: (open: boolean) => void
         readonly openCreate: () => void
         readonly openDuplicate: (host: ProxyHostSummary) => void
         readonly openConfigEditor: (value: ProxyHostSummary) => void

@@ -1,3 +1,4 @@
+import DomainCheckDialog from '@/features/Admin/RuntimeDiagnostics/Components/DomainCheckDialog/index.tsx'
 import useRedirectHostManagementLogic from './Hooks/useRedirectHostManagementLogic.ts'
 import type { RedirectHostManagementPageProps } from './Types/redirect-host-management.types.ts'
 import { Plus } from 'lucide-react'
@@ -74,12 +75,23 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     isPending={state.isMutating}
+                    {...(state.canView ? { onDomainCheck: handler.openDomainCheck } : {})}
                     onEdit={handler.openEditor}
                     onDelete={handler.openDelete}
                     onDisable={handler.openDisable}
                     onEnable={handler.enable}
                 />
             )}
+            {state.domainCheckTarget ? (
+                <DomainCheckDialog
+                    key={state.domainCheckTarget.id}
+                    open
+                    onOpenChange={handler.setDomainCheckOpen}
+                    hostType="redirect"
+                    host={state.domainCheckTarget}
+                    permissions={props.permissions}
+                />
+            ) : null}
             {state.showCreate ? (
                 <RedirectHostFormModal
                     open

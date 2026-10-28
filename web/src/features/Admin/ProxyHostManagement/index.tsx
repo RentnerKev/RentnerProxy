@@ -1,3 +1,4 @@
+import DomainCheckDialog from '@/features/Admin/RuntimeDiagnostics/Components/DomainCheckDialog/index.tsx'
 import useProxyHostManagementLogic from './Hooks/useProxyHostManagementLogic.ts'
 import type { ProxyHostManagementPageProps } from './Types/proxy-host-management.types.ts'
 import { Plus, Settings } from 'lucide-react'
@@ -109,6 +110,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     canDisable={state.canDisable}
                     canRequestCertificate={state.canRequestCertificate}
                     isPending={state.isMutating}
+                    {...(state.canView ? { onDomainCheck: handler.openDomainCheck } : {})}
                     onEdit={handler.openEditor}
                     onDuplicate={handler.openDuplicate}
                     onConfig={handler.openConfigEditor}
@@ -118,6 +120,16 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     onRequestCertificate={handler.openCertificateRequest}
                 />
             )}
+            {state.domainCheckTarget ? (
+                <DomainCheckDialog
+                    key={state.domainCheckTarget.id}
+                    open
+                    onOpenChange={handler.setDomainCheckOpen}
+                    hostType="proxy"
+                    host={state.domainCheckTarget}
+                    permissions={props.permissions}
+                />
+            ) : null}
             {state.configTarget ? (
                 <ProxyConfigEditorModal
                     key={state.configTarget.id}

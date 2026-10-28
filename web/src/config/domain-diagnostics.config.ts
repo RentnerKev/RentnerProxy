@@ -4,5 +4,7 @@ export const DOMAIN_DIAGNOSTICS_RATE_LIMIT = {
     scope: 'domain-diagnostics-actor',
 } as const
 export const DOMAIN_DIAGNOSTICS_CONTROLLER_TIMEOUT_MS = 14_000
+export const DOMAIN_DIAGNOSTICS_CLIENT_TIMEOUT_MS = 20_000
 export const DOMAIN_DIAGNOSTICS_RESPONSE_LIMIT = 64 * 1_024
 export const DOMAIN_DIAGNOSTICS_INPUT_LIMIT = 4 * 1_024
+export const DOMAIN_DIAGNOSTICS_STAGE_NAMES = ['configuration', 'dns', 'upstream', 'tls'] as const

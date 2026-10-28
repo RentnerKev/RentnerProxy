@@ -1182,14 +1182,38 @@ describe('ProxyHost management table', () => {
 })
 
 describe('ProxyHost permissions and row actions', () => {
-    test('Viewer can inspect Config but has no mutation actions', async () => {
+    test('Viewer can open Domain check and inspect read-only Config without mutation actions', async () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 2)
         expect(document.body.textContent).not.toContain('Add proxy host')
         await openMenu(getButton('Open actions for app.example.com'))
         expect(
             [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
-        ).toEqual(['Config'])
+        ).toEqual(['Domain check', 'Config'])
+        await click(getMenuItem('Domain check'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        const domainCheck = document.querySelector('[role="dialog"]')!
+        expect(domainCheck.textContent).toContain('Check how the selected domain behaves')
+        expect(domainCheck.textContent).toContain('app.example.com')
+        expect(getButton('Run check').disabled).toBeFalse()
+        expect(domainCheck.querySelector('[aria-busy="true"]')).toBeNull()
+        await click(getButton('Close dialog'))
+        await waitFor(() => !domainCheck.isConnected)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(
+            () => document.body.textContent?.includes('You can view the configuration.') === true,
+        )
+        const config = document.querySelector('[role="dialog"]')!
+        expect(config.textContent).toContain('Editing requires both update and apply permissions.')
+        expect(config.textContent).not.toContain('Save changes')
+        expect(config.textContent).not.toContain('Restore defaults')
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(deleteProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(enableProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(disableProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
     })
 
     test('shows only dynamic custom actions for the granted permissions', async () => {

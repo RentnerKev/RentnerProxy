@@ -3364,6 +3364,157 @@
             "validation": {
                 "connection": "Wybierz zweryfikowane połączenie i dozwoloną strefę."
             }
+        },
+        "domainCheck": {
+            "title": "Sprawdź domenę",
+            "description": "Sprawdź wybraną domenę z serwera RentnerProxy.",
+            "observation": "Diagnostyka działa z RentnerProxy; nie potwierdza dostępu z publicznego Internetu ani certyfikatu widocznego w przeglądarce.",
+            "probeNote": "Test wysyła HEAD / z wybraną domeną. Nie śledzi ani nie sprawdza miejsc docelowych przekierowań.",
+            "domain": "Domena",
+            "run": "Uruchom test",
+            "runAgain": "Sprawdź ponownie",
+            "cancel": "Anuluj test",
+            "copy": "Kopiuj podsumowanie",
+            "copyPrivacy": "Kopiuje status i czas bez domen, adresów IP ani danych logowania.",
+            "copied": "Skopiowano podsumowanie.",
+            "copyFailed": "Nie udało się skopiować podsumowania.",
+            "checkedAt": "Sprawdzono {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Uruchom test, aby zobaczyć wynik.",
+            "pending": "Sprawdzanie domeny…",
+            "cancelled": "Test anulowano.",
+            "changed": "Host lub aktywna konfiguracja uległy zmianie. Uruchom nowy test.",
+            "permissionDenied": "Nie masz uprawnień do sprawdzenia tej domeny.",
+            "statuses": {
+                "pending": "Oczekuje",
+                "not_checked": "Nie sprawdzono",
+                "passed": "Potwierdzono",
+                "failed": "Niepowodzenie",
+                "unknown": "Nieznany",
+                "not_applicable": "Nie dotyczy"
+            },
+            "stages": {
+                "configuration": "Aktywna konfiguracja",
+                "dns": "DNS",
+                "upstream": "Dostępność celu",
+                "tls": "TLS do celu"
+            },
+            "errors": {
+                "invalid_input": "Nieprawidłowe żądanie. Sprawdź wybrany host i domenę.",
+                "permission_denied": "Nie masz uprawnień do tego testu. Poproś administratora o sprawdzenie dostępu.",
+                "authentication_required": "Sesja mogła wygasnąć. Zaloguj się ponownie i ponów test.",
+                "configuration_changed": "Host lub aktywna konfiguracja zmieniły się podczas testu. W razie potrzeby zastosuj najnowszą konfigurację i sprawdź ponownie.",
+                "rate_limited": "Zażądano zbyt wielu testów. Odczekaj chwilę i spróbuj ponownie.",
+                "busy": "Trwa inna operacja runtime. Poczekaj na jej zakończenie i spróbuj ponownie.",
+                "runtime_unavailable": "Runtime proxy jest niedostępny. Sprawdź, czy działa i czy zastosowano najnowszą konfigurację.",
+                "invalid_response": "Serwer zwrócił nieoczekiwany wynik. Spróbuj ponownie lub poproś administratora o sprawdzenie serwera.",
+                "request_failed": "Nie udało się ukończyć testu. Sprawdź połączenie i spróbuj ponownie.",
+                "timeout": "Test trwał zbyt długo. Sprawdź runtime i cel, a następnie spróbuj ponownie."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "Host znajduje się w aktywnej konfiguracji",
+                    "advice": "Nie trzeba podejmować działań."
+                },
+                "configuration_stale": {
+                    "description": "Aktywna konfiguracja różni się od ostatnio zapisanej",
+                    "advice": "Zastosuj najnowszą konfigurację docelową i ponów test."
+                },
+                "configuration_changed": {
+                    "description": "Aktywna konfiguracja zmieniła się podczas testu",
+                    "advice": "Poczekaj na zakończenie zmian i ponów test."
+                },
+                "host_not_active": {
+                    "description": "Host i domena nie są aktywne w runtime",
+                    "advice": "Włącz host i zastosuj konfigurację, jeśli chcesz udostępniać tę domenę."
+                },
+                "runtime_unavailable": {
+                    "description": "Runtime jest niedostępny dla testów",
+                    "advice": "Sprawdź, czy RentnerProxy działa."
+                },
+                "skipped": {
+                    "description": "Pominięto test, ponieważ konfiguracja nie została potwierdzona",
+                    "advice": "Rozwiąż problem z konfiguracją i ponów test."
+                },
+                "dns_resolved": {
+                    "description": "Resolver urządzenia znalazł adresy",
+                    "advice": "Nie trzeba działać. To nie potwierdza publicznego DNS."
+                },
+                "dns_not_found": {
+                    "description": "Resolver nie znalazł adresu dla domeny",
+                    "advice": "Sprawdź rekordy DNS i resolver urządzenia."
+                },
+                "dns_failed": {
+                    "description": "Resolver nie mógł wyszukać domeny",
+                    "advice": "Sprawdź resolver i rekordy DNS, a następnie spróbuj ponownie."
+                },
+                "dns_timeout": {
+                    "description": "Upłynął limit czasu zapytania DNS",
+                    "advice": "Sprawdź, czy resolver odpowiada."
+                },
+                "wildcard_domain": {
+                    "description": "Nie można bezpośrednio sprawdzić domeny wildcard",
+                    "advice": "Wybierz konkretną nazwę hosta przypisaną do tego hosta."
+                },
+                "upstream_responded": {
+                    "description": "Cel odpowiedział na HEAD /",
+                    "advice": "Nie trzeba działać. Potwierdza to odpowiedź celu, nie dostęp z Internetu."
+                },
+                "upstream_unreachable": {
+                    "description": "Cel nie przyjął połączenia testowego",
+                    "advice": "Sprawdź adres celu, usługę i zaporę."
+                },
+                "upstream_timeout": {
+                    "description": "Cel nie odpowiedział na czas",
+                    "advice": "Sprawdź usługę, adres i zaporę, a następnie spróbuj ponownie."
+                },
+                "upstream_dns_failed": {
+                    "description": "Nie udało się rozpoznać adresu celu",
+                    "advice": "Sprawdź skonfigurowaną nazwę hosta i resolver."
+                },
+                "access_denied": {
+                    "description": "Cel odpowiedział, ale odmówił dostępu",
+                    "advice": "Sprawdź uwierzytelnianie i reguły dostępu celu."
+                },
+                "upstream_error": {
+                    "description": "Cel zwrócił błąd serwera",
+                    "advice": "Sprawdź usługę celu i jej dzienniki."
+                },
+                "redirect_not_followed": {
+                    "description": "Cel przekierował; miejsce docelowe nie zostało sprawdzone",
+                    "advice": "W razie potrzeby sprawdź miejsce docelowe osobno."
+                },
+                "unexpected_status": {
+                    "description": "Nie udało się potwierdzić zwróconego statusu",
+                    "advice": "Cel może nie obsługiwać HEAD. Sprawdź usługę, uwierzytelnianie, zaporę i adres."
+                },
+                "tls_verified": {
+                    "description": "Proxy zweryfikowało certyfikat TLS i nazwę celu",
+                    "advice": "Nie trzeba działać. To certyfikat między proxy a celem, nie publiczny."
+                },
+                "tls_verification_disabled": {
+                    "description": "Weryfikacja TLS jest wyłączona; certyfikat nie został potwierdzony",
+                    "advice": "Włącz weryfikację i w razie potrzeby skonfiguruj zaufany urząd certyfikacji."
+                },
+                "tls_failed": {
+                    "description": "Proxy nie mogło zweryfikować certyfikatu TLS celu",
+                    "advice": "Sprawdź certyfikat, nazwę, termin ważności i zaufane urzędy."
+                },
+                "tls_unconfirmed": {
+                    "description": "Nie udało się potwierdzić certyfikatu TLS celu",
+                    "advice": "Sprawdź dostępność celu i zaufanie do certyfikatu."
+                },
+                "http_upstream": {
+                    "description": "Cel używa HTTP, więc TLS nie dotyczy",
+                    "advice": "Nie trzeba podejmować działań."
+                },
+                "redirect_host": {
+                    "description": "To host przekierowujący; upstream nie jest sprawdzany",
+                    "advice": "Nie trzeba działać. Miejsca docelowe przekierowań nie są sprawdzane."
+                }
+            },
+            "action": "Sprawdź domenę"
         }
     },
     "permissions": {
