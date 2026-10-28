@@ -148,6 +148,8 @@ impl Fixture {
             host_id: HOST.into(),
             domain: DOMAIN.into(),
             expected_revision: revision(),
+            upstream_only: false,
+            timeout_ms: None,
         }
     }
     fn router(&self, configured: bool) -> axum::Router {
@@ -1363,4 +1365,168 @@ async fn positive_multihop_alias_keeps_its_own_address_proof_and_ignores_foreign
     );
     assert_eq!(http.requests.lock().await.len(), 1);
     fixture.assert_pure();
+}
+
+#[test]
+fn request_options_are_strict_optional_and_bounded() {
+    let legacy =
+        json!({"hostType":"proxy","hostId":HOST,"domain":DOMAIN,"expectedRevision":revision()});
+    let parsed: Request = serde_json::from_value(legacy.clone()).unwrap();
+    assert!(!parsed.upstream_only);
+    assert_eq!(parsed.timeout_ms, None);
+    parsed.validate().unwrap();
+    for timeout in [999, 10001] {
+        let mut invalid = legacy.clone();
+        invalid["timeoutMs"] = json!(timeout);
+        assert_eq!(
+            serde_json::from_value::<Request>(invalid)
+                .unwrap()
+                .validate(),
+            Err(Error::InvalidInput)
+        );
+    }
+    for timeout in [json!(-1), json!(1000.5), json!("1000")] {
+        let mut invalid = legacy.clone();
+        invalid["timeoutMs"] = timeout;
+        assert!(serde_json::from_value::<Request>(invalid).is_err());
+    }
+    for (field, value) in [("hostType", "redirect"), ("domain", "*.example.com")] {
+        let mut invalid = legacy.clone();
+        invalid["upstreamOnly"] = json!(true);
+        invalid[field] = json!(value);
+        assert_eq!(
+            serde_json::from_value::<Request>(invalid)
+                .unwrap()
+                .validate(),
+            Err(Error::InvalidInput)
+        );
+    }
+}
+
+#[tokio::test]
+async fn upstream_only_skips_incoming_dns_and_keeps_legacy_result_shape() {
+    let http = HttpFixture::new(200, None, false).await;
+    let fixture = Fixture::new(http.port).await;
+    let dns = DnsFixture::normal().await;
+    let mut request = fixture.request();
+    request.upstream_only = true;
+    request.timeout_ms = Some(1000);
+    let result = fixture
+        .runtime
+        .diagnose_domain_inner(request, Some(dns.resolver()))
+        .await
+        .unwrap();
+    assert_eq!(result.stages.dns.code, Code::Skipped);
+    assert_eq!(result.stages.dns.status, Status::Unknown);
+    assert_eq!(result.stages.upstream.code, Code::UpstreamResponded);
+    assert!(dns.queries.lock().await.is_empty());
+    let wire = serde_json::to_value(result).unwrap();
+    assert!(wire.get("upstreamOnly").is_none());
+    assert!(wire.get("timeoutMs").is_none());
+}
+
+#[tokio::test]
+async fn upstream_timeout_is_shared_by_dns_and_http() {
+    let http = HttpFixture::new(200, None, true).await;
+    let fixture = Fixture::new(http.port).await;
+    fixture
+        .runtime
+        .active_configuration
+        .lock()
+        .await
+        .as_mut()
+        .unwrap()
+        .proxy_hosts[0]
+        .forward_host = BACKEND.into();
+    let dns = DnsFixture::new_filtered(|request| {
+        if request.queries[0].query_type() == RecordType::AAAA {
+            None
+        } else {
+            Some(answer(request, Some(Ipv4Addr::LOCALHOST)))
+        }
+    })
+    .await;
+    let mut request = fixture.request();
+    request.upstream_only = true;
+    request.timeout_ms = Some(1000);
+    let start = Instant::now();
+    let result = fixture
+        .runtime
+        .diagnose_domain_inner(request, Some(dns.resolver()))
+        .await
+        .unwrap();
+    assert_eq!(result.stages.upstream.code, Code::UpstreamTimeout);
+    assert!(start.elapsed() < Duration::from_millis(1800));
+    assert!(
+        dns.queries
+            .lock()
+            .await
+            .iter()
+            .all(|query| query != &format!("{DOMAIN}."))
+    );
+}
+
+#[tokio::test]
+async fn active_host_guard_rejects_duplicates_allows_other_hosts_and_releases_on_cancel() {
+    let http = HttpFixture::new(200, None, true).await;
+    let fixture = Fixture::new(http.port).await;
+    let second_id = "0198d98a-0000-7000-8000-000000000286";
+    {
+        let mut config = fixture.runtime.active_configuration.lock().await;
+        let config = config.as_mut().unwrap();
+        config.proxy_hosts[0]
+            .domains
+            .push("other.example.com".into());
+        let mut second = config.proxy_hosts[0].clone();
+        second.id = second_id.into();
+        config.proxy_hosts.push(second);
+    }
+    let mut request = fixture.request();
+    request.upstream_only = true;
+    let runtime = fixture.runtime.clone();
+    let original = request.clone();
+    let first = tokio::spawn(async move { runtime.diagnose_domain(original).await });
+    timeout(Duration::from_secs(2), http.started.notified())
+        .await
+        .unwrap();
+    let mut duplicate = request.clone();
+    duplicate.domain = "other.example.com".into();
+    duplicate.expected_revision = format!("sha256:{}", "b".repeat(64));
+    assert!(matches!(
+        fixture.runtime.diagnose_domain(duplicate).await,
+        Err(Error::Busy)
+    ));
+    assert_eq!(http.requests.lock().await.len(), 1);
+    let runtime = fixture.runtime.clone();
+    let mut other = request.clone();
+    other.host_id = second_id.into();
+    let second = tokio::spawn(async move { runtime.diagnose_domain(other).await });
+    timeout(Duration::from_secs(2), http.started.notified())
+        .await
+        .unwrap();
+    assert_eq!(http.requests.lock().await.len(), 2);
+    assert_eq!(fixture.runtime.diagnostics_admission.available_permits(), 0);
+    first.abort();
+    let _ = first.await;
+    assert_eq!(fixture.runtime.diagnostics_admission.available_permits(), 1);
+    let runtime = fixture.runtime.clone();
+    let replacement = tokio::spawn(async move { runtime.diagnose_domain(request).await });
+    timeout(Duration::from_secs(2), http.started.notified())
+        .await
+        .unwrap();
+    assert_eq!(http.requests.lock().await.len(), 3);
+    replacement.abort();
+    second.abort();
+    let _ = replacement.await;
+    let _ = second.await;
+    assert_eq!(fixture.runtime.diagnostics_admission.available_permits(), 2);
+    assert!(
+        fixture
+            .runtime
+            .diagnostics_active
+            .0
+            .lock()
+            .unwrap()
+            .is_empty()
+    );
 }

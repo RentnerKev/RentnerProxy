@@ -2396,6 +2396,7 @@
                     "trusted-ca": "AC fidedigna",
                     "proxy-runtime-settings": "Definições do ambiente de execução do proxy",
                     "proxy-host-settings": "Definições do host proxy",
+                    "host-monitoring": "Monitorização do host",
                     "proxy-runtime": "Ambiente de execução do proxy",
                     "crowdsec": "CrowdSec",
                     "npm-import": "Importação NPM",

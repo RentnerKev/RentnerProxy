@@ -197,6 +197,13 @@
       "when": 1793210500602,
       "tag": "0027_preserve_legacy_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793225274317,
+      "tag": "0028_opposite_spectrum",
+      "breakpoints": true
     }
   ]
 }

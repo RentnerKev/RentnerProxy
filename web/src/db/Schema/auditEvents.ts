@@ -54,6 +54,7 @@ export const auditResource = rentnerProxySchema.enum('audit_resource', [
     'trusted-ca',
     'proxy-runtime-settings',
     'proxy-host-settings',
+    'host-monitoring',
     'proxy-runtime',
     'crowdsec',
     'npm-import',

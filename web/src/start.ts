@@ -86,6 +86,15 @@ const startNotificationLifecycle = createServerOnlyFn(() =>
 )
 if (typeof window === 'undefined') void startNotificationLifecycle()
 
+const startHostMonitoringLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { hostMonitoringWorker } =
+            await import('@/server/HostMonitoring/host-monitoring.worker.server.ts')
+        return hostMonitoringWorker
+    }),
+)
+if (typeof window === 'undefined') void startHostMonitoringLifecycle()
+
 const startNpmImportTempCleanup = createServerOnlyFn(async () => {
     const { pruneStaleNpmImports } = await import('@/server/Admin/NpmImport/npm-temp.ts')
     await pruneStaleNpmImports().catch(() => undefined)
