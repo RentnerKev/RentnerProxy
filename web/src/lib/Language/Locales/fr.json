@@ -3350,7 +3350,7 @@
             "copyPrivacy": "Copie état et durée sans domaines, adresses IP ni identifiants.",
             "copied": "Résumé copié.",
             "copyFailed": "Impossible de copier le résumé.",
-            "checkedAt": "Vérifié à {{time}}",
+            "checkedAt": "Vérifié le {{time}}",
             "duration": "{{duration}} ms",
             "httpStatus": "HTTP {{status}}",
             "awaiting": "Lancez une vérification pour afficher le résultat.",

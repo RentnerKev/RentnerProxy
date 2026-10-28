@@ -2,6 +2,7 @@ import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 
 export interface RuntimeSupportDownloadProps {
     readonly permissions: readonly PermissionKey[]
+    readonly inlineFeedback?: boolean
 }
 
 export interface RuntimeSupportDownloadLogic {

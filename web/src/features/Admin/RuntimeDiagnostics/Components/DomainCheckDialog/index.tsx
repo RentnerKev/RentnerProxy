@@ -21,7 +21,7 @@ export default function DomainCheckDialog(props: DomainCheckDialogProps) {
             footer={
                 <>
                     {state.canCheck ? (
-                        <RuntimeSupportDownload permissions={props.permissions} />
+                        <RuntimeSupportDownload permissions={props.permissions} inlineFeedback />
                     ) : null}
                     <button
                         type="button"

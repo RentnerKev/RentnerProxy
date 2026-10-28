@@ -3376,8 +3376,8 @@
                 "authentication_required": "Deine Sitzung ist möglicherweise abgelaufen. Melde dich erneut an und starte die Prüfung noch einmal.",
                 "configuration_changed": "Der Host oder die aktive Konfiguration hat sich während der Prüfung geändert. Wende bei Bedarf die aktuelle Konfiguration an und starte eine neue Prüfung.",
                 "rate_limited": "Es wurden zu viele Prüfungen angefordert. Warte kurz und versuche es erneut.",
-                "busy": "Im Runtime läuft gerade ein anderer Vorgang. Warte, bis er abgeschlossen ist, und versuche es erneut.",
-                "runtime_unavailable": "Der Proxy-Runtime ist nicht verfügbar. Prüfe, ob sie läuft und die aktuelle Konfiguration aktiv ist, und versuche es erneut.",
+                "busy": "Eine andere Aktion läuft gerade im Proxy-Dienst. Warte, bis sie abgeschlossen ist, und versuche es erneut.",
+                "runtime_unavailable": "Der Proxy-Dienst ist nicht verfügbar. Prüfe, ob er läuft und die aktuelle Konfiguration aktiv ist, und versuche es erneut.",
                 "invalid_response": "Der Server hat ein unerwartetes Ergebnis zurückgegeben. Versuche es erneut; falls das anhält, bitte die Administration, den Server zu prüfen.",
                 "request_failed": "Die Prüfung konnte nicht abgeschlossen werden. Prüfe deine Verbindung und versuche es erneut.",
                 "timeout": "Die Prüfung hat zu lange gedauert. Prüfe Runtime und Ziel und versuche es erneut."

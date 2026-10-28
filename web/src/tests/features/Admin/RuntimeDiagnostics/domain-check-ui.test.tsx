@@ -9,6 +9,9 @@ import {
 } from '@/tests/lib/RuntimeDiagnostics/domain-diagnostics.fixture.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
+import { createRuntimeSupportReport } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
+import type { RuntimeSupportReport } from '@/lib/RuntimeDiagnostics/Types/runtime-support-report.types.ts'
+import { supportReportFixture } from '@/tests/lib/RuntimeDiagnostics/runtime-support-report.fixture.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -18,7 +21,7 @@ const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { default: withTestPageAlerts } = await import('@/tests/Helpers/withTestPageAlerts.tsx')
-const exportReport = mock(async () => {
+const exportReport = mock(async (): Promise<RuntimeSupportReport> => {
     throw new Error('Support report not requested')
 })
 mock.module('@/features/Admin/RuntimeDiagnostics/middleware.ts', () => ({
@@ -86,7 +89,8 @@ beforeEach(() => {
     fetchMock.mockReset()
     fetchMock.mockResolvedValue(Response.json(domainDiagnosticsFixture()))
     copy.mockClear()
-    exportReport.mockClear()
+    exportReport.mockReset()
+    exportReport.mockRejectedValue(new Error('Support report not requested'))
     client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
@@ -496,4 +500,70 @@ test('host invalidation in the same event as starting a check suppresses its lat
     await finish()
     expect(dialog().textContent).not.toContain('192.0.2.1')
     expect(fetchMock.mock.calls[0]![1]!.signal!.aborted).toBe(true)
+})
+
+test('support-report failures stay visible in the modal and the same icon retries the download', async () => {
+    const report = createRuntimeSupportReport(
+        supportReportFixture(),
+        new Date('2026-10-06T10:00:00Z'),
+    )
+    exportReport.mockRejectedValueOnce(new Error('PRIVATE-SUPPORT-ERROR'))
+    exportReport.mockResolvedValueOnce(report)
+    const createUrl = spyOn(URL, 'createObjectURL').mockReturnValue('blob:modal-support-report')
+    const download = spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+        await render()
+        const trigger = button('Download support report')
+        await act(async () => trigger.click())
+        const feedback = [...dialog().querySelectorAll('output[aria-live="polite"]')].find((item) =>
+            item.textContent?.includes('could not be downloaded'),
+        )
+        expect(feedback).toBeDefined()
+        expect(feedback!.closest('.sr-only, [hidden], [aria-hidden="true"]')).toBeNull()
+        expect(dialog().textContent).not.toContain('PRIVATE-SUPPORT-ERROR')
+        expect(document.querySelector('button[data-severity]')).toBeNull()
+        expect(button('Download support report').disabled).toBe(false)
+        expect(createUrl).not.toHaveBeenCalled()
+        await click('Download support report')
+        expect(exportReport).toHaveBeenCalledTimes(2)
+        expect(download).toHaveBeenCalledTimes(1)
+        expect(createUrl).toHaveBeenCalledTimes(1)
+        expect(dialog().textContent).toContain('download started')
+    } finally {
+        createUrl.mockRestore()
+        download.mockRestore()
+    }
+})
+
+test('partial support reports download and explain incompleteness visibly inside the modal', async () => {
+    const report = {
+        ...createRuntimeSupportReport(supportReportFixture(), new Date('2026-10-06T10:00:00Z')),
+        completeness: 'partial' as const,
+        unavailableSections: ['valkey'],
+    }
+    exportReport.mockResolvedValueOnce(report)
+    const createUrl = spyOn(URL, 'createObjectURL').mockReturnValue('blob:modal-partial-report')
+    const download = spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+        await render()
+        await click('Download support report')
+        expect(exportReport).toHaveBeenCalledTimes(1)
+        expect(download).toHaveBeenCalledTimes(1)
+        expect(createUrl).toHaveBeenCalledTimes(1)
+        const blob = createUrl.mock.calls[0]![0] as Blob
+        expect(JSON.parse(await blob.text())).toMatchObject({
+            completeness: 'partial',
+            unavailableSections: ['valkey'],
+        })
+        const feedback = [...dialog().querySelectorAll('output[aria-live="polite"]')].find((item) =>
+            item.textContent?.includes('Partial report download started'),
+        )
+        expect(feedback).toBeDefined()
+        expect(feedback!.closest('.sr-only, [hidden], [aria-hidden="true"]')).toBeNull()
+        expect(document.querySelector('button[data-severity]')).toBeNull()
+        expect(button('Download support report').disabled).toBe(false)
+    } finally {
+        createUrl.mockRestore()
+        download.mockRestore()
+    }
 })
