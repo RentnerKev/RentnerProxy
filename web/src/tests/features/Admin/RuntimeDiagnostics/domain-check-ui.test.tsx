@@ -408,8 +408,8 @@ test('keyboard domain selection stays available while pending and cancels the ol
             new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
         )
     })
-    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((item) =>
-        item.textContent?.includes('second.example.com'),
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (item) => item.textContent?.trim() === 'second.example.com',
     )!
     expect(option).toBeDefined()
     await act(async () => {
