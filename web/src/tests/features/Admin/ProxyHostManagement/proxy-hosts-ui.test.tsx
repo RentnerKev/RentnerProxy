@@ -1297,6 +1297,9 @@ describe('ProxyHost monitoring integration', () => {
         )
         const trigger = getButton('Open actions for app.example.com')
         const badge = getButton('Open monitoring for app.example.com')
+        const accessibleName = badge.getAttribute('aria-label') ?? badge.textContent
+        expect(accessibleName).toContain('Open monitoring for app.example.com')
+        expect(accessibleName).toContain('Healthy')
         await openMenu(trigger)
         const menu = document.querySelector('[role="menu"]')!
         getHostMonitoringSummaryMock.mockResolvedValue({
