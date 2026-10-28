@@ -58,6 +58,7 @@ export default function QuickSearch(props: QuickSearchProps) {
                         aria-describedby={state.hintId}
                         value={state.query}
                         onValueChange={handler.changeQuery}
+                        onKeyDown={handler.inputKeyDown}
                         maxLength={QUICK_SEARCH_MAX_QUERY_LENGTH}
                         placeholder={t('quickSearch.placeholder')}
                         autoComplete="off"
