@@ -21,6 +21,7 @@ export function getProxyHostTableActionItems(
         onConfig,
         onDelete,
         onDisable,
+        onDomainCheck,
         onEdit,
         onDuplicate,
         onEnable,
@@ -31,6 +32,14 @@ export function getProxyHostTableActionItems(
 ): Array<ActionMenuItem> {
     const name = getProxyHostName(host)
     const items: Array<ActionMenuItem> = []
+
+    if (onDomainCheck) {
+        items.push({
+            label: t('admin.domainCheck.action'),
+            onSelect: () => onDomainCheck(host),
+            disabled: isPending,
+        })
+    }
 
     if (canDuplicate?.(host) && onDuplicate) {
         items.push({

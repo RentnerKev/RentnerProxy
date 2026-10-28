@@ -53,6 +53,7 @@ export default function useProxyHostManagementLogic({
     const [certificateRequestTarget, setCertificateRequestTarget] =
         useState<ProxyHostSummary | null>(null)
     const [selectedProxyHost, setSelectedProxyHost] = useState<ProxyHostSummary | null>(null)
+    const [domainCheckTarget, setDomainCheckTarget] = useState<ProxyHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<ProxyHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<ProxyHostSummary | null>(null)
     const queryClient = useQueryClient()
@@ -63,6 +64,24 @@ export default function useProxyHostManagementLogic({
         enabled: canView,
         placeholderData: (previous) => previous,
     })
+    const currentDomainCheckTarget = domainCheckTarget
+        ? (proxyHostsQuery.data?.hosts.find((host) => host.id === domainCheckTarget.id) ??
+          domainCheckTarget)
+        : null
+    // Retain the latest host snapshot when pagination or filters move it out of the list.
+    if (currentDomainCheckTarget && currentDomainCheckTarget !== domainCheckTarget) {
+        setDomainCheckTarget(currentDomainCheckTarget)
+    }
+    const openDomainCheck = useCallback(
+        (host: ProxyHostSummary) => {
+            if (!canView) return
+            setDomainCheckTarget(host)
+        },
+        [canView],
+    )
+    const setDomainCheckOpen = useCallback((open: boolean) => {
+        if (!open) setDomainCheckTarget(null)
+    }, [])
     const runtimeStatusQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.runtimeStatus,
         queryFn: () => getProxyRuntimeStatusHandler(),
@@ -288,6 +307,8 @@ export default function useProxyHostManagementLogic({
     useQuickAction('createProxyHost', openCreate, canView && canCreate)
     return {
         state: {
+            canView,
+            domainCheckTarget: currentDomainCheckTarget,
             canApply,
             canAssignCertificates,
             canAssignPolicies,
@@ -335,6 +356,8 @@ export default function useProxyHostManagementLogic({
             certificateRequestTarget: currentCertificateRequestTarget,
         },
         handler: {
+            openDomainCheck,
+            setDomainCheckOpen,
             apply,
             confirmDelete,
             confirmDisable,

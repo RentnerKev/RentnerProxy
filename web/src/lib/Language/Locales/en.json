@@ -3334,6 +3334,157 @@
             "validation": {
                 "connection": "Choose a verified connection and a permitted zone."
             }
+        },
+        "domainCheck": {
+            "title": "Domain check",
+            "description": "Check how the selected domain behaves from the RentnerProxy server.",
+            "observation": "Diagnostics run from the RentnerProxy appliance or server. They do not prove public internet reachability or the certificate seen by a browser.",
+            "probeNote": "The upstream check sends HEAD / with the selected domain. Redirect destinations are not followed or checked.",
+            "domain": "Domain",
+            "run": "Run check",
+            "runAgain": "Run again",
+            "cancel": "Cancel check",
+            "copy": "Copy summary",
+            "copyPrivacy": "Copies status and timing without domains, IP addresses or credentials.",
+            "copied": "Summary copied.",
+            "copyFailed": "Could not copy the summary.",
+            "checkedAt": "Checked {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Run a check to see the result.",
+            "pending": "Checking the domain…",
+            "cancelled": "Check cancelled.",
+            "changed": "The host or active configuration changed. Run a fresh check.",
+            "permissionDenied": "You do not have permission to check this domain.",
+            "statuses": {
+                "pending": "Pending",
+                "not_checked": "Not checked",
+                "passed": "Confirmed",
+                "failed": "Failed",
+                "unknown": "Unknown",
+                "not_applicable": "Not applicable"
+            },
+            "stages": {
+                "configuration": "Active configuration",
+                "dns": "DNS",
+                "upstream": "Target reachability",
+                "tls": "TLS to target"
+            },
+            "errors": {
+                "invalid_input": "The domain check request is invalid. Check the selected host and domain, then try again.",
+                "permission_denied": "You do not have permission to run this check. Ask an administrator to review your access.",
+                "authentication_required": "Your session may have expired. Sign in again, then retry the check.",
+                "configuration_changed": "The host or active configuration changed during the check. Apply the latest configuration if needed, then run a fresh check.",
+                "rate_limited": "Too many checks were requested. Wait a moment, then try again.",
+                "busy": "Another runtime operation is in progress. Wait for it to finish, then retry.",
+                "runtime_unavailable": "The proxy runtime is unavailable. Check that it is running and that the latest configuration is applied, then retry.",
+                "invalid_response": "The server returned an unexpected result. Retry; if this continues, ask an administrator to check the server.",
+                "request_failed": "The check could not be completed. Check your connection and try again.",
+                "timeout": "The check took too long. Check the runtime and target availability, then retry."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "The selected host is present in the active configuration.",
+                    "advice": "No action needed."
+                },
+                "configuration_stale": {
+                    "description": "The active configuration does not match the latest saved configuration.",
+                    "advice": "Apply the latest desired configuration, then run the check again."
+                },
+                "configuration_changed": {
+                    "description": "The active configuration changed during the check.",
+                    "advice": "Wait for configuration changes to finish, then run a fresh check."
+                },
+                "host_not_active": {
+                    "description": "The selected host and domain are not active in the runtime.",
+                    "advice": "Enable the host and apply the configuration if you intend to serve this domain."
+                },
+                "runtime_unavailable": {
+                    "description": "The RentnerProxy runtime is not available for checks.",
+                    "advice": "Check that the runtime is running, then retry."
+                },
+                "skipped": {
+                    "description": "This check was skipped because the configuration check did not pass.",
+                    "advice": "Resolve the configuration issue, then run a fresh check."
+                },
+                "dns_resolved": {
+                    "description": "The appliance resolver returned one or more addresses for this domain.",
+                    "advice": "No action needed. This does not verify public DNS."
+                },
+                "dns_not_found": {
+                    "description": "The appliance resolver found no address for this domain.",
+                    "advice": "Check the domain’s DNS records and the appliance resolver."
+                },
+                "dns_failed": {
+                    "description": "The appliance resolver could not look up this domain.",
+                    "advice": "Check resolver availability and the domain’s DNS records, then retry."
+                },
+                "dns_timeout": {
+                    "description": "The DNS lookup did not finish in time.",
+                    "advice": "Check resolver responsiveness and retry."
+                },
+                "wildcard_domain": {
+                    "description": "A wildcard domain cannot be checked directly.",
+                    "advice": "Choose a concrete hostname attached to this host."
+                },
+                "upstream_responded": {
+                    "description": "The target replied successfully to HEAD /.",
+                    "advice": "No action needed. This confirms a response from the target, not public reachability."
+                },
+                "upstream_unreachable": {
+                    "description": "The target did not accept the check connection.",
+                    "advice": "Check the target address, service, and firewall."
+                },
+                "upstream_timeout": {
+                    "description": "The target did not respond in time.",
+                    "advice": "Check the target service, address, and firewall, then retry."
+                },
+                "upstream_dns_failed": {
+                    "description": "The appliance could not resolve the target address.",
+                    "advice": "Check the configured target hostname and the appliance resolver."
+                },
+                "access_denied": {
+                    "description": "The target replied but denied access to the check.",
+                    "advice": "Check the target’s authentication and access rules."
+                },
+                "upstream_error": {
+                    "description": "The target returned a server error.",
+                    "advice": "Check the target service and its logs."
+                },
+                "redirect_not_followed": {
+                    "description": "The target returned a redirect; its destination was not checked.",
+                    "advice": "Check the target’s redirect destination separately if needed."
+                },
+                "unexpected_status": {
+                    "description": "The target returned a status not confirmed by this check.",
+                    "advice": "The target may not support HEAD. Check its service, authentication, firewall, and address."
+                },
+                "tls_verified": {
+                    "description": "The proxy verified the target’s TLS certificate and hostname.",
+                    "advice": "No action needed. This is the proxy-to-target certificate, not the public certificate."
+                },
+                "tls_verification_disabled": {
+                    "description": "TLS verification for the target is disabled, so its certificate was not confirmed.",
+                    "advice": "Enable verification and configure a trusted certificate authority if needed."
+                },
+                "tls_failed": {
+                    "description": "The proxy could not verify the target’s TLS certificate.",
+                    "advice": "Check the certificate, hostname, expiry, and trusted certificate authorities."
+                },
+                "tls_unconfirmed": {
+                    "description": "The target’s TLS certificate could not be confirmed.",
+                    "advice": "Check target availability and certificate trust, then retry."
+                },
+                "http_upstream": {
+                    "description": "The target uses HTTP, so TLS does not apply.",
+                    "advice": "No action needed."
+                },
+                "redirect_host": {
+                    "description": "This is a redirect host; no upstream target is checked.",
+                    "advice": "No action needed. Redirect destinations are not checked."
+                }
+            },
+            "action": "Domain check"
         }
     },
     "permissions": {

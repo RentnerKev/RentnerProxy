@@ -122,6 +122,7 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
             },
         ]
         if (
+            props.onDomainCheck ||
             props.canUpdate ||
             props.canDelete ||
             props.canEnable ||

@@ -12,6 +12,7 @@ export function getRedirectHostTableActionItems(
         isPending,
         onDelete,
         onDisable,
+        onDomainCheck,
         onEdit,
         onEnable,
         host,
@@ -20,6 +21,14 @@ export function getRedirectHostTableActionItems(
 ): Array<ActionMenuItem> {
     const name = host.domains[0] ?? host.destination
     const items: Array<ActionMenuItem> = []
+    if (onDomainCheck) {
+        items.push({
+            label: t('admin.domainCheck.action'),
+            onSelect: () => onDomainCheck(host),
+            disabled: isPending,
+        })
+    }
+
     if (canUpdate)
         items.push({
             label: t('admin.redirectHosts.actions.edit'),

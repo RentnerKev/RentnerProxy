@@ -15,6 +15,7 @@ export interface RedirectHostsTableProps {
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly isPending: boolean
+    readonly onDomainCheck?: (host: RedirectHostSummary) => void
     readonly onEdit: (host: RedirectHostSummary) => void
     readonly onDelete: (host: RedirectHostSummary) => void
     readonly onDisable: (host: RedirectHostSummary) => void
@@ -29,6 +30,7 @@ export type RedirectHostTableActionProps = Pick<
     | 'canEnable'
     | 'canDisable'
     | 'isPending'
+    | 'onDomainCheck'
     | 'onEdit'
     | 'onDelete'
     | 'onDisable'

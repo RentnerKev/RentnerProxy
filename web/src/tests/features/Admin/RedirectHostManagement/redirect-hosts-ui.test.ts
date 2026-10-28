@@ -87,3 +87,41 @@ describe('Redirect Host duplication action', () => {
         expect(selected).toEqual([host])
     })
 })
+
+describe('Redirect Host domain check action', () => {
+    const props = {
+        canUpdate: false,
+        canDelete: false,
+        canEnable: false,
+        canDisable: false,
+        isPending: false,
+        host,
+        onEdit: () => {},
+        onDelete: () => {},
+        onDisable: () => {},
+        onEnable: () => {},
+    }
+
+    test('offers a domain check to a read-only viewer with a handler', () => {
+        const selected: RedirectHostSummary[] = []
+        expect(getRedirectHostTableActionItems(props, (key) => key)).toEqual([])
+        const items = getRedirectHostTableActionItems(
+            { ...props, onDomainCheck: (candidate) => selected.push(candidate) },
+            (key) => key,
+        )
+        expect(items).toHaveLength(1)
+        expect(items[0]?.label).toBe('admin.domainCheck.action')
+        expect(items[0]?.disabled).toBeFalse()
+        items[0]?.onSelect()
+        expect(selected).toEqual([host])
+    })
+
+    test('disables domain checks while a host mutation is pending', () => {
+        const items = getRedirectHostTableActionItems(
+            { ...props, isPending: true, onDomainCheck: () => {} },
+            (key) => key,
+        )
+        expect(items).toHaveLength(1)
+        expect(items[0]?.disabled).toBeTrue()
+    })
+})

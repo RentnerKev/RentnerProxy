@@ -3336,6 +3336,157 @@
             "validation": {
                 "connection": "Elige una conexión verificada y una zona permitida."
             }
+        },
+        "domainCheck": {
+            "title": "Comprobar dominio",
+            "description": "Comprueba el dominio seleccionado desde el servidor RentnerProxy.",
+            "observation": "El diagnóstico se ejecuta desde RentnerProxy; no demuestra acceso desde Internet ni el certificado que ve un navegador.",
+            "probeNote": "Se envía HEAD / con el dominio seleccionado. No se siguen ni comprueban destinos de redirección.",
+            "domain": "Dominio",
+            "run": "Ejecutar comprobación",
+            "runAgain": "Volver a comprobar",
+            "cancel": "Cancelar comprobación",
+            "copy": "Copiar resumen",
+            "copyPrivacy": "Copia estado y duración sin dominios, IP ni credenciales.",
+            "copied": "Resumen copiado.",
+            "copyFailed": "No se pudo copiar el resumen.",
+            "checkedAt": "Comprobado {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Ejecuta una comprobación para ver el resultado.",
+            "pending": "Comprobando el dominio…",
+            "cancelled": "Comprobación cancelada.",
+            "changed": "El host o la configuración activa cambió. Ejecuta una nueva comprobación.",
+            "permissionDenied": "No tienes permiso para comprobar este dominio.",
+            "statuses": {
+                "pending": "Pendiente",
+                "not_checked": "Sin comprobar",
+                "passed": "Confirmado",
+                "failed": "Fallido",
+                "unknown": "Desconocido",
+                "not_applicable": "No aplicable"
+            },
+            "stages": {
+                "configuration": "Configuración activa",
+                "dns": "DNS",
+                "upstream": "Accesibilidad del destino",
+                "tls": "TLS con el destino"
+            },
+            "errors": {
+                "invalid_input": "Solicitud inválida. Comprueba el host y dominio seleccionados.",
+                "permission_denied": "No tienes permiso para ejecutar esta comprobación. Pide a un administrador que revise tu acceso.",
+                "authentication_required": "La sesión puede haber caducado. Inicia sesión de nuevo y reinténtalo.",
+                "configuration_changed": "El host o la configuración activa cambió durante la comprobación. Aplica la configuración más reciente si hace falta y vuelve a comprobar.",
+                "rate_limited": "Se solicitaron demasiadas comprobaciones. Espera un momento y reinténtalo.",
+                "busy": "Hay otra operación en curso en el runtime. Espera a que termine y reinténtalo.",
+                "runtime_unavailable": "El runtime del proxy no está disponible. Comprueba que esté activo y tenga aplicada la configuración más reciente.",
+                "invalid_response": "El servidor devolvió un resultado inesperado. Reinténtalo o pide a un administrador que revise el servidor.",
+                "request_failed": "No se pudo completar la comprobación. Comprueba tu conexión e inténtalo de nuevo.",
+                "timeout": "La comprobación tardó demasiado. Comprueba el runtime y el destino e inténtalo de nuevo."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "El host está en la configuración activa",
+                    "advice": "Sin acción."
+                },
+                "configuration_stale": {
+                    "description": "La configuración activa no coincide con la última guardada",
+                    "advice": "Aplica la configuración deseada más reciente y vuelve a comprobar."
+                },
+                "configuration_changed": {
+                    "description": "La configuración activa cambió durante la comprobación",
+                    "advice": "Espera a que terminen los cambios y vuelve a comprobar."
+                },
+                "host_not_active": {
+                    "description": "El host y dominio no están activos en el runtime",
+                    "advice": "Activa el host y aplica la configuración si quieres servir este dominio."
+                },
+                "runtime_unavailable": {
+                    "description": "El runtime no está disponible para comprobaciones",
+                    "advice": "Comprueba que RentnerProxy esté en ejecución."
+                },
+                "skipped": {
+                    "description": "Se omitió porque la configuración no se confirmó",
+                    "advice": "Resuelve el problema de configuración y vuelve a comprobar."
+                },
+                "dns_resolved": {
+                    "description": "El resolver del dispositivo encontró direcciones",
+                    "advice": "Sin acción. Esto no verifica el DNS público."
+                },
+                "dns_not_found": {
+                    "description": "El resolver no encontró direcciones para el dominio",
+                    "advice": "Comprueba los registros DNS y el resolver del dispositivo."
+                },
+                "dns_failed": {
+                    "description": "El resolver no pudo consultar el dominio",
+                    "advice": "Comprueba el resolver y los registros DNS y reinténtalo."
+                },
+                "dns_timeout": {
+                    "description": "La consulta DNS agotó el tiempo",
+                    "advice": "Comprueba que el resolver responda."
+                },
+                "wildcard_domain": {
+                    "description": "Un dominio comodín no se puede comprobar directamente",
+                    "advice": "Elige un nombre de host concreto asociado a este host."
+                },
+                "upstream_responded": {
+                    "description": "El destino respondió correctamente a HEAD /",
+                    "advice": "Sin acción. Confirma respuesta del destino, no acceso desde Internet."
+                },
+                "upstream_unreachable": {
+                    "description": "El destino no aceptó la conexión de comprobación",
+                    "advice": "Comprueba la dirección, el servicio y el cortafuegos."
+                },
+                "upstream_timeout": {
+                    "description": "El destino no respondió a tiempo",
+                    "advice": "Comprueba el servicio, la dirección y el cortafuegos e inténtalo de nuevo."
+                },
+                "upstream_dns_failed": {
+                    "description": "No se pudo resolver la dirección del destino",
+                    "advice": "Comprueba el nombre de host configurado y el resolver."
+                },
+                "access_denied": {
+                    "description": "El destino respondió, pero denegó el acceso",
+                    "advice": "Comprueba la autenticación y las reglas de acceso del destino."
+                },
+                "upstream_error": {
+                    "description": "El destino devolvió un error del servidor",
+                    "advice": "Comprueba el servicio de destino y sus registros."
+                },
+                "redirect_not_followed": {
+                    "description": "El destino redirigió; no se comprobó el destino de la redirección",
+                    "advice": "Comprueba ese destino por separado si hace falta."
+                },
+                "unexpected_status": {
+                    "description": "El estado devuelto no pudo confirmarse",
+                    "advice": "Puede que el destino no admita HEAD. Comprueba servicio, autenticación, cortafuegos y dirección."
+                },
+                "tls_verified": {
+                    "description": "El proxy verificó el certificado TLS y el nombre del destino",
+                    "advice": "Sin acción. Es el certificado entre proxy y destino, no el público."
+                },
+                "tls_verification_disabled": {
+                    "description": "La verificación TLS está desactivada; el certificado no se confirmó",
+                    "advice": "Activa la verificación y configura una autoridad de confianza si hace falta."
+                },
+                "tls_failed": {
+                    "description": "El proxy no pudo verificar el certificado TLS del destino",
+                    "advice": "Comprueba certificado, nombre, caducidad y autoridades de confianza."
+                },
+                "tls_unconfirmed": {
+                    "description": "No se pudo confirmar el certificado TLS del destino",
+                    "advice": "Comprueba la disponibilidad del destino y la confianza del certificado."
+                },
+                "http_upstream": {
+                    "description": "El destino usa HTTP, TLS no es aplicable",
+                    "advice": "Sin acción."
+                },
+                "redirect_host": {
+                    "description": "Es un host de redirección; no se comprueba un destino upstream",
+                    "advice": "Sin acción. No se comprueban destinos de redirección."
+                }
+            },
+            "action": "Comprobar dominio"
         }
     },
     "permissions": {

@@ -29,6 +29,7 @@ export default function useProxyHostsTableColumns({
     onConfig,
     onDelete,
     onDisable,
+    onDomainCheck,
     onEdit,
     onDuplicate,
     onEnable,
@@ -124,7 +125,8 @@ export default function useProxyHostsTableColumns({
             canEnable ||
             canDisable ||
             canRequestCertificate ||
-            onConfig
+            onConfig ||
+            onDomainCheck
         ) {
             columns.push({
                 id: 'actions',
@@ -145,6 +147,7 @@ export default function useProxyHostsTableColumns({
                         ...(onConfig ? { onConfig } : {}),
                         onDelete,
                         onDisable,
+                        ...(onDomainCheck ? { onDomainCheck } : {}),
                         onEdit,
                         onEnable,
                         ...(onRequestCertificate ? { onRequestCertificate } : {}),
@@ -164,6 +167,7 @@ export default function useProxyHostsTableColumns({
         onConfig,
         onDelete,
         onDisable,
+        onDomainCheck,
         onEdit,
         onDuplicate,
         onEnable,

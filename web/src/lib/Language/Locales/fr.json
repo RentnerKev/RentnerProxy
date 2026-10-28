@@ -3336,6 +3336,157 @@
             "validation": {
                 "connection": "Choisissez une connexion vérifiée et une zone autorisée."
             }
+        },
+        "domainCheck": {
+            "title": "Vérifier le domaine",
+            "description": "Vérifie le domaine sélectionné depuis le serveur RentnerProxy.",
+            "observation": "Le diagnostic s’exécute depuis RentnerProxy ; il ne prouve ni l’accès depuis Internet ni le certificat vu par un navigateur.",
+            "probeNote": "Le contrôle envoie HEAD / avec le domaine choisi. Les destinations de redirection ne sont pas suivies ni vérifiées.",
+            "domain": "Domaine",
+            "run": "Lancer la vérification",
+            "runAgain": "Vérifier à nouveau",
+            "cancel": "Annuler la vérification",
+            "copy": "Copier le résumé",
+            "copyPrivacy": "Copie état et durée sans domaines, adresses IP ni identifiants.",
+            "copied": "Résumé copié.",
+            "copyFailed": "Impossible de copier le résumé.",
+            "checkedAt": "Vérifié à {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Lancez une vérification pour afficher le résultat.",
+            "pending": "Vérification du domaine…",
+            "cancelled": "Vérification annulée.",
+            "changed": "L’hôte ou la configuration active a changé. Lancez une nouvelle vérification.",
+            "permissionDenied": "Vous n’êtes pas autorisé à vérifier ce domaine.",
+            "statuses": {
+                "pending": "En attente",
+                "not_checked": "Non vérifié",
+                "passed": "Confirmé",
+                "failed": "Échec",
+                "unknown": "Inconnu",
+                "not_applicable": "Non applicable"
+            },
+            "stages": {
+                "configuration": "Configuration active",
+                "dns": "DNS",
+                "upstream": "Accessibilité de la cible",
+                "tls": "TLS vers la cible"
+            },
+            "errors": {
+                "invalid_input": "Demande invalide. Vérifiez l’hôte et le domaine sélectionnés.",
+                "permission_denied": "Vous n’êtes pas autorisé à lancer ce contrôle. Demandez à un administrateur de vérifier vos droits.",
+                "authentication_required": "Votre session a peut-être expiré. Reconnectez-vous et réessayez.",
+                "configuration_changed": "L’hôte ou la configuration active a changé pendant le contrôle. Appliquez la dernière configuration si nécessaire, puis relancez-le.",
+                "rate_limited": "Trop de contrôles ont été demandés. Attendez un instant, puis réessayez.",
+                "busy": "Une autre opération du runtime est en cours. Attendez sa fin et réessayez.",
+                "runtime_unavailable": "Le runtime du proxy est indisponible. Vérifiez qu’il fonctionne et que la dernière configuration est appliquée.",
+                "invalid_response": "Le serveur a renvoyé un résultat inattendu. Réessayez ou demandez à un administrateur de vérifier le serveur.",
+                "request_failed": "Le contrôle n’a pas abouti. Vérifiez votre connexion et réessayez.",
+                "timeout": "Le contrôle a pris trop de temps. Vérifiez le runtime et la cible, puis réessayez."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "L’hôte figure dans la configuration active",
+                    "advice": "Aucune action nécessaire."
+                },
+                "configuration_stale": {
+                    "description": "La configuration active diffère de la dernière configuration enregistrée",
+                    "advice": "Appliquez la dernière configuration souhaitée, puis relancez le contrôle."
+                },
+                "configuration_changed": {
+                    "description": "La configuration active a changé pendant le contrôle",
+                    "advice": "Attendez la fin des modifications, puis relancez le contrôle."
+                },
+                "host_not_active": {
+                    "description": "L’hôte et le domaine ne sont pas actifs dans le runtime",
+                    "advice": "Activez l’hôte et appliquez la configuration si vous souhaitez servir ce domaine."
+                },
+                "runtime_unavailable": {
+                    "description": "Le runtime est indisponible pour les contrôles",
+                    "advice": "Vérifiez que RentnerProxy fonctionne."
+                },
+                "skipped": {
+                    "description": "Contrôle ignoré, car la configuration n’a pas été validée",
+                    "advice": "Résolvez le problème de configuration, puis relancez le contrôle."
+                },
+                "dns_resolved": {
+                    "description": "Le résolveur de l’appareil a trouvé des adresses",
+                    "advice": "Aucune action. Cela ne vérifie pas le DNS public."
+                },
+                "dns_not_found": {
+                    "description": "Le résolveur n’a trouvé aucune adresse pour ce domaine",
+                    "advice": "Vérifiez les enregistrements DNS et le résolveur de l’appareil."
+                },
+                "dns_failed": {
+                    "description": "Le résolveur n’a pas pu rechercher ce domaine",
+                    "advice": "Vérifiez le résolveur et les enregistrements DNS, puis réessayez."
+                },
+                "dns_timeout": {
+                    "description": "La recherche DNS a expiré",
+                    "advice": "Vérifiez que le résolveur répond."
+                },
+                "wildcard_domain": {
+                    "description": "Un domaine générique ne peut pas être contrôlé directement",
+                    "advice": "Choisissez un nom d’hôte concret associé à cet hôte."
+                },
+                "upstream_responded": {
+                    "description": "La cible a répondu à HEAD /",
+                    "advice": "Aucune action. Cela confirme une réponse de la cible, pas son accès depuis Internet."
+                },
+                "upstream_unreachable": {
+                    "description": "La cible a refusé la connexion de contrôle",
+                    "advice": "Vérifiez l’adresse de la cible, le service et le pare-feu."
+                },
+                "upstream_timeout": {
+                    "description": "La cible n’a pas répondu à temps",
+                    "advice": "Vérifiez son service, son adresse et son pare-feu, puis réessayez."
+                },
+                "upstream_dns_failed": {
+                    "description": "Impossible de résoudre l’adresse de la cible",
+                    "advice": "Vérifiez le nom d’hôte configuré et le résolveur de l’appareil."
+                },
+                "access_denied": {
+                    "description": "La cible a répondu, mais a refusé l’accès",
+                    "advice": "Vérifiez l’authentification et les règles d’accès de la cible."
+                },
+                "upstream_error": {
+                    "description": "La cible a renvoyé une erreur serveur",
+                    "advice": "Vérifiez le service cible et ses journaux."
+                },
+                "redirect_not_followed": {
+                    "description": "La cible a redirigé ; sa destination n’a pas été contrôlée",
+                    "advice": "Vérifiez séparément cette destination si nécessaire."
+                },
+                "unexpected_status": {
+                    "description": "L’état renvoyé n’a pas pu être confirmé",
+                    "advice": "La cible ne prend peut-être pas en charge HEAD. Vérifiez le service, l’authentification, le pare-feu et l’adresse."
+                },
+                "tls_verified": {
+                    "description": "Le proxy a vérifié le certificat TLS et le nom de la cible",
+                    "advice": "Aucune action. Il s’agit du certificat entre le proxy et la cible, pas du certificat public."
+                },
+                "tls_verification_disabled": {
+                    "description": "La vérification TLS est désactivée ; le certificat n’a pas été confirmé",
+                    "advice": "Activez la vérification et configurez une autorité de confiance si nécessaire."
+                },
+                "tls_failed": {
+                    "description": "Le proxy n’a pas pu vérifier le certificat TLS de la cible",
+                    "advice": "Vérifiez le certificat, le nom, son expiration et les autorités de confiance."
+                },
+                "tls_unconfirmed": {
+                    "description": "Impossible de confirmer le certificat TLS de la cible",
+                    "advice": "Vérifiez la disponibilité de la cible et la confiance du certificat."
+                },
+                "http_upstream": {
+                    "description": "La cible utilise HTTP ; TLS ne s’applique pas",
+                    "advice": "Aucune action nécessaire."
+                },
+                "redirect_host": {
+                    "description": "Cet hôte redirige ; aucune cible upstream n’est contrôlée",
+                    "advice": "Aucune action. Les destinations de redirection ne sont pas contrôlées."
+                }
+            },
+            "action": "Vérifier le domaine"
         }
     },
     "permissions": {

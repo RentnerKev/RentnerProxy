@@ -5,6 +5,7 @@ import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table
 export interface RedirectHostManagementLogicResult {
     readonly state: {
         readonly remote: HostTableRemote
+        readonly canView: boolean
         readonly canApply: boolean
         readonly canCreate: boolean
         readonly canDuplicate: (host: RedirectHostSummary) => boolean
@@ -14,6 +15,7 @@ export interface RedirectHostManagementLogicResult {
         readonly canEnable: boolean
         readonly canUpdate: boolean
         readonly canAssignCertificates: boolean
+        readonly domainCheckTarget: RedirectHostSummary | null
         readonly deleteTarget: RedirectHostSummary | null
         readonly disableTarget: RedirectHostSummary | null
         readonly isDeleting: boolean
@@ -35,6 +37,8 @@ export interface RedirectHostManagementLogicResult {
         readonly confirmDisable: () => Promise<void>
         readonly enable: (value: RedirectHostSummary) => void
         readonly handleFormSuccess: () => void
+        readonly openDomainCheck: (host: RedirectHostSummary) => void
+        readonly setDomainCheckOpen: (open: boolean) => void
         readonly openCreate: () => void
         readonly openDuplicate: (host: RedirectHostSummary) => void
         readonly setDuplicateOpen: (open: boolean) => void

@@ -3315,6 +3315,157 @@
             "validation": {
                 "connection": "Kies een geverifieerde verbinding en een toegestane zone."
             }
+        },
+        "domainCheck": {
+            "title": "Domein controleren",
+            "description": "Controleer het geselecteerde domein vanaf de RentnerProxy-server.",
+            "observation": "De diagnose draait vanaf RentnerProxy; dit bewijst geen bereikbaarheid vanaf internet of welk certificaat een browser ziet.",
+            "probeNote": "De controle verstuurt HEAD / met het geselecteerde domein. Omleidingsdoelen worden niet gevolgd of gecontroleerd.",
+            "domain": "Domein",
+            "run": "Controle uitvoeren",
+            "runAgain": "Opnieuw controleren",
+            "cancel": "Controle annuleren",
+            "copy": "Samenvatting kopiëren",
+            "copyPrivacy": "Kopieert status en duur zonder domeinen, IP-adressen of inloggegevens.",
+            "copied": "Samenvatting gekopieerd.",
+            "copyFailed": "Samenvatting kon niet worden gekopieerd.",
+            "checkedAt": "Gecontroleerd {{time}}",
+            "duration": "{{duration}} ms",
+            "httpStatus": "HTTP {{status}}",
+            "awaiting": "Voer een controle uit om het resultaat te zien.",
+            "pending": "Domein wordt gecontroleerd…",
+            "cancelled": "Controle geannuleerd.",
+            "changed": "De host of actieve configuratie is gewijzigd. Voer een nieuwe controle uit.",
+            "permissionDenied": "Je hebt geen toestemming om dit domein te controleren.",
+            "statuses": {
+                "pending": "In afwachting",
+                "not_checked": "Niet gecontroleerd",
+                "passed": "Bevestigd",
+                "failed": "Mislukt",
+                "unknown": "Onbekend",
+                "not_applicable": "Niet van toepassing"
+            },
+            "stages": {
+                "configuration": "Actieve configuratie",
+                "dns": "DNS",
+                "upstream": "Bereikbaarheid van doel",
+                "tls": "TLS naar doel"
+            },
+            "errors": {
+                "invalid_input": "Ongeldig verzoek. Controleer de geselecteerde host en het domein.",
+                "permission_denied": "Je mag deze controle niet uitvoeren. Vraag een beheerder je toegangsrechten te controleren.",
+                "authentication_required": "Je sessie is mogelijk verlopen. Meld je opnieuw aan en probeer het opnieuw.",
+                "configuration_changed": "De host of actieve configuratie is tijdens de controle gewijzigd. Pas zo nodig de nieuwste configuratie toe en controleer opnieuw.",
+                "rate_limited": "Er zijn te veel controles aangevraagd. Wacht even en probeer opnieuw.",
+                "busy": "Er wordt een andere runtimebewerking uitgevoerd. Wacht tot die klaar is en probeer opnieuw.",
+                "runtime_unavailable": "De proxy-runtime is niet beschikbaar. Controleer of deze actief is en de nieuwste configuratie heeft.",
+                "invalid_response": "De server gaf een onverwacht resultaat. Probeer opnieuw of vraag een beheerder de server te controleren.",
+                "request_failed": "De controle kon niet worden voltooid. Controleer je verbinding en probeer opnieuw.",
+                "timeout": "De controle duurde te lang. Controleer runtime en doel en probeer opnieuw."
+            },
+            "codes": {
+                "configuration_active": {
+                    "description": "De host staat in de actieve configuratie",
+                    "advice": "Geen actie nodig."
+                },
+                "configuration_stale": {
+                    "description": "De actieve configuratie wijkt af van de laatst opgeslagen configuratie",
+                    "advice": "Pas de nieuwste gewenste configuratie toe en controleer opnieuw."
+                },
+                "configuration_changed": {
+                    "description": "De actieve configuratie is tijdens de controle gewijzigd",
+                    "advice": "Wacht tot de wijzigingen klaar zijn en controleer opnieuw."
+                },
+                "host_not_active": {
+                    "description": "De host en het domein zijn niet actief in de runtime",
+                    "advice": "Schakel de host in en pas de configuratie toe als je dit domein wilt aanbieden."
+                },
+                "runtime_unavailable": {
+                    "description": "De runtime is niet beschikbaar voor controles",
+                    "advice": "Controleer of RentnerProxy actief is."
+                },
+                "skipped": {
+                    "description": "Controle overgeslagen omdat de configuratie niet is bevestigd",
+                    "advice": "Los het configuratieprobleem op en controleer opnieuw."
+                },
+                "dns_resolved": {
+                    "description": "De resolver van het apparaat vond adressen",
+                    "advice": "Geen actie nodig. Dit controleert openbare DNS niet."
+                },
+                "dns_not_found": {
+                    "description": "De resolver vond geen adres voor dit domein",
+                    "advice": "Controleer de DNS-records en de resolver van het apparaat."
+                },
+                "dns_failed": {
+                    "description": "De resolver kon dit domein niet opzoeken",
+                    "advice": "Controleer de resolver en DNS-records en probeer opnieuw."
+                },
+                "dns_timeout": {
+                    "description": "De DNS-aanvraag is verlopen",
+                    "advice": "Controleer of de resolver reageert."
+                },
+                "wildcard_domain": {
+                    "description": "Een wildcarddomein kan niet rechtstreeks worden gecontroleerd",
+                    "advice": "Kies een concrete hostnaam die aan deze host is gekoppeld."
+                },
+                "upstream_responded": {
+                    "description": "Het doel reageerde op HEAD /",
+                    "advice": "Geen actie nodig. Dit bevestigt een antwoord, geen bereikbaarheid vanaf internet."
+                },
+                "upstream_unreachable": {
+                    "description": "Het doel accepteerde de controleverbinding niet",
+                    "advice": "Controleer het doeladres, de service en firewall."
+                },
+                "upstream_timeout": {
+                    "description": "Het doel reageerde niet op tijd",
+                    "advice": "Controleer de service, het adres en de firewall en probeer opnieuw."
+                },
+                "upstream_dns_failed": {
+                    "description": "Het doeladres kon niet worden opgezocht",
+                    "advice": "Controleer de ingestelde hostnaam en de resolver."
+                },
+                "access_denied": {
+                    "description": "Het doel reageerde, maar weigerde toegang",
+                    "advice": "Controleer authenticatie en toegangsregels van het doel."
+                },
+                "upstream_error": {
+                    "description": "Het doel gaf een serverfout terug",
+                    "advice": "Controleer de doelservice en logboeken."
+                },
+                "redirect_not_followed": {
+                    "description": "Het doel stuurde door; de bestemming is niet gecontroleerd",
+                    "advice": "Controleer die bestemming zo nodig afzonderlijk."
+                },
+                "unexpected_status": {
+                    "description": "De teruggegeven status kon niet worden bevestigd",
+                    "advice": "Het doel ondersteunt HEAD mogelijk niet. Controleer service, authenticatie, firewall en adres."
+                },
+                "tls_verified": {
+                    "description": "De proxy heeft TLS-certificaat en doelhostnaam geverifieerd",
+                    "advice": "Geen actie nodig. Dit is het certificaat tussen proxy en doel, niet het openbare certificaat."
+                },
+                "tls_verification_disabled": {
+                    "description": "TLS-verificatie staat uit; het certificaat is niet bevestigd",
+                    "advice": "Schakel verificatie in en stel zo nodig een vertrouwde certificaatautoriteit in."
+                },
+                "tls_failed": {
+                    "description": "De proxy kon het TLS-certificaat van het doel niet verifiëren",
+                    "advice": "Controleer certificaat, hostnaam, vervaldatum en vertrouwde autoriteiten."
+                },
+                "tls_unconfirmed": {
+                    "description": "Het TLS-certificaat van het doel kon niet worden bevestigd",
+                    "advice": "Controleer de beschikbaarheid van het doel en het certificaatvertrouwen."
+                },
+                "http_upstream": {
+                    "description": "Het doel gebruikt HTTP; TLS is niet van toepassing",
+                    "advice": "Geen actie nodig."
+                },
+                "redirect_host": {
+                    "description": "Dit is een omleidingshost; er wordt geen upstreamdoel gecontroleerd",
+                    "advice": "Geen actie nodig. Omleidingsbestemmingen worden niet gecontroleerd."
+                }
+            },
+            "action": "Domein controleren"
         }
     },
     "permissions": {
