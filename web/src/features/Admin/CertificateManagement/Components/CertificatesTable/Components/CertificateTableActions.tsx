@@ -19,6 +19,7 @@ export default function CertificateTableActions({
     const items = [
         {
             label: t('admin.certificates.actions.details'),
+            id: 'details',
             onSelect: () => onDetails(certificate),
             disabled: isPending,
         },
@@ -30,6 +31,7 @@ export default function CertificateTableActions({
                               ? 'admin.certificates.actions.retry'
                               : 'admin.certificates.actions.renew',
                       ),
+                      id: 'renew',
                       onSelect: () => onRenew(certificate),
                       disabled: isPending || operationActive,
                   },
@@ -39,6 +41,7 @@ export default function CertificateTableActions({
             ? [
                   {
                       label: t('admin.certificates.actions.replace'),
+                      id: 'replace',
                       onSelect: () => onReplace(certificate),
                       disabled: isPending || operationActive,
                   },
@@ -48,6 +51,7 @@ export default function CertificateTableActions({
             ? [
                   {
                       label: t('admin.certificates.actions.delete'),
+                      id: 'delete',
                       onSelect: () => onDelete(certificate),
                       disabled: isPending,
                       destructive: true,

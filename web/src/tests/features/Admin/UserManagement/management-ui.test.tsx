@@ -8,7 +8,6 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { PERMISSIONS, PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import { roleManagementQueryKeys } from '@/lib/Admin/RoleManagement/roleManagementCache.ts'
@@ -20,10 +19,9 @@ import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) {
-    GlobalRegistrator.register()
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
@@ -148,11 +146,10 @@ async function click(element: Element): Promise<void> {
 async function openMenu(trigger: Element): Promise<void> {
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -796,7 +793,7 @@ describe('permission-aware row actions', () => {
         await openMenu(getButton('Open actions for Kevin Example'))
         const items = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
         expect(items).toHaveLength(2)
-        expect(items.every((item) => item.hasAttribute('data-disabled'))).toBeTrue()
+        expect(items.every((item) => item.getAttribute('aria-disabled') === 'true')).toBeTrue()
     })
 
     test('disables the sensitive action for the current user', async () => {
@@ -815,7 +812,7 @@ describe('permission-aware row actions', () => {
 
         await openMenu(getButton('Open actions for Kevin Example'))
         const disableItem = getMenuItem('Disable')
-        expect(disableItem.hasAttribute('data-disabled')).toBeTrue()
+        expect(disableItem.getAttribute('aria-disabled')).toBe('true')
         expect(disableItem.textContent).toContain('You cannot disable your own account.')
     })
 
@@ -846,7 +843,7 @@ describe('permission-aware row actions', () => {
         const deleteItem = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
             (item) => item.textContent?.includes('Delete'),
         )
-        expect(deleteItem?.hasAttribute('data-disabled')).toBeTrue()
+        expect(deleteItem?.getAttribute('aria-disabled')).toBe('true')
         expect(deleteItem?.textContent).toContain('Assigned to 2 users.')
     })
 })
@@ -909,7 +906,7 @@ describe('user reactivation UI', () => {
             )
             await openMenu(getButton('Open actions for Kevin Example'))
             expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Enable')
-            expect(getMenuItem('Disable').hasAttribute('data-disabled')).toBeFalse()
+            expect(getMenuItem('Disable').getAttribute('aria-disabled')).not.toBe('true')
         },
     )
 
@@ -929,7 +926,7 @@ describe('user reactivation UI', () => {
             />,
         )
         await openMenu(getButton('Open actions for Kevin Example'))
-        expect(getMenuItem('Enable').hasAttribute('data-disabled')).toBeTrue()
+        expect(getMenuItem('Enable').getAttribute('aria-disabled')).toBe('true')
         expect(getMenuItem('Enable').textContent).toContain(
             'Only an owner can enable this account.',
         )

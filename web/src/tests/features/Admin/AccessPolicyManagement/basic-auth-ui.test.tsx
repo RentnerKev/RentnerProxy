@@ -3,16 +3,16 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { getAccessPolicyTableActionItems } from '@/lib/Admin/AccessPolicyManagement/accessPolicyTableActions.ts'
 import { validateBasicAuthAccount } from '@/lib/Admin/AccessPolicyManagement/basicAuthValidation.ts'
 import type { BasicAuthAccount } from '@/features/Admin/AccessPolicyManagement/Types/basic-auth.types.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
@@ -135,11 +135,10 @@ async function openActionMenu(container: HTMLElement): Promise<void> {
     expect(trigger).not.toBeNull()
     await act(async () => {
         trigger?.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
@@ -266,7 +265,9 @@ describe('Basic Auth credential UI', () => {
         await openActionMenu(pending)
         const pendingItems = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
         expect(pendingItems).toHaveLength(2)
-        expect(pendingItems.every((item) => item.getAttribute('data-disabled') === '')).toBeTrue()
+        expect(
+            pendingItems.every((item) => item.getAttribute('aria-disabled') === 'true'),
+        ).toBeTrue()
         await click(pendingItems[0]!)
         expect(selected).toEqual(['edit', 'delete'])
 

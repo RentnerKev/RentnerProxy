@@ -5,12 +5,12 @@ import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.typ
 
 import { INPUT_PROVIDER_PROPS } from '@/config/input.config.ts'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { InputProvider } = await import('@rentnerkev/inputs')
 const { SelectProvider } = await import('@rentnerkev/select')

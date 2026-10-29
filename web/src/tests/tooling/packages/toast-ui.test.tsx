@@ -10,11 +10,11 @@ import {
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 import { bootstraps, default as withTestLanguage } from '@/tests/Helpers/withTestLanguage.tsx'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const { act, useMemo, useState } = await import('react')

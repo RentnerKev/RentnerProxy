@@ -13,7 +13,6 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { PERMISSIONS, RUNTIME_SUPPORT_REPORT_PERMISSIONS } from '@/config/permissions.config.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
@@ -36,9 +35,10 @@ import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLang
 import { filterHostPage } from '@/lib/HostTags/hostList.ts'
 import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
@@ -481,11 +481,10 @@ async function click(element: Element): Promise<void> {
 async function openMenu(trigger: Element): Promise<void> {
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()

@@ -19,6 +19,7 @@ export default function TrustedCaTableActions({
             ? [
                   {
                       label: t('admin.trustedCas.actions.replace'),
+                      id: 'replace',
                       onSelect: () => onReplace(trustedCa),
                       disabled: isPending,
                   },
@@ -32,6 +33,7 @@ export default function TrustedCaTableActions({
                               ? 'admin.trustedCas.actions.deleteInUse'
                               : 'admin.trustedCas.actions.delete',
                       ),
+                      id: 'delete',
                       onSelect: () => onDelete(trustedCa),
                       disabled: isPending || trustedCa.assignedHostCount > 0,
                       destructive: true,

@@ -366,6 +366,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                                                     ? 'admin.proxyAccessLogs.actions.hideDetails'
                                                                     : 'admin.proxyAccessLogs.actions.showDetails',
                                                             ),
+                                                            id: 'toggle-details',
                                                             onSelect: () => onToggleDetails(key),
                                                         },
                                                     ]}

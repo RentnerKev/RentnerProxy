@@ -13,12 +13,17 @@ export function getRoleTableActionState(
     const items: Array<ActionMenuItem> = []
 
     if (canUpdate) {
-        items.push({ label: t('admin.roles.actions.edit'), onSelect: () => onEdit(role) })
+        items.push({
+            label: t('admin.roles.actions.edit'),
+            id: 'edit',
+            onSelect: () => onEdit(role),
+        })
     }
 
     if (canDelete) {
         items.push({
             label: t('admin.roles.actions.delete'),
+            id: 'delete',
             onSelect: () => onDelete(role),
             destructive: true,
             disabled: role.userCount > 0,

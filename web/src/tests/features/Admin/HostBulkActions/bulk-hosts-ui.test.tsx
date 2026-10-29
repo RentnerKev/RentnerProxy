@@ -13,12 +13,12 @@ import type {
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { HostTableRemote } from '@/features/Admin/HostTags/Types/host-table.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { TOOLTIP_PROVIDER_PROPS } from '@/config/tooltip.config.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')

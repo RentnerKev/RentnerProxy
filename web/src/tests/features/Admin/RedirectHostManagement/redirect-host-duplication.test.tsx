@@ -13,11 +13,11 @@ import type {
 } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import { getRedirectHostFormDefaultValues } from '@/lib/Admin/RedirectHostManagement/redirectHostFormValues.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
