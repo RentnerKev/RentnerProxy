@@ -3503,6 +3503,19 @@
             "action": "Verifica dominio"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Cronologia dei controlli",
+                "description": "{{count}} controlli caricati. La ricerca e i filtri delle colonne si applicano a questi controlli.",
+                "searchLabel": "Cerca controlli recenti",
+                "searchPlaceholder": "Stato, codice HTTP o esito…",
+                "itemLabel": "controlli",
+                "filteredEmptyTitle": "Nessun controllo corrispondente",
+                "filteredEmptyDescription": "Modifica la ricerca o i filtri delle colonne per visualizzare i controlli.",
+                "loadOlder": "Carica controlli precedenti",
+                "allHttpStatuses": "Tutti gli stati HTTP",
+                "allOutcomes": "Tutti gli esiti",
+                "missingHttpStatus": "Nessuna risposta HTTP"
+            },
             "title": "Monitoraggio host",
             "description": "Controlla l’upstream da questa istanza di RentnerProxy.",
             "action": "Monitoraggio",

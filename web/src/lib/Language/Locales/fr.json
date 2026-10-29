@@ -3490,6 +3490,19 @@
             "action": "Vérifier le domaine"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Historique des vérifications",
+                "description": "{{count}} vérifications chargées. La recherche et les filtres de colonne s’appliquent à ces vérifications.",
+                "searchLabel": "Rechercher des vérifications récentes",
+                "searchPlaceholder": "État, code HTTP ou résultat…",
+                "itemLabel": "vérifications",
+                "filteredEmptyTitle": "Aucune vérification correspondante",
+                "filteredEmptyDescription": "Ajustez la recherche ou les filtres de colonne pour afficher des vérifications.",
+                "loadOlder": "Charger les vérifications précédentes",
+                "allHttpStatuses": "Tous les états HTTP",
+                "allOutcomes": "Tous les résultats",
+                "missingHttpStatus": "Aucune réponse HTTP"
+            },
             "title": "Surveillance des hôtes",
             "description": "Vérifiez le service amont depuis cette instance de RentnerProxy.",
             "action": "Surveillance",

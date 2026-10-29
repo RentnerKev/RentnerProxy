@@ -3518,6 +3518,19 @@
             "action": "Sprawdź domenę"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Historia kontroli",
+                "description": "Wczytano {{count}} kontroli. Wyszukiwanie i filtry kolumn dotyczą tych kontroli.",
+                "searchLabel": "Szukaj ostatnich kontroli",
+                "searchPlaceholder": "Stan, kod HTTP lub wynik…",
+                "itemLabel": "kontroli",
+                "filteredEmptyTitle": "Brak pasujących kontroli",
+                "filteredEmptyDescription": "Zmień wyszukiwanie lub filtry kolumn, aby wyświetlić kontrole.",
+                "loadOlder": "Wczytaj starsze kontrole",
+                "allHttpStatuses": "Wszystkie stany HTTP",
+                "allOutcomes": "Wszystkie wyniki",
+                "missingHttpStatus": "Brak odpowiedzi HTTP"
+            },
             "title": "Monitorowanie hostów",
             "description": "Sprawdzaj usługę upstream z tej instancji RentnerProxy.",
             "action": "Monitorowanie",

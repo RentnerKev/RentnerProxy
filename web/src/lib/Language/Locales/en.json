@@ -3488,6 +3488,19 @@
             "action": "Domain check"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Check history",
+                "description": "{{count}} checks loaded. Search and column filters apply to these checks.",
+                "searchLabel": "Search recent checks",
+                "searchPlaceholder": "Status, HTTP code or outcome…",
+                "itemLabel": "checks",
+                "filteredEmptyTitle": "No matching checks",
+                "filteredEmptyDescription": "Adjust the search or column filters to show checks.",
+                "loadOlder": "Load older checks",
+                "allHttpStatuses": "All HTTP statuses",
+                "allOutcomes": "All outcomes",
+                "missingHttpStatus": "No HTTP response"
+            },
             "title": "Host monitoring",
             "description": "Observe the upstream from this RentnerProxy instance.",
             "action": "Monitoring",

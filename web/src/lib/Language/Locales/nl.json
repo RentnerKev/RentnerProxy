@@ -3469,6 +3469,19 @@
             "action": "Domein controleren"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Controlegeschiedenis",
+                "description": "{{count}} controles geladen. Zoeken en kolomfilters gelden voor deze controles.",
+                "searchLabel": "Recente controles doorzoeken",
+                "searchPlaceholder": "Status, HTTP-code of resultaat…",
+                "itemLabel": "controles",
+                "filteredEmptyTitle": "Geen overeenkomende controles",
+                "filteredEmptyDescription": "Pas de zoekopdracht of kolomfilters aan om controles te tonen.",
+                "loadOlder": "Oudere controles laden",
+                "allHttpStatuses": "Alle HTTP-statuscodes",
+                "allOutcomes": "Alle resultaten",
+                "missingHttpStatus": "Geen HTTP-antwoord"
+            },
             "title": "Hostbewaking",
             "description": "Controleer de upstream vanaf deze RentnerProxy-instantie.",
             "action": "Bewaking",

@@ -3516,6 +3516,19 @@
             "action": "Verificar domínio"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Histórico de verificações",
+                "description": "{{count}} verificações carregadas. A pesquisa e os filtros de coluna aplicam-se a estas verificações.",
+                "searchLabel": "Pesquisar verificações recentes",
+                "searchPlaceholder": "Estado, código HTTP ou resultado…",
+                "itemLabel": "verificações",
+                "filteredEmptyTitle": "Nenhuma verificação correspondente",
+                "filteredEmptyDescription": "Ajuste a pesquisa ou os filtros de coluna para mostrar verificações.",
+                "loadOlder": "Carregar verificações anteriores",
+                "allHttpStatuses": "Todos os estados HTTP",
+                "allOutcomes": "Todos os resultados",
+                "missingHttpStatus": "Sem resposta HTTP"
+            },
             "title": "Monitorização de hosts",
             "description": "Verifique o upstream a partir desta instância do RentnerProxy.",
             "action": "Monitorização",

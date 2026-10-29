@@ -3488,6 +3488,19 @@
             "action": "Domain prüfen"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Prüfverlauf",
+                "description": "{{count}} Prüfungen geladen. Suche und Spaltenfilter gelten für diese Prüfungen.",
+                "searchLabel": "Letzte Prüfungen durchsuchen",
+                "searchPlaceholder": "Status, HTTP-Code oder Ergebnis…",
+                "itemLabel": "Prüfungen",
+                "filteredEmptyTitle": "Keine passenden Prüfungen",
+                "filteredEmptyDescription": "Passe die Suche oder die Spaltenfilter an, um Prüfungen anzuzeigen.",
+                "loadOlder": "Ältere Prüfungen laden",
+                "allHttpStatuses": "Alle HTTP-Statuscodes",
+                "allOutcomes": "Alle Ergebnisse",
+                "missingHttpStatus": "Keine HTTP-Antwort"
+            },
             "title": "Host-Überwachung",
             "description": "Prüfe den Upstream von dieser RentnerProxy-Instanz aus.",
             "action": "Monitoring",

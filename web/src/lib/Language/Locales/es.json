@@ -3490,6 +3490,19 @@
             "action": "Comprobar dominio"
         },
         "hostMonitoring": {
+            "table": {
+                "eyebrow": "Historial de comprobaciones",
+                "description": "{{count}} comprobaciones cargadas. La búsqueda y los filtros de columna se aplican a estas comprobaciones.",
+                "searchLabel": "Buscar comprobaciones recientes",
+                "searchPlaceholder": "Estado, código HTTP o resultado…",
+                "itemLabel": "comprobaciones",
+                "filteredEmptyTitle": "No hay comprobaciones coincidentes",
+                "filteredEmptyDescription": "Ajusta la búsqueda o los filtros de columna para mostrar comprobaciones.",
+                "loadOlder": "Cargar comprobaciones anteriores",
+                "allHttpStatuses": "Todos los estados HTTP",
+                "allOutcomes": "Todos los resultados",
+                "missingHttpStatus": "Sin respuesta HTTP"
+            },
             "title": "Monitorización de hosts",
             "description": "Comprueba el upstream desde esta instancia de RentnerProxy.",
             "action": "Monitorización",

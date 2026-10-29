@@ -1,8 +1,8 @@
 import { CustomSelect } from '@rentnerkev/select/select'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import HostAvailabilityBadge from './HostAvailabilityBadge.tsx'
 import MonitoringDurationChart from './MonitoringDurationChart/index.tsx'
+import MonitoringChecksTable from './MonitoringChecksTable/index.tsx'
 import type {
     MonitoringDialogHandler,
     MonitoringDialogState,
@@ -94,9 +94,7 @@ export default function MonitoringOverview({
                 <output className="text-sm text-muted">{t('admin.hostMonitoring.loading')}</output>
             ) : (
                 <>
-                    {state.observations.length === 0 ? (
-                        <p className="text-sm text-muted">{t('admin.hostMonitoring.noData')}</p>
-                    ) : (
+                    {state.observations.length > 0 ? (
                         <>
                             <MonitoringDurationChart observations={state.observations} />
                             <div
@@ -120,78 +118,15 @@ export default function MonitoringOverview({
                                         </span>
                                     ))}
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs">
-                                    <caption className="pb-2 text-left text-sm font-bold text-ink">
-                                        {t('admin.hostMonitoring.observations')}
-                                    </caption>
-                                    <thead className="text-muted">
-                                        <tr>
-                                            {[
-                                                'checkedAt',
-                                                'status',
-                                                'duration',
-                                                'httpStatus',
-                                                'outcome',
-                                            ].map((key) => (
-                                                <th
-                                                    key={key}
-                                                    scope="col"
-                                                    className="whitespace-nowrap border-b border-border px-2 py-2 font-medium"
-                                                >
-                                                    {t(`admin.hostMonitoring.${key}`)}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {state.observations.map((observation) => (
-                                            <tr
-                                                key={observation.id}
-                                                className="border-b border-border"
-                                            >
-                                                <td className="whitespace-nowrap px-2 py-2">
-                                                    <time
-                                                        dateTime={observation.checkedAt.toISOString()}
-                                                    >
-                                                        {handler.formatDate(observation.checkedAt)}
-                                                    </time>
-                                                </td>
-                                                <td className="px-2 py-2">
-                                                    <HostAvailabilityBadge
-                                                        availability={observation.status}
-                                                    />
-                                                </td>
-                                                <td className="whitespace-nowrap px-2 py-2 font-mono">
-                                                    {observation.durationMs === null
-                                                        ? '—'
-                                                        : `${observation.durationMs} ms`}
-                                                </td>
-                                                <td className="px-2 py-2 font-mono">
-                                                    {observation.httpStatus ?? '—'}
-                                                </td>
-                                                <td className="px-2 py-2">
-                                                    {t(
-                                                        `admin.hostMonitoring.codes.${observation.code}`,
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
                         </>
-                    )}
-                    {state.more ? (
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            disabled={state.loadingMore}
-                            onClick={handler.handleMore}
-                        >
-                            {t('admin.hostMonitoring.loadMore')}
-                        </button>
                     ) : null}
+                    <MonitoringChecksTable
+                        key={`${state.status}:${state.period}`}
+                        observations={state.observations}
+                        more={state.more}
+                        loadingMore={state.loadingMore}
+                        onLoadMore={handler.handleMore}
+                    />
                     {state.capped ? (
                         <p className="text-xs text-muted">{t('admin.hostMonitoring.historyCap')}</p>
                     ) : null}
