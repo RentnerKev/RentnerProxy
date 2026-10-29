@@ -20,6 +20,7 @@ import {
     parseWorkflowRun,
     parseWorkflowArtifact,
     fetchPullRequest,
+    fetchBranchHeadSha,
 } from './github-api.ts'
 import {
     assertWorkflowRunPullRequest,
@@ -140,12 +141,6 @@ export async function resolvePreviewSource(
             baseSha: pullRequest.baseSha,
             headSha: pullRequest.headSha,
         })
-        if (expected.baseSha !== pullRequest.baseSha) {
-            const comparison = await api.request(
-                `/repos/${api.repository}/compare/${expected.baseSha}...${pullRequest.baseSha}`,
-            )
-            assertPullRequestBranchUpToDate(comparison, expected.baseSha)
-        }
     }
     if (
         metadata &&
@@ -159,6 +154,13 @@ export async function resolvePreviewSource(
             metadata.triggerRunId !== workflowRun.id)
     ) {
         throw new Error('Preview artifact source does not match the verified trigger proof.')
+    }
+    const mainSha = await fetchBranchHeadSha(api, 'main')
+    if (expected.baseSha !== mainSha) {
+        const comparison = await api.request(
+            `/repos/${api.repository}/compare/${expected.baseSha}...${mainSha}`,
+        )
+        assertPullRequestBranchUpToDate(comparison, expected.baseSha)
     }
     await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
     return { pullRequest, expected }

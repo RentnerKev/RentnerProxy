@@ -207,3 +207,17 @@ export async function fetchPullRequest(
 ): Promise<PullRequestSnapshot> {
     return parsePullRequest(await api.request(`/repos/${api.repository}/pulls/${number}`))
 }
+
+export async function fetchBranchHeadSha(api: GitHubApi, ref: string): Promise<string> {
+    const branch = validateRef(ref, 'Branch ref')
+    const path = branch.split('/').map(encodeURIComponent).join('/')
+    const reference = asRecord(
+        await api.request(`/repos/${api.repository}/git/ref/heads/${path}`),
+        'Branch reference',
+    )
+    const object = asRecord(reference.object, 'Branch reference object')
+    if (reference.ref !== `refs/heads/${branch}` || object.type !== 'commit') {
+        throw new Error('Branch reference identity is invalid.')
+    }
+    return validateFullSha(object.sha, 'Branch head SHA')
+}

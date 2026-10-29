@@ -14,6 +14,7 @@ import {
     asArray,
     stringValue,
     parsePositiveInteger,
+    parseNonNegativeInteger,
     validateFullSha,
     normalizeRepository,
     normalizeWorkflowPath,
@@ -23,6 +24,7 @@ import {
     requiredCheckKey,
     evaluateRequiredChecks,
     evaluatePullRequest,
+    previewLifecycle,
     assertPullRequestBranchUpToDate,
     latestRequiredCheckRuns,
 } from './checks.ts'
@@ -32,12 +34,24 @@ import {
     parseCheckRun,
     parseWorkflowRun,
     fetchPullRequest,
+    fetchBranchHeadSha,
 } from './github-api.ts'
 import { environmentPositiveInteger } from './runtime.ts'
 
 const DEFAULT_GATE_TIMEOUT_SECONDS = 25 * 60
 
 const DEFAULT_POLL_INTERVAL_SECONDS = 20
+
+class PreviewSourceStaleError extends Error {
+    constructor(reason: 'branch_behind' | 'base_advanced') {
+        super(
+            reason === 'branch_behind'
+                ? 'Pull request branch is behind its base; skipping preview publication.'
+                : 'Main advanced beyond the tested base; skipping preview publication.',
+        )
+        this.name = 'PreviewSourceStaleError'
+    }
+}
 
 async function fetchRequiredChecks(
     api: GitHubApi,
@@ -182,9 +196,43 @@ async function verifyPullRequestBranchUpToDate(
     api: GitHubApi,
     expected: ExpectedPullRequest,
 ): Promise<void> {
-    const comparison = await api.request(
+    const value = await api.request(
         `/repos/${api.repository}/compare/${encodeURIComponent(expected.baseSha)}...${encodeURIComponent(expected.headSha)}`,
     )
+    const comparison = asRecord(value, 'Pull request branch comparison')
+    const status = stringValue(comparison.status, 'Pull request branch comparison status')
+    const ahead = parseNonNegativeInteger(comparison.ahead_by, 'Pull request branch ahead count')
+    const behind = parseNonNegativeInteger(comparison.behind_by, 'Pull request branch behind count')
+    const base = validateFullSha(
+        asRecord(comparison.base_commit, 'Pull request comparison base').sha,
+        'Pull request comparison base SHA',
+    )
+    const mergeBase = validateFullSha(
+        asRecord(comparison.merge_base_commit, 'Pull request merge base').sha,
+        'Pull request merge base SHA',
+    )
+    if (base !== expected.baseSha)
+        throw new Error('Pull request branch comparison base does not match.')
+    if (
+        expected.headSha !== expected.baseSha &&
+        behind > 0 &&
+        ((status === 'behind' && ahead === 0 && mergeBase === expected.headSha) ||
+            (status === 'diverged' &&
+                ahead > 0 &&
+                mergeBase !== expected.headSha &&
+                mergeBase !== expected.baseSha))
+    )
+        throw new PreviewSourceStaleError('branch_behind')
+    if (!(
+        (status === 'ahead' && ahead > 0 && behind === 0 && mergeBase === expected.baseSha) ||
+        (status === 'identical' &&
+            ahead === 0 &&
+            behind === 0 &&
+            expected.headSha === expected.baseSha &&
+            mergeBase === expected.baseSha)
+    )) {
+        throw new Error('Pull request branch comparison is inconsistent.')
+    }
     assertPullRequestBranchUpToDate(comparison, expected.baseSha)
 }
 
@@ -257,6 +305,39 @@ function checkSummary(evaluation: CheckEvaluation): string {
     })
 }
 
+async function verifyCurrentMain(api: GitHubApi, expected: ExpectedPullRequest): Promise<void> {
+    if ((await fetchBranchHeadSha(api, 'main')) !== expected.baseSha) {
+        throw new PreviewSourceStaleError('base_advanced')
+    }
+}
+
+function assertGatePullRequestIdentity(
+    pullRequest: PullRequestSnapshot,
+    expected: ExpectedPullRequest,
+): void {
+    if (
+        pullRequest.number !== expected.number ||
+        pullRequest.baseRepository !== expected.baseRepository ||
+        pullRequest.baseRef !== expected.baseRef ||
+        pullRequest.headRepository !== expected.headRepository
+    ) {
+        throw new Error('Pull request identity does not match the expected preview source.')
+    }
+}
+
+export async function previewGateLifecycle(
+    api: GitHubApi,
+    expected: ExpectedPullRequest,
+): Promise<'open' | 'closed' | 'stale'> {
+    try {
+        return previewLifecycle(await verifyGate(api, expected, true), expected)
+    } catch (error) {
+        if (!(error instanceof PreviewSourceStaleError)) throw error
+        console.log(error.message)
+        return 'stale'
+    }
+}
+
 export async function verifyGate(
     api: GitHubApi,
     expected: ExpectedPullRequest,
@@ -272,13 +353,15 @@ export async function verifyGate(
     )
     const deadline = Date.now() + timeoutSeconds * 1_000
     const initialPullRequest = await fetchPullRequest(api, expected.number)
+    assertGatePullRequestIdentity(initialPullRequest, expected)
+    await verifyCurrentMain(api, expected)
     const initialEvaluation = evaluatePullRequest(initialPullRequest, expected)
+    if (initialEvaluation.state === 'failed') {
+        throw new Error(initialEvaluation.reason)
+    }
     if (initialEvaluation.state === 'closed' || initialEvaluation.state === 'stale') {
         if (waitForChecks) return initialPullRequest
         throw new Error('Pull request is closed or stale; refusing to revalidate publication.')
-    }
-    if (initialEvaluation.state === 'failed') {
-        throw new Error(initialEvaluation.reason)
     }
     await verifyPullRequestBranchUpToDate(api, expected)
     const requiredChecks = await fetchRequiredChecks(api, expected.baseRef)
@@ -287,13 +370,16 @@ export async function verifyGate(
     while (true) {
         // eslint-disable-next-line no-await-in-loop -- the gate intentionally polls current PR state
         const pullRequest = await fetchPullRequest(api, expected.number)
+        assertGatePullRequestIdentity(pullRequest, expected)
+        // oxlint-disable-next-line no-await-in-loop -- Refresh the authoritative base before every poll.
+        await verifyCurrentMain(api, expected)
         const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
+        if (pullRequestEvaluation.state === 'failed') {
+            throw new Error(pullRequestEvaluation.reason)
+        }
         if (pullRequestEvaluation.state === 'closed' || pullRequestEvaluation.state === 'stale') {
             if (waitForChecks) return pullRequest
             throw new Error('Pull request is closed or stale; refusing to revalidate publication.')
-        }
-        if (pullRequestEvaluation.state === 'failed') {
-            throw new Error(pullRequestEvaluation.reason)
         }
 
         if (pullRequestEvaluation.state === 'success') {
@@ -311,7 +397,11 @@ export async function verifyGate(
 
                 // eslint-disable-next-line no-await-in-loop -- the lifecycle must be current before returning a successful gate
                 const currentPullRequest = await fetchPullRequest(api, expected.number)
+                assertGatePullRequestIdentity(currentPullRequest, expected)
+                // oxlint-disable-next-line no-await-in-loop -- Recheck the authoritative base immediately before approval.
+                await verifyCurrentMain(api, expected)
                 const currentEvaluation = evaluatePullRequest(currentPullRequest, expected)
+                if (currentEvaluation.state === 'failed') throw new Error(currentEvaluation.reason)
                 if (currentEvaluation.state === 'closed' || currentEvaluation.state === 'stale') {
                     if (waitForChecks) return currentPullRequest
                     throw new Error(

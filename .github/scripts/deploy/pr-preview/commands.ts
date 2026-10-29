@@ -4,9 +4,9 @@ import {
     assertPreviewPublishPlan,
     assertMatchingPreviewDigests,
 } from './validation.ts'
-import { evaluatePullRequest, previewLifecycle } from './checks.ts'
+import { evaluatePullRequest } from './checks.ts'
 import { GitHubApi } from './github-api.ts'
-import { verifyGate } from './gate.ts'
+import { previewGateLifecycle, verifyGate } from './gate.ts'
 import {
     resolvePreviewSource,
     eligiblePreviewTriggerRun,
@@ -52,10 +52,9 @@ async function commandGate(): Promise<void> {
         })
         return
     }
-    const gatedPullRequest = await verifyGate(api, expected, true)
-    const lifecycle = previewLifecycle(gatedPullRequest, expected)
+    const lifecycle = await previewGateLifecycle(api, expected)
     if (lifecycle !== 'open')
-        console.log('Pull request closed or superseded during gate; skipping preview publication.')
+        console.log('Pull request is no longer eligible; skipping preview publication.')
     await writeOutputs({
         ...previewOutputs(identity, expected),
         lifecycle,
@@ -128,10 +127,9 @@ async function commandResolve(): Promise<void> {
     if (pullRequestEvaluation.state !== 'success') {
         throw new Error(pullRequestEvaluation.reason)
     }
-    const gatedPullRequest = await verifyGate(api, expected, true)
-    const lifecycle = previewLifecycle(gatedPullRequest, expected)
+    const lifecycle = await previewGateLifecycle(api, expected)
     if (lifecycle !== 'open')
-        console.log('Pull request closed or superseded during gate; skipping preview publication.')
+        console.log('Pull request is no longer eligible; skipping preview publication.')
 
     await writeOutputs({
         ...previewOutputs(identity, expected),

@@ -33,7 +33,10 @@ import {
     previewBuildHasArtifact,
     resolvePreviewSource,
 } from '../../../../../.github/scripts/deploy/pr-preview/workflow.ts'
-import { verifyGate } from '../../../../../.github/scripts/deploy/pr-preview/gate.ts'
+import {
+    previewGateLifecycle,
+    verifyGate,
+} from '../../../../../.github/scripts/deploy/pr-preview/gate.ts'
 import { previewLifecycle } from '../../../../../.github/scripts/deploy/pr-preview/checks.ts'
 
 const headSha = '1'.repeat(40)
@@ -126,9 +129,17 @@ describe('canonical tested source proof', () => {
             snapshot?: Partial<PullRequestSnapshot>
             commit?: unknown
             changedWorkflow?: boolean
+            mainReference?: unknown
+            comparison?: unknown
+            onRequest?: (path: string) => void
         } = {},
     ) {
         return fixtureApi((path) => {
+            options.onRequest?.(path)
+            if (path.endsWith('/git/ref/heads/main'))
+                return options.mainReference === undefined
+                    ? { ref: 'refs/heads/main', object: { type: 'commit', sha: baseSha } }
+                    : options.mainReference
             if (path.includes('/git/commits/'))
                 return (
                     options.commit ?? {
@@ -145,7 +156,13 @@ describe('canonical tested source proof', () => {
                             : 'a'.repeat(40),
                 }
             if (path.includes('/compare/'))
-                return { status: 'ahead', behind_by: 0, merge_base_commit: { sha: baseSha } }
+                return (
+                    options.comparison ?? {
+                        status: 'ahead',
+                        behind_by: 0,
+                        merge_base_commit: { sha: baseSha },
+                    }
+                )
             if (path.includes('/commits/')) return [rawPullRequest(options.snapshot)]
             if (path.endsWith('/pulls/42')) return rawPullRequest(options.snapshot)
             throw new Error('Unexpected source proof fixture request: ' + path)
@@ -162,6 +179,98 @@ describe('canonical tested source proof', () => {
         )
         expect(expected).toEqual(expectedPullRequest)
         expect(previewLifecycle(pullRequest, expected)).toBe('stale')
+    })
+
+    test('uses authoritative main rather than the stale PR snapshot base for source ancestry', async () => {
+        const main = 'e6f6569d50136a9eac0435fadda525fc69d09ca4'
+        const actualProof = { ...proof, testedSha: 'e06e07c77d825c101833f4d943d1aa55eb590f9b' }
+        const current = {
+            ...currentPullRequest(),
+            headSha: '5b91d517f5e14da6b089292da419fbc768a1c2cc',
+            baseSha: 'c1da7ff827617ba5fb423dcd05a1184415ac2afc',
+        }
+        const run = {
+            ...triggerRun,
+            headSha: current.headSha,
+            pullRequests: [
+                {
+                    ...triggerRun.pullRequests[0]!,
+                    headSha: current.headSha,
+                    baseSha: current.baseSha,
+                },
+            ],
+        }
+        const requests: string[] = []
+        const resolved = await resolvePreviewSource(
+            sourceApi({
+                snapshot: current,
+                commit: {
+                    sha: actualProof.testedSha,
+                    parents: [{ sha: main }, { sha: current.headSha }],
+                },
+                mainReference: { ref: 'refs/heads/main', object: { type: 'commit', sha: main } },
+                onRequest: (path) => {
+                    requests.push(path)
+                },
+            }),
+            run,
+            actualProof,
+            {
+                ...metadata,
+                headSha: current.headSha,
+                baseSha: main,
+                testedSha: actualProof.testedSha,
+            },
+        )
+        expect(resolved.expected.baseSha).toBe(main)
+        expect(requests).toContain('/repos/rentnerkev/rentnerproxy/git/ref/heads/main')
+        expect(requests.some((path) => path.includes('/compare/'))).toBe(false)
+        expect(previewLifecycle(resolved.pullRequest, resolved.expected)).toBe('stale')
+    })
+
+    test('requires the canonical base to belong to authoritative main history', async () => {
+        const main = 'e6f6569d50136a9eac0435fadda525fc69d09ca4'
+        const requests: string[] = []
+        const options = {
+            mainReference: { ref: 'refs/heads/main', object: { type: 'commit', sha: main } },
+            onRequest: (path: string) => {
+                requests.push(path)
+            },
+        }
+        expect(
+            (await resolvePreviewSource(sourceApi(options), triggerRun, proof)).expected.baseSha,
+        ).toBe(baseSha)
+        expect(requests).toContain(`/repos/rentnerkev/rentnerproxy/compare/${baseSha}...${main}`)
+        await expect(
+            resolvePreviewSource(
+                sourceApi({
+                    ...options,
+                    comparison: {
+                        status: 'diverged',
+                        behind_by: 1,
+                        merge_base_commit: { sha: '4'.repeat(40) },
+                    },
+                }),
+                triggerRun,
+                proof,
+            ),
+        ).rejects.toThrow('not up to date')
+    })
+
+    test('rejects malformed or incorrectly identified authoritative main references', async () => {
+        await Promise.all(
+            [
+                null,
+                {},
+                { ref: 'refs/heads/feature', object: { type: 'commit', sha: baseSha } },
+                { ref: 'refs/heads/main', object: { type: 'tag', sha: baseSha } },
+                { ref: 'refs/heads/main', object: { type: 'commit', sha: 'invalid' } },
+            ].map(async (mainReference) => {
+                await expect(
+                    resolvePreviewSource(sourceApi({ mainReference }), triggerRun, proof),
+                ).rejects.toThrow()
+            }),
+        )
     })
 
     test('accepts live source-run PR links while retaining the immutable old head and merge proof', async () => {
@@ -351,6 +460,8 @@ describe('obsolete preview lifecycle', () => {
                 { baseSha: '4'.repeat(40) },
             ].map(async (change) => {
                 const api = fixtureApi((path) => {
+                    if (path.endsWith('/git/ref/heads/main'))
+                        return { ref: 'refs/heads/main', object: { type: 'commit', sha: baseSha } }
                     expect(path).toBe('/repos/rentnerkev/rentnerproxy/pulls/42')
                     return rawPullRequest(change)
                 })
@@ -369,9 +480,17 @@ describe('obsolete preview lifecycle', () => {
 
     test('current failed checks still fail the gate', async () => {
         const api = fixtureApi((path) => {
+            if (path.endsWith('/git/ref/heads/main'))
+                return { ref: 'refs/heads/main', object: { type: 'commit', sha: baseSha } }
             if (path.endsWith('/pulls/42')) return rawPullRequest()
             if (path.includes('/compare/'))
-                return { status: 'ahead', behind_by: 0, merge_base_commit: { sha: baseSha } }
+                return {
+                    status: 'ahead',
+                    ahead_by: 1,
+                    behind_by: 0,
+                    base_commit: { sha: baseSha },
+                    merge_base_commit: { sha: baseSha },
+                }
             if (path.includes('/rules/'))
                 return [
                     {
@@ -401,6 +520,223 @@ describe('obsolete preview lifecycle', () => {
         await expect(verifyGate(api, expectedPullRequest, true)).rejects.toThrow(
             'Required check failed: CI',
         )
+        await expect(previewGateLifecycle(api, expectedPullRequest)).rejects.toThrow(
+            'Required check failed: CI',
+        )
+    })
+})
+
+describe('preview branch freshness lifecycle', () => {
+    function comparisonApi(comparison: unknown) {
+        return fixtureApi((path) => {
+            if (path.endsWith('/git/ref/heads/main'))
+                return { ref: 'refs/heads/main', object: { type: 'commit', sha: baseSha } }
+            if (path.endsWith('/pulls/42')) return rawPullRequest()
+            if (path.includes('/compare/')) {
+                if (comparison instanceof Error) throw comparison
+                return comparison
+            }
+            throw new Error('Unexpected branch freshness fixture request: ' + path)
+        })
+    }
+
+    const behind = {
+        status: 'behind',
+        ahead_by: 0,
+        behind_by: 2,
+        base_commit: { sha: baseSha },
+        merge_base_commit: { sha: headSha },
+    }
+    const diverged = {
+        status: 'diverged',
+        ahead_by: 1,
+        behind_by: 2,
+        base_commit: { sha: baseSha },
+        merge_base_commit: { sha: '4'.repeat(40) },
+    }
+
+    test('rejects advanced authoritative main even when cached PR base and merge proof still match', async () => {
+        const cachedBase = 'c1da7ff827617ba5fb423dcd05a1184415ac2afc'
+        const main = 'e6f6569d50136a9eac0435fadda525fc69d09ca4'
+        const expected = { ...expectedPullRequest, baseSha: cachedBase }
+        await Promise.all(
+            [testedSha, '4'.repeat(40)].map(async (mergeCommitSha) => {
+                const api = fixtureApi((path) => {
+                    if (path.endsWith('/pulls/42'))
+                        return rawPullRequest({ baseSha: cachedBase, mergeCommitSha })
+                    if (path.endsWith('/git/ref/heads/main'))
+                        return { ref: 'refs/heads/main', object: { type: 'commit', sha: main } }
+                    throw new Error('Unexpected stale main fixture request: ' + path)
+                })
+                expect(await previewGateLifecycle(api, expected)).toBe('stale')
+                await expect(verifyGate(api, expected, false)).rejects.toThrow(
+                    'Main advanced beyond the tested base',
+                )
+            }),
+        )
+        const unrelated = fixtureApi(() =>
+            rawPullRequest({ baseSha: cachedBase, headRepository: 'unrelated/repository' }),
+        )
+        await expect(previewGateLifecycle(unrelated, expected)).rejects.toThrow(
+            'identity does not match',
+        )
+    })
+
+    test('rechecks authoritative main after successful required checks before returning', async () => {
+        function finishingApi() {
+            let references = 0
+            return fixtureApi((path) => {
+                if (path.endsWith('/pulls/42')) return rawPullRequest()
+                if (path.endsWith('/git/ref/heads/main'))
+                    return {
+                        ref: 'refs/heads/main',
+                        object: {
+                            type: 'commit',
+                            sha: ++references >= 3 ? '4'.repeat(40) : baseSha,
+                        },
+                    }
+                if (path.includes('/compare/'))
+                    return {
+                        status: 'ahead',
+                        ahead_by: 1,
+                        behind_by: 0,
+                        base_commit: { sha: baseSha },
+                        merge_base_commit: { sha: baseSha },
+                    }
+                if (path.includes('/rules/'))
+                    return [
+                        {
+                            type: 'required_status_checks',
+                            parameters: {
+                                strict_required_status_checks_policy: true,
+                                required_status_checks: [{ context: 'CI', integration_id: 123 }],
+                            },
+                        },
+                    ]
+                if (path.includes('/check-runs?'))
+                    return {
+                        check_runs: [
+                            {
+                                id: 12,
+                                name: 'CI',
+                                status: 'completed',
+                                conclusion: 'success',
+                                app: { id: 123 },
+                                details_url:
+                                    'https://github.com/rentnerkev/rentnerproxy/actions/runs/11/job/12',
+                            },
+                        ],
+                    }
+                if (path.endsWith('/actions/runs/11'))
+                    return {
+                        id: 11,
+                        workflow_id: 22,
+                        run_attempt: 1,
+                        event: 'pull_request',
+                        name: 'CI',
+                        path: '.github/workflows/ci.yml',
+                        status: 'completed',
+                        conclusion: 'success',
+                        head_sha: headSha,
+                        repository: { full_name: expectedPullRequest.baseRepository },
+                        head_repository: { full_name: expectedPullRequest.headRepository },
+                        pull_requests: [],
+                    }
+                if (path.endsWith('/actions/workflows/22'))
+                    return { id: 22, name: 'CI', path: '.github/workflows/ci.yml', state: 'active' }
+                if (path.includes('/contents/')) return { type: 'file', sha: 'a'.repeat(40) }
+                throw new Error('Unexpected final-main fixture request: ' + path)
+            })
+        }
+        expect(await previewGateLifecycle(finishingApi(), expectedPullRequest)).toBe('stale')
+        await expect(verifyGate(finishingApi(), expectedPullRequest, false)).rejects.toThrow(
+            'Main advanced beyond the tested base',
+        )
+    })
+
+    test('never skips malformed main references or reference API failures', async () => {
+        await Promise.all(
+            [
+                null,
+                {},
+                { ref: 'refs/heads/feature', object: { type: 'commit', sha: baseSha } },
+                { ref: 'refs/heads/main', object: { type: 'blob', sha: baseSha } },
+                { ref: 'refs/heads/main', object: { type: 'commit', sha: 'bad' } },
+                new Error('reference unavailable'),
+            ].map(async (reference) => {
+                const api = fixtureApi((path) => {
+                    if (path.endsWith('/pulls/42')) return rawPullRequest()
+                    if (path.endsWith('/git/ref/heads/main')) {
+                        if (reference instanceof Error) throw reference
+                        return reference
+                    }
+                    throw new Error('Unexpected malformed-ref fixture request')
+                })
+                await expect(previewGateLifecycle(api, expectedPullRequest)).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('marks verified behind and diverged branches stale only for preview gating', async () => {
+        await Promise.all(
+            [behind, diverged].map(async (comparison) => {
+                const api = comparisonApi(comparison)
+                expect(await previewGateLifecycle(api, expectedPullRequest)).toBe('stale')
+                await expect(verifyGate(api, expectedPullRequest, false)).rejects.toThrow(
+                    'branch is behind its base',
+                )
+                await expect(verifyGate(api, expectedPullRequest, true)).rejects.toThrow(
+                    'branch is behind its base',
+                )
+                expect(() => assertPullRequestBranchUpToDate(comparison, baseSha)).toThrow(
+                    'not up to date',
+                )
+            }),
+        )
+    })
+
+    test('never turns malformed, inconsistent or unrelated comparisons into a skip', async () => {
+        await Promise.all(
+            [
+                null,
+                {},
+                { ...behind, ahead_by: undefined },
+                { ...behind, behind_by: undefined },
+                { ...behind, ahead_by: -1 },
+                { ...behind, behind_by: -1 },
+                { ...behind, ahead_by: 1 },
+                { ...behind, behind_by: 0 },
+                { ...behind, status: 'unknown' },
+                { ...behind, status: 'ahead' },
+                { ...behind, base_commit: { sha: '4'.repeat(40) } },
+                { ...behind, base_commit: { sha: 'invalid' } },
+                { ...behind, merge_base_commit: { sha: baseSha } },
+                { ...behind, merge_base_commit: { sha: '4'.repeat(40) } },
+                { ...diverged, ahead_by: 0 },
+                { ...diverged, merge_base_commit: { sha: headSha } },
+                { ...diverged, merge_base_commit: { sha: baseSha } },
+                {
+                    status: 'identical',
+                    ahead_by: 0,
+                    behind_by: 0,
+                    base_commit: { sha: baseSha },
+                    merge_base_commit: { sha: baseSha },
+                },
+            ].map(async (comparison) => {
+                await expect(
+                    previewGateLifecycle(comparisonApi(comparison), expectedPullRequest),
+                ).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('propagates API errors even if their text resembles a branch-behind result', async () => {
+        const failure = new Error(
+            'Pull request branch is behind its base; skipping preview publication.',
+        )
+        await expect(
+            previewGateLifecycle(comparisonApi(failure), expectedPullRequest),
+        ).rejects.toBe(failure)
     })
 })
 
