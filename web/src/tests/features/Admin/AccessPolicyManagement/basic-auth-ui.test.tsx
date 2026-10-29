@@ -141,8 +141,6 @@ async function openActionMenu(container: HTMLElement): Promise<void> {
                 cancelable: true,
             }),
         )
-        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-        trigger?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
         await Promise.resolve()
     })
     await waitFor(() => document.querySelector('[role="menu"]') !== null)
