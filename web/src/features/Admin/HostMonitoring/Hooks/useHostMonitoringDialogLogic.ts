@@ -117,7 +117,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             setAccessRevoked(true)
     }, [policyQuery.error, historyQuery.error])
     // oxlint-enable react/set-state-in-effect
-    const policy = forbidden || policyQuery.isError ? null : (policyQuery.data ?? null)
+    const policy = forbidden ? null : (policyQuery.data ?? null)
     const defaultSettings = useMemo<HostMonitoringSettings>(
         () => ({ ...HOST_MONITORING_DEFAULTS, domain: domains[0]?.value ?? '' }),
         [domains],
@@ -224,10 +224,15 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         dirty,
     ])
     // oxlint-enable react/set-state-in-effect
-    const pages = forbidden || historyQuery.isError ? [] : (historyQuery.data?.pages ?? [])
-    const observations = pages
-        .flatMap((page) => page.observations)
-        .slice(0, HOST_MONITORING_UI.historyLoadedLimit)
+    const observations = useMemo(
+        () =>
+            forbidden
+                ? []
+                : (historyQuery.data?.pages
+                      .flatMap((page) => page.observations)
+                      .slice(0, HOST_MONITORING_UI.historyLoadedLimit) ?? []),
+        [forbidden, historyQuery.data],
+    )
     const formatter = useMemo(
         () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }),
         [locale],
@@ -318,8 +323,8 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         domains,
         policy,
         loading: enabled && policyQuery.isPending,
-        error: policyQuery.isError,
-        historyError: historyQuery.isError,
+        error: policyQuery.isError && policyQuery.data === undefined,
+        historyError: historyQuery.isError && historyQuery.data === undefined,
         historyLoading: historyQuery.isPending,
         observations,
         status,

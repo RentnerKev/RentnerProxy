@@ -55,6 +55,16 @@ const props: HostMonitoringDialogProps = {
         updatedAt: new Date(),
     },
 }
+const historyObservation = {
+    id: hostId,
+    policyId: version,
+    policyVersion: version,
+    checkedAt: policy.lastCheckedAt,
+    status: 'healthy',
+    code: 'expected_status',
+    durationMs: 40,
+    httpStatus: 200,
+}
 let root: Root | null = null
 let client: InstanceType<typeof QueryClient>
 let logic: ReturnType<typeof useHostMonitoringDialogLogic>
@@ -375,4 +385,64 @@ test('rolling history refreshes its first-page window and keeps pagination on th
     } finally {
         clock.mockRestore()
     }
+})
+
+test('failed background polls retain cached checks, stable chart data and a dirty draft; private errors still clear them', async () => {
+    responseHistory = { observations: [historyObservation], incidents: [], nextCursor: null }
+    await render()
+    const cachedObservations = logic.state.observations
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 90)
+    })
+    expect(logic.state.observations === cachedObservations).toBe(true)
+    getStatus = 503
+    await act(async () => {
+        await client.refetchQueries({ queryKey: hostMonitoringQueryKeys.all })
+    })
+    await flush()
+    expect(logic.state.error).toBe(false)
+    expect(logic.state.historyError).toBe(false)
+    expect(logic.state.policy?.version).toBe(version)
+    expect(logic.state.observations === cachedObservations).toBe(true)
+    expect(logic.form.getFieldValue('intervalSeconds')).toBe(90)
+    expect(logic.state.dirty).toBe(true)
+    getStatus = 403
+    await act(async () => {
+        await client.refetchQueries({ queryKey: hostMonitoringQueryKeys.all })
+    })
+    await flush()
+    expect(logic.state.canView).toBe(false)
+    expect(logic.state.policy).toBeNull()
+    expect(logic.state.observations).toHaveLength(0)
+    expect(logic.form.getFieldValue('domain')).toBe('')
+})
+
+test('a failed background refresh keeps the actual settings form and chart mounted', async () => {
+    responseHistory = { observations: [historyObservation], incidents: [], nextCursor: null }
+    await render(props, true)
+    const chart = document.querySelector('svg[aria-label="Response duration"]')!
+    const settings = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+        (tab) => tab.textContent?.trim() === 'Settings',
+    )!
+    await act(async () => settings.click())
+    const form = document.querySelector('form')!
+    expect(form === null).toBe(false)
+    getStatus = 503
+    await act(async () => {
+        await client.refetchQueries({ queryKey: hostMonitoringQueryKeys.all })
+    })
+    await flush()
+    expect(form.isConnected).toBe(true)
+    expect(chart.isConnected).toBe(true)
+    expect(document.body.textContent).not.toContain('Monitoring could not be loaded.')
+})
+
+test('an initial load failure still blocks the dialog when there is no cached data', async () => {
+    getStatus = 503
+    await render(props, true)
+    await flush()
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+        'Monitoring could not be loaded.',
+    )
+    expect(document.querySelector('form') === null).toBe(true)
 })
