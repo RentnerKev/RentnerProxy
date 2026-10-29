@@ -273,9 +273,9 @@ export async function verifyGate(
     const deadline = Date.now() + timeoutSeconds * 1_000
     const initialPullRequest = await fetchPullRequest(api, expected.number)
     const initialEvaluation = evaluatePullRequest(initialPullRequest, expected)
-    if (initialEvaluation.state === 'closed') {
+    if (initialEvaluation.state === 'closed' || initialEvaluation.state === 'stale') {
         if (waitForChecks) return initialPullRequest
-        throw new Error('Pull request is closed; refusing to revalidate publication.')
+        throw new Error('Pull request is closed or stale; refusing to revalidate publication.')
     }
     if (initialEvaluation.state === 'failed') {
         throw new Error(initialEvaluation.reason)
@@ -288,9 +288,9 @@ export async function verifyGate(
         // eslint-disable-next-line no-await-in-loop -- the gate intentionally polls current PR state
         const pullRequest = await fetchPullRequest(api, expected.number)
         const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
-        if (pullRequestEvaluation.state === 'closed') {
+        if (pullRequestEvaluation.state === 'closed' || pullRequestEvaluation.state === 'stale') {
             if (waitForChecks) return pullRequest
-            throw new Error('Pull request is closed; refusing to revalidate publication.')
+            throw new Error('Pull request is closed or stale; refusing to revalidate publication.')
         }
         if (pullRequestEvaluation.state === 'failed') {
             throw new Error(pullRequestEvaluation.reason)
@@ -312,9 +312,11 @@ export async function verifyGate(
                 // eslint-disable-next-line no-await-in-loop -- the lifecycle must be current before returning a successful gate
                 const currentPullRequest = await fetchPullRequest(api, expected.number)
                 const currentEvaluation = evaluatePullRequest(currentPullRequest, expected)
-                if (currentEvaluation.state === 'closed') {
+                if (currentEvaluation.state === 'closed' || currentEvaluation.state === 'stale') {
                     if (waitForChecks) return currentPullRequest
-                    throw new Error('Pull request is closed; refusing to revalidate publication.')
+                    throw new Error(
+                        'Pull request is closed or stale; refusing to revalidate publication.',
+                    )
                 }
                 if (currentEvaluation.state !== 'success') {
                     throw new Error(currentEvaluation.reason)

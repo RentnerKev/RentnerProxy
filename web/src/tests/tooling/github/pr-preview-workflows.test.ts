@@ -84,6 +84,7 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
             'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts gate',
         )
         expect(build).toContain('lifecycle: ${{ steps.gate.outputs.lifecycle }}')
+        expect(build).toContain("if: needs.verify.outputs.lifecycle == 'open'")
         expect(build).toContain('name: pr-preview-source')
         expect(build).toContain('group: pr-preview-build-${{ needs.verify.outputs.pr_number }}')
         expect(build).not.toContain('group: pr-preview-build-${{ github.event.workflow_run.id }}')
@@ -135,11 +136,9 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(helper).toContain(
             'resolveWorkflowPullRequest(api, workflowRun, proof.pullRequestNumber)',
         )
-        expect(helper).toContain(
-            'resolveWorkflowPullRequest(api, triggerRun, proof.pullRequestNumber)',
-        )
+        expect(helper).toContain('resolvePreviewSource(api, triggerRun, proof, metadata)')
         expect(helper).toContain('assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)')
-        expect(helper).toContain('assertWorkflowRunPullRequest(triggerRun.pullRequests, expected)')
+        expect(helper).toContain('resolvePreviewSource(api, workflowRun, proof)')
         expect(helper).not.toContain('associatedPullRequestNumbers')
         expect(helper).toContain('/actions/runs/')
         expect(helper).toContain('Required workflow was changed by the pull request')
@@ -167,6 +166,25 @@ describe('trusted PR preview publisher workflow', () => {
         expect(publisher.match(/if: needs\.resolve\.outputs\.lifecycle == 'open'/gmu)).toHaveLength(
             2,
         )
+    })
+
+    test('guards every handoff download and resolution step after a verified skipped build', async () => {
+        const publisher = await workflow('pr-preview-publish.yml')
+        expect(publisher).toContain('id: preflight')
+        expect(
+            publisher.match(/if: steps\.preflight\.outputs\.eligible == 'true'/gmu),
+        ).toHaveLength(5)
+        for (const step of [
+            'Download exact handoff artifact for resolution',
+            'Read validated handoff identity',
+            'Verify PR trigger and SHA-proof artifact envelope',
+            'Download exact tested merge SHA',
+            'Resolve PR and recheck required checks',
+        ]) {
+            expect(publisher).toContain(
+                `- name: ${step}\n              if: steps.preflight.outputs.eligible == 'true'`,
+            )
+        }
     })
 
     test('checks out only trusted workflow code and never executes the OCI image', async () => {

@@ -22,7 +22,19 @@ import {
     selectPreviewComment,
     validateFullSha,
 } from '../../../../../.github/scripts/deploy/pr-preview.ts'
-import type { PreviewArtifactMetadata } from '../../../../../.github/scripts/deploy/Types/pr-preview.types.ts'
+import type {
+    PreviewArtifactMetadata,
+    WorkflowRun,
+    PullRequestSnapshot,
+} from '../../../../../.github/scripts/deploy/Types/pr-preview.types.ts'
+import { GitHubApi } from '../../../../../.github/scripts/deploy/pr-preview/github-api.ts'
+import {
+    resolveWorkflowPullRequest,
+    previewBuildHasArtifact,
+    resolvePreviewSource,
+} from '../../../../../.github/scripts/deploy/pr-preview/workflow.ts'
+import { verifyGate } from '../../../../../.github/scripts/deploy/pr-preview/gate.ts'
+import { previewLifecycle } from '../../../../../.github/scripts/deploy/pr-preview/checks.ts'
 
 const headSha = '1'.repeat(40)
 const baseSha = '2'.repeat(40)
@@ -52,6 +64,491 @@ const expectedPullRequest = {
     number: 42,
     testedSha,
 } as const
+
+function rawPullRequest(changes: Partial<PullRequestSnapshot> = {}) {
+    const value = { ...currentPullRequest(), ...changes }
+    return {
+        number: value.number,
+        state: value.state,
+        draft: value.draft,
+        base: { ref: value.baseRef, sha: value.baseSha, repo: { full_name: value.baseRepository } },
+        head: {
+            sha: value.headSha,
+            repo: value.headRepository ? { full_name: value.headRepository } : null,
+        },
+        mergeable: value.mergeable,
+        merge_commit_sha: value.mergeCommitSha,
+    }
+}
+
+function fixtureApi(respond: (path: string) => unknown) {
+    const api = new GitHubApi(expectedPullRequest.baseRepository, 'synthetic-fixture-token')
+    api.request = async (path) => respond(path)
+    return api
+}
+
+const triggerRun: WorkflowRun = {
+    id: 101,
+    workflowId: 202,
+    runAttempt: 3,
+    name: 'PR Preview Source',
+    path: '.github/workflows/pr-preview-source.yml',
+    event: 'pull_request',
+    status: 'completed',
+    conclusion: 'success',
+    repository: expectedPullRequest.baseRepository,
+    headRepository: expectedPullRequest.headRepository,
+    headSha,
+    pullRequests: [{ ...expectedPullRequest }],
+}
+
+describe('canonical tested source proof', () => {
+    const proof = { pullRequestNumber: 42, testedSha }
+    const metadata: PreviewArtifactMetadata = {
+        artifactName: 'pr-preview-image',
+        schemaVersion: 1,
+        repository: expectedPullRequest.baseRepository,
+        baseSha,
+        headRepository: expectedPullRequest.headRepository,
+        headSha,
+        testedSha,
+        pullRequestNumber: 42,
+        triggerRunId: triggerRun.id,
+        runId: 303,
+        runAttempt: 1,
+        createdAt: '2026-10-29T00:00:00Z',
+        ociSha256: 'a'.repeat(64),
+        platform: 'linux/amd64',
+    }
+
+    function sourceApi(
+        options: {
+            snapshot?: Partial<PullRequestSnapshot>
+            commit?: unknown
+            changedWorkflow?: boolean
+        } = {},
+    ) {
+        return fixtureApi((path) => {
+            if (path.includes('/git/commits/'))
+                return (
+                    options.commit ?? {
+                        sha: testedSha,
+                        parents: [{ sha: baseSha }, { sha: headSha }],
+                    }
+                )
+            if (path.includes('/contents/'))
+                return {
+                    type: 'file',
+                    sha:
+                        options.changedWorkflow && path.endsWith(testedSha)
+                            ? 'b'.repeat(40)
+                            : 'a'.repeat(40),
+                }
+            if (path.includes('/compare/'))
+                return { status: 'ahead', behind_by: 0, merge_base_commit: { sha: baseSha } }
+            if (path.includes('/commits/')) return [rawPullRequest(options.snapshot)]
+            if (path.endsWith('/pulls/42')) return rawPullRequest(options.snapshot)
+            throw new Error('Unexpected source proof fixture request: ' + path)
+        })
+    }
+
+    test('uses the historical tested merge base for a fork run without PR metadata', async () => {
+        const { pullRequest, expected } = await resolvePreviewSource(
+            sourceApi({
+                snapshot: { baseSha: '4'.repeat(40), mergeCommitSha: '5'.repeat(40) },
+            }),
+            { ...triggerRun, pullRequests: [] },
+            proof,
+        )
+        expect(expected).toEqual(expectedPullRequest)
+        expect(previewLifecycle(pullRequest, expected)).toBe('stale')
+    })
+
+    test('accepts live source-run PR links while retaining the immutable old head and merge proof', async () => {
+        const oldHead = 'aedaa80f0b0b81e16550236a3ab29322fcbca90f'
+        const current = {
+            ...currentPullRequest(),
+            headSha: '977f2eb4d7302baa40cf1fd33cd97011d24bcee3',
+            baseSha: 'c1da7ff827617ba5fb423dcd05a1184415ac2afc',
+            mergeCommitSha: '6'.repeat(40),
+        }
+        const run = {
+            ...triggerRun,
+            headSha: oldHead,
+            pullRequests: [
+                {
+                    number: current.number,
+                    baseRepository: current.baseRepository,
+                    baseRef: current.baseRef,
+                    baseSha: current.baseSha,
+                    headRepository: current.headRepository,
+                    headSha: current.headSha,
+                },
+            ],
+        }
+        const options = {
+            snapshot: current,
+            commit: { sha: testedSha, parents: [{ sha: baseSha }, { sha: oldHead }] },
+        }
+        const canonicalMetadata = { ...metadata, headSha: oldHead }
+        const resolved = await resolvePreviewSource(
+            sourceApi(options),
+            run,
+            proof,
+            canonicalMetadata,
+        )
+        expect(resolved.expected).toEqual({ ...expectedPullRequest, headSha: oldHead })
+        expect(previewLifecycle(resolved.pullRequest, resolved.expected)).toBe('stale')
+        await expect(
+            resolvePreviewSource(sourceApi(options), run, proof, {
+                ...canonicalMetadata,
+                headSha: current.headSha,
+                baseSha: current.baseSha,
+            }),
+        ).rejects.toThrow('artifact source does not match')
+        await Promise.all(
+            [
+                { headSha: '7'.repeat(40) },
+                { baseSha: '7'.repeat(40) },
+                { headSha: oldHead, baseSha: current.baseSha },
+                { headSha: current.headSha, baseSha },
+            ].map(async (change) => {
+                await expect(
+                    resolvePreviewSource(
+                        sourceApi(options),
+                        {
+                            ...run,
+                            pullRequests: [{ ...run.pullRequests[0]!, ...change }],
+                        },
+                        proof,
+                        canonicalMetadata,
+                    ),
+                ).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('rejects well-formed altered artifact identities before a closed or superseded skip', async () => {
+        await Promise.all(
+            (['open', 'closed'] as const).map(async (state) => {
+                const options = { snapshot: { state, headSha: '4'.repeat(40) } }
+                const verified = await resolvePreviewSource(
+                    sourceApi(options),
+                    triggerRun,
+                    proof,
+                    metadata,
+                )
+                expect(previewLifecycle(verified.pullRequest, verified.expected)).not.toBe('open')
+                await Promise.all(
+                    [
+                        { baseSha: '5'.repeat(40) },
+                        { headSha: '5'.repeat(40) },
+                        { testedSha: '5'.repeat(40) },
+                        { headRepository: 'other/repository' },
+                        { repository: 'other/repository' },
+                        { pullRequestNumber: 43 },
+                        { triggerRunId: 102 },
+                    ].map(async (change) => {
+                        await expect(
+                            resolvePreviewSource(sourceApi(options), triggerRun, proof, {
+                                ...metadata,
+                                ...change,
+                            }),
+                        ).rejects.toThrow('artifact source does not match')
+                    }),
+                )
+            }),
+        )
+    })
+
+    test('rejects mismatched merge SHA, parent identities, cardinality and source run base', async () => {
+        await Promise.all(
+            [
+                { sha: '4'.repeat(40), parents: [{ sha: baseSha }, { sha: headSha }] },
+                { sha: testedSha, parents: [] },
+                { sha: testedSha, parents: [{ sha: headSha }] },
+                {
+                    sha: testedSha,
+                    parents: [{ sha: baseSha }, { sha: headSha }, { sha: '4'.repeat(40) }],
+                },
+                { sha: testedSha, parents: [{ sha: headSha }, { sha: baseSha }] },
+                { sha: testedSha, parents: [{ sha: baseSha }, { sha: '4'.repeat(40) }] },
+                { sha: testedSha, parents: [{ sha: headSha }, { sha: headSha }] },
+                { sha: testedSha, parents: [{ sha: '4'.repeat(40) }, { sha: headSha }] },
+            ].map(async (commit) => {
+                await expect(
+                    resolvePreviewSource(
+                        sourceApi({ snapshot: { state: 'closed' }, commit }),
+                        triggerRun,
+                        proof,
+                    ),
+                ).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('never skips the unchanged producer workflow check for obsolete PRs', async () => {
+        await expect(
+            resolvePreviewSource(
+                sourceApi({
+                    snapshot: { state: 'closed' },
+                    changedWorkflow: true,
+                }),
+                triggerRun,
+                proof,
+            ),
+        ).rejects.toThrow('Required workflow was changed')
+    })
+})
+
+describe('obsolete preview lifecycle', () => {
+    test('resolves closed and superseded PRs only with the original source run association', async () => {
+        await Promise.all(
+            (['open', 'closed'] as const).map(async (state) => {
+                const api = fixtureApi(() => rawPullRequest({ state, headSha: '4'.repeat(40) }))
+                const resolved = await resolveWorkflowPullRequest(api, triggerRun, 42)
+                expect(previewLifecycle(resolved, expectedPullRequest)).toBe(
+                    state === 'closed' ? 'closed' : 'stale',
+                )
+                await expect(
+                    resolveWorkflowPullRequest(
+                        api,
+                        {
+                            ...triggerRun,
+                            pullRequests: [{ ...triggerRun.pullRequests[0]!, number: 43 }],
+                        },
+                        42,
+                    ),
+                ).rejects.toThrow('proof does not match')
+            }),
+        )
+    })
+
+    test('requires a historical commit association when fork run PR metadata is absent', async () => {
+        const historical = rawPullRequest({ headSha: '4'.repeat(40) })
+        const run = { ...triggerRun, pullRequests: [] }
+        const api = fixtureApi((path) => (path.includes('/commits/') ? [historical] : historical))
+        expect((await resolveWorkflowPullRequest(api, run, 42)).headSha).toBe('4'.repeat(40))
+        const unrelated = fixtureApi((path) =>
+            path.includes('/commits/') ? [rawPullRequest({ number: 43 })] : historical,
+        )
+        await expect(resolveWorkflowPullRequest(unrelated, run, 42)).rejects.toThrow(
+            'proof does not match',
+        )
+        const wrongRepository = fixtureApi(() =>
+            rawPullRequest({ state: 'closed', headRepository: 'unrelated/repository' }),
+        )
+        await expect(resolveWorkflowPullRequest(wrongRepository, run, 42)).rejects.toThrow(
+            'Could not resolve',
+        )
+    })
+
+    test('skips obsolete verification but keeps publication revalidation strict', async () => {
+        await Promise.all(
+            [
+                { state: 'closed' as const },
+                { headSha: '4'.repeat(40) },
+                { baseSha: '4'.repeat(40) },
+            ].map(async (change) => {
+                const api = fixtureApi((path) => {
+                    expect(path).toBe('/repos/rentnerkev/rentnerproxy/pulls/42')
+                    return rawPullRequest(change)
+                })
+                expect(
+                    previewLifecycle(
+                        await verifyGate(api, expectedPullRequest, true),
+                        expectedPullRequest,
+                    ),
+                ).not.toBe('open')
+                await expect(verifyGate(api, expectedPullRequest, false)).rejects.toThrow(
+                    'refusing to revalidate publication',
+                )
+            }),
+        )
+    })
+
+    test('current failed checks still fail the gate', async () => {
+        const api = fixtureApi((path) => {
+            if (path.endsWith('/pulls/42')) return rawPullRequest()
+            if (path.includes('/compare/'))
+                return { status: 'ahead', behind_by: 0, merge_base_commit: { sha: baseSha } }
+            if (path.includes('/rules/'))
+                return [
+                    {
+                        type: 'required_status_checks',
+                        parameters: {
+                            strict_required_status_checks_policy: true,
+                            required_status_checks: [{ context: 'CI', integration_id: 123 }],
+                        },
+                    },
+                ]
+            if (path.includes('/check-runs?'))
+                return {
+                    check_runs: [
+                        {
+                            id: 1,
+                            name: 'CI',
+                            status: 'completed',
+                            conclusion: 'failure',
+                            app: { id: 123 },
+                            details_url:
+                                'https://github.com/rentnerkev/rentnerproxy/actions/runs/1/job/2',
+                        },
+                    ],
+                }
+            throw new Error('Unexpected fixture request')
+        })
+        await expect(verifyGate(api, expectedPullRequest, true)).rejects.toThrow(
+            'Required check failed: CI',
+        )
+    })
+})
+
+function skippedBuildFixture(
+    options: {
+        jobs?: unknown[]
+        artifacts?: unknown[]
+        totalCount?: number
+        changedAttempt?: boolean
+        runChanges?: Record<string, unknown>
+    } = {},
+) {
+    let reads = 0
+    const jobs = options.jobs ?? [
+        {
+            id: 1,
+            run_id: 101,
+            head_sha: headSha,
+            name: 'PR Preview / Verify checks',
+            status: 'completed',
+            conclusion: 'success',
+        },
+        {
+            id: 2,
+            run_id: 101,
+            head_sha: headSha,
+            name: 'PR Preview / Build image',
+            status: 'completed',
+            conclusion: 'skipped',
+        },
+    ]
+    return fixtureApi((path) => {
+        if (path.endsWith('/actions/runs/101'))
+            return {
+                id: 101,
+                workflow_id: 202,
+                run_attempt: options.changedAttempt && reads++ > 0 ? 4 : 3,
+                name: 'PR Preview Build',
+                path: '.github/workflows/pr-preview-build.yml',
+                event: 'workflow_run',
+                status: 'completed',
+                conclusion: 'success',
+                repository: { full_name: expectedPullRequest.baseRepository },
+                head_repository: { full_name: expectedPullRequest.baseRepository },
+                head_sha: headSha,
+                pull_requests: [],
+                ...options.runChanges,
+            }
+        if (path.endsWith('/actions/workflows/202'))
+            return {
+                id: 202,
+                name: 'PR Preview Build',
+                path: '.github/workflows/pr-preview-build.yml',
+                state: 'active',
+            }
+        if (path.includes('/artifacts?')) return { artifacts: options.artifacts ?? [] }
+        if (path.includes('/attempts/3/jobs?'))
+            return { total_count: options.totalCount ?? jobs.length, jobs }
+        throw new Error('Unexpected fixture request: ' + path)
+    })
+}
+
+describe('skipped build publisher preflight', () => {
+    test('accepts no artifact only for the verified completed attempt with verify success and build skipped', async () => {
+        expect(await previewBuildHasArtifact(skippedBuildFixture(), 101)).toBe(false)
+        await expect(
+            previewBuildHasArtifact(skippedBuildFixture({ changedAttempt: true }), 101),
+        ).rejects.toThrow('attempt changed')
+        await Promise.all(
+            [
+                { status: 'in_progress' },
+                { conclusion: 'failure' },
+                { id: 102 },
+                { repository: { full_name: 'other/repository' } },
+                { head_repository: null },
+                { head_repository: { full_name: 'other/repository' } },
+            ].map(async (change) => {
+                await expect(
+                    previewBuildHasArtifact(skippedBuildFixture({ runChanges: change }), 101),
+                ).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('rejects missing, duplicate, failed, cancelled, foreign and unknown jobs or a build that really ran', async () => {
+        const verify = {
+            id: 1,
+            run_id: 101,
+            head_sha: headSha,
+            name: 'PR Preview / Verify checks',
+            status: 'completed',
+            conclusion: 'success',
+        }
+        const build = { ...verify, id: 2, name: 'PR Preview / Build image', conclusion: 'skipped' }
+        await Promise.all(
+            [
+                [],
+                [verify],
+                [verify, verify],
+                [build, build],
+                [verify, { ...build, conclusion: 'success' }],
+                [verify, { ...build, conclusion: 'failure' }],
+                [verify, { ...build, conclusion: 'cancelled' }],
+                [{ ...verify, conclusion: 'failure' }, build],
+                [verify, { ...build, run_id: 102 }],
+                [verify, { ...build, head_sha: '4'.repeat(40) }],
+                [verify, { ...build, name: 'Unknown job' }],
+                [verify, { ...build, status: 'queued' }],
+            ].map(async (jobs) => {
+                await expect(
+                    previewBuildHasArtifact(skippedBuildFixture({ jobs }), 101),
+                ).rejects.toThrow()
+            }),
+        )
+    })
+
+    test('still validates any supplied artifact envelope instead of treating tampering as a skip', async () => {
+        const artifact = {
+            name: 'pr-preview-image',
+            digest: 'sha256:' + 'a'.repeat(64),
+            expired: false,
+            size_in_bytes: 123,
+            workflow_run: { id: 101 },
+        }
+        expect(
+            await previewBuildHasArtifact(skippedBuildFixture({ artifacts: [artifact] }), 101),
+        ).toBe(true)
+        await Promise.all(
+            [
+                { name: 'wrong' },
+                { expired: true },
+                { size_in_bytes: 0 },
+                { digest: 'invalid' },
+                { workflow_run: { id: 102 } },
+            ].map(async (change) => {
+                await expect(
+                    previewBuildHasArtifact(
+                        skippedBuildFixture({ artifacts: [{ ...artifact, ...change }] }),
+                        101,
+                    ),
+                ).rejects.toThrow()
+            }),
+        )
+        await expect(
+            previewBuildHasArtifact(skippedBuildFixture({ artifacts: [artifact, artifact] }), 101),
+        ).rejects.toThrow()
+    })
+})
 
 describe('PR preview identity', () => {
     test('generates only moving and immutable PR tags from validated metadata', () => {
@@ -397,14 +894,26 @@ describe('pull request freshness', () => {
                 expectedPullRequest,
             ).state,
         ).toBe('closed')
+        expect(
+            evaluatePullRequest(
+                { ...currentPullRequest(), state: 'closed', headSha: '4'.repeat(40) },
+                expectedPullRequest,
+            ).state,
+        ).toBe('closed')
     })
 
-    test('rejects drafts, invalid lifecycle values, changed heads, and other stale source state', () => {
+    test('classifies superseded source state without authorizing publication', () => {
+        for (const change of [{ headSha: '4'.repeat(40) }, { baseSha: '4'.repeat(40) }]) {
+            const snapshot = { ...currentPullRequest(), ...change }
+            expect(evaluatePullRequest(snapshot, expectedPullRequest).state).toBe('stale')
+            expect(previewLifecycle(snapshot, expectedPullRequest)).toBe('stale')
+        }
+    })
+
+    test('rejects drafts, invalid lifecycle values, and mismatched tested commit identities', () => {
         const changes = [
             { draft: true },
             { headRepository: null },
-            { headSha: '4'.repeat(40) },
-            { baseSha: '4'.repeat(40) },
             { mergeCommitSha: '4'.repeat(40) },
             { mergeable: false },
         ] as const
@@ -419,7 +928,7 @@ describe('pull request freshness', () => {
 
         expect(
             evaluatePullRequest(
-                { ...currentPullRequest(), state: 'closed', headSha: '4'.repeat(40) },
+                { ...currentPullRequest(), state: 'closed', headRepository: 'other/repository' },
                 expectedPullRequest,
             ).state,
         ).toBe('failed')

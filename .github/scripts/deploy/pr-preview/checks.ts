@@ -90,20 +90,26 @@ export function evaluatePullRequest(
     ) {
         return { reason: 'Pull request head repository is unavailable.', state: 'failed' }
     }
-    if (pullRequest.headSha !== expected.headSha) {
-        return { reason: 'Pull request is stale.', state: 'failed' }
-    }
     if (pullRequest.state === 'closed') {
         return { reason: 'Pull request is closed; skipping preview publication.', state: 'closed' }
     }
     if (pullRequest.state !== 'open') {
         return { reason: 'Pull request state is invalid.', state: 'failed' }
     }
+    if (pullRequest.headSha !== expected.headSha) {
+        return {
+            reason: 'Pull request source was superseded; skipping preview publication.',
+            state: 'stale',
+        }
+    }
     if (pullRequest.draft) {
         return { reason: 'Draft pull requests do not publish previews.', state: 'failed' }
     }
     if (pullRequest.baseSha !== expected.baseSha) {
-        return { reason: 'Pull request is stale.', state: 'failed' }
+        return {
+            reason: 'Pull request base advanced; skipping preview publication.',
+            state: 'stale',
+        }
     }
     if (pullRequest.mergeable === null || pullRequest.mergeCommitSha === null) {
         return { reason: 'Pull request mergeability is still being computed.', state: 'pending' }
@@ -115,6 +121,16 @@ export function evaluatePullRequest(
         return { reason: 'Pull request is stale.', state: 'failed' }
     }
     return { reason: 'Pull request is current.', state: 'success' }
+}
+
+export function previewLifecycle(
+    pullRequest: PullRequestSnapshot,
+    expected: ExpectedPullRequest,
+): 'closed' | 'stale' | 'open' {
+    const evaluation = evaluatePullRequest(pullRequest, expected)
+    if (evaluation.state === 'closed' || evaluation.state === 'stale') return evaluation.state
+    if (evaluation.state === 'success') return 'open'
+    throw new Error(evaluation.reason)
 }
 
 export function assertPullRequestBranchUpToDate(

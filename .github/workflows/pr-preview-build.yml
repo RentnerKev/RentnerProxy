@@ -79,6 +79,7 @@ jobs:
 
     build:
         name: PR Preview / Build image
+        if: needs.verify.outputs.lifecycle == 'open'
         needs:
             - verify
         runs-on: ubuntu-latest

@@ -1,18 +1,17 @@
-import type { ExpectedPullRequest } from '../Types/pr-preview.types.ts'
 import {
     normalizeRepository,
     createPreviewIdentity,
     assertPreviewPublishPlan,
     assertMatchingPreviewDigests,
 } from './validation.ts'
-import { evaluatePullRequest } from './checks.ts'
+import { evaluatePullRequest, previewLifecycle } from './checks.ts'
 import { GitHubApi } from './github-api.ts'
-import { assertWorkflowRunPullRequest, verifyWorkflowFileUnchanged, verifyGate } from './gate.ts'
+import { verifyGate } from './gate.ts'
 import {
-    PREVIEW_TRIGGER_WORKFLOW_PATH,
-    resolveWorkflowPullRequest,
+    resolvePreviewSource,
     eligiblePreviewTriggerRun,
     eligiblePreviewBuildRun,
+    previewBuildHasArtifact,
 } from './workflow.ts'
 import {
     readTriggerProof,
@@ -37,36 +36,26 @@ async function commandGate(): Promise<void> {
     if (workflowRun.headRepository === null)
         throw new Error('Could not resolve pull request trigger.')
     const proof = await readTriggerProof(environment('SOURCE_PROOF_DIRECTORY'))
-    const pullRequest = await resolveWorkflowPullRequest(api, workflowRun, proof.pullRequestNumber)
-    const expected: ExpectedPullRequest = {
-        baseRef: pullRequest.baseRef,
-        baseRepository: repository,
-        baseSha: pullRequest.baseSha,
-        headRepository: workflowRun.headRepository,
-        headSha: workflowRun.headSha,
-        number: pullRequest.number,
-        testedSha: proof.testedSha,
-    }
+    const { pullRequest, expected } = await resolvePreviewSource(api, workflowRun, proof)
     const identity = createPreviewIdentity(
         expected.baseRepository,
         expected.number,
         expected.testedSha,
     )
-    if (pullRequest.state === 'closed') {
-        console.log('Pull request is closed; skipping preview publication.')
+    const initialEvaluation = evaluatePullRequest(pullRequest, expected)
+    if (initialEvaluation.state === 'closed' || initialEvaluation.state === 'stale') {
+        console.log(initialEvaluation.reason)
         await writeOutputs({
             ...previewOutputs(identity, expected),
-            lifecycle: 'closed',
+            lifecycle: initialEvaluation.state,
             trigger_run_id: workflowRun.id,
         })
         return
     }
-    assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)
-    await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
     const gatedPullRequest = await verifyGate(api, expected, true)
-    const lifecycle = gatedPullRequest.state
-    if (lifecycle === 'closed')
-        console.log('Pull request closed during gate; skipping preview publication.')
+    const lifecycle = previewLifecycle(gatedPullRequest, expected)
+    if (lifecycle !== 'open')
+        console.log('Pull request closed or superseded during gate; skipping preview publication.')
     await writeOutputs({
         ...previewOutputs(identity, expected),
         lifecycle,
@@ -86,8 +75,13 @@ async function commandPreflight(): Promise<void> {
     const repository = normalizeRepository(environment('REPOSITORY'))
     const runId = environmentPositiveInteger('SOURCE_RUN_ID')
     const api = new GitHubApi(repository, environment('GITHUB_TOKEN'))
-    await eligiblePreviewBuildRun(api, runId)
-    console.log('Source workflow and artifact envelope are eligible.')
+    const eligible = await previewBuildHasArtifact(api, runId)
+    await writeOutputs({ eligible: String(eligible) })
+    console.log(
+        eligible
+            ? 'Source workflow and artifact envelope are eligible.'
+            : 'Trusted preview build was skipped; no artifact will be published.',
+    )
 }
 
 async function commandArtifactIdentity(): Promise<void> {
@@ -107,15 +101,6 @@ async function commandResolve(): Promise<void> {
     const { artifact, workflowRun } = await eligiblePreviewBuildRun(api, runId)
     const metadata = await readArtifactDirectory(environment('ARTIFACT_DIRECTORY'))
     validateBuildArtifactMetadata(metadata, repository, workflowRun)
-    const expected: ExpectedPullRequest = {
-        baseRef: 'main',
-        baseRepository: repository,
-        baseSha: metadata.baseSha,
-        headRepository: metadata.headRepository,
-        headSha: metadata.headSha,
-        number: metadata.pullRequestNumber,
-        testedSha: metadata.testedSha,
-    }
     const { workflowRun: triggerRun } = await eligiblePreviewTriggerRun(api, metadata.triggerRunId)
     const proof = await readTriggerProof(environment('SOURCE_PROOF_DIRECTORY'))
     if (proof.testedSha !== metadata.testedSha) {
@@ -124,16 +109,16 @@ async function commandResolve(): Promise<void> {
     if (proof.pullRequestNumber !== metadata.pullRequestNumber) {
         throw new Error('Pull request proof does not match the preview artifact.')
     }
-    const pullRequest = await resolveWorkflowPullRequest(api, triggerRun, proof.pullRequestNumber)
+    const { pullRequest, expected } = await resolvePreviewSource(api, triggerRun, proof, metadata)
     const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
     const identity = createPreviewIdentity(repository, expected.number, expected.testedSha)
-    if (pullRequestEvaluation.state === 'closed') {
-        console.log('Pull request is closed; skipping preview publication.')
+    if (pullRequestEvaluation.state === 'closed' || pullRequestEvaluation.state === 'stale') {
+        console.log(pullRequestEvaluation.reason)
         await writeOutputs({
             ...previewOutputs(identity, expected),
             artifact_digest: artifact.digest,
             artifact_size: artifact.sizeInBytes,
-            lifecycle: 'closed',
+            lifecycle: pullRequestEvaluation.state,
             run_attempt: workflowRun.runAttempt,
             run_id: workflowRun.id,
             trigger_run_id: metadata.triggerRunId,
@@ -143,12 +128,10 @@ async function commandResolve(): Promise<void> {
     if (pullRequestEvaluation.state !== 'success') {
         throw new Error(pullRequestEvaluation.reason)
     }
-    assertWorkflowRunPullRequest(triggerRun.pullRequests, expected)
-    await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
     const gatedPullRequest = await verifyGate(api, expected, true)
-    const lifecycle = gatedPullRequest.state
-    if (lifecycle === 'closed')
-        console.log('Pull request closed during gate; skipping preview publication.')
+    const lifecycle = previewLifecycle(gatedPullRequest, expected)
+    if (lifecycle !== 'open')
+        console.log('Pull request closed or superseded during gate; skipping preview publication.')
 
     await writeOutputs({
         ...previewOutputs(identity, expected),

@@ -61,7 +61,7 @@ export interface ExpectedPullRequest {
 
 export interface PullRequestEvaluation {
     readonly reason: string
-    readonly state: 'closed' | 'failed' | 'pending' | 'success'
+    readonly state: 'closed' | 'stale' | 'failed' | 'pending' | 'success'
 }
 
 export interface PreviewComment {

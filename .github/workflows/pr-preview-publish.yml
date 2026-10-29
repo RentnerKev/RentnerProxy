@@ -58,6 +58,7 @@ jobs:
                   bun-version: ${{ env.BUN_VERSION }}
 
             - name: Verify source workflow and artifact envelope
+              id: preflight
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
@@ -65,6 +66,7 @@ jobs:
               run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts preflight
 
             - name: Download exact handoff artifact for resolution
+              if: steps.preflight.outputs.eligible == 'true'
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   github-token: ${{ github.token }}
@@ -74,6 +76,7 @@ jobs:
                   run-id: ${{ github.event.workflow_run.id }}
 
             - name: Read validated handoff identity
+              if: steps.preflight.outputs.eligible == 'true'
               id: handoff
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-resolve
@@ -83,6 +86,7 @@ jobs:
               run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts artifact-identity
 
             - name: Verify PR trigger and SHA-proof artifact envelope
+              if: steps.preflight.outputs.eligible == 'true'
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
@@ -90,6 +94,7 @@ jobs:
               run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight
 
             - name: Download exact tested merge SHA
+              if: steps.preflight.outputs.eligible == 'true'
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   github-token: ${{ github.token }}
@@ -99,6 +104,7 @@ jobs:
                   run-id: ${{ steps.handoff.outputs.trigger_run_id }}
 
             - name: Resolve PR and recheck required checks
+              if: steps.preflight.outputs.eligible == 'true'
               id: resolve
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-resolve
