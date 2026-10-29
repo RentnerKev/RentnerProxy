@@ -146,34 +146,22 @@ pub(super) async fn write(
     address: IpAddr,
     existing: Option<&Record>,
 ) -> Result<Record, Failure> {
+    if existing.is_some() {
+        return Err(Error::UpdatePreconditionUnsupported.into());
+    }
     let subname = subname(target)?;
-    let (method, endpoint, body, ttl) = if let Some(existing) = existing {
-        let component = if subname.is_empty() { "@" } else { subname };
-        (
-            Method::PATCH,
-            url(
-                provider,
-                target,
-                &format!("rrsets/{component}/{}/", target.record_type.as_str()),
-            )?,
-            serde_json::json!({"records": [address.to_string()]}),
-            existing.ttl.ok_or(Error::InvalidProviderResponse)?,
-        )
-    } else {
-        let domain: Domain =
-            request(provider, Method::GET, url(provider, target, "")?, None).await?;
-        if domain.name != target.zone_id || !(1..=86400).contains(&domain.minimum_ttl) {
-            return Err(Error::InvalidProviderResponse.into());
-        }
-        (
-            Method::POST,
-            url(provider, target, "rrsets/")?,
-            serde_json::json!({"subname":subname,"type":target.record_type.as_str(),"ttl":domain.minimum_ttl,"records":[address.to_string()]}),
-            domain.minimum_ttl,
-        )
-    };
-    let acknowledgement: Result<Rrset, Failure> =
-        request(provider, method, endpoint, Some(body)).await;
+    let domain: Domain = request(provider, Method::GET, url(provider, target, "")?, None).await?;
+    if domain.name != target.zone_id || !(1..=86400).contains(&domain.minimum_ttl) {
+        return Err(Error::InvalidProviderResponse.into());
+    }
+    let body = serde_json::json!({"subname":subname,"type":target.record_type.as_str(),"ttl":domain.minimum_ttl,"records":[address.to_string()]});
+    let acknowledgement: Result<Rrset, Failure> = request(
+        provider,
+        Method::POST,
+        url(provider, target, "rrsets/")?,
+        Some(body),
+    )
+    .await;
     let written = acknowledgement.and_then(|rrset| {
         let mut records = convert(rrset, target)?;
         if records.len() != 1 {
@@ -182,8 +170,7 @@ pub(super) async fn write(
         let written = records.remove(0);
         if written.kind != target.record_type.as_str()
             || written.address(target.record_type).ok() != Some(address)
-            || written.ttl != Some(ttl)
-            || existing.is_some_and(|previous| previous.id != written.id)
+            || written.ttl != Some(domain.minimum_ttl)
         {
             return Err(Error::WriteUnconfirmed.into());
         }

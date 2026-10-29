@@ -13,6 +13,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct FixtureConfiguration {
     run_id: String,
+    controller_token: String,
     directory: PathBuf,
     provider_url: String,
     ipv4_url: String,
@@ -30,6 +31,14 @@ async fn beta2_integration_controller() {
     let configuration: FixtureConfiguration =
         serde_json::from_slice(&std::fs::read(configuration_path).unwrap()).unwrap();
     assert!(configuration.run_id.len() == 32);
+    assert!(configuration.controller_token.len() == 64);
+    assert!(
+        configuration
+            .controller_token
+            .bytes()
+            .all(|value| value.is_ascii_hexdigit())
+    );
+    assert_ne!(configuration.controller_token, configuration.run_id);
     assert!(
         configuration
             .run_id
@@ -82,10 +91,17 @@ async fn beta2_integration_controller() {
     runtime.start_recovery_worker().await;
     runtime.start_ddns_scheduler().await;
     runtime.docker_discovery.start().await;
-    let token = Config::from_values(None, Some(&configuration.run_id), None, None, None, false)
-        .unwrap()
-        .controller_token
-        .unwrap();
+    let token = Config::from_values(
+        None,
+        Some(&configuration.controller_token),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap()
+    .controller_token
+    .unwrap();
     let app = app_with_state(AppState::new(runtime.clone(), Some(token)));
     let (stop, stopping) = tokio::sync::oneshot::channel::<()>();
     let server = tokio::spawn(async move {

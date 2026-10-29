@@ -16,29 +16,34 @@ const name = z
         'admin.trustedCas.validation.name',
     )
 
-const pem = z
-    .string()
-    .min(1, 'admin.trustedCas.validation.pem')
-    .refine(
-        (value) => new TextEncoder().encode(value).byteLength <= MAX_TRUSTED_CA_PEM_BYTES,
-        'admin.trustedCas.validation.pemLimit',
-    )
-    .refine(
-        (value) => !/-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----/u.test(value),
-        'admin.trustedCas.validation.pem',
-    )
-    .refine((value) => {
-        const certificates = value.match(
-            /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/gu,
-        )
-        return (
-            certificates !== null &&
-            certificates.join('').replaceAll('\r', '').replaceAll('\n', '') !== '' &&
-            value
-                .replaceAll(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/gu, '')
-                .trim() === ''
-        )
-    }, 'admin.trustedCas.validation.pem')
+const pem = z.string().superRefine((value, context) => {
+    if (
+        value.length > MAX_TRUSTED_CA_PEM_BYTES ||
+        new TextEncoder().encode(value).byteLength > MAX_TRUSTED_CA_PEM_BYTES
+    ) {
+        context.addIssue({ code: 'custom', message: 'admin.trustedCas.validation.pemLimit' })
+        return
+    }
+
+    let inCertificate = false
+    let certificates = 0
+    let valid = true
+    for (const rawLine of value.split('\n')) {
+        const line = rawLine.trim()
+        if (line === '-----BEGIN CERTIFICATE-----' && !inCertificate) {
+            inCertificate = true
+        } else if (line === '-----END CERTIFICATE-----' && inCertificate) {
+            inCertificate = false
+            certificates += 1
+        } else if (line !== '' && (!inCertificate || !/^[A-Za-z0-9+/=]+$/u.test(line))) {
+            valid = false
+            break
+        }
+    }
+    if (!valid || inCertificate || certificates === 0) {
+        context.addIssue({ code: 'custom', message: 'admin.trustedCas.validation.pem' })
+    }
+})
 
 export const trustedCaIdInputSchema = z.strictObject({ trustedCaId: z.uuidv7() })
 export const createTrustedCaInputSchema = z.strictObject({ name, pem })

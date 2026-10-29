@@ -25,7 +25,7 @@ async fn creates_ipv6_with_zone_minimum_ttl_without_ownership_metadata() {
     assert_eq!(result.targets[0].current.as_ref().unwrap().id.len(), 32);
 }
 #[tokio::test]
-async fn adoption_updates_only_records_and_unchanged_normalized_ipv6_is_noop() {
+async fn adoption_refuses_unsafe_updates_and_unchanged_normalized_ipv6_is_noop() {
     let fixture = Fixture::new(vec![
         rrset("AAAA", &["2001:4860:4860::8888"]),
         rrset("TXT", &["\"foreign\""]),
@@ -37,6 +37,19 @@ async fn adoption_updates_only_records_and_unchanged_normalized_ipv6_is_noop() {
         .await
         .unwrap();
     let id = preview.targets[0].current.as_ref().unwrap().id.clone();
+    let approved = request(Selection::Adopt {
+        record_id: id.clone(),
+    });
+    let preview = fixture
+        .engine
+        .execute(&fixture.store, approved, true)
+        .await
+        .unwrap();
+    assert_eq!(preview.targets[0].status, Status::Failed);
+    assert_eq!(
+        preview.targets[0].error,
+        Some(Error::UpdatePreconditionUnsupported)
+    );
     let result = fixture
         .engine
         .execute(
@@ -48,14 +61,15 @@ async fn adoption_updates_only_records_and_unchanged_normalized_ipv6_is_noop() {
         )
         .await
         .unwrap();
-    assert_eq!(result.targets[0].status, Status::Updated);
+    assert_eq!(result.targets[0].status, Status::Failed);
+    assert_eq!(
+        result.targets[0].error,
+        Some(Error::UpdatePreconditionUnsupported)
+    );
     {
         let data = fixture.data.lock().unwrap();
-        assert_eq!(data.methods, vec!["PATCH"]);
-        assert_eq!(
-            data.writes,
-            vec![serde_json::json!({"records":["2001:4860:4860::8844"]})]
-        );
+        assert!(data.methods.is_empty());
+        assert!(data.writes.is_empty());
         assert_eq!(
             data.rrsets.iter().find(|r| r["type"] == "TXT").unwrap()["records"],
             serde_json::json!(["\"foreign\""])
@@ -83,7 +97,66 @@ async fn adoption_updates_only_records_and_unchanged_normalized_ipv6_is_noop() {
         .await
         .unwrap();
     assert_eq!(result.targets[0].status, Status::Unchanged);
-    assert_eq!(fixture.data.lock().unwrap().writes.len(), 1);
+    assert!(fixture.data.lock().unwrap().writes.is_empty());
+}
+
+#[tokio::test]
+async fn replacement_after_the_last_read_cannot_reach_an_owner_type_patch() {
+    let fixture = Fixture::new(vec![rrset("AAAA", &["2001:4860:4860::8888"])]).await;
+    let target = target(Selection::Inspect);
+    let access = fixture
+        .store
+        .record_access(&target.connection_id, &target.zone_id)
+        .await
+        .unwrap();
+    let provider = super::Provider::new(
+        access.provider,
+        reqwest::Client::new(),
+        &access.endpoint,
+        &access.token,
+        tokio::time::Instant::now() + std::time::Duration::from_secs(3),
+    )
+    .unwrap();
+    let observed = super::records(&provider, &target).await.unwrap();
+    {
+        let mut data = fixture.data.lock().unwrap();
+        data.rrsets[0]["created"] = serde_json::json!("2026-02-01T00:00:00Z");
+        data.rrsets[0]["records"] = serde_json::json!(["2001:4860:4860::9999"]);
+    }
+    let result = super::write(
+        &provider,
+        &target,
+        "2001:4860:4860::8844".parse().unwrap(),
+        observed.first(),
+    )
+    .await;
+    assert!(matches!(result, Err(failure) if failure.code == Error::UpdatePreconditionUnsupported));
+    let data = fixture.data.lock().unwrap();
+    assert!(data.methods.is_empty());
+    assert!(data.writes.is_empty());
+    assert_eq!(
+        data.rrsets[0]["records"],
+        serde_json::json!(["2001:4860:4860::9999"])
+    );
+}
+
+#[tokio::test]
+async fn creation_racing_a_foreign_rrset_never_overwrites_it() {
+    let fixture = Fixture::new(vec![]).await;
+    fixture.data.lock().unwrap().replace_before_create = true;
+    let result = fixture
+        .engine
+        .execute(&fixture.store, request(Selection::Create), false)
+        .await
+        .unwrap();
+    assert_eq!(result.targets[0].error, Some(Error::WriteUnconfirmed));
+    let data = fixture.data.lock().unwrap();
+    assert_eq!(data.methods, vec!["POST"]);
+    assert_eq!(data.rrsets.len(), 1);
+    assert_eq!(
+        data.rrsets[0]["records"],
+        serde_json::json!(["2001:4860:4860::9999"])
+    );
 }
 #[tokio::test]
 async fn existing_rrsets_require_adoption_and_multiple_addresses_are_preserved() {

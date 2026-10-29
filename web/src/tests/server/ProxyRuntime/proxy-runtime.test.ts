@@ -510,8 +510,8 @@ describe('controller runtime client', () => {
         }
     })
 
-    test('keeps health unauthenticated while sending Bearer only to privileged endpoints', async () => {
-        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example:8081'
+    test('keeps health unauthenticated while authenticating every internal endpoint', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'A'.repeat(32)
         const current = snapshot()
         const fetchMock = spyOn(globalThis, 'fetch')
@@ -544,13 +544,16 @@ describe('controller runtime client', () => {
         })
         const healthRequest = fetchMock.mock.calls[0]?.[1]
         const statusRequest = fetchMock.mock.calls[1]?.[1]
+        const applyRequest = fetchMock.mock.calls[2]?.[1]
         expect(healthRequest?.headers).not.toHaveProperty('authorization')
         expect(statusRequest?.headers).toMatchObject({ authorization: 'Bearer ' + 'A'.repeat(32) })
+        expect(applyRequest?.headers).toMatchObject({ authorization: 'Bearer ' + 'A'.repeat(32) })
+        expect(fetchMock).toHaveBeenCalledTimes(3)
         fetchMock.mockRestore()
     })
 
     test('refuses privileged requests without a valid token on non-loopback controllers', async () => {
-        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example:8081'
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example:8081'
         delete process.env.RENTNERPROXY_CONTROLLER_TOKEN
         const fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(
             new Error('Unexpected network call in controller token validation test.'),
@@ -567,12 +570,13 @@ describe('controller runtime client', () => {
     })
 
     test('rejects invalid, oversized, redirected, and revision-mismatched responses without leaking errors', async () => {
-        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example:8081'
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'B'.repeat(32)
         const current = snapshot()
         const warnings = spyOn(console, 'warn').mockImplementation(() => undefined)
         const fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(new Error('token=private'))
         expect(await getProxyRuntimeStatus()).toBeNull()
+        expect(fetchMock).toHaveBeenCalledTimes(1)
         expect(warnings.mock.calls.flat().join(' ')).not.toContain('private')
         fetchMock.mockRestore()
         warnings.mockRestore()
@@ -603,6 +607,7 @@ describe('controller runtime client', () => {
         }) as unknown as typeof fetch)
         expect(await getProxyRuntimeStatus()).toBeNull()
         expect(await applyProxyRuntimeConfiguration(current)).toBeNull()
+        expect(responseMock).toHaveBeenCalledTimes(2)
         responseMock.mockRestore()
     })
 })

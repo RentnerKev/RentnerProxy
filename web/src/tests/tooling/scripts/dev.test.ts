@@ -74,6 +74,7 @@ function createHarness(
         requests,
         removedSignals,
         dependencies: {
+            environment: {},
             logger: createLogger({ colors: false, write: () => undefined }),
             platform,
             repositoryRoot: 'C:\\RentnerProxy',
@@ -114,6 +115,7 @@ describe('runDevelopment', () => {
             {
                 command: [process.execPath, '--no-orphans', 'run', '--silent', 'dev:web'],
                 cwd: 'C:\\RentnerProxy',
+                env: expect.any(Object),
                 stdin: 'inherit',
                 stdout: 'inherit',
                 stderr: 'inherit',
@@ -122,12 +124,17 @@ describe('runDevelopment', () => {
             {
                 command: [process.execPath, '--no-orphans', 'run', '--silent', 'dev:core'],
                 cwd: 'C:\\RentnerProxy',
+                env: expect.any(Object),
                 stdin: 'inherit',
                 stdout: 'inherit',
                 stderr: 'inherit',
                 detached: true,
             },
         ])
+        expect(harness.requests[0]!.env).toBe(harness.requests[1]!.env)
+        expect(harness.requests[0]!.env.RENTNERPROXY_CONTROLLER_TOKEN).toMatch(
+            /^[A-Za-z0-9_-]{43}$/u,
+        )
     })
 
     test('handles repeated SIGINT once and removes both signal listeners', async () => {

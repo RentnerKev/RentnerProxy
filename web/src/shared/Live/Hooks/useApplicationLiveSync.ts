@@ -1,5 +1,8 @@
-import type { ApplicationLiveSnapshot } from '../Types/application-live-sync.types.ts'
-import { useCallback, useRef } from 'react'
+import type {
+    ApplicationLiveSnapshot,
+    ApplicationLiveSyncResult,
+} from '../Types/application-live-sync.types.ts'
+import { useCallback, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 
@@ -8,7 +11,6 @@ import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAcces
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
-import type { LiveStatus } from '../../../lib/Live/Types/realtime-events-client.types.ts'
 
 const snapshotsByClient = new WeakMap<QueryClient, ApplicationLiveSnapshot>()
 
@@ -42,20 +44,52 @@ async function refreshApplicationQueries(queryClient: QueryClient): Promise<void
     })
 }
 
-export default function useApplicationLiveSync(): LiveStatus {
+export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
     const queryClient = useQueryClient()
     const router = useRouter()
     const syncGeneration = useRef(0)
+    const identityPending = useRef(false)
+    const [isIdentityPending, setIsIdentityPending] = useState(false)
+    const [hasIdentityError, setHasIdentityError] = useState(false)
+    const [liveGeneration, setLiveGeneration] = useState(0)
+
+    const revalidateIdentity = useCallback(() => {
+        const generation = ++syncGeneration.current
+        identityPending.current = true
+        setIsIdentityPending(true)
+        setHasIdentityError(false)
+        void queryClient.cancelQueries()
+        queryClient.clear()
+        snapshotsByClient.delete(queryClient)
+        void (async () => {
+            try {
+                await router.invalidate()
+            } catch {
+                if (generation === syncGeneration.current) setHasIdentityError(true)
+                return
+            }
+            if (generation !== syncGeneration.current) return
+            identityPending.current = false
+            setIsIdentityPending(false)
+            setLiveGeneration((current) => current + 1)
+            await refreshApplicationQueries(queryClient)
+        })().catch(() => undefined)
+    }, [queryClient, router])
 
     const handleSnapshot = useCallback(
         (snapshot: ApplicationLiveSnapshot) => {
             if (!isApplicationLiveSnapshot(snapshot)) return
+            if (identityPending.current) return
 
             const previous = snapshotsByClient.get(queryClient)
             if (
                 previous?.revision === snapshot.revision &&
                 previous.userVersion === snapshot.userVersion
             ) {
+                return
+            }
+            if (previous && previous.userVersion !== snapshot.userVersion) {
+                revalidateIdentity()
                 return
             }
             snapshotsByClient.set(queryClient, snapshot)
@@ -67,33 +101,17 @@ export default function useApplicationLiveSync(): LiveStatus {
                 await refreshApplicationQueries(queryClient)
             })().catch(() => undefined)
         },
-        [queryClient, router, syncGeneration],
+        [queryClient, router, revalidateIdentity],
     )
 
-    const handleUnauthorized = useCallback(() => {
-        syncGeneration.current += 1
-        void (async () => {
-            await queryClient.cancelQueries()
-            queryClient.clear()
-            await router.invalidate()
-        })().catch(() => undefined)
-    }, [queryClient, router, syncGeneration])
-
-    const handleResume = useCallback(() => {
-        const generation = ++syncGeneration.current
-        void (async () => {
-            await router.invalidate()
-            if (generation !== syncGeneration.current) return
-            await refreshApplicationQueries(queryClient)
-        })().catch(() => undefined)
-    }, [queryClient, router, syncGeneration])
-
-    return useLiveQuery<ApplicationLiveSnapshot>({
+    const status = useLiveQuery<ApplicationLiveSnapshot>({
         topic: 'app-events',
         query: {},
-        enabled: true,
+        enabled: !isIdentityPending,
         onData: handleSnapshot,
-        onUnauthorized: handleUnauthorized,
-        onResume: handleResume,
+        onUnauthorized: revalidateIdentity,
+        onResume: revalidateIdentity,
+        resetKey: liveGeneration,
     })
+    return { status, isIdentityPending, hasIdentityError, retryIdentity: revalidateIdentity }
 }

@@ -7,11 +7,16 @@ fn external_endpoint_is_canonicalized_without_weakening_its_origin() {
         "https://crowdsec.example.test/lapi/"
     );
     assert_eq!(
-        normalize_api_url("http://192.0.2.10:8080/").unwrap(),
-        "http://192.0.2.10:8080/"
+        normalize_api_url("http://127.0.0.1:8080/").unwrap(),
+        "http://127.0.0.1:8080/"
     );
     for invalid in [
         "ftp://crowdsec.example.test/",
+        "http://192.0.2.10:8080/",
+        "http://crowdsec.example.test/",
+        "http://localhost:8080/",
+        "http://127.0.0.1.example.test/",
+        "http://[::ffff:127.0.0.1]/",
         "https://user:password@crowdsec.example.test/",
         "https://crowdsec.example.test/?token=secret",
         "https://crowdsec.example.test/#fragment",
@@ -22,6 +27,10 @@ fn external_endpoint_is_canonicalized_without_weakening_its_origin() {
             Err(CrowdSecError::InvalidConfiguration)
         );
     }
+    assert_eq!(
+        normalize_api_url("http://[::1]:8080/").unwrap(),
+        "http://[::1]:8080/"
+    );
 }
 
 #[test]
@@ -39,6 +48,28 @@ fn bouncer_keys_are_bounded_ascii_tokens_and_redacted_in_debug_output() {
         assert_eq!(
             validate_api_key(&SecretString::new(invalid.to_owned())),
             Err(CrowdSecError::InvalidConfiguration)
+        );
+    }
+}
+
+#[tokio::test]
+async fn provider_probe_rejects_remote_plaintext_before_sending_a_key() {
+    let runtime = ProxyRuntime::new(
+        crate::runtime::RuntimeSettings::new(
+            std::env::temp_dir().join(format!(
+                "rentnerproxy-crowdsec-transport-{}",
+                std::process::id()
+            )),
+            0,
+        ),
+        None,
+    );
+    for url in ["http://192.0.2.1/", "http://crowdsec.example.test/"] {
+        assert_eq!(
+            runtime
+                .probe_lapi(url, &SecretString::new("synthetic-bouncer-key".to_owned()))
+                .await,
+            Err(CrowdSecError::InvalidConfiguration),
         );
     }
 }

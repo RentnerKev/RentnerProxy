@@ -179,8 +179,9 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     expect(result.forwardAuthCache).toBe('private, no-store')
 })
 
-test('application events publish immediately, deduplicate Valkey echoes and clean up subscribers', async () => {
+test('application events coalesce notifications, deduplicate Valkey echoes and clean up subscribers', async () => {
     const script = `
+        const { LIVE_CHANGE_COALESCE_MS } = await import('./config/realtime.config.ts')
         const { getApplicationRevision, publishApplicationChange, subscribeToApplicationChanges, receiveApplicationChange, setApplicationPublisher } = await import('./server/WebSockets/applicationChanges.ts')
         let deliveries = 0
         let published
@@ -189,14 +190,16 @@ test('application events publish immediately, deduplicate Valkey echoes and clea
         setApplicationPublisher(async event => { published = event })
         publishApplicationChange()
         const changed = getApplicationRevision()
+        await new Promise(resolve => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
         receiveApplicationChange(published)
         const afterEcho = deliveries
         receiveApplicationChange({ type: 'application.updated', payload: { version: 'remote-write' } })
         const remote = getApplicationRevision()
+        await new Promise(resolve => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
         unsubscribe()
         setApplicationPublisher(async () => { throw new Error('offline') })
         publishApplicationChange()
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
         console.log(JSON.stringify({ initial, changed, afterEcho, deliveries, remote }))
     `
     const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })

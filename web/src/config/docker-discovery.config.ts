@@ -52,17 +52,6 @@ networks:
     internal: true`
 
 export const DOCKER_DISCOVERY_NATIVE_EXAMPLE = `services:
-  docker-api:
-    image: mirror.gcr.io/library/haproxy:3.2.26@sha256:06843e9d60fcdae4e43ff8e001859249a5352f1b8e522058ce86e6f8cf789507
-    user: "0:0"
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    ports: ["127.0.0.1:2375:2375"]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./docker/discovery/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    networks: [discovery-control]
   example-app:
     image: mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
     user: "1000:1000"
@@ -79,16 +68,14 @@ export const DOCKER_DISCOVERY_NATIVE_EXAMPLE = `services:
     networks: [proxy]
 networks:
   proxy:
-    name: rentnerproxy-proxy
-  discovery-control:
-    internal: true`
+    name: rentnerproxy-proxy`
 
 export const DOCKER_DISCOVERY_GUIDE_EXAMPLES = {
     native: {
         fileName: 'docker-discovery.dev.yml',
         compose: DOCKER_DISCOVERY_NATIVE_EXAMPLE,
         command: 'docker compose -f docker-discovery.dev.yml up -d',
-        endpoint: 'http://127.0.0.1:2375',
+        endpoint: 'unix:///var/run/docker.sock',
     },
     appliance: {
         fileName: 'docker-discovery.override.yml',

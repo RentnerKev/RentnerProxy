@@ -17,10 +17,10 @@ import {
 } from '../../../middleware.ts'
 import type { SerializedRegistrationResponse } from '../../../Types/security.types.ts'
 
-export default function useSecurityOperations() {
+export default function useSecurityOperations(userId: string) {
     const queryClient = useQueryClient()
     const statusQuery = useQuery({
-        queryKey: securityQueryKeys.status,
+        queryKey: securityQueryKeys.status(userId),
         queryFn: getSecurityStatusHandler,
     })
     const [setup, setSetup] = useState<{

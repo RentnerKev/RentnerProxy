@@ -9,6 +9,14 @@ const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 const FILTER: &str = r#"{"label":["rentnerproxy.enable=true"]}"#;
 
 pub(super) fn validate_endpoint(value: &str) -> Result<(), Error> {
+    if value.starts_with("unix:") {
+        unix_socket_path(value)?;
+        return if cfg!(unix) {
+            Ok(())
+        } else {
+            Err(Error::InvalidInput)
+        };
+    }
     let url = Url::parse(value).map_err(|_| Error::InvalidInput)?;
     if value.len() > 512
         || value != value.trim()
@@ -27,6 +35,23 @@ pub(super) fn validate_endpoint(value: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn unix_socket_path(value: &str) -> Result<&str, Error> {
+    let path = value.strip_prefix("unix://").ok_or(Error::InvalidInput)?;
+    if value.len() > 512
+        || value.chars().any(char::is_control)
+        || value.contains(['\\', '?', '#', '%'])
+        || value != value.trim()
+        || !path.starts_with('/')
+        || path
+            .split('/')
+            .skip(1)
+            .any(|part| matches!(part, "" | "." | ".."))
+    {
+        return Err(Error::InvalidInput);
+    }
+    Ok(path)
+}
+
 pub(super) struct Docker {
     client: Client,
     endpoint: Url,
@@ -35,16 +60,33 @@ impl Docker {
     pub(super) fn new(endpoint: &str) -> Result<Self, Error> {
         validate_endpoint(endpoint)?;
         super::super::tls::ensure_crypto_provider();
+        let builder = Client::builder()
+            .retry(reqwest::retry::never())
+            .no_proxy()
+            .redirect(Policy::none())
+            .connect_timeout(Duration::from_secs(3))
+            .pool_max_idle_per_host(2);
+        let (builder, endpoint) = if endpoint.starts_with("unix:") {
+            #[cfg(unix)]
+            {
+                (
+                    builder.unix_socket(unix_socket_path(endpoint)?),
+                    Url::parse("http://localhost/").map_err(|_| Error::InvalidInput)?,
+                )
+            }
+            #[cfg(not(unix))]
+            {
+                return Err(Error::InvalidInput);
+            }
+        } else {
+            (
+                builder,
+                Url::parse(endpoint).map_err(|_| Error::InvalidInput)?,
+            )
+        };
         Ok(Self {
-            client: Client::builder()
-                .retry(reqwest::retry::never())
-                .no_proxy()
-                .redirect(Policy::none())
-                .connect_timeout(Duration::from_secs(3))
-                .pool_max_idle_per_host(2)
-                .build()
-                .map_err(|_| Error::EndpointUnavailable)?,
-            endpoint: Url::parse(endpoint).map_err(|_| Error::InvalidInput)?,
+            client: builder.build().map_err(|_| Error::EndpointUnavailable)?,
+            endpoint,
         })
     }
     // There is deliberately no generic method/body/path API. Only these three GET capabilities

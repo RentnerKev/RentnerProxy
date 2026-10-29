@@ -30,6 +30,7 @@ import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/r
 import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
+import { getApplicationRevision } from '@/server/WebSockets/applicationChanges.ts'
 
 const enabled = process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null
 const integrationTest = enabled ? test : test.skip
@@ -58,6 +59,7 @@ let dedicatedDatabaseVerified = false
 
 function fakeController() {
     const revisions: string[] = []
+    const applicationRevisions: string[] = []
     let validations = 0
     let fingerprint = 'a'
     const server = Bun.serve({
@@ -82,6 +84,7 @@ function fakeController() {
                 })
             }
             if (path === '/internal/v1/proxy/config' && request.method === 'PUT') {
+                applicationRevisions.push(getApplicationRevision())
                 const body = (await request.json()) as { revision: string }
                 revisions.push(body.revision)
                 return Response.json({
@@ -98,6 +101,7 @@ function fakeController() {
     return {
         server,
         revisions,
+        applicationRevisions,
         validationCount: () => validations,
         setFingerprint: (value: string) => {
             fingerprint = value
@@ -221,6 +225,8 @@ describe('trusted CAs with PostgreSQL', () => {
                 .from(trustedCas)
                 .where(eq(trustedCas.id, ca.trustedCaId))
             controller!.revisions.length = 0
+            controller!.applicationRevisions.length = 0
+            const applicationRevisionBeforeBulk = getApplicationRevision()
             const action = { type: 'enable' } as const
             const preview = await asUser(owner, () =>
                 bulkHostServices.preview({ kind: 'proxy', hostIds: [host.id], action }),
@@ -233,6 +239,7 @@ describe('trusted CAs with PostgreSQL', () => {
                     .where(eq(trustedCas.id, ca.trustedCaId)),
             ).toEqual(before)
             expect(controller!.revisions).toHaveLength(0)
+            expect(getApplicationRevision()).toBe(applicationRevisionBeforeBulk)
             const result = await asUser(owner, () =>
                 bulkHostServices.apply({
                     kind: 'proxy',
@@ -248,6 +255,8 @@ describe('trusted CAs with PostgreSQL', () => {
                 .where(eq(proxyHosts.id, host.id))
             expect(persisted?.enabled).toBe(true)
             expect(controller!.revisions).toHaveLength(1)
+            expect(controller!.applicationRevisions).toHaveLength(1)
+            expect(controller!.applicationRevisions[0]).not.toBe(applicationRevisionBeforeBulk)
         },
     )
 

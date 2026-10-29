@@ -82,6 +82,8 @@ fn restoration_rejects_unknown_schema_oversized_and_inconsistent_snapshots() {
         r#"{"version":1,"mode":"external"}"#,
         r#"{"version":1,"mode":"external","apiUrl":"https://example.test/","communityEnabled":true}"#,
         r#"{"version":1,"mode":"external","apiUrl":"https://user:password@example.test/"}"#,
+        r#"{"version":1,"mode":"external","apiUrl":"http://192.0.2.1/"}"#,
+        r#"{"version":1,"mode":"external","apiUrl":"http://crowdsec.example.test/"}"#,
     ] {
         fs::write(fixture.snapshot(), body).unwrap();
         assert_eq!(

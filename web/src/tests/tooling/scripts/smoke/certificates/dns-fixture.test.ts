@@ -1,6 +1,8 @@
+// oxlint-disable no-await-in-loop -- Protocol tests admit clients and deliver fragmented frames in order.
 import { describe, expect, test } from 'bun:test'
-import { createConnection } from 'node:net'
+import { createConnection, type Socket } from 'node:net'
 import { Resolver } from 'node:dns/promises'
+import { once } from 'node:events'
 import {
     dnsFixtureResponse,
     startCertificateDnsFixture,
@@ -23,6 +25,93 @@ function query(name: string, type: number): Buffer {
 }
 
 describe('local certificate DNS fixture', () => {
+    test('limits the number of simultaneously admitted TCP clients', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        const sockets: Socket[] = []
+        let deadline: ReturnType<typeof setTimeout> | undefined
+        try {
+            for (let index = 0; index < 32; index += 1) {
+                const socket = createConnection({ host: '127.0.0.1', port: fixture.dnsPort })
+                sockets.push(socket)
+                socket.on('error', () => undefined)
+                await once(socket, 'connect')
+                socket.setTimeout(2_000, () => socket.destroy(new Error('fixture timed out')))
+                const received = once(socket, 'data')
+                const message = query('example.com', 16)
+                const length = Buffer.alloc(2)
+                length.writeUInt16BE(message.length)
+                socket.write(Buffer.concat([length, message]))
+                await received
+            }
+            const rejected = createConnection({ host: '127.0.0.1', port: fixture.dnsPort })
+            sockets.push(rejected)
+            rejected.on('error', () => undefined)
+            await Promise.race([
+                new Promise<void>((resolve) => rejected.once('close', () => resolve())),
+                new Promise<never>((_, reject) => {
+                    deadline = setTimeout(() => reject(new Error('connection cap missed')), 2_000)
+                }),
+            ])
+            expect(rejected.destroyed).toBe(true)
+        } finally {
+            clearTimeout(deadline)
+            for (const socket of sockets) socket.destroy()
+            fixture.stop()
+        }
+    })
+
+    test('accepts a maximally sized fragmented TCP frame and rejects a zero length frame', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        const socket = createConnection({ host: '127.0.0.1', port: fixture.dnsPort })
+        socket.on('error', () => undefined)
+        try {
+            await once(socket, 'connect')
+            socket.setTimeout(2_000, () => socket.destroy(new Error('fixture timed out')))
+            const frame = Buffer.alloc(65_537)
+            frame.writeUInt16BE(65_535)
+            query('example.com', 16).copy(frame, 2)
+            const received = once(socket, 'data')
+            for (let offset = 0; offset < frame.length; offset += 257) {
+                socket.write(frame.subarray(offset, offset + 257))
+                await new Promise<void>((resolve) => setImmediate(resolve))
+            }
+            const [response] = await received
+            expect((response as Buffer).readUInt16BE(2)).toBe(42)
+            const closed = once(socket, 'close')
+            socket.write(Buffer.alloc(2))
+            await closed
+        } finally {
+            socket.destroy()
+            fixture.stop()
+        }
+    })
+
+    test('expires an incomplete TCP frame even while bytes keep arriving', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        const socket = createConnection({ host: '127.0.0.1', port: fixture.dnsPort })
+        let drip: ReturnType<typeof setInterval> | undefined
+        let deadline: ReturnType<typeof setTimeout> | undefined
+        socket.on('error', () => undefined)
+        try {
+            await once(socket, 'connect')
+            const closed = new Promise<void>((resolve) => socket.once('close', () => resolve()))
+            socket.write(Buffer.from([255, 255]))
+            drip = setInterval(() => socket.write(Buffer.from([0])), 50)
+            await Promise.race([
+                closed,
+                new Promise<never>((_, reject) => {
+                    deadline = setTimeout(() => reject(new Error('frame deadline missed')), 6_000)
+                }),
+            ])
+            expect(socket.destroyed).toBe(true)
+        } finally {
+            clearInterval(drip)
+            clearTimeout(deadline)
+            socket.destroy()
+            fixture.stop()
+        }
+    }, 8_000)
+
     test('resolves CNAME chains, terminal TXT, NS cuts and SOA through a real recursive client', async () => {
         const fixture = await startCertificateDnsFixture('fixture-token')
         const source = '_acme-challenge.customer.invalid'

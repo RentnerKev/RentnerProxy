@@ -310,6 +310,13 @@ impl Engine {
         {
             return Ok(result);
         }
+        if existing.is_some()
+            && provider.provider == crate::runtime::dns::capabilities::ProviderId::Desec
+        {
+            result.status = Status::Failed;
+            result.error = Some(Error::UpdatePreconditionUnsupported);
+            return Ok(result);
+        }
         if preview {
             result.status = if existing.is_some() {
                 Status::WouldUpdate

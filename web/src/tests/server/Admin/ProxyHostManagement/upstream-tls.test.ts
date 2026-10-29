@@ -20,7 +20,10 @@ const BASE_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54019'
 const SECOND_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54020'
 const CA_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54021'
 const CA_FINGERPRINT = 'sha256:' + 'a'.repeat(64)
-const CA_PEM = '-----BEGIN CERTIFICATE-----\nfixture-public-ca-one\n-----END CERTIFICATE-----'
+function fixturePem(material: string): string {
+    return `-----BEGIN CERTIFICATE-----\n${Buffer.from(material).toString('base64')}\n-----END CERTIFICATE-----`
+}
+const CA_PEM = fixturePem('fixture-public-ca-one')
 const CA_ONE: ProxyRuntimeTrustedCa = {
     id: CA_ID,
     pem: CA_PEM,
@@ -248,7 +251,7 @@ describe('upstream TLS runtime snapshots', () => {
     test('sorts hosts, domains, and trusted CAs deterministically', () => {
         const secondCa: ProxyRuntimeTrustedCa = {
             id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54022',
-            pem: '-----BEGIN CERTIFICATE-----\nfixture-public-ca-two\n-----END CERTIFICATE-----',
+            pem: fixturePem('fixture-public-ca-two'),
             fingerprintSha256: 'sha256:' + 'b'.repeat(64),
         }
         const first = snapshot(
@@ -326,7 +329,7 @@ describe('upstream TLS runtime snapshots', () => {
             [
                 {
                     ...CA_ONE,
-                    pem: CA_PEM.replace('one', 'replacement'),
+                    pem: fixturePem('fixture-public-ca-replacement'),
                     fingerprintSha256: 'sha256:' + 'c'.repeat(64),
                 },
             ],

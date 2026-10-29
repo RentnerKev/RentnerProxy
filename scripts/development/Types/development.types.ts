@@ -19,6 +19,7 @@ export interface ManagedProcess {
 export interface SpawnRequest {
     readonly command: string[]
     readonly cwd: string
+    readonly env: NodeJS.ProcessEnv
     readonly detached: boolean
     readonly stderr: 'inherit'
     readonly stdin: 'inherit'
@@ -26,6 +27,7 @@ export interface SpawnRequest {
 }
 
 export interface DevelopmentDependencies {
+    readonly environment: NodeJS.ProcessEnv
     readonly logger: Logger
     readonly offSignal: (signal: ShutdownSignal, handler: () => void) => void
     readonly onSignal: (signal: ShutdownSignal, handler: () => void) => void

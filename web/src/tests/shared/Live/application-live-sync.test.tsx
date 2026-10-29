@@ -15,6 +15,7 @@ import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAcces
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useApplicationLiveSync from '@/shared/Live/Hooks/useApplicationLiveSync.ts'
+import { securityQueryKeys } from '@/lib/UserSettings/userSettingsCache.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -68,8 +69,7 @@ let invalidateSpy: ReturnType<typeof spyOn> | undefined
 let container: HTMLDivElement
 let activeFetches: number
 
-function Probe() {
-    useApplicationLiveSync()
+function ActiveQueryProbe() {
     useQuery({
         queryKey: ['application-live', 'active'],
         queryFn: async () => {
@@ -78,6 +78,26 @@ function Probe() {
         },
     })
     return null
+}
+
+function Probe() {
+    const { isIdentityPending, hasIdentityError, retryIdentity } = useApplicationLiveSync()
+    return (
+        <div>
+            {hasIdentityError ? (
+                <button type="button" onClick={retryIdentity}>
+                    Retry identity
+                </button>
+            ) : isIdentityPending ? (
+                'Identity pending'
+            ) : (
+                <>
+                    <ActiveQueryProbe />
+                    Identity ready
+                </>
+            )}
+        </div>
+    )
 }
 
 async function flush() {
@@ -193,6 +213,93 @@ test('clears queries and revalidates the router when the live connection is unau
     await act(async () => socket.deliverUnauthorized())
     await flush()
 
-    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(queryClient.getQueryData(['application-live', 'cached'])).toBeUndefined()
     expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(container.textContent).toBe('Identity ready')
+    expect(FakeSocket.instances).toHaveLength(2)
+    expect(socket.closed).toBe(true)
+})
+
+test('keeps identity data hidden after revalidation fails and provides a successful retry', async () => {
+    invalidateSpy = spyOn(router, 'invalidate')
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue(undefined)
+    queryClient.setQueryData(securityQueryKeys.status('old-user'), { passkeys: ['Private laptop'] })
+    await act(async () =>
+        root.render(
+            <RouterContextProvider router={router}>
+                <QueryClientProvider client={queryClient}>
+                    <Probe />
+                </QueryClientProvider>
+            </RouterContextProvider>,
+        ),
+    )
+    await act(async () => FakeSocket.instances[0]!.deliverUnauthorized())
+    await flush()
+    expect(container.textContent).toBe('Retry identity')
+    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
+    await act(async () => container.querySelector('button')!.click())
+    await flush()
+    expect(container.textContent).toBe('Identity ready')
+    expect(invalidateSpy).toHaveBeenCalledTimes(2)
+    expect(FakeSocket.instances).toHaveLength(2)
+})
+
+test('drops identity caches before waiting for a changed user route to revalidate', async () => {
+    let finishInvalidation!: () => void
+    const invalidation = new Promise<void>((resolve) => {
+        finishInvalidation = resolve
+    })
+    invalidateSpy = spyOn(router, 'invalidate').mockReturnValue(invalidation)
+    await act(async () => {
+        root.render(
+            <RouterContextProvider router={router}>
+                <QueryClientProvider client={queryClient}>
+                    <Probe />
+                </QueryClientProvider>
+            </RouterContextProvider>,
+        )
+    })
+    const socket = FakeSocket.instances[0]!
+    await act(async () => socket.deliver({ revision: 'r1', userVersion: 'old-user' }))
+    queryClient.setQueryData(securityQueryKeys.status('old-user'), {
+        passkeys: ['private-key-name'],
+    })
+    await act(async () => socket.deliver({ revision: 'r1', userVersion: 'new-user' }))
+    expect(container.textContent).toBe('Identity pending')
+    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
+    expect(queryClient.getQueryData(securityQueryKeys.status('new-user'))).toBeUndefined()
+    await act(async () => finishInvalidation())
+    expect(container.textContent).toBe('Identity ready')
+})
+
+test('clears inactive identity data synchronously on tab resume', async () => {
+    let finishInvalidation!: () => void
+    const invalidation = new Promise<void>((resolve) => {
+        finishInvalidation = resolve
+    })
+    invalidateSpy = spyOn(router, 'invalidate').mockReturnValue(invalidation)
+    await act(async () => {
+        root.render(
+            <RouterContextProvider router={router}>
+                <QueryClientProvider client={queryClient}>
+                    <Probe />
+                </QueryClientProvider>
+            </RouterContextProvider>,
+        )
+    })
+    queryClient.setQueryData(securityQueryKeys.status('old-user'), {
+        passkeys: ['private-key-name'],
+    })
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
+    expect(container.textContent).toBe('Identity pending')
+    const resumedSocket = FakeSocket.instances.at(-1)!
+    await act(async () => resumedSocket.deliver({ revision: 'resumed', userVersion: 'new-user' }))
+    expect(container.textContent).toBe('Identity pending')
+    await act(async () => finishInvalidation())
+    expect(container.textContent).toBe('Identity ready')
 })

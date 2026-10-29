@@ -36,6 +36,22 @@ export const dockerEndpointSchema = z
     .string()
     .max(512)
     .refine((value) => {
+        if (value.startsWith('unix:')) {
+            const path = value.slice('unix://'.length)
+            return (
+                value.startsWith('unix:///') &&
+                value === value.trim() &&
+                !/[\\?#%]/u.test(value) &&
+                Array.from(value).every((character) => {
+                    const code = character.charCodeAt(0)
+                    return code >= 32 && (code < 127 || code > 159)
+                }) &&
+                path
+                    .split('/')
+                    .slice(1)
+                    .every((part) => part !== '' && part !== '.' && part !== '..')
+            )
+        }
         try {
             const url = new URL(value)
             return (

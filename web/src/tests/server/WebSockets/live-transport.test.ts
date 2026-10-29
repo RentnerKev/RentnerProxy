@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { createLiveWebSocketRuntime } from '@/server/WebSockets/realtimeWebSocket.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
+import { LIVE_CHANGE_COALESCE_MS } from '@/config/realtime.config.ts'
 import type { LiveSocketData as RuntimeSocketData } from '@/server/WebSockets/Types/bun.types.ts'
 
 type SnapshotReader = (request: Request) => Response | Promise<Response>
@@ -152,7 +153,7 @@ describe('live WebSocket transport', () => {
                 payload: { revision: '1', snapshot: 'token', snapshotExpiresAt: 'first' },
             })
             publishApplicationChange()
-            await new Promise((resolve) => setTimeout(resolve, 5))
+            await new Promise((resolve) => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
             publishApplicationChange()
             await expect(nextMessage(socket)).resolves.toEqual({
                 type: 'snapshot',
@@ -220,7 +221,7 @@ describe('live WebSocket transport', () => {
             )
             await new Promise((resolve) => setTimeout(resolve, 5))
             publishApplicationChange()
-            await new Promise((resolve) => setTimeout(resolve, 5))
+            await new Promise((resolve) => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
             expect(messages.at(-1)).toBe(JSON.stringify({ type: 'unauthorized' }))
             expect(closeCode).toBe(4001)
             expect(runtime.connectionCount).toBe(0)

@@ -120,13 +120,18 @@ async fn proxy_version_is_authenticated_no_store_and_does_not_read_engine_on_den
 #[tokio::test]
 async fn proxy_version_unavailable_is_null_and_negative_result_is_cached() {
     let engine = engine(None, false);
-    let router = app_with_state(AppState::new(runtime(Some(engine.clone())), None));
+    let token_text = "synthetic-version-controller-token-for-testing";
+    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+        .unwrap()
+        .controller_token;
+    let router = app_with_state(AppState::new(runtime(Some(engine.clone())), token));
     for _ in 0..2 {
         let response = router
             .clone()
             .oneshot(
                 Request::builder()
                     .uri("/internal/v1/proxy/version")
+                    .header("authorization", format!("Bearer {token_text}"))
                     .body(Body::empty())
                     .unwrap(),
             )

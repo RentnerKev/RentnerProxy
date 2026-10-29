@@ -77,6 +77,7 @@ pub(crate) enum Error {
     CreationRequired,
     RecordConflict,
     RecordChanged,
+    UpdatePreconditionUnsupported,
     ProviderUnauthorized,
     ProviderRateLimited,
     ProviderUnavailable,

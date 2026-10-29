@@ -15,6 +15,23 @@ import useAuthenticatedLayoutLogic from './Hooks/useAuthenticatedLayoutLogic.ts'
 
 export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutProps) {
     const { state, handler } = useAuthenticatedLayoutLogic(user)
+    if (state.isIdentityPending) {
+        return state.hasIdentityError ? (
+            <main
+                role="alert"
+                className="grid min-h-screen place-content-center gap-4 bg-navy-950 p-8 text-white"
+            >
+                <p>{state.identityErrorMessage}</p>
+                <button
+                    type="button"
+                    className="rounded-xl bg-accent px-5 py-3 font-bold text-accent-foreground"
+                    onClick={handler.handleRetryIdentity}
+                >
+                    {state.retryLabel}
+                </button>
+            </main>
+        ) : null
+    }
 
     return (
         <PageAlertsProvider key={user.id}>

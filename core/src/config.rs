@@ -123,7 +123,7 @@ impl std::fmt::Display for ConfigError {
             Self::MissingControllerToken { variable } => {
                 write!(
                     formatter,
-                    "missing required {variable} for a non-loopback controller"
+                    "missing required {variable}; use the managed development command to share a temporary token with the web server"
                 )
             }
             Self::InvalidSystemCaBundle { variable } => {
@@ -236,7 +236,7 @@ impl Config {
                     source,
                 })?;
         let controller_token = controller_token.map(parse_controller_token).transpose()?;
-        if !listen_addr.ip().is_loopback() && controller_token.is_none() {
+        if controller_token.is_none() {
             return Err(ConfigError::MissingControllerToken {
                 variable: CONTROLLER_TOKEN_ENV,
             });

@@ -55,44 +55,17 @@ export async function controllerRequest(
     const baseUrl = getControllerBaseUrl()
     const safePath = path.split('?')[0] ?? path
     if (!baseUrl) return null
-    if (
-        options.confidential &&
-        !isLoopbackControllerUrl(baseUrl) &&
-        !baseUrl.startsWith('https://')
-    )
-        return null
+    if (!isLoopbackControllerUrl(baseUrl) && !baseUrl.startsWith('https://')) return null
 
     const headers: Record<string, string> = { accept: 'application/json' }
-    const isCertificateRequest =
-        path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
     const isDnsConnectionRequest =
         path === '/internal/v1/dns/providers' ||
         path === '/internal/v1/dns/connections' ||
         path.startsWith('/internal/v1/dns/connections/')
-    const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
-    const isDiscoveryRequest = path.startsWith('/internal/v1/discovery/docker/')
-    const isDiagnosticsRequest = path === '/internal/v1/diagnostics/domain'
-    if (
-        options.privileged ||
-        isCertificateRequest ||
-        isDnsConnectionRequest ||
-        isDdnsRequest ||
-        isDiscoveryRequest ||
-        isDiagnosticsRequest
-    ) {
+    if (options.privileged || path.startsWith('/internal/')) {
         const token = getControllerToken()
-        if (
-            token === null ||
-            (!token &&
-                (isCertificateRequest ||
-                    isDdnsRequest ||
-                    isDiscoveryRequest ||
-                    isDiagnosticsRequest ||
-                    isDnsConnectionRequest ||
-                    !isLoopbackControllerUrl(baseUrl)))
-        )
-            return null
-        if (token) headers.authorization = 'Bearer ' + token
+        if (!token) return null
+        headers.authorization = 'Bearer ' + token
     }
 
     if (options.body !== undefined) headers['content-type'] = 'application/json'

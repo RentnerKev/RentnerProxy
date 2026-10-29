@@ -37,6 +37,7 @@ async fn insecure_missing_and_credentialed_origins_fail_before_transport() {
         runtime(),
         "unused".to_owned(),
         CertificateEnvironment::Staging,
+        "https://ca.example.test/directory",
     )
     .unwrap();
     for uri in [
@@ -57,12 +58,66 @@ async fn insecure_missing_and_credentialed_origins_fail_before_transport() {
 }
 
 #[tokio::test]
+async fn changed_finalization_and_certificate_origins_fail_before_transport() {
+    let client = AcmeHttpClient::new(
+        None,
+        runtime(),
+        "unused".to_owned(),
+        CertificateEnvironment::Staging,
+        "https://ca.example.test:8443/directory",
+    )
+    .unwrap();
+    for uri in [
+        "https://other.example.test:8443/finalize/1",
+        "https://other.example.test:8443/certificate/1",
+        "https://ca.example.test/finalize/1",
+        "https://ca.example.test:9443/certificate/1",
+        "https://127.0.0.1:8443/certificate/1",
+    ] {
+        let request = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .body(BodyWrapper::from(b"signed account request".to_vec()))
+            .unwrap();
+        assert_invalid_input(
+            client.request(request).await.err().unwrap(),
+            "ACME request must use the configured directory origin",
+        );
+    }
+}
+
+#[tokio::test]
+async fn default_https_port_is_the_same_directory_origin() {
+    let client = AcmeHttpClient::new(
+        None,
+        runtime(),
+        "unused".to_owned(),
+        CertificateEnvironment::Staging,
+        "https://ca.example.test:443/directory",
+    )
+    .unwrap();
+    let request = Request::builder()
+        .method("POST")
+        .uri("https://ca.example.test/finalize/1")
+        .body(BodyWrapper::from(vec![
+            b'x';
+            MAX_ACME_REQUEST_BODY_BYTES + 1
+        ]))
+        .unwrap();
+    assert_invalid_input(
+        client.request(request).await.err().unwrap(),
+        "ACME request body is too large",
+    );
+}
+
+#[tokio::test]
 async fn oversized_outbound_body_fails_before_network_request() {
     let client = AcmeHttpClient::new(
         None,
         runtime(),
         "unused".to_owned(),
         CertificateEnvironment::Production,
+        "https://ca.example.test/directory",
     )
     .unwrap();
     let request = Request::builder()
@@ -86,7 +141,8 @@ fn custom_ca_requires_valid_certificate_pem() {
             Some(b"-----BEGIN CERTIFICATE-----\ninvalid!\n-----END CERTIFICATE-----\n"),
             runtime(),
             "unused".to_owned(),
-            CertificateEnvironment::Staging
+            CertificateEnvironment::Staging,
+            "https://ca.example.test/directory",
         )
         .is_err()
     );
@@ -96,7 +152,8 @@ fn custom_ca_requires_valid_certificate_pem() {
             Some(cert.cert.pem().as_bytes()),
             runtime(),
             "unused".to_owned(),
-            CertificateEnvironment::Staging
+            CertificateEnvironment::Staging,
+            "https://ca.example.test/directory",
         )
         .is_ok()
     );
