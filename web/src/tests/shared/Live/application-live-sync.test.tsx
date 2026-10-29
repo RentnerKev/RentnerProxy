@@ -224,7 +224,9 @@ test('keeps identity data hidden after revalidation fails and provides a success
     invalidateSpy = spyOn(router, 'invalidate')
         .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValue(undefined)
-    queryClient.setQueryData(securityQueryKeys.status('old-user'), { passkeys: ['Private laptop'] })
+    queryClient.setQueryData([...securityQueryKeys.status, 'old-user'], {
+        passkeys: ['Private laptop'],
+    })
     await act(async () =>
         root.render(
             <RouterContextProvider router={router}>
@@ -237,7 +239,7 @@ test('keeps identity data hidden after revalidation fails and provides a success
     await act(async () => FakeSocket.instances[0]!.deliverUnauthorized())
     await flush()
     expect(container.textContent).toBe('Retry identity')
-    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
+    expect(queryClient.getQueryData([...securityQueryKeys.status, 'old-user'])).toBeUndefined()
     await act(async () => container.querySelector('button')!.click())
     await flush()
     expect(container.textContent).toBe('Identity ready')
@@ -262,13 +264,13 @@ test('drops identity caches before waiting for a changed user route to revalidat
     })
     const socket = FakeSocket.instances[0]!
     await act(async () => socket.deliver({ revision: 'r1', userVersion: 'old-user' }))
-    queryClient.setQueryData(securityQueryKeys.status('old-user'), {
+    queryClient.setQueryData([...securityQueryKeys.status, 'old-user'], {
         passkeys: ['private-key-name'],
     })
     await act(async () => socket.deliver({ revision: 'r1', userVersion: 'new-user' }))
     expect(container.textContent).toBe('Identity pending')
-    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
-    expect(queryClient.getQueryData(securityQueryKeys.status('new-user'))).toBeUndefined()
+    expect(queryClient.getQueryData([...securityQueryKeys.status, 'old-user'])).toBeUndefined()
+    expect(queryClient.getQueryData([...securityQueryKeys.status, 'new-user'])).toBeUndefined()
     await act(async () => finishInvalidation())
     expect(container.textContent).toBe('Identity ready')
 })
@@ -288,14 +290,14 @@ test('clears inactive identity data synchronously on tab resume', async () => {
             </RouterContextProvider>,
         )
     })
-    queryClient.setQueryData(securityQueryKeys.status('old-user'), {
+    queryClient.setQueryData([...securityQueryKeys.status, 'old-user'], {
         passkeys: ['private-key-name'],
     })
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
     await act(async () => document.dispatchEvent(new Event('visibilitychange')))
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
     await act(async () => document.dispatchEvent(new Event('visibilitychange')))
-    expect(queryClient.getQueryData(securityQueryKeys.status('old-user'))).toBeUndefined()
+    expect(queryClient.getQueryData([...securityQueryKeys.status, 'old-user'])).toBeUndefined()
     expect(container.textContent).toBe('Identity pending')
     const resumedSocket = FakeSocket.instances.at(-1)!
     await act(async () => resumedSocket.deliver({ revision: 'resumed', userVersion: 'new-user' }))

@@ -266,19 +266,21 @@ fn smoke_readiness_matches(bytes: &[u8], nonce: &str) -> bool {
 
 #[test]
 fn smoke_readiness_rejects_replacement_peers_and_malformed_responses() {
-    let nonce = "private fixture nonce";
-    assert!(!smoke_readiness_matches(b"invalid", nonce));
+    let mut random = [0; 32];
+    aws_lc_rs::rand::fill(&mut random).unwrap();
+    let nonce: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert!(!smoke_readiness_matches(b"invalid", &nonce));
     assert!(!smoke_readiness_matches(
         b"HTTP/1.0 200 OK\r\n\r\nforeign",
-        nonce
+        &nonce
     ));
     assert!(!smoke_readiness_matches(
         b"HTTP/1.1 200 OK\r\n\r\nforeign",
-        nonce
+        &nonce
     ));
     assert!(smoke_readiness_matches(
-        b"HTTP/1.1 200 OK\r\n\r\nprivate fixture nonce",
-        nonce
+        format!("HTTP/1.1 200 OK\r\n\r\n{nonce}").as_bytes(),
+        &nonce
     ));
 }
 

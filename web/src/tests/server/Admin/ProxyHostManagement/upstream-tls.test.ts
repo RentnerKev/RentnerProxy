@@ -1,3 +1,6 @@
+import { MAX_TRUSTED_CA_PEM_BYTES } from '@/config/trusted-cas.config.ts'
+import { createTrustedCaInputSchema } from '@/features/Admin/TrustedCaManagement/validation.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 import { describe, expect, test } from 'bun:test'
 
 import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
@@ -391,3 +394,89 @@ describe('upstream TLS permission registry', () => {
         expect(viewer?.permissionKeys).not.toContain('trusted_cas.delete')
     })
 })
+
+const certificate = '-----BEGIN CERTIFICATE-----\nYWJjZA==\n-----END CERTIFICATE-----'
+
+describe('trusted CA input validation', () => {
+    test('accepts certificate bundles with CRLF and whitespace between blocks', () => {
+        expect(
+            createTrustedCaInputSchema.safeParse({
+                name: 'Bundle',
+                pem: `${certificate}\n\n${certificate}`.replaceAll('\n', '\r\n'),
+            }).success,
+        ).toBe(true)
+    })
+
+    test.each([
+        '-----BEGIN CERTIFICATE-----\n'.repeat(4_000),
+        `${certificate}\n-----BEGIN PRIVATE KEY-----\nYWJj\n-----END PRIVATE KEY-----`,
+        `${certificate}\ntext outside a certificate`,
+        '-----BEGIN CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----',
+        '-----END CERTIFICATE-----',
+    ])('rejects malformed PEM without matching nested certificate suffixes', (pem) => {
+        expect(createTrustedCaInputSchema.safeParse({ name: 'Invalid', pem }).success).toBe(false)
+    })
+
+    test('short-circuits oversized input before reporting format errors', () => {
+        for (const pem of [
+            'x'.repeat(MAX_TRUSTED_CA_PEM_BYTES + 1),
+            'ä'.repeat(MAX_TRUSTED_CA_PEM_BYTES),
+        ]) {
+            const result = createTrustedCaInputSchema.safeParse({ name: 'Large', pem })
+            expect(result.success).toBe(false)
+            if (!result.success) {
+                expect(result.error.issues.map((issue) => issue.message)).toEqual([
+                    'admin.trustedCas.validation.pemLimit',
+                ])
+            }
+        }
+    })
+})
+
+test.each([0, 1])(
+    'authenticates CA mutation %s before reading or validating PEM',
+    async (index) => {
+        await runBunScript(
+            `
+        import { expect, mock } from 'bun:test'
+const validators = []
+const permission = mock(async (_permission) => {
+    throw new Error('authentication_required')
+})
+mock.module('@tanstack/react-start', () => ({
+    createServerFn: () => {
+        const builder = {
+            validator: (validator) => {
+                validators.push(validator)
+                return builder
+            },
+            handler: (handler) => handler,
+        }
+        return builder
+    },
+}))
+mock.module('@/server/Auth/Access/authorization.service.ts', () => ({
+    requirePermissionService: permission,
+}))
+mock.module('@/server/Admin/TrustedCaManagement/trusted-cas.service.ts', () => ({
+    createTrustedCaService: mock(),
+    deleteTrustedCaService: mock(),
+    getAssignableTrustedCasService: mock(),
+    getTrustedCasService: mock(),
+    replaceTrustedCaService: mock(),
+}))
+await import('@/features/Admin/TrustedCaManagement/middleware.ts')
+
+
+        let pemReads = 0
+        const input = {
+            name: 'Untrusted',
+            get pem() { pemReads += 1; throw new Error('PEM read before auth') },
+        }
+        await expect(validators[${index}](input)).rejects.toThrow('authentication_required')
+        expect(pemReads).toBe(0)
+    `,
+            { cwd: new URL('../../../..', import.meta.url) },
+        )
+    },
+)

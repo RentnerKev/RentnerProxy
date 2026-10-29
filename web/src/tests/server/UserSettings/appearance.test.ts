@@ -49,7 +49,7 @@ test('personal accents remain independent and require the current account before
         const first = await update({expectedUserId: firstId, accentColor: '#abcdef'})
         currentUser = {id: secondId, permissions: ['app.access']}
         const second = await update({expectedUserId: secondId, accentColor: '#123456'})
-        currentUser = {id: firstId, permissions: ['app.access'], accentColor: '#abcdef'}
+        currentUser = {id: firstId, permissions: ['app.access']}
         const reset = await update({expectedUserId: firstId, accentColor: null})
         console.log(JSON.stringify({anonymous, denied, wrongAccount, deniedDatabaseCalls, first, second, reset, saved: [...saved], permissionChecks}))
     `

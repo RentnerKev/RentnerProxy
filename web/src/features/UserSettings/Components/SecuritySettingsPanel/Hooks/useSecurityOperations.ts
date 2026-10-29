@@ -20,7 +20,7 @@ import type { SerializedRegistrationResponse } from '../../../Types/security.typ
 export default function useSecurityOperations(userId: string) {
     const queryClient = useQueryClient()
     const statusQuery = useQuery({
-        queryKey: securityQueryKeys.status(userId),
+        queryKey: [...securityQueryKeys.status, userId],
         queryFn: getSecurityStatusHandler,
     })
     const [setup, setSetup] = useState<{

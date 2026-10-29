@@ -35,7 +35,7 @@ export async function updateCurrentUserAccentColorService(
     }
 
     const accentColor = input.accentColor ?? DEFAULT_ACCENT_COLOR
-    if ((user.accentColor ?? DEFAULT_ACCENT_COLOR) === accentColor) {
+    if (user.accentColor === accentColor) {
         return { userId: user.id, accentColor }
     }
     const value = { version: 1 as const, accentColor }
