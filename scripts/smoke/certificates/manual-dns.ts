@@ -1,6 +1,7 @@
 // oxlint-disable no-await-in-loop -- Bounded smoke scenarios preserve sequential polling.
 import assert from 'node:assert/strict'
 import { restoreCertificateStateFixture } from './state-restore.ts'
+import { withFreshStagingAcmeAccount } from './account-fixture.ts'
 import type { CertificateDnsAcmeContext } from './Types/scenarios.types.ts'
 import type { ManualDnsPause, ManualDnsProof } from './Types/manual-dns.types.ts'
 
@@ -129,16 +130,22 @@ export async function verifyCertificateManualDns(
         assert.equal(typeof saved.orderUrl, 'string')
         return String(saved.orderUrl)
     }
-    assert.equal(
-        (
-            await context.controllerRequest(endpoint + '/issue', {
-                method: 'POST',
-                body: JSON.stringify(request),
-            })
-        ).status,
-        202,
+    const initial = await withFreshStagingAcmeAccount(
+        context.command,
+        context.runtimeContainer,
+        async () => {
+            assert.equal(
+                (
+                    await context.controllerRequest(endpoint + '/issue', {
+                        method: 'POST',
+                        body: JSON.stringify(request),
+                    })
+                ).status,
+                202,
+            )
+            return waitForPause()
+        },
     )
-    const initial = await waitForPause()
     const orderIdentity = await storedOrderIdentity()
     assert.equal(fixture.records.length, 0, 'Manual issuance wrote DNS records')
     context.passed('manual DNS exposes separate apex/wildcard TXT values at their shared owner')
@@ -229,16 +236,22 @@ export async function verifyCertificateManualDns(
 
     // Only the operator removes the TXT proofs after issuance.
     fixture.records.splice(0, fixture.records.length, unrelated)
-    assert.equal(
-        (
-            await context.controllerRequest(endpoint + '/renew', {
-                method: 'POST',
-                body: '{}',
-            })
-        ).status,
-        202,
+    const renewal = await withFreshStagingAcmeAccount(
+        context.command,
+        context.runtimeContainer,
+        async () => {
+            assert.equal(
+                (
+                    await context.controllerRequest(endpoint + '/renew', {
+                        method: 'POST',
+                        body: '{}',
+                    })
+                ).status,
+                202,
+            )
+            return waitForPause()
+        },
     )
-    const renewal = await waitForPause()
     assert.notEqual(renewal.operationId, initial.operationId)
     assert.notEqual(renewal.challengeSetId, initial.challengeSetId)
     const awaitingRenewal = await metadata()
