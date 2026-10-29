@@ -61,6 +61,7 @@ impl AcmeResponseObserver {
 
 pub(crate) struct AcmeHttpClient {
     client: Client,
+    directory: reqwest::Url,
     runtime: Arc<ProxyRuntime>,
     certificate_id: String,
     environment: CertificateEnvironment,
@@ -73,7 +74,18 @@ impl AcmeHttpClient {
         runtime: Arc<ProxyRuntime>,
         certificate_id: String,
         environment: CertificateEnvironment,
+        directory: &str,
     ) -> Result<Self, Error> {
+        let directory = reqwest::Url::parse(directory)
+            .map_err(|_| other_error("ACME requests require an HTTPS origin"))?;
+        if directory.scheme() != "https"
+            || directory.host_str().is_none()
+            || !directory.username().is_empty()
+            || directory.password().is_some()
+            || directory.fragment().is_some()
+        {
+            return Err(other_error("ACME requests require an HTTPS origin"));
+        }
         let mut builder = Client::builder()
             .timeout(Duration::from_secs(30))
             .no_proxy()
@@ -89,6 +101,7 @@ impl AcmeHttpClient {
             .map_err(|error| Error::Other(Box::new(error)))?;
         Ok(Self {
             client,
+            directory,
             runtime,
             certificate_id,
             environment,
@@ -114,6 +127,7 @@ impl HttpClient for AcmeHttpClient {
         let certificate_id = self.certificate_id.clone();
         let environment = self.environment;
         let observer = self.observer.clone();
+        let directory = self.directory.clone();
         Box::pin(async move {
             let (parts, body) = request.into_parts();
             let authority = parts.uri.authority().map(|authority| authority.as_str());
@@ -122,6 +136,14 @@ impl HttpClient for AcmeHttpClient {
                 || authority.is_some_and(|authority| authority.contains('@'))
             {
                 return Err(other_error("ACME requests require an HTTPS origin"));
+            }
+            let request_url = parts.uri.to_string();
+            let parsed_request_url = reqwest::Url::parse(&request_url)
+                .map_err(|_| other_error("ACME requests require an HTTPS origin"))?;
+            if parsed_request_url.origin() != directory.origin() {
+                return Err(other_error(
+                    "ACME request must use the configured directory origin",
+                ));
             }
 
             let body = body
@@ -133,9 +155,8 @@ impl HttpClient for AcmeHttpClient {
                 return Err(other_error("ACME request body is too large"));
             }
 
-            let request_url = parts.uri.to_string();
             let request = client
-                .request(parts.method, parts.uri.to_string())
+                .request(parts.method, parsed_request_url)
                 .headers(parts.headers)
                 .body(body);
 

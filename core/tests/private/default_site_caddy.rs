@@ -28,7 +28,13 @@ impl SmokeWorkspace {
                 .unwrap()
                 .as_nanos()
         ));
-        std::fs::create_dir(&root).unwrap();
+        let mut directory = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            directory.mode(0o700);
+        }
+        directory.create(&root).unwrap();
         Self(root.canonicalize().unwrap())
     }
 }
@@ -72,8 +78,14 @@ fn exchange(address: SocketAddr, host: Option<&str>, path: &str) -> std::io::Res
         format!("GET {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n\r\n").as_bytes(),
     )?;
     let mut bytes = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(2);
     let mut buffer = [0u8; 4096];
     loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(std::io::Error::other("Caddy smoke response deadline"));
+        }
+        stream.set_read_timeout(Some(remaining))?;
         match stream.read(&mut buffer) {
             Ok(0) => return Ok(bytes),
             Ok(count) => {
@@ -177,7 +189,7 @@ fn start_caddy(
 fn start_rendered_caddy(
     binary: &Path,
     state: &Path,
-    json: Value,
+    mut json: Value,
     listeners: Vec<TcpListener>,
 ) -> (CaddyChild, SocketAddr, SocketAddr) {
     let addresses: Vec<_> = listeners
@@ -185,6 +197,21 @@ fn start_rendered_caddy(
         .map(|listener| listener.local_addr().unwrap())
         .collect();
     let config_path = state.join("caddy.json");
+    let mut nonce = [0; 32];
+    aws_lc_rs::rand::fill(&mut nonce).unwrap();
+    let nonce: String = nonce.iter().map(|byte| format!("{byte:02x}")).collect();
+    let readiness_path = format!("/__smoke_ready_{nonce}");
+    json["apps"]["http"]["servers"]["rentnerproxy-probe"]["routes"]
+        .as_array_mut()
+        .unwrap()
+        .insert(
+            0,
+            json!({
+                "match": [{"path": [readiness_path]}],
+                "handle": [{"handler": "static_response", "status_code": 200, "body": nonce}],
+                "terminal": true
+            }),
+        );
     std::fs::write(&config_path, serde_json::to_vec(&json).unwrap()).unwrap();
     let log_path = state.join("caddy-stderr.log");
     let mut command = Command::new(binary);
@@ -208,9 +235,13 @@ fn start_rendered_caddy(
     let mut child = CaddyChild(command.spawn().expect("spawn test Caddy"));
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if exchange(addresses[1], None, "/__rentnerproxy_runtime_probe")
+        if child.0.try_wait().unwrap().is_some() {
+            break;
+        }
+        if exchange(addresses[1], None, &readiness_path)
             .ok()
-            .is_some_and(|bytes| !bytes.is_empty() && response(&bytes).status == 200)
+            .is_some_and(|bytes| smoke_readiness_matches(&bytes, &nonce))
+            && child.0.try_wait().unwrap().is_none()
         {
             return (child, addresses[0], addresses[1]);
         }
@@ -223,6 +254,34 @@ fn start_rendered_caddy(
         "Caddy failed bounded readiness: {}",
         std::fs::read_to_string(log_path).unwrap_or_default()
     );
+}
+
+fn smoke_readiness_matches(bytes: &[u8], nonce: &str) -> bool {
+    let Some(split) = bytes.windows(4).position(|window| window == b"\r\n\r\n") else {
+        return false;
+    };
+    (bytes.starts_with(b"HTTP/1.0 200 ") || bytes.starts_with(b"HTTP/1.1 200 "))
+        && &bytes[split + 4..] == nonce.as_bytes()
+}
+
+#[test]
+fn smoke_readiness_rejects_replacement_peers_and_malformed_responses() {
+    let mut random = [0; 32];
+    aws_lc_rs::rand::fill(&mut random).unwrap();
+    let nonce: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert!(!smoke_readiness_matches(b"invalid", &nonce));
+    assert!(!smoke_readiness_matches(
+        b"HTTP/1.0 200 OK\r\n\r\nforeign",
+        &nonce
+    ));
+    assert!(!smoke_readiness_matches(
+        b"HTTP/1.1 200 OK\r\n\r\nforeign",
+        &nonce
+    ));
+    assert!(smoke_readiness_matches(
+        format!("HTTP/1.1 200 OK\r\n\r\n{nonce}").as_bytes(),
+        &nonce
+    ));
 }
 
 #[test]
@@ -767,26 +826,130 @@ fn compression_exchange_host(
     stream
         .set_read_timeout(Some(Duration::from_secs(3)))
         .unwrap();
+    stream
+        .set_write_timeout(Some(Duration::from_secs(3)))
+        .unwrap();
     write!(stream, "{method} {path} HTTP/1.0\r\nHost: {host}\r\nAccept-Encoding: {encoding}\r\nConnection: close\r\n\r\n").unwrap();
     let mut bytes = Vec::new();
-    stream.read_to_end(&mut bytes).unwrap();
+    read_smoke_body(&mut stream, &mut bytes).unwrap();
     response(&bytes)
 }
 
+const MAX_SMOKE_BODY: usize = 524_288;
+
+fn read_smoke_body(stream: &mut TcpStream, bytes: &mut Vec<u8>) -> std::io::Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut buffer = [0; 4096];
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(std::io::Error::other("smoke response deadline"));
+        }
+        stream.set_read_timeout(Some(remaining))?;
+        let n = stream.read(&mut buffer)?;
+        if n == 0 {
+            return Ok(());
+        }
+        if n > MAX_SMOKE_BODY.saturating_sub(bytes.len()) {
+            return Err(std::io::Error::other("smoke response exceeds bound"));
+        }
+        bytes.extend_from_slice(&buffer[..n]);
+    }
+}
+
 fn decompress_response(bytes: &[u8], encoding: &str) -> Vec<u8> {
-    let binary = std::env::var_os("RENTNERPROXY_TEST_BUN_BIN").unwrap_or_else(|| "bun".into());
-    let mut child = Command::new(binary)
-        .args(["--no-env-file", "-e", "const data=Buffer.from(await Bun.stdin.arrayBuffer()); process.stdout.write(process.argv[1]==='gzip'?Bun.gunzipSync(data):Bun.zstdDecompressSync(data))", encoding])
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().expect("Bun is required to decode smoke response payloads");
-    child.stdin.take().unwrap().write_all(bytes).unwrap();
-    let result = child.wait_with_output().unwrap();
     assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
+        bytes.len() <= MAX_SMOKE_BODY,
+        "compressed input exceeds bound"
     );
-    result.stdout
+    assert!(matches!(encoding, "gzip" | "zstd"));
+    let binary = std::env::var_os("RENTNERPROXY_TEST_BUN_BIN").unwrap_or_else(|| "bun".into());
+    let script = r#"
+        const { Transform } = require('node:stream');
+        const { pipeline } = require('node:stream/promises');
+        const { createGunzip, createZstdDecompress, constants } = require('node:zlib');
+        function bounded(max) {
+            let size = 0;
+            return new Transform({ transform(chunk, _, done) {
+                size += chunk.length;
+                done(size > max ? new Error('smoke payload exceeds bound') : null,
+                    size > max ? undefined : chunk);
+            }});
+        }
+        await pipeline(process.stdin, bounded(524288),
+            process.argv[1] === 'gzip' ? createGunzip() : createZstdDecompress({
+                params: { [constants.ZSTD_d_windowLogMax]: 20 }
+            }),
+            bounded(524288), process.stdout);
+    "#;
+    let mut child = CaddyChild(
+        Command::new(binary)
+            .args(["--no-env-file", "-e", script, encoding])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("Bun is required to decode smoke response payloads"),
+    );
+    let mut input = child.0.stdin.take().unwrap();
+    let input_bytes = bytes.to_vec();
+    let writer = std::thread::spawn(move || input.write_all(&input_bytes));
+    let output = child.0.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut decoded = Vec::new();
+        output
+            .take((MAX_SMOKE_BODY + 1) as u64)
+            .read_to_end(&mut decoded)?;
+        Ok::<_, std::io::Error>(decoded)
+    });
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let status = loop {
+        if let Some(status) = child.0.try_wait().unwrap() {
+            break Some(status);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.0.kill();
+            let _ = child.0.wait();
+            break None;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let written = writer.join().unwrap();
+    let decoded = reader.join().unwrap().unwrap();
+    assert!(
+        status.is_some_and(|status| status.success()),
+        "bounded smoke decompression failed"
+    );
+    written.unwrap();
+    assert!(
+        decoded.len() <= MAX_SMOKE_BODY,
+        "decoded output exceeds bound"
+    );
+    decoded
+}
+
+#[test]
+#[should_panic(expected = "compressed input exceeds bound")]
+fn smoke_decompression_rejects_oversized_input_before_spawning() {
+    decompress_response(&vec![0; MAX_SMOKE_BODY + 1], "gzip");
+}
+
+#[test]
+#[ignore = "requires Bun for bounded streaming payload decoding"]
+fn smoke_decompression_bounds_expansion_and_rejects_corrupt_payloads() {
+    assert_eq!(
+        decompress_response(COMPRESSED_UPSTREAM, "gzip"),
+        b"Already compressed upstream payload. ".repeat(50)
+    );
+    assert!(
+        std::panic::catch_unwind(|| {
+            decompress_response(&COMPRESSED_UPSTREAM.repeat(400), "gzip")
+        })
+        .is_err()
+    );
+    for encoding in ["gzip", "zstd"] {
+        assert!(std::panic::catch_unwind(|| decompress_response(b"invalid", encoding)).is_err());
+    }
 }
 
 #[test]
@@ -981,15 +1144,23 @@ fn response_compression_real_caddy_smoke() {
         .unwrap();
     let mut bytes = Vec::new();
     let mut buffer = [0; 4096];
+    let header_deadline = Instant::now() + Duration::from_secs(3);
     while !bytes.windows(4).any(|v| v == b"\r\n\r\n") {
+        let remaining = header_deadline.saturating_duration_since(Instant::now());
+        assert!(!remaining.is_zero(), "SSE header deadline");
+        stream.set_read_timeout(Some(remaining)).unwrap();
         let count = stream
             .read(&mut buffer)
             .expect("SSE headers must arrive before upstream completes");
         assert_ne!(count, 0);
+        assert!(
+            count <= 16_384usize.saturating_sub(bytes.len()),
+            "SSE headers exceed bound"
+        );
         bytes.extend_from_slice(&buffer[..count]);
     }
     release_stream.send(()).unwrap();
-    stream.read_to_end(&mut bytes).unwrap();
+    read_smoke_body(&mut stream, &mut bytes).unwrap();
     let streamed = response(&bytes);
     assert_eq!(streamed.status, 200);
     let decoded = match streamed.headers.get("content-encoding") {
@@ -1224,7 +1395,7 @@ async fn browser_cache_real_caddy_smoke() {
             "public, max-age=3600, immutable"
         );
     }
-    let compressed = client
+    let mut compressed = client
         .get(url("/assets/compressed.css"))
         .header("Host", "assets.example")
         .header("Accept-Encoding", "gzip")
@@ -1243,7 +1414,19 @@ async fn browser_cache_real_caddy_smoke() {
             .to_ascii_lowercase()
             .contains("accept-encoding")
     );
-    let body = compressed.bytes().await.unwrap();
+    let body = tokio::time::timeout(Duration::from_secs(3), async {
+        let mut body = Vec::new();
+        while let Some(chunk) = compressed.chunk().await.unwrap() {
+            assert!(
+                chunk.len() <= MAX_SMOKE_BODY - body.len(),
+                "compressed input exceeds bound"
+            );
+            body.extend_from_slice(&chunk);
+        }
+        body
+    })
+    .await
+    .unwrap();
     assert_eq!(
         decompress_response(&body, "gzip"),
         "body { color: red; }".repeat(100).as_bytes()

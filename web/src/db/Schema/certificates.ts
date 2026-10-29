@@ -124,11 +124,11 @@ export const certificateEventReceipts = rentnerProxySchema.table(
         index('certificate_event_receipts_certificate_id_idx').on(table.certificateId),
         check(
             'certificate_event_receipts_kind_check',
-            sql`${table.kind} in ('accepted', 'started', 'issued', 'activated', 'renewed', 'retry_scheduled', 'failed')`,
+            sql`${table.kind} in ('operator_action_required', 'cancelled', 'expired', 'accepted', 'started', 'issued', 'activated', 'renewed', 'retry_scheduled', 'failed')`,
         ),
         check(
             'certificate_event_receipts_stage_check',
-            sql`${table.stage} in ('queued', 'creating_order', 'preparing_challenge', 'waiting_for_validation', 'finalizing', 'certificate_ready', 'applying', 'applied', 'retry_scheduled', 'failed', 'needs_attention')`,
+            sql`${table.stage} in ('awaiting_dns', 'checking_dns', 'cancelling', 'cancelled', 'expired', 'queued', 'creating_order', 'preparing_challenge', 'waiting_for_validation', 'finalizing', 'certificate_ready', 'applying', 'applied', 'retry_scheduled', 'failed', 'needs_attention')`,
         ),
     ],
 )

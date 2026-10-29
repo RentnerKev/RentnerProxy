@@ -8,6 +8,7 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import type { UserPreference } from './Types/preferences.types.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 
 async function saveCurrentUserPreference(
     preference: UserPreference,
@@ -20,6 +21,12 @@ async function saveCurrentUserPreference(
     if (!session.user.permissions.includes(PERMISSIONS.APP_ACCESS)) {
         throw new AuthDomainError('permission_denied', 'Application access is required.')
     }
+    if (
+        'language' in preference
+            ? session.user.language === preference.language
+            : session.user.themeMode === preference.themeMode
+    )
+        return
 
     const rows = await getAuthDatabase()
         .insert(userSettings)
@@ -29,6 +36,7 @@ async function saveCurrentUserPreference(
     if (rows.length === 0) {
         throw new AuthDomainError('service_unavailable', unavailableMessage)
     }
+    publishApplicationChange()
 }
 
 export async function updateCurrentUserLanguageService(

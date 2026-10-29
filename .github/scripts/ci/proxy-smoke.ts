@@ -2,7 +2,7 @@ import { withFixtureRequest } from '../../../scripts/lib/request-context.ts'
 // oxlint-disable no-await-in-loop -- Readiness probes must wait for the previous attempt and bounded backoff.
 import assert from 'node:assert/strict'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createConnection, isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -70,7 +70,15 @@ await writeFile(
                             '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-0}:8081',
                         ],
                         extra_hosts: ['host.docker.internal:host-gateway'],
-                        volumes: ['proxy-state:/var/lib/rentnerproxy/proxy'],
+                        volumes: [
+                            'proxy-state:/var/lib/rentnerproxy/proxy',
+                            {
+                                type: 'bind',
+                                source: join(temporaryComposeDirectory, 'crowdsec-ca.pem'),
+                                target: '/etc/ssl/certs/rentnerproxy-smoke.pem',
+                                read_only: true,
+                            },
+                        ],
                         security_opt: ['no-new-privileges:true'],
                         cap_drop: ['ALL'],
                         stop_grace_period: '15s',
@@ -173,6 +181,94 @@ function configObject(value: unknown): Record<string, unknown> {
 
 async function runSmoke(): Promise<void> {
     console.log('Starting isolated PostgreSQL and the real Caddy runtime.')
+    const caKey = join(temporaryComposeDirectory, 'crowdsec-ca.key')
+    const caCertificate = join(temporaryComposeDirectory, 'crowdsec-ca.pem')
+    const leafKey = join(temporaryComposeDirectory, 'crowdsec-leaf.key')
+    const leafRequest = join(temporaryComposeDirectory, 'crowdsec-leaf.csr')
+    const leafCertificate = join(temporaryComposeDirectory, 'crowdsec-leaf.pem')
+    const leafExtensions = join(temporaryComposeDirectory, 'crowdsec-leaf.ext')
+    try {
+        await chmod(temporaryComposeDirectory, 0o700)
+        await command([
+            'openssl',
+            'req',
+            '-x509',
+            '-newkey',
+            'rsa:2048',
+            '-nodes',
+            '-days',
+            '1',
+            '-keyout',
+            caKey,
+            '-out',
+            caCertificate,
+            '-subj',
+            '/CN=RentnerProxy-Proxy-Smoke-CA',
+            '-addext',
+            'basicConstraints=critical,CA:TRUE',
+            '-addext',
+            'keyUsage=critical,keyCertSign,cRLSign',
+        ])
+        await command([
+            'openssl',
+            'req',
+            '-new',
+            '-newkey',
+            'rsa:2048',
+            '-nodes',
+            '-keyout',
+            leafKey,
+            '-out',
+            leafRequest,
+            '-subj',
+            '/CN=host.docker.internal',
+        ])
+        await chmod(caKey, 0o600)
+        await chmod(leafKey, 0o600)
+        await chmod(caCertificate, 0o644)
+        await writeFile(
+            leafExtensions,
+            [
+                'subjectAltName=DNS:host.docker.internal',
+                'extendedKeyUsage=serverAuth',
+                'basicConstraints=critical,CA:FALSE',
+                'keyUsage=critical,digitalSignature,keyEncipherment',
+                '',
+            ].join('\n'),
+            { mode: 0o600 },
+        )
+        await command([
+            'openssl',
+            'x509',
+            '-req',
+            '-in',
+            leafRequest,
+            '-CA',
+            caCertificate,
+            '-CAkey',
+            caKey,
+            '-CAcreateserial',
+            '-out',
+            leafCertificate,
+            '-days',
+            '1',
+            '-sha256',
+            '-extfile',
+            leafExtensions,
+        ])
+        await command([
+            'openssl',
+            'verify',
+            '-CAfile',
+            caCertificate,
+            '-verify_hostname',
+            'host.docker.internal',
+            leafCertificate,
+        ])
+    } catch (error) {
+        await rm(temporaryComposeDirectory, { force: true, recursive: true })
+        throw error
+    }
     let closeDatabase: (() => Promise<void>) | undefined
     let stopReconciliation: (() => Promise<void>) | undefined
     let stopCrowdSecReconciliation: (() => Promise<void>) | undefined
@@ -230,6 +326,10 @@ async function runSmoke(): Promise<void> {
     const crowdSecLapi = Bun.serve({
         hostname: upstreamHost,
         port: 0,
+        tls: {
+            cert: await readFile(leafCertificate),
+            key: await readFile(leafKey),
+        },
         fetch(request) {
             if (request.headers.get('x-api-key') !== crowdSecBouncerKey) {
                 return Response.json({ message: 'forbidden' }, { status: 403 })
@@ -1148,7 +1248,7 @@ async function runSmoke(): Promise<void> {
         passed('Forward Auth timeout fails closed before the application proxy')
 
         const crowdSecApiUrl = (provider: 'allow' | 'block' | 'rejected' | 'trusted') =>
-            `http://host.docker.internal:${crowdSecLapi.port}/${provider}/`
+            `https://host.docker.internal:${crowdSecLapi.port}/${provider}/`
         const initialCrowdSec = await authorized(() =>
             crowdSecServices.getCrowdSecConfigurationService(),
         )
@@ -1162,6 +1262,16 @@ async function runSmoke(): Promise<void> {
         assert.equal(initialCaddyConfiguration.apps?.crowdsec, undefined)
         passed('CrowdSec defaults to disabled without changing the existing request path')
 
+        await assert.rejects(
+            authorized(() =>
+                crowdSecServices.updateCrowdSecConfigurationService({
+                    mode: 'external',
+                    apiUrl: `http://host.docker.internal:${crowdSecLapi.port}/allow/`,
+                    apiKey: crowdSecBouncerKey,
+                }),
+            ),
+            { code: 'invalid_input' },
+        )
         const externalAllow = await authorized(() =>
             crowdSecServices.updateCrowdSecConfigurationService({
                 mode: 'external',

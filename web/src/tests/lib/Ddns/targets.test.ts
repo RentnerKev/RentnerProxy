@@ -10,6 +10,7 @@ import {
 } from '@/lib/Ddns/targets.ts'
 import {
     ddnsDraftSchema,
+    ddnsBatchSchema,
     ddnsIdSchema,
     ddnsSnapshotSchema,
     ddnsTargetSchema,
@@ -23,6 +24,17 @@ import {
 } from '@/tests/Helpers/ddnsFixture.ts'
 
 describe('explicit DDNS record selection', () => {
+    test('accepts an unsupported update result and keeps its preview blocked', () => {
+        const settings = ddnsSettings()
+        const batch = ddnsBatch(settings)
+        batch.targets[0] = {
+            ...batch.targets[0]!,
+            status: 'failed',
+            error: 'update_precondition_unsupported',
+        }
+        expect(ddnsBatchSchema.safeParse(batch).success).toBe(true)
+        expect(readyDdnsPreview(settings, batch)).toBe(false)
+    })
     test('reproduces multi-zone IPv4 wildcard and Git proxy exception without selecting sibling hosts', () => {
         const draft = addDdnsDomains(
             ddnsDraft(),

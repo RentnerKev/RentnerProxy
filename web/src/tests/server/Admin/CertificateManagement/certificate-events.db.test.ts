@@ -72,6 +72,8 @@ const event = {
     occurredAt: '2026-09-12T12:00:01Z',
     errorCode: null,
 }
+let eventBatch = [event]
+let batchCursor = CURSOR
 
 function controllerResponse(request: Request): Response {
     const url = new URL(request.url)
@@ -80,8 +82,8 @@ function controllerResponse(request: Request): Response {
         return Response.json(
             eventStatus === 200
                 ? {
-                      events: [event],
-                      nextCursor: CURSOR,
+                      events: eventBatch,
+                      nextCursor: batchCursor,
                       hasMore: false,
                       resetRequired: false,
                   }
@@ -107,7 +109,7 @@ async function readEventRows() {
     return getAuthDatabase()
         .select()
         .from(certificateEventReceipts)
-        .where(eq(certificateEventReceipts.eventId, EVENT_ID))
+        .where(eq(certificateEventReceipts.certificateId, CERTIFICATE_ID))
 }
 
 async function readAuditRows() {
@@ -124,7 +126,7 @@ async function cleanupFixture(): Promise<void> {
     await database.delete(auditEvents).where(eq(auditEvents.targetId, CERTIFICATE_ID))
     await database
         .delete(certificateEventReceipts)
-        .where(inArray(certificateEventReceipts.eventId, [EVENT_ID]))
+        .where(eq(certificateEventReceipts.certificateId, CERTIFICATE_ID))
     await database
         .delete(certificateDomains)
         .where(eq(certificateDomains.certificateId, CERTIFICATE_ID))
@@ -156,6 +158,8 @@ beforeEach(async () => {
     originalCursor = await readCursor()
     eventStatus = 200
     eventRequests = 0
+    eventBatch = [event]
+    batchCursor = CURSOR
     process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:18082'
     process.env.RENTNERPROXY_CONTROLLER_TOKEN = TOKEN
     await cleanupFixture()
@@ -212,6 +216,32 @@ afterEach(async () => {
 })
 
 describe('certificate event synchronization with PostgreSQL', () => {
+    integrationTest(
+        'persists manual DNS pause, cancellation and expiry before advancing later events',
+        async () => {
+            eventBatch = [
+                ['operator_action_required', 'awaiting_dns'],
+                ['operator_action_required', 'checking_dns'],
+                ['cancelled', 'cancelled'],
+                ['expired', 'expired'],
+                ['started', 'creating_order'],
+            ].map(([kind, stage], index) =>
+                Object.assign({}, event, {
+                    id: `0198d98a-0000-7000-8000-${String(200 + index).padStart(12, '0')}`,
+                    kind: kind!,
+                    stage: stage!,
+                }),
+            )
+            batchCursor = `${STORE_ID}:5`
+            await expect(synchronizeCertificateEventsOnce()).resolves.toBe(true)
+            expect(await readCursor()).toBe(batchCursor)
+            expect(await readEventRows()).toHaveLength(5)
+            expect(await readAuditRows()).toHaveLength(1)
+            await expect(synchronizeCertificateEventsOnce()).resolves.toBe(true)
+            expect(await readEventRows()).toHaveLength(5)
+        },
+    )
+
     integrationTest(
         'persists metadata and audits each event once across repeated syncs',
         async () => {

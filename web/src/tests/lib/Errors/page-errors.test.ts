@@ -191,7 +191,7 @@ describe('safe page error diagnostics', () => {
         expect(result.outputs[1]).toMatchObject({ status: 500, cause: null })
         expect(result.outputs[1].message).toMatch(/^RP_UNEXPECTED:[a-f0-9-]{36}$/u)
         expect(result.outputs[2]).toEqual({
-            state: { setupRequired: true, user: null },
+            state: { setupRequired: true, sessionId: null, user: null },
             status: 200,
         })
         expect(result.logs).toHaveLength(2)

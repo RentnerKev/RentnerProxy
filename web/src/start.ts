@@ -4,10 +4,9 @@ import {
     createServerOnlyFn,
     createStart,
 } from '@tanstack/react-start'
-import { getRequest, getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
+import { getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
 
 import { getTrustProxyHeaders, validateProductionEnvironment } from '@/server/env.server.ts'
-import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import { startRealtimeValkey } from '@/server/WebSockets/realtimeValkey.service.ts'
 import { startWorkerLifecycle } from '@/server/Foundation/worker-lifecycle.server.ts'
 import {
@@ -128,14 +127,6 @@ const csrfMiddleware = createCsrfMiddleware({
     filter: (context) => context.handlerType === 'serverFn',
 })
 
-const liveChangesMiddleware = createMiddleware().server(async ({ next, handlerType }) => {
-    const result = await next()
-    if (handlerType === 'serverFn' && getRequest().method === 'POST' && result.response.ok) {
-        publishApplicationChange()
-    }
-    return result
-})
-
 export const startInstance = createStart(() => ({
-    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware, liveChangesMiddleware],
+    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware],
 }))

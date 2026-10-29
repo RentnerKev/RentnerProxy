@@ -11,6 +11,7 @@ import { auditEventInputSchema } from '@/features/Admin/AuditLogs/validation.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { markAuditedApplicationMutation } from '@/server/WebSockets/committedChanges.ts'
 
 const AUDIT_RETENTION_DAYS = 90
 const AUDIT_MAX_ROWS = 100_000
@@ -53,6 +54,7 @@ export async function appendAuditEventInTransactionService(
         metadata: parsed.metadata ?? {},
     })
     await pruneAuditEventsInTransaction(transaction)
+    markAuditedApplicationMutation(transaction, parsed)
 }
 
 export async function appendAuditEventsInTransactionService(
@@ -75,6 +77,7 @@ export async function appendAuditEventsInTransactionService(
         })),
     )
     await pruneAuditEventsInTransaction(transaction)
+    for (const event of events) markAuditedApplicationMutation(transaction, event)
 }
 
 export async function recordAuditEventBestEffortService(input: AuditEventInput): Promise<void> {

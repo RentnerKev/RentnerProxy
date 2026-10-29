@@ -151,12 +151,14 @@ async fn management_routes_authenticate_before_parsing_or_reading_state() {
         );
     }
     assert_eq!(std::fs::read_dir(&root.0).unwrap().count(), 0);
-    // Credential-bearing management groups also require configured controller auth.
+    // Every privileged group also fails closed without configured controller auth.
     let anonymous = root.router(false);
     for uri in [
         "/internal/v1/dns/connections",
         "/internal/v1/ddns/status",
         "/internal/v1/discovery/docker/status",
+        "/internal/v1/crowdsec/status",
+        "/internal/v1/proxy/access-logs",
     ] {
         assert_eq!(
             call(&anonymous, "GET", uri, Body::empty(), true).await.0,

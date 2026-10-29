@@ -8,6 +8,7 @@ import { userSettings } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 
 export async function updateCurrentUserNavigationGroupService(
     input: unknown,
@@ -17,6 +18,7 @@ export async function updateCurrentUserNavigationGroupService(
     if (user.id !== expectedUserId) {
         throw new AuthDomainError('authentication_required', 'The signed-in user has changed.')
     }
+    if (user.navigationGroupPreferences?.[groupId] === expanded) return { groupId, expanded }
 
     const preference = sql`jsonb_build_object(${groupId}::text, ${expanded}::boolean)`
     const rows = await getAuthDatabase()
@@ -37,5 +39,6 @@ export async function updateCurrentUserNavigationGroupService(
         throw new AuthDomainError('service_unavailable', 'Navigation could not be updated.')
     }
 
+    publishApplicationChange()
     return { groupId, expanded }
 }

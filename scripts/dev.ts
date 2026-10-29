@@ -28,7 +28,7 @@ function spawnProcess(request: SpawnRequest): ManagedProcess {
         stdout: request.stdout,
         stderr: request.stderr,
         detached: request.detached,
-        env: createDevelopmentEnvironment(),
+        env: request.env,
     })
 }
 
@@ -42,6 +42,7 @@ function signalProcessTree(childProcess: ManagedProcess, signal: NodeJS.Signals)
 }
 
 const defaultDependencies: DevelopmentDependencies = {
+    environment: process.env,
     logger: defaultLogger,
     platform: process.platform,
     repositoryRoot: fileURLToPath(new URL('..', import.meta.url)),
@@ -122,6 +123,10 @@ export async function runDevelopment(
     overrides: Partial<DevelopmentDependencies> = {},
 ): Promise<number> {
     const dependencies = { ...defaultDependencies, ...overrides }
+    const environment = createDevelopmentEnvironment(
+        dependencies.environment,
+        dependencies.platform,
+    )
     const runningServices: RunningService[] = []
     let receivedSignal: ShutdownSignal | null = null
     let resolveSignal: ((signal: ShutdownSignal) => void) | null = null
@@ -154,6 +159,7 @@ export async function runDevelopment(
                 const childProcess = dependencies.spawn({
                     command: [process.execPath, '--no-orphans', 'run', '--silent', service.script],
                     cwd: dependencies.repositoryRoot,
+                    env: environment,
                     stdin: 'inherit',
                     stdout: 'inherit',
                     stderr: 'inherit',

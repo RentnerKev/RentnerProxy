@@ -86,6 +86,9 @@ export async function writeStoredCrowdSecConfiguration(
 ): Promise<void> {
     const parsed = storedCrowdSecConfigurationSchema.safeParse(value)
     if (!parsed.success) throw new CrowdSecDomainError('invalid_input')
+    if (parsed.data.mode === 'external' && parsed.data.external) {
+        normalizeCrowdSecApiUrl(parsed.data.external.apiUrl)
+    }
     await transaction
         .update(systemSettings)
         .set({ value: sql`${parsed.data}`, updatedAt: new Date() })
@@ -147,9 +150,10 @@ export async function crowdSecControllerRequestFromStored(
     if (stored.mode === 'managed')
         return { mode: 'managed', communityEnabled: stored.communityEnabled ?? false }
     if (!stored.external) throw new CrowdSecDomainError('configuration_unavailable')
+    const apiUrl = normalizeCrowdSecApiUrl(stored.external.apiUrl)
     return {
         mode: 'external',
-        apiUrl: stored.external.apiUrl,
+        apiUrl,
         apiKey: await decodeApiKey(stored.external.apiKey),
     }
 }
@@ -158,5 +162,6 @@ export async function externalApiKeyFromStored(
     stored: StoredCrowdSecConfiguration,
 ): Promise<string> {
     if (!stored.external) throw new CrowdSecDomainError('api_key_required')
+    normalizeCrowdSecApiUrl(stored.external.apiUrl)
     return decodeApiKey(stored.external.apiKey)
 }

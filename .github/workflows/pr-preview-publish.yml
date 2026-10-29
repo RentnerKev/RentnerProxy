@@ -215,7 +215,23 @@ jobs:
               with:
                   if-no-files-found: warn
                   name: dependency-preview-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: ${{ runner.temp }}/dependency-preview-report
+                  path: |
+                      ${{ runner.temp }}/dependency-preview-report/manifest.json
+                      ${{ runner.temp }}/dependency-preview-report/config.json
+                      ${{ runner.temp }}/dependency-preview-report/identity.json
+                      ${{ runner.temp }}/dependency-preview-report/assessment.json
+                      ${{ runner.temp }}/dependency-preview-report/blocked-assessment.json
+                      ${{ runner.temp }}/dependency-preview-report/cargo-lock-copy-diagnostics.txt
+                      ${{ runner.temp }}/dependency-preview-report/controller/source-revision.txt
+                      ${{ runner.temp }}/dependency-preview-report/controller/cargo-lock.sha256
+                      ${{ runner.temp }}/dependency-preview-report/controller/cargo.json
+                      ${{ runner.temp }}/dependency-preview-report/controller/cargo-diagnostics.txt
+                      ${{ runner.temp }}/dependency-preview-report/controller/rustsec-revision.txt
+                      ${{ runner.temp }}/dependency-preview-report/controller/rustsec-database.json
+                      ${{ runner.temp }}/dependency-preview-report/bun-lock.sha256
+                      ${{ runner.temp }}/dependency-preview-report/bun-audit.json
+                      ${{ runner.temp }}/dependency-preview-report/bun-audit-diagnostics.txt
+                      ${{ runner.temp }}/dependency-preview-report/bun-audit-status.txt
                   retention-days: 30
 
             - name: Remove registry credentials

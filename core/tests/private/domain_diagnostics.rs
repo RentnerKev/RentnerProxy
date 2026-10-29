@@ -312,21 +312,54 @@ impl HttpFixture {
     }
 }
 async fn read_headers(stream: &mut TcpStream) -> Option<String> {
-    let mut bytes = Vec::new();
-    loop {
-        let mut buf = [0; 2048];
-        let n = stream.read(&mut buf).await.ok()?;
-        if n == 0 {
+    timeout(Duration::from_secs(2), async {
+        let mut headers = FixtureHeaders::default();
+        loop {
+            let mut buf = [0; 2048];
+            let n = stream.read(&mut buf).await.ok()?;
+            if n == 0 {
+                return None;
+            }
+            if headers.append(&buf[..n])? {
+                return String::from_utf8(headers.bytes).ok();
+            }
+        }
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+#[derive(Default)]
+struct FixtureHeaders {
+    bytes: Vec<u8>,
+    scanned: usize,
+}
+
+impl FixtureHeaders {
+    fn append(&mut self, bytes: &[u8]) -> Option<bool> {
+        if bytes.len() > 16_384 - self.bytes.len() {
             return None;
         }
-        bytes.extend_from_slice(&buf[..n]);
-        if bytes.len() > 16384 {
-            return None;
-        }
-        if bytes.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
-            return String::from_utf8(bytes).ok();
-        }
+        self.bytes.extend_from_slice(bytes);
+        let complete = self.bytes[self.scanned..]
+            .windows(4)
+            .any(|window| window == b"\r\n\r\n");
+        self.scanned = self.bytes.len().saturating_sub(3);
+        Some(complete)
     }
+}
+
+#[test]
+fn fixture_headers_handle_fragmented_delimiters_and_reject_oversized_input() {
+    let mut headers = FixtureHeaders::default();
+    for byte in b"GET / HTTP/1.1\r\nHost: fixture\r\n\r" {
+        assert_eq!(headers.append(&[*byte]), Some(false));
+    }
+    assert_eq!(headers.append(b"\n"), Some(true));
+    let mut headers = FixtureHeaders::default();
+    assert_eq!(headers.append(&vec![b'a'; 16_384]), Some(false));
+    assert_eq!(headers.append(b"a"), None);
 }
 
 #[tokio::test]
@@ -736,7 +769,7 @@ impl TlsFixture {
         let task = tokio::spawn(async move {
             let mut children = JoinSet::new();
             loop {
-                tokio::select! {accepted=listener.accept()=>{let(stream,_)=accepted.unwrap();let config=config.clone();let seen=seen.clone();children.spawn(async move{tls_serve(stream,config,seen).await;});},_=children.join_next(),if !children.is_empty()=>{}}
+                tokio::select! {accepted=listener.accept()=>{let(stream,_)=accepted.unwrap();if children.len() >= 32 {continue;}let config=config.clone();let seen=seen.clone();children.spawn(async move{tls_serve(stream,config,seen).await;});},_=children.join_next(),if !children.is_empty()=>{}}
             }
         });
         Self {
@@ -747,7 +780,37 @@ impl TlsFixture {
         }
     }
 }
+
+#[tokio::test]
+async fn tls_fixture_closes_clients_that_never_start_the_handshake() {
+    let fixture = TlsFixture::new().await;
+    let mut stream = TcpStream::connect(("127.0.0.1", fixture.port))
+        .await
+        .unwrap();
+    let mut byte = [0; 1];
+    assert_eq!(
+        timeout(Duration::from_secs(3), stream.read(&mut byte))
+            .await
+            .unwrap()
+            .unwrap(),
+        0
+    );
+    assert!(fixture.seen_sni.lock().await.is_empty());
+}
+
 async fn tls_serve(
+    stream: TcpStream,
+    config: Arc<rustls::ServerConfig>,
+    seen: Arc<Mutex<Vec<String>>>,
+) {
+    let _ = timeout(
+        Duration::from_secs(2),
+        tls_serve_inner(stream, config, seen),
+    )
+    .await;
+}
+
+async fn tls_serve_inner(
     mut stream: TcpStream,
     config: Arc<rustls::ServerConfig>,
     seen: Arc<Mutex<Vec<String>>>,
@@ -755,7 +818,8 @@ async fn tls_serve(
     let Ok(mut connection) = rustls::ServerConnection::new(config) else {
         return;
     };
-    let mut plain = Vec::new();
+    let mut headers = FixtureHeaders::default();
+    let mut complete = false;
     let mut observed = false;
     loop {
         while connection.wants_write() {
@@ -790,9 +854,15 @@ async fn tls_serve(
             if n == 0 {
                 break;
             }
-            plain.extend_from_slice(&bytes[..n]);
+            let Some(found) = headers.append(&bytes[..n]) else {
+                return;
+            };
+            complete |= found;
+            if complete {
+                break;
+            }
         }
-        if plain.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+        if complete {
             if connection
                 .writer()
                 .write_all(b"HTTP/1.1 204 Fixture\r\nConnection: close\r\n\r\n")

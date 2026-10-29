@@ -63,5 +63,5 @@ export async function requireAuthenticatedRoute() {
         throw redirect({ to: '/login' })
     }
 
-    return { user: state.user }
+    return { user: state.user, sessionId: state.sessionId }
 }

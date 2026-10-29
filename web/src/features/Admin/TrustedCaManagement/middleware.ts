@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 
 import { TrustedCaDomainError } from '@/server/Admin/TrustedCaManagement/trusted-cas.errors.ts'
 import {
@@ -67,7 +69,10 @@ export const getAssignableTrustedCasHandler = createServerFn({ method: 'GET' }).
 )
 
 export const createTrustedCaHandler = createServerFn({ method: 'POST' })
-    .validator(createTrustedCaInputSchema)
+    .validator(async (input: unknown) => {
+        await requirePermissionService(PERMISSIONS.TRUSTED_CAS_CREATE)
+        return createTrustedCaInputSchema.parse(input)
+    })
     .handler(async ({ data }) => {
         noStore()
         try {
@@ -86,7 +91,10 @@ export const createTrustedCaHandler = createServerFn({ method: 'POST' })
     })
 
 export const replaceTrustedCaHandler = createServerFn({ method: 'POST' })
-    .validator(replaceTrustedCaInputSchema)
+    .validator(async (input: unknown) => {
+        await requirePermissionService(PERMISSIONS.TRUSTED_CAS_UPDATE)
+        return replaceTrustedCaInputSchema.parse(input)
+    })
     .handler(async ({ data }) => {
         noStore()
         try {

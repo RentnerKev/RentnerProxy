@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
@@ -63,6 +64,7 @@ async function execute() {
         const [httpPort, httpsPort] = await Promise.all([freePort(), freePort()])
         const configuration = {
             runId,
+            controllerToken: randomBytes(32).toString('hex'),
             directory,
             providerUrl: receivers.providerUrl,
             ipv4Url: receivers.ipv4Url,
@@ -80,7 +82,7 @@ async function execute() {
             SMTP_PORT: String(receivers.smtpPort),
             SMTP_SECURE: 'false',
             RENTNERPROXY_CONTROLLER_URL: controller.url,
-            RENTNERPROXY_CONTROLLER_TOKEN: runId,
+            RENTNERPROXY_CONTROLLER_TOKEN: configuration.controllerToken,
             RENTNERPROXY_BETA2_INTEGRATION: runId,
         })
         delete process.env.SMTP_USER

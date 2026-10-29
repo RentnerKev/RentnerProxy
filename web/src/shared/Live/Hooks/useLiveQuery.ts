@@ -11,6 +11,7 @@ export default function useLiveQuery<T>({
     onData,
     onUnauthorized,
     onResume,
+    resetKey = 0,
 }: {
     topic: LiveTopic
     query: object
@@ -18,6 +19,7 @@ export default function useLiveQuery<T>({
     onData: (data: T) => void | Promise<void>
     onUnauthorized?: () => void
     onResume?: () => void
+    resetKey?: number
 }): LiveStatus {
     const [status, setStatus] = useState<LiveStatus>('inactive')
     const dataCallback = useRef(onData)
@@ -32,7 +34,7 @@ export default function useLiveQuery<T>({
     useEffect(() => {
         resumeCallback.current = onResume
     }, [onResume])
-    const serializedQuery = JSON.stringify(query)
+    const serializedSubscription = JSON.stringify([query, resetKey])
 
     useEffect(() => {
         if (
@@ -44,13 +46,13 @@ export default function useLiveQuery<T>({
         }
         return subscribeToRealtimeEvents<T>({
             topic,
-            query: JSON.parse(serializedQuery) as object,
+            query: (JSON.parse(serializedSubscription) as [object, number])[0],
             onData: (data) => dataCallback.current(data),
             onStatus: setStatus,
             onUnauthorized: () => unauthorizedCallback.current?.(),
             onResume: () => resumeCallback.current?.(),
         })
-    }, [enabled, topic, serializedQuery])
+    }, [enabled, topic, serializedSubscription])
 
     return enabled ? status : 'inactive'
 }

@@ -91,5 +91,21 @@ jobs:
               with:
                   if-no-files-found: error
                   name: dependency-publish-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: ${{ runner.temp }}/dependency-publish-report
+                  path: |
+                      ${{ runner.temp }}/dependency-publish-report/manifest.json
+                      ${{ runner.temp }}/dependency-publish-report/config.json
+                      ${{ runner.temp }}/dependency-publish-report/identity.json
+                      ${{ runner.temp }}/dependency-publish-report/assessment.json
+                      ${{ runner.temp }}/dependency-publish-report/blocked-assessment.json
+                      ${{ runner.temp }}/dependency-publish-report/cargo-lock-copy-diagnostics.txt
+                      ${{ runner.temp }}/dependency-publish-report/controller/source-revision.txt
+                      ${{ runner.temp }}/dependency-publish-report/controller/cargo-lock.sha256
+                      ${{ runner.temp }}/dependency-publish-report/controller/cargo.json
+                      ${{ runner.temp }}/dependency-publish-report/controller/cargo-diagnostics.txt
+                      ${{ runner.temp }}/dependency-publish-report/controller/rustsec-revision.txt
+                      ${{ runner.temp }}/dependency-publish-report/controller/rustsec-database.json
+                      ${{ runner.temp }}/dependency-publish-report/bun-lock.sha256
+                      ${{ runner.temp }}/dependency-publish-report/bun-audit.json
+                      ${{ runner.temp }}/dependency-publish-report/bun-audit-diagnostics.txt
+                      ${{ runner.temp }}/dependency-publish-report/bun-audit-status.txt
                   retention-days: 30

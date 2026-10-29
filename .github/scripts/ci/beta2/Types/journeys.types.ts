@@ -13,6 +13,7 @@ export interface Beta2JourneyInput {
 
 export interface Beta2ControllerInput {
     readonly runId: string
+    readonly controllerToken: string
     readonly directory: string
     readonly providerUrl: string
     readonly ipv4Url: string

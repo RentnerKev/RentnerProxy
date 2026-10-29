@@ -1,5 +1,8 @@
-import type { ApplicationLiveSnapshot } from '../Types/application-live-sync.types.ts'
-import { useCallback, useRef } from 'react'
+import type {
+    ApplicationLiveSnapshot,
+    ApplicationLiveSyncResult,
+} from '../Types/application-live-sync.types.ts'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 
@@ -8,9 +11,32 @@ import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAcces
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
-import type { LiveStatus } from '../../../lib/Live/Types/realtime-events-client.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 
 const snapshotsByClient = new WeakMap<QueryClient, ApplicationLiveSnapshot>()
+const identityScopesByClient = new WeakMap<QueryClient, string>()
+
+function principalVersion(user: AuthenticatedUser): string {
+    return JSON.stringify([user.id, user.roles.toSorted(), user.permissions.toSorted()])
+}
+
+function confirmedIdentityScope(router: ReturnType<typeof useRouter>): string | null {
+    const state = router.state
+    if (
+        state.status !== 'idle' ||
+        state.isLoading ||
+        (state.resolvedLocation && state.resolvedLocation.href !== state.location.href)
+    )
+        return null
+    const match = state.matches.find((current) => current.routeId === '/_authenticated')
+    if (match?.status !== 'success' || match.invalid || match.error) return null
+    const context = match?.context as
+        { readonly user?: AuthenticatedUser; readonly sessionId?: string | null } | undefined
+    if (!context?.sessionId || !context.user?.permissions.includes(PERMISSIONS.APP_ACCESS))
+        return null
+    return JSON.stringify([principalVersion(context.user), context.sessionId])
+}
 
 const ownWebSocketQueryPrefixes = [
     [...proxyAccessLogsQueryKeys.all, 'list'],
@@ -42,14 +68,92 @@ async function refreshApplicationQueries(queryClient: QueryClient): Promise<void
     })
 }
 
-export default function useApplicationLiveSync(): LiveStatus {
+export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
     const queryClient = useQueryClient()
     const router = useRouter()
     const syncGeneration = useRef(0)
+    const identityPending = useRef(true)
+    const initialVerificationPending = useRef(true)
+    const [isIdentityPending, setIsIdentityPending] = useState(true)
+    const [identityGeneration, setIdentityGeneration] = useState(0)
+    const [hasIdentityError, setHasIdentityError] = useState(false)
+    const [liveGeneration, setLiveGeneration] = useState(0)
+
+    const revalidateIdentity = useCallback(
+        (initial = false) => {
+            if (!initial) initialVerificationPending.current = false
+            const generation = ++syncGeneration.current
+            identityPending.current = true
+            setIsIdentityPending(true)
+            setHasIdentityError(false)
+            void (async () => {
+                try {
+                    if (!initial) await router.invalidate({ sync: true })
+                    if (generation !== syncGeneration.current) return
+                    if (
+                        initial &&
+                        (router.state.status !== 'idle' ||
+                            router.state.isLoading ||
+                            router.state.matches.some(
+                                (match) =>
+                                    match.routeId === '/_authenticated' &&
+                                    match.status === 'pending',
+                            ) ||
+                            (router.state.resolvedLocation &&
+                                router.state.resolvedLocation.href !== router.state.location.href))
+                    )
+                        return
+                    const scope = confirmedIdentityScope(router)
+                    const previousScope = identityScopesByClient.get(queryClient)
+                    const changed = scope === null || previousScope !== scope
+                    if (changed) {
+                        void queryClient.cancelQueries()
+                        queryClient.clear()
+                    }
+                    if (!scope) {
+                        initialVerificationPending.current = false
+                        setHasIdentityError(true)
+                        return
+                    }
+                    if (changed) {
+                        setIdentityGeneration((current) => current + 1)
+                        snapshotsByClient.delete(queryClient)
+                    }
+                    identityScopesByClient.set(queryClient, scope)
+                    initialVerificationPending.current = false
+                } catch {
+                    if (generation === syncGeneration.current) setHasIdentityError(true)
+                    return
+                }
+                if (generation !== syncGeneration.current) return
+                identityPending.current = false
+                setIsIdentityPending(false)
+                setLiveGeneration((current) => current + 1)
+                if (!initial) await refreshApplicationQueries(queryClient)
+            })().catch(() => undefined)
+        },
+        [queryClient, router],
+    )
+
+    useEffect(() => {
+        let active = true
+        const verifyInitial = () =>
+            queueMicrotask(() => {
+                if (active && initialVerificationPending.current) revalidateIdentity(true)
+            })
+        const unsubscribe = router.subscribe('onResolved', verifyInitial)
+        verifyInitial()
+        return () => {
+            active = false
+            unsubscribe()
+            syncGeneration.current += 1
+        }
+    }, [revalidateIdentity, router])
 
     const handleSnapshot = useCallback(
         (snapshot: ApplicationLiveSnapshot) => {
             if (!isApplicationLiveSnapshot(snapshot)) return
+            if (identityPending.current) return
 
             const previous = snapshotsByClient.get(queryClient)
             if (
@@ -59,41 +163,26 @@ export default function useApplicationLiveSync(): LiveStatus {
                 return
             }
             snapshotsByClient.set(queryClient, snapshot)
-            const generation = ++syncGeneration.current
-
-            void (async () => {
-                if (previous) await router.invalidate()
-                if (generation !== syncGeneration.current) return
-                await refreshApplicationQueries(queryClient)
-            })().catch(() => undefined)
+            if (previous) revalidateIdentity()
+            else void refreshApplicationQueries(queryClient).catch(() => undefined)
         },
-        [queryClient, router, syncGeneration],
+        [queryClient, revalidateIdentity],
     )
 
-    const handleUnauthorized = useCallback(() => {
-        syncGeneration.current += 1
-        void (async () => {
-            await queryClient.cancelQueries()
-            queryClient.clear()
-            await router.invalidate()
-        })().catch(() => undefined)
-    }, [queryClient, router, syncGeneration])
-
-    const handleResume = useCallback(() => {
-        const generation = ++syncGeneration.current
-        void (async () => {
-            await router.invalidate()
-            if (generation !== syncGeneration.current) return
-            await refreshApplicationQueries(queryClient)
-        })().catch(() => undefined)
-    }, [queryClient, router, syncGeneration])
-
-    return useLiveQuery<ApplicationLiveSnapshot>({
+    const status = useLiveQuery<ApplicationLiveSnapshot>({
         topic: 'app-events',
         query: {},
-        enabled: true,
+        enabled: !isIdentityPending,
         onData: handleSnapshot,
-        onUnauthorized: handleUnauthorized,
-        onResume: handleResume,
+        onUnauthorized: () => revalidateIdentity(),
+        onResume: () => revalidateIdentity(),
+        resetKey: liveGeneration,
     })
+    return {
+        status,
+        isIdentityPending,
+        identityGeneration,
+        hasIdentityError,
+        retryIdentity: () => revalidateIdentity(),
+    }
 }

@@ -15,9 +15,9 @@ import type {
     SecurityPageLogicResult,
 } from '../Types/security-page.types.ts'
 
-export default function useSecurityPageLogic() {
+export default function useSecurityPageLogic(userId: string) {
     const { t } = useTranslationStore()
-    const security = useSecurityOperations()
+    const security = useSecurityOperations(userId)
     const reauthentication = useReauthentication()
     const [reauthAction, setReauthAction] = useState<ReauthenticationAction | null>(null)
     const [targetPasskeyId, setTargetPasskeyId] = useState<string | null>(null)

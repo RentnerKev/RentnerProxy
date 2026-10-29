@@ -4,6 +4,7 @@ import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
@@ -118,7 +119,7 @@ async function render(): Promise<HTMLElement> {
             withTestLanguage(
                 <TooltipProvider>
                     <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
-                        <SecuritySettingsPanel section="passkeys" />
+                        <SecuritySettingsPanel section="passkeys" userId="test-user" />
                     </ToastProvider>
                 </TooltipProvider>,
             ),
@@ -254,4 +255,72 @@ describe('security action feedback', () => {
         expect(errorToasts()).toHaveLength(1)
         expect(errorToasts()[0]?.textContent).toContain('Passkey registration failed.')
     })
+})
+
+test('renders no previous identity metadata while the new identity query is pending', async () => {
+    await runBunScript(
+        `
+        import { expect, mock } from 'bun:test'
+        import { GlobalRegistrator } from '@happy-dom/global-registrator'
+        import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+        import { act, createElement } from 'react'
+        import { createRoot } from 'react-dom/client'
+        import { securityQueryKeys } from './lib/UserSettings/userSettingsCache.ts'
+        if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+        Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+        mock.module('./features/UserSettings/middleware.ts', () => ({
+            getSecurityStatusHandler: () => new Promise(() => undefined),
+            beginTotpSetupHandler: mock(), confirmTotpSetupHandler: mock(), disableTotpHandler: mock(),
+            regenerateRecoveryCodesHandler: mock(), beginPasskeyRegistrationHandler: mock(),
+            finishPasskeyRegistrationHandler: mock(), removePasskeyHandler: mock(), renamePasskeyHandler: mock(),
+        }))
+        const { default: useSecurityOperations } = await import('./features/UserSettings/Components/SecuritySettingsPanel/Hooks/useSecurityOperations.ts')
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+        function Probe({ userId }) {
+            const { state } = useSecurityOperations(userId)
+            return createElement('div', null, state.status?.passkeys.map((passkey) => passkey.name).join(',') ?? 'Loading')
+        }
+        client.setQueryData([...securityQueryKeys.status, 'alice'], {
+            totpEnabled: true, recentlyAuthenticated: true, recoveryCodesRemaining: 7,
+            passkeys: [{ id: 'alice-key', name: 'Alice private laptop', createdAt: '2026-01-01', lastUsedAt: null }],
+        })
+        const container = document.createElement('div')
+        document.body.append(container)
+        const root = createRoot(container)
+        try {
+            await act(async () => root.render(createElement(QueryClientProvider, { client }, createElement(Probe, { key: 'alice', userId: 'alice' }))))
+            expect(container.textContent).toContain('Alice private laptop')
+            await act(async () => root.render(createElement(QueryClientProvider, { client }, createElement(Probe, { key: 'bob', userId: 'bob' }))))
+            expect(container.textContent).toBe('Loading')
+            expect(container.textContent).not.toContain('Alice')
+        } finally {
+            await act(async () => root.unmount())
+            client.clear()
+            container.remove()
+        }
+    `,
+        { cwd: new URL('../../../../..', import.meta.url) },
+    )
+})
+
+test('never reuses security metadata for a different signed-in identity', async () => {
+    await runBunScript(
+        `
+        import { expect } from 'bun:test'
+        import { QueryClient } from '@tanstack/react-query'
+        import { invalidateSecurityStatusCache, securityQueryKeys } from './lib/UserSettings/userSettingsCache.ts'
+        const client = new QueryClient()
+        try {
+            client.setQueryData([...securityQueryKeys.status, 'old-user'], { passkeys: ['Private laptop'] })
+            expect(client.getQueryData([...securityQueryKeys.status, 'new-user'])).toBeUndefined()
+            client.setQueryData([...securityQueryKeys.status, 'new-user'], { passkeys: [] })
+            await invalidateSecurityStatusCache(client)
+            expect(client.getQueryState([...securityQueryKeys.status, 'old-user'])?.isInvalidated).toBe(true)
+            expect(client.getQueryState([...securityQueryKeys.status, 'new-user'])?.isInvalidated).toBe(true)
+        } finally {
+            client.clear()
+        }
+    `,
+        { cwd: new URL('../../../../..', import.meta.url) },
+    )
 })

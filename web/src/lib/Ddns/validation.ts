@@ -77,6 +77,7 @@ export const ddnsRecordErrorSchema = z.enum([
     'creation_required',
     'record_conflict',
     'record_changed',
+    'update_precondition_unsupported',
     'provider_unauthorized',
     'provider_rate_limited',
     'provider_unavailable',

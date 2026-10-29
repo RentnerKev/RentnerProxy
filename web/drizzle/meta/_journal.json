@@ -204,6 +204,13 @@
       "when": 1793225274317,
       "tag": "0028_opposite_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793294534568,
+      "tag": "0029_coderabbit_manual_dns_receipts",
+      "breakpoints": true
     }
   ]
 }

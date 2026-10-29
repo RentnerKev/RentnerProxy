@@ -227,7 +227,8 @@ fn safe_label(value: &str, max_len: usize) -> Option<String> {
 
 async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<Vec<DecisionEntry>> {
     crate::runtime::tls::ensure_crypto_provider();
-    let endpoint = Url::parse(api_url).ok()?.join("v1/decisions").ok()?;
+    let api_url = super::crowdsec::normalize_api_url(api_url).ok()?;
+    let endpoint = Url::parse(&api_url).ok()?.join("v1/decisions").ok()?;
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
         .no_proxy()

@@ -75,36 +75,79 @@ export async function startCertificateDnsFixture(apiToken: string) {
     const delegation = { zones, cnames, nameservers }
     const connections = new Set<Socket>()
     const onConnection = (socket: Socket) => {
+        if (connections.size >= 32) {
+            socket.destroy()
+            return
+        }
         connections.add(socket)
-        socket.on('close', () => connections.delete(socket))
+        let deadline: ReturnType<typeof setTimeout> | undefined
+        let drainDeadline: ReturnType<typeof setTimeout> | undefined
+        let heldChunk: Buffer | undefined
+        let blocked = false
+        socket.on('close', () => {
+            clearTimeout(deadline)
+            clearTimeout(drainDeadline)
+            socket.removeListener('drain', onDrain)
+            heldChunk = undefined
+            connections.delete(socket)
+        })
         socket.on('error', () => socket.destroy())
         socket.setTimeout(5_000, () => socket.destroy())
-        let pending = Buffer.alloc(0)
-        socket.on('data', (chunk: Buffer) => {
-            pending = Buffer.concat([pending, chunk])
-            while (pending.length >= 2) {
-                const length = pending.readUInt16BE(0)
-                if (length === 0) {
-                    socket.destroy()
-                    return
+        const pending = Buffer.alloc(65_537)
+        let used = 0
+        let expected = 2
+        function onDrain() {
+            clearTimeout(drainDeadline)
+            blocked = false
+            const chunk = heldChunk
+            heldChunk = undefined
+            if (chunk && !socket.destroyed) consume(chunk)
+            if (!blocked && !socket.destroyed) socket.resume()
+        }
+        function consume(chunk: Buffer) {
+            let offset = 0
+            while (offset < chunk.length) {
+                if (used === 0) deadline = setTimeout(() => socket.destroy(), 5_000)
+                const count = Math.min(expected - used, chunk.length - offset)
+                chunk.copy(pending, used, offset, offset + count)
+                used += count
+                offset += count
+                if (used < expected) continue
+                if (expected === 2) {
+                    const length = pending.readUInt16BE(0)
+                    if (length === 0) {
+                        socket.destroy()
+                        return
+                    }
+                    expected = length + 2
+                    continue
                 }
-                if (pending.length < length + 2) break
                 const response = dnsFixtureResponse(
-                    pending.subarray(2, length + 2),
+                    pending.subarray(2, expected),
                     records,
                     addresses,
                     delegation,
                 )
-                pending = pending.subarray(length + 2)
-                if (!response) {
+                clearTimeout(deadline)
+                used = 0
+                expected = 2
+                if (!response || response.length > 65_535) {
                     socket.destroy()
                     return
                 }
                 const header = Buffer.alloc(2)
                 header.writeUInt16BE(response.length)
-                socket.write(Buffer.concat([header, response]))
+                if (!socket.write(Buffer.concat([header, response]))) {
+                    socket.pause()
+                    blocked = true
+                    heldChunk = offset < chunk.length ? chunk.subarray(offset) : undefined
+                    drainDeadline = setTimeout(() => socket.destroy(), 5_000)
+                    socket.once('drain', onDrain)
+                    return
+                }
             }
-        })
+        }
+        socket.on('data', consume)
     }
     const reserveDnsServers = async (
         attempt = 0,
@@ -122,7 +165,7 @@ export async function startCertificateDnsFixture(apiToken: string) {
             })
         })
 
-        const candidateTcp = createServer(onConnection)
+        const candidateTcp = createServer({ highWaterMark: 65_537 }, onConnection)
         try {
             await new Promise<void>((resolve, reject) => {
                 candidateTcp.once('error', reject)
