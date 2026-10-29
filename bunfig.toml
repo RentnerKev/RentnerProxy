@@ -4,6 +4,7 @@ minimumReleaseAge = 86400
 minimumReleaseAgeExcludes = [
     "@rentnerkev/calendar",
     "@rentnerkev/inputs",
+    "@rentnerkev/menu",
     "@rentnerkev/picker",
     "@rentnerkev/select",
     "@rentnerkev/tooltips",

@@ -85,12 +85,14 @@ export function DiscoveryActionsCell({
             items={[
                 {
                     label: t('admin.dockerDiscovery.actions.details'),
+                    id: 'details',
                     onSelect: () => onDetails(row),
                 },
                 ...(canDetach && row.hostId && row.state !== 'detached'
                     ? [
                           {
                               label: t('admin.dockerDiscovery.actions.detach'),
+                              id: 'detach',
                               onSelect: () => onDetach(row),
                               disabled: locked,
                               destructive: true,

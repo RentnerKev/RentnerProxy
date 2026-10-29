@@ -20,6 +20,7 @@ export function getAccessPolicyTableActionItems(
     if (canViewCredentials && onCredentials) {
         items.push({
             label: t('admin.accessPolicies.basicAuth.actions.credentials'),
+            id: 'credentials',
             onSelect: () => onCredentials(policy),
             disabled: isPending,
         })
@@ -28,6 +29,7 @@ export function getAccessPolicyTableActionItems(
     if (canUpdate) {
         items.push({
             label: t('admin.accessPolicies.actions.edit'),
+            id: 'edit',
             onSelect: () => onEdit(policy),
             disabled: isPending,
         })
@@ -37,6 +39,7 @@ export function getAccessPolicyTableActionItems(
         const assigned = policy.assignedHostCount > 0
         items.push({
             label: t('admin.accessPolicies.actions.delete'),
+            id: 'delete',
             onSelect: () => onDelete(policy),
             destructive: true,
             disabled: isPending || assigned,

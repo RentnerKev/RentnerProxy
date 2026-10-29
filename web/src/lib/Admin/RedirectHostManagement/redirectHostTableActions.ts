@@ -24,6 +24,7 @@ export function getRedirectHostTableActionItems(
     if (onDomainCheck) {
         items.push({
             label: t('admin.domainCheck.action'),
+            id: 'domain-check',
             onSelect: () => onDomainCheck(host),
             disabled: isPending,
         })
@@ -32,18 +33,21 @@ export function getRedirectHostTableActionItems(
     if (canUpdate)
         items.push({
             label: t('admin.redirectHosts.actions.edit'),
+            id: 'edit',
             onSelect: () => onEdit(host),
             disabled: isPending,
         })
     if (canDuplicate?.(host) && onDuplicate)
         items.push({
             label: t('admin.redirectHosts.actions.duplicate'),
+            id: 'duplicate',
             onSelect: () => onDuplicate(host),
             disabled: isPending,
         })
     if (host.enabled && canDisable)
         items.push({
             label: t('admin.redirectHosts.actions.disable'),
+            id: 'disable',
             onSelect: () => onDisable(host),
             destructive: true,
             disabled: isPending,
@@ -52,6 +56,7 @@ export function getRedirectHostTableActionItems(
     if (!host.enabled && canEnable)
         items.push({
             label: t('admin.redirectHosts.actions.enable'),
+            id: 'enable',
             onSelect: () => onEnable(host),
             disabled: isPending,
             description: t('admin.redirectHosts.actions.enableDescription'),
@@ -59,6 +64,7 @@ export function getRedirectHostTableActionItems(
     if (canDelete)
         items.push({
             label: t('admin.redirectHosts.actions.delete'),
+            id: 'delete',
             onSelect: () => onDelete(host),
             destructive: true,
             disabled: isPending,

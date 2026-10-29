@@ -481,11 +481,10 @@ async function click(element: Element): Promise<void> {
 async function openMenu(trigger: Element): Promise<void> {
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -2796,9 +2795,9 @@ describe('Caddy global proxy configuration editor', () => {
             await setControlValue(fields[2]!, '120')
             await click(getButton('Save changes'))
             await waitForToast('error', 'The HTTP settings could not be saved.')
-            expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
-                'The HTTP settings could not be saved.',
-            )
+            expect(
+                document.body.textContent?.split('The HTTP settings could not be saved.'),
+            ).toHaveLength(2)
             expect(fields[2]?.value).toBe('120')
             await click(getButton('Save changes'))
             await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 2)
@@ -2979,11 +2978,13 @@ describe('Caddy proxy host configuration editor', () => {
                     new Error('private transport failure'),
                 )
             }
-            const dialog = await openHostConfig()
+            await openHostConfig()
             await click(getButton('Save changes'))
             await waitForToast('error', 'The HTTP settings could not be saved.')
-            expect(dialog.textContent).not.toContain('The HTTP settings could not be saved.')
-            expect(dialog.textContent).not.toContain('private transport failure')
+            expect(
+                document.body.textContent?.split('The HTTP settings could not be saved.'),
+            ).toHaveLength(2)
+            expect(document.body.textContent).not.toContain('private transport failure')
         })
     }
 

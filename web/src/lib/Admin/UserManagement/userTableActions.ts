@@ -25,6 +25,7 @@ export function getUserTableActionItems(
     if (canUpdate) {
         items.push({
             label: t('admin.users.actions.edit'),
+            id: 'edit',
             onSelect: () => onEdit(user),
             disabled: ownerProtected,
             ...(ownerProtected ? { description: t('admin.users.actions.ownerEdit') } : {}),
@@ -36,6 +37,7 @@ export function getUserTableActionItems(
 
         items.push({
             label: t('admin.users.actions.disable'),
+            id: 'disable',
             onSelect: () => onDisable(user),
             destructive: true,
             disabled: disableProtected,
@@ -54,6 +56,7 @@ export function getUserTableActionItems(
                     ? 'admin.users.actions.enabling'
                     : 'admin.users.actions.enable',
             ),
+            id: 'enable',
             onSelect: () => onEnable(user),
             disabled: ownerProtected || enablingUserId !== null,
             description: t(

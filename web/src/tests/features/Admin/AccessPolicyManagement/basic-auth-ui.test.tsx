@@ -135,15 +135,12 @@ async function openActionMenu(container: HTMLElement): Promise<void> {
     expect(trigger).not.toBeNull()
     await act(async () => {
         trigger?.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
-        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-        trigger?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
         await Promise.resolve()
     })
     await waitFor(() => document.querySelector('[role="menu"]') !== null)
@@ -266,7 +263,9 @@ describe('Basic Auth credential UI', () => {
         await openActionMenu(pending)
         const pendingItems = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
         expect(pendingItems).toHaveLength(2)
-        expect(pendingItems.every((item) => item.getAttribute('data-disabled') === '')).toBeTrue()
+        expect(
+            pendingItems.every((item) => item.getAttribute('aria-disabled') === 'true'),
+        ).toBeTrue()
         await click(pendingItems[0]!)
         expect(selected).toEqual(['edit', 'delete'])
 

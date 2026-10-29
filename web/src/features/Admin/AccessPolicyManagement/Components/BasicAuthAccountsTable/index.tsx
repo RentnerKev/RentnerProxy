@@ -75,6 +75,7 @@ export default function BasicAuthAccountsTable({
                                                         'admin.accessPolicies.basicAuth.actions.editAccount',
                                                     ),
                                                     disabled: isPending,
+                                                    id: 'edit',
                                                     onSelect: () => onEdit(account),
                                                 },
                                                 {
@@ -83,6 +84,7 @@ export default function BasicAuthAccountsTable({
                                                     ),
                                                     destructive: true,
                                                     disabled: isPending,
+                                                    id: 'delete',
                                                     onSelect: () => onDelete(account),
                                                 },
                                             ]}

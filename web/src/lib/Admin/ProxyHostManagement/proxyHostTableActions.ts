@@ -37,6 +37,7 @@ export function getProxyHostTableActionItems(
     if (onMonitoring) {
         items.push({
             label: t('admin.hostMonitoring.action'),
+            id: 'monitoring',
             onSelect: () => onMonitoring(host),
             disabled: isPending,
         })
@@ -45,6 +46,7 @@ export function getProxyHostTableActionItems(
     if (onDomainCheck) {
         items.push({
             label: t('admin.domainCheck.action'),
+            id: 'domain-check',
             onSelect: () => onDomainCheck(host),
             disabled: isPending,
         })
@@ -53,6 +55,7 @@ export function getProxyHostTableActionItems(
     if (canDuplicate?.(host) && onDuplicate) {
         items.push({
             label: t('admin.proxyHosts.actions.duplicate'),
+            id: 'duplicate',
             onSelect: () => onDuplicate(host),
             disabled: isPending,
         })
@@ -61,6 +64,7 @@ export function getProxyHostTableActionItems(
     if (canUpdate && !host.discovery) {
         items.push({
             label: t('admin.proxyHosts.actions.edit'),
+            id: 'edit',
             onSelect: () => onEdit(host),
             disabled: isPending,
         })
@@ -80,6 +84,7 @@ export function getProxyHostTableActionItems(
                     ? 'admin.certificates.actions.retry'
                     : 'admin.certificates.actions.requestForHost',
             ),
+            id: 'request-certificate',
             onSelect: () => onRequestCertificate(host),
             disabled: isPending || Boolean(job && isCertificateJobActive(job.stage) && !retrying),
         })
@@ -88,6 +93,7 @@ export function getProxyHostTableActionItems(
     if (onConfig) {
         items.push({
             label: t('admin.proxyHosts.actions.config'),
+            id: 'config',
             onSelect: () => onConfig(host),
             disabled: isPending,
         })
@@ -96,6 +102,7 @@ export function getProxyHostTableActionItems(
     if (host.enabled && canDisable) {
         items.push({
             label: t('admin.proxyHosts.actions.disable'),
+            id: 'disable',
             onSelect: () => onDisable(host),
             destructive: true,
             disabled: isPending,
@@ -106,6 +113,7 @@ export function getProxyHostTableActionItems(
     if (!host.enabled && canEnable) {
         items.push({
             label: t('admin.proxyHosts.actions.enable'),
+            id: 'enable',
             onSelect: () => onEnable(host),
             disabled: isPending,
             description: t('admin.proxyHosts.actions.enableDescription'),
@@ -115,6 +123,7 @@ export function getProxyHostTableActionItems(
     if (canDelete && !host.discovery) {
         items.push({
             label: t('admin.proxyHosts.actions.delete'),
+            id: 'delete',
             onSelect: () => onDelete(host),
             destructive: true,
             disabled: isPending,

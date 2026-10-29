@@ -349,6 +349,7 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
                                                                     ? 'admin.auditLogs.actions.hideDetails'
                                                                     : 'admin.auditLogs.actions.showDetails',
                                                             ),
+                                                            id: 'toggle-details',
                                                             onSelect: () =>
                                                                 onToggleDetails(eventId),
                                                         },

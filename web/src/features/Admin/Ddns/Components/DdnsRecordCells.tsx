@@ -86,18 +86,25 @@ export function DdnsActionsCell({
                 type: row.target.recordType,
             })}
             items={[
-                { label: t('common.edit'), disabled: locked, onSelect: () => onEdit(row.target) },
+                {
+                    label: t('common.edit'),
+                    disabled: locked,
+                    id: 'edit',
+                    onSelect: () => onEdit(row.target),
+                },
                 {
                     label: t(
                         row.target.enabled ? 'admin.ddns.table.disable' : 'admin.ddns.table.enable',
                     ),
                     disabled: locked,
+                    id: 'toggle',
                     onSelect: () => onToggle(row.target),
                 },
                 {
                     label: t('common.delete'),
                     destructive: true,
                     disabled: locked,
+                    id: 'delete',
                     onSelect: () => onDelete(row.target),
                 },
             ]}

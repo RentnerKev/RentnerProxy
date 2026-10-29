@@ -63,18 +63,24 @@ export default function useModalLogic({
             },
             handleEscapeKeyDown: (event: PreventableEvent) => {
                 // Radix captures Escape before portaled controls can dismiss themselves.
-                if (event.target instanceof Node && selectPortalContainer?.contains(event.target)) {
+                const hoveredMenu =
+                    selectPortalContainer?.querySelector<HTMLElement>('[role="menu"]')
+                if (
+                    event.target instanceof Node &&
+                    (selectPortalContainer?.contains(event.target) || hoveredMenu)
+                ) {
                     const popup =
-                        event.target instanceof Element
-                            ? event.target.closest<HTMLElement>('[role="dialog"]')
-                            : null
-                    if (popup?.id && selectPortalContainer.contains(popup)) {
-                        // The calendar ignores default-prevented Escape events. Its own trigger
-                        // closes it and restores focus without dismissing the parent dialog.
+                        hoveredMenu ??
+                        (event.target instanceof Element
+                            ? event.target.closest<HTMLElement>('[role="dialog"], [role="menu"]')
+                            : null)
+                    if (popup?.id && selectPortalContainer?.contains(popup)) {
+                        // Calendar and menu handlers ignore default-prevented Escape events.
+                        // Their trigger closes the popup and restores focus before the modal.
                         const dialog = selectPortalContainer.closest('[role="dialog"]')
                         const trigger = [
                             ...(dialog?.querySelectorAll<HTMLButtonElement>(
-                                'button[aria-haspopup="dialog"]',
+                                'button[aria-haspopup]',
                             ) ?? []),
                         ].find((button) => button.getAttribute('aria-controls') === popup.id)
                         trigger?.click()

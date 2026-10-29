@@ -146,11 +146,10 @@ async function click(element: Element): Promise<void> {
 async function openMenu(trigger: Element): Promise<void> {
     await act(async () => {
         trigger.dispatchEvent(
-            new PointerEvent('pointerdown', {
+            new MouseEvent('click', {
                 bubbles: true,
                 button: 0,
                 cancelable: true,
-                pointerType: 'mouse',
             }),
         )
         await Promise.resolve()
@@ -794,7 +793,7 @@ describe('permission-aware row actions', () => {
         await openMenu(getButton('Open actions for Kevin Example'))
         const items = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
         expect(items).toHaveLength(2)
-        expect(items.every((item) => item.hasAttribute('data-disabled'))).toBeTrue()
+        expect(items.every((item) => item.getAttribute('aria-disabled') === 'true')).toBeTrue()
     })
 
     test('disables the sensitive action for the current user', async () => {
@@ -813,7 +812,7 @@ describe('permission-aware row actions', () => {
 
         await openMenu(getButton('Open actions for Kevin Example'))
         const disableItem = getMenuItem('Disable')
-        expect(disableItem.hasAttribute('data-disabled')).toBeTrue()
+        expect(disableItem.getAttribute('aria-disabled')).toBe('true')
         expect(disableItem.textContent).toContain('You cannot disable your own account.')
     })
 
@@ -844,7 +843,7 @@ describe('permission-aware row actions', () => {
         const deleteItem = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
             (item) => item.textContent?.includes('Delete'),
         )
-        expect(deleteItem?.hasAttribute('data-disabled')).toBeTrue()
+        expect(deleteItem?.getAttribute('aria-disabled')).toBe('true')
         expect(deleteItem?.textContent).toContain('Assigned to 2 users.')
     })
 })
@@ -907,7 +906,7 @@ describe('user reactivation UI', () => {
             )
             await openMenu(getButton('Open actions for Kevin Example'))
             expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Enable')
-            expect(getMenuItem('Disable').hasAttribute('data-disabled')).toBeFalse()
+            expect(getMenuItem('Disable').getAttribute('aria-disabled')).not.toBe('true')
         },
     )
 
@@ -927,7 +926,7 @@ describe('user reactivation UI', () => {
             />,
         )
         await openMenu(getButton('Open actions for Kevin Example'))
-        expect(getMenuItem('Enable').hasAttribute('data-disabled')).toBeTrue()
+        expect(getMenuItem('Enable').getAttribute('aria-disabled')).toBe('true')
         expect(getMenuItem('Enable').textContent).toContain(
             'Only an owner can enable this account.',
         )
@@ -1114,9 +1113,9 @@ describe('user form modal', () => {
             ),
         )
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
-        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
-            'This email address is already in use.',
-        )
+        expect(
+            document.body.textContent?.split('This email address is already in use.'),
+        ).toHaveLength(2)
         expect(displayName?.value).toBe('Changed Name')
         await waitFor(
             () =>
