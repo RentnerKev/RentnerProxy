@@ -2,6 +2,7 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import HostAvailabilityBadge from './HostAvailabilityBadge.tsx'
+import MonitoringDurationChart from './MonitoringDurationChart/index.tsx'
 import type {
     MonitoringDialogHandler,
     MonitoringDialogState,
@@ -97,55 +98,7 @@ export default function MonitoringOverview({
                         <p className="text-sm text-muted">{t('admin.hostMonitoring.noData')}</p>
                     ) : (
                         <>
-                            <figure className="m-0 grid gap-2">
-                                <figcaption className="flex justify-between text-sm font-bold">
-                                    <span>{t('admin.hostMonitoring.chart')}</span>
-                                    <span className="font-mono text-xs font-normal text-muted">
-                                        0–{state.plot.maximum} ms
-                                    </span>
-                                </figcaption>
-                                {/* oxlint-disable jsx-a11y/prefer-tag-over-role -- Inline SVG requires its image role and accessible title; an HTML img cannot render these dynamic paths. */}
-                                <svg
-                                    viewBox="0 0 600 120"
-                                    role="img"
-                                    aria-labelledby={`${state.id}-chart-title`}
-                                    className="h-32 w-full rounded-lg bg-surface-raised text-accent-ring"
-                                >
-                                    <title id={`${state.id}-chart-title`}>
-                                        {t('admin.hostMonitoring.chart')}
-                                    </title>
-                                    <path
-                                        d="M10,110H590"
-                                        stroke="currentColor"
-                                        className="text-border"
-                                        fill="none"
-                                    />
-                                    {state.plot.paths.map((path) => (
-                                        <path
-                                            key={path}
-                                            d={path}
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                        />
-                                    ))}
-                                    {state.plot.points.map((point) => (
-                                        <circle
-                                            key={point.key}
-                                            cx={point.x}
-                                            cy={point.y}
-                                            r="2.5"
-                                            fill="currentColor"
-                                        />
-                                    ))}
-                                </svg>
-                                {/* oxlint-enable jsx-a11y/prefer-tag-over-role */}
-                                <div className="flex justify-between text-[0.7rem] text-muted">
-                                    <span>{handler.formatDate(state.plot.first)}</span>
-                                    <span>{handler.formatDate(state.plot.last)}</span>
-                                </div>
-                            </figure>
+                            <MonitoringDurationChart observations={state.observations} />
                             <div
                                 className="flex gap-1 overflow-hidden"
                                 aria-label={t('admin.hostMonitoring.observations')}

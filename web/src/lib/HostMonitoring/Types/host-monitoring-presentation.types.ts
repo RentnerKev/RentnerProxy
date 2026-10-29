@@ -7,10 +7,3 @@ export interface DurationSample {
     readonly durationMs: number | null
     readonly status: string
 }
-export interface DurationPlot {
-    readonly paths: readonly string[]
-    readonly points: readonly { readonly x: number; readonly y: number; readonly key: string }[]
-    readonly maximum: number
-    readonly first: Date | null
-    readonly last: Date | null
-}

@@ -12,7 +12,7 @@ import {
 } from '@/lib/HostMonitoring/hostMonitoringClient.ts'
 import { hostMonitoringQueryKeys } from '@/lib/HostMonitoring/hostMonitoringCache.ts'
 import { hostMonitoringSettingsSchema } from '@/lib/HostMonitoring/validation.ts'
-import { durationPlot, monitoringSince } from '@/lib/HostMonitoring/presentation.ts'
+import { monitoringSince } from '@/lib/HostMonitoring/presentation.ts'
 import type {
     HostMonitoringHistoryQuery,
     HostMonitoringSettings,
@@ -233,7 +233,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             pages.flatMap((page) => page.incidents).map((incident) => [incident.id, incident]),
         ).values(),
     ]
-    const plot = durationPlot(observations)
     const formatter = useMemo(
         () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }),
         [locale],
@@ -329,7 +328,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         historyLoading: historyQuery.isPending,
         observations,
         incidents,
-        plot,
         status,
         period,
         more: Boolean(historyQuery.hasNextPage),

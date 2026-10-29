@@ -7,7 +7,6 @@ import type {
 } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
 import type { HostMonitoringHistoryView } from '@/lib/HostMonitoring/Types/host-monitoring-client.types.ts'
 import type {
-    DurationPlot,
     HostAvailability,
     MonitoringPeriod,
 } from '@/lib/HostMonitoring/Types/host-monitoring-presentation.types.ts'
@@ -44,7 +43,6 @@ export interface MonitoringDialogState {
     readonly historyLoading: boolean
     readonly observations: HostMonitoringHistoryView['observations']
     readonly incidents: HostMonitoringHistoryView['incidents']
-    readonly plot: DurationPlot
     readonly status: HostMonitoringHistoryQuery['status']
     readonly period: MonitoringPeriod
     readonly more: boolean

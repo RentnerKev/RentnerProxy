@@ -279,9 +279,9 @@ test('unknown observations and open incidents remain visible without editable se
     await render({ ...props, permissions: [PERMISSIONS.PROXY_HOSTS_VIEW] }, true)
     expect(document.querySelector('table tbody')?.textContent).toContain('Unknown')
     expect(document.querySelector('article')?.textContent).toContain('Open')
-    expect(document.querySelector('svg[role="img"] title')?.textContent).toContain('Response')
-    expect(document.querySelectorAll('svg[role="img"] circle')).toHaveLength(1)
-    expect(document.querySelector('svg[role="img"] circle')?.getAttribute('r')).toBe('2.5')
+    const chart = document.querySelector('svg[aria-label="Response duration"]')
+    expect(chart).not.toBeNull()
+    expect(chart?.getAttribute('tabindex')).toBe('0')
     expect(document.querySelector('form input') === null).toBe(true)
 })
 
