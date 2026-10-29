@@ -335,7 +335,7 @@ jobs:
                     --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
                     --env GOTOOLCHAIN=local --env CGO_ENABLED=1 \
                     mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e \
-                    /bin/sh -ec 'go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
+                    /bin/sh -ec 'GODEBUG=http2client=0 go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
 
             - name: Build actual custom Caddy
               run: docker build --file docker/proxy-runtime/Dockerfile --target caddy-build --tag response-cache-caddy:test .
