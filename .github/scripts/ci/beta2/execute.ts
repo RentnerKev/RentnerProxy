@@ -5,6 +5,7 @@ import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { createBeta2Receivers } from './receivers.ts'
 import { startBeta2Controller } from './controller-process.ts'
+import { withPausedDdnsScheduler } from './scheduler-control.ts'
 import { beta2Directory, validateBeta2Environment } from './run.ts'
 import type { Beta2WebContext } from './Types/journeys.types.ts'
 
@@ -98,6 +99,8 @@ async function execute() {
             context,
             httpPort,
             stateDirectory: join(directory, 'controller'),
+            withPausedDdnsScheduler: (operation) =>
+                withPausedDdnsScheduler(directory, operation, { signal: abort.signal }),
             async restartController() {
                 await controller!.close()
                 controller = undefined

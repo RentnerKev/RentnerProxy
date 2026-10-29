@@ -506,64 +506,67 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
             )
         }, 'automatic event-driven recreate reaches the new real upstream')
     }
-    for (let round = 0; round < 3; round += 1) {
-        await admission()
-        receivers.setAddress(`8.8.4.${5 + round}`)
-        const before = { ...receivers.counters }
-        const progress = { done: false }
-        let samples = 0
-        const actions = Promise.allSettled([
-            (async () => {
-                await bulk(false)
-                await bulk(true)
-            })(),
-            authorized(async () =>
-                syncDdnsService({ expectedRevision: (await ddns()).configuration!.revision }),
-            ),
-            recreate(),
-            notify(),
-            runBoundedTasks(scaleHosts.slice(8), 4, async (host) =>
-                authorized(() =>
-                    updateProxyHostService({
-                        proxyHostId: host.id,
-                        domains: host.domains,
-                        enabled: true,
-                        forwardScheme: 'http',
-                        forwardHost: receivers.dockerAddress,
-                        forwardPort: round % 2 ? receivers.primaryPort : receivers.secondaryPort,
-                    }),
+    await input.withPausedDdnsScheduler(async () => {
+        for (let round = 0; round < 3; round += 1) {
+            await admission()
+            receivers.setAddress(`8.8.4.${5 + round}`)
+            const before = { ...receivers.counters }
+            const progress = { done: false }
+            let samples = 0
+            const actions = Promise.allSettled([
+                (async () => {
+                    await bulk(false)
+                    await bulk(true)
+                })(),
+                authorized(async () =>
+                    syncDdnsService({ expectedRevision: (await ddns()).configuration!.revision }),
                 ),
-            ),
-        ]).finally(() => {
-            progress.done = true
-        })
-        const trafficRun = (async () => {
-            while (!progress.done || samples < 3) {
-                await traffic(routes)
-                samples += 1
-                await new Promise((resolve) => setTimeout(resolve, 5))
+                recreate(),
+                notify(),
+                runBoundedTasks(scaleHosts.slice(8), 4, async (host) =>
+                    authorized(() =>
+                        updateProxyHostService({
+                            proxyHostId: host.id,
+                            domains: host.domains,
+                            enabled: true,
+                            forwardScheme: 'http',
+                            forwardHost: receivers.dockerAddress,
+                            forwardPort:
+                                round % 2 ? receivers.primaryPort : receivers.secondaryPort,
+                        }),
+                    ),
+                ),
+            ]).finally(() => {
+                progress.done = true
+            })
+            const trafficRun = (async () => {
+                while (!progress.done || samples < 3) {
+                    await traffic(routes)
+                    samples += 1
+                    await new Promise((resolve) => setTimeout(resolve, 5))
+                }
+            })()
+            const [operations] = await drainConcurrent([actions, trafficRun] as const)
+            for (const result of operations) {
+                if (result.status === 'rejected') throw result.reason
             }
-        })()
-        const [operations] = await drainConcurrent([actions, trafficRun] as const)
-        for (const result of operations) {
-            if (result.status === 'rejected') throw result.reason
+            await notify()
+            assert.ok(
+                receivers.counters.providerWrites > before.providerWrites,
+                'round performs a real DDNS write',
+            )
+            assert.ok(
+                receivers.counters.dockerReads > before.dockerReads,
+                'round uses the real Docker connector',
+            )
+            assert.equal((await ddns()).targets[0]?.lastSuccessfulAddress, `8.8.4.${5 + round}`)
+            await synchronized()
+            await settledTraffic(round)
+            passed(
+                `100-host concurrent round ${round + 1}: DDNS, Docker recreate, bulk, notifications and strict traffic`,
+            )
         }
-        await notify()
-        assert.ok(
-            receivers.counters.providerWrites > before.providerWrites,
-            'round performs a real DDNS write',
-        )
-        assert.ok(
-            receivers.counters.dockerReads > before.dockerReads,
-            'round uses the real Docker connector',
-        )
-        assert.equal((await ddns()).targets[0]?.lastSuccessfulAddress, `8.8.4.${5 + round}`)
-        await synchronized()
-        await settledTraffic(round)
-        passed(
-            `100-host concurrent round ${round + 1}: DDNS, Docker recreate, bulk, notifications and strict traffic`,
-        )
-    }
+    })
     let delivered = await authorized(getNotificationStatusService)
     const deliveryDiagnostic = () =>
         JSON.stringify({

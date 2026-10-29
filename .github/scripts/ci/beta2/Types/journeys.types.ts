@@ -9,6 +9,14 @@ export interface Beta2JourneyInput {
     readonly httpPort: number
     readonly stateDirectory: string
     readonly restartController: () => Promise<void>
+    readonly withPausedDdnsScheduler: (operation: () => Promise<void>) => Promise<void>
+}
+
+export interface Beta2SchedulerPauseOptions {
+    readonly signal?: AbortSignal
+    readonly timeoutMs?: number
+    readonly releaseTimeoutMs?: number
+    readonly pollIntervalMs?: number
 }
 
 export interface Beta2ControllerInput {

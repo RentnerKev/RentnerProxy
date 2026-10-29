@@ -7,6 +7,25 @@ use std::{
 
 impl ProxyRuntime {
     pub(crate) async fn start_ddns_scheduler(self: &Arc<Self>) {
+        self.start_ddns_scheduler_inner(
+            #[cfg(test)]
+            None,
+        )
+        .await;
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn start_ddns_scheduler_with_gate(
+        self: &Arc<Self>,
+        gate: Arc<tokio::sync::RwLock<()>>,
+    ) {
+        self.start_ddns_scheduler_inner(Some(gate)).await;
+    }
+
+    async fn start_ddns_scheduler_inner(
+        self: &Arc<Self>,
+        #[cfg(test)] gate: Option<Arc<tokio::sync::RwLock<()>>>,
+    ) {
         let mut task = self.ddns_task.lock().await;
         if task.is_some() || self.stopping.load(Ordering::SeqCst) {
             return;
@@ -15,6 +34,27 @@ impl ProxyRuntime {
         *task = Some(tokio::spawn(async move {
             let mut failures = 0_u32;
             loop {
+                if runtime.stopping.load(Ordering::SeqCst) {
+                    break;
+                }
+                #[cfg(test)]
+                let tick_lease = if let Some(gate) = &gate {
+                    loop {
+                        let wake = runtime.ddns_automation.wake.notified();
+                        tokio::pin!(wake);
+                        wake.as_mut().enable();
+                        if runtime.stopping.load(Ordering::SeqCst) {
+                            return;
+                        }
+                        tokio::select! {
+                            lease = Arc::clone(gate).read_owned() => break Some(lease),
+                            _ = wake => {},
+                        }
+                    }
+                } else {
+                    None
+                };
+                #[cfg(test)]
                 if runtime.stopping.load(Ordering::SeqCst) {
                     break;
                 }
@@ -35,6 +75,8 @@ impl ProxyRuntime {
                         failures = failures.saturating_add(1).min(6);
                     }
                 }
+                #[cfg(test)]
+                drop(tick_lease);
                 let delay = Duration::from_secs(if failures == 0 {
                     5
                 } else {

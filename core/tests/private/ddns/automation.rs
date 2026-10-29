@@ -720,6 +720,92 @@ async fn corrupt_state_fails_closed_and_events_remain_bounded_with_optimistic_re
 }
 
 #[tokio::test]
+async fn scheduler_pause_lease_drains_the_tick_and_keeps_manual_admission_available() {
+    use std::{
+        future::{Future, poll_fn},
+        task::Poll,
+    };
+    use tokio::sync::RwLock;
+
+    let mut fixture = Fixture::new(vec![]).await;
+    let runtime = runtime(&mut fixture);
+    runtime
+        .ddns_automation
+        .save(&runtime.dns_connections, settings(0, true, true))
+        .await
+        .unwrap();
+    let gate = Arc::new(RwLock::new(()));
+    fixture.mock.pause.store(true, Ordering::SeqCst);
+    runtime
+        .start_ddns_scheduler_with_gate(Arc::clone(&gate))
+        .await;
+    tokio::time::timeout(Duration::from_secs(3), fixture.mock.entered.notified())
+        .await
+        .unwrap();
+    let mut pause = Box::pin(Arc::clone(&gate).write_owned());
+    assert!(poll_fn(|context| Poll::Ready(pause.as_mut().poll(context).is_pending())).await);
+    assert!(runtime.ddns_automation.run.try_lock().is_err());
+
+    fixture.mock.pause.store(false, Ordering::SeqCst);
+    fixture.mock.release.notify_one();
+    let lease = tokio::time::timeout(Duration::from_secs(3), pause)
+        .await
+        .unwrap();
+    assert!(runtime.ddns_automation.run.try_lock().is_ok());
+    assert_eq!(fixture.writes(), 1);
+    let manual = runtime
+        .ddns_automation
+        .run_at(
+            &runtime.dns_connections,
+            &runtime.ddns,
+            Some(action(1)),
+            Automation::now() + 6,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(manual.targets.len(), 1);
+
+    fixture.mock.pause.store(true, Ordering::SeqCst);
+    let mut changed = settings(1, true, true);
+    changed.configuration.targets[0].proxied = false;
+    runtime
+        .ddns_automation
+        .save(&runtime.dns_connections, changed)
+        .await
+        .unwrap();
+    let mut entered = Box::pin(fixture.mock.entered.notified());
+    assert!(poll_fn(|context| Poll::Ready(entered.as_mut().poll(context).is_pending())).await);
+    assert!(gate.try_read().is_err());
+    drop(lease);
+    runtime.ddns_automation.wake.notify_one();
+    tokio::time::timeout(Duration::from_secs(3), entered)
+        .await
+        .unwrap();
+    fixture.mock.pause.store(false, Ordering::SeqCst);
+    fixture.mock.release.notify_one();
+    tokio::time::timeout(Duration::from_secs(3), runtime.shutdown())
+        .await
+        .unwrap();
+    assert_eq!(fixture.writes(), 2);
+}
+
+#[tokio::test]
+async fn scheduler_shutdown_is_cooperative_even_while_a_pause_lease_is_held() {
+    let mut fixture = Fixture::new(vec![]).await;
+    let runtime = runtime(&mut fixture);
+    let gate = Arc::new(tokio::sync::RwLock::new(()));
+    let lease = Arc::clone(&gate).write_owned().await;
+    runtime.start_ddns_scheduler_with_gate(gate).await;
+    tokio::time::timeout(Duration::from_secs(3), runtime.shutdown())
+        .await
+        .unwrap();
+    assert!(runtime.ddns_task.lock().await.is_none());
+    assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 0);
+    drop(lease);
+}
+
+#[tokio::test]
 async fn owned_worker_starts_without_caddy_and_shutdown_drains_inflight_then_rejects_new_work() {
     let mut fixture = Fixture::new(vec![]).await;
     let runtime = runtime(&mut fixture);
