@@ -625,7 +625,7 @@ function getRows(): HTMLTableRowElement[] {
 }
 
 function domainOrder(): Array<string | undefined> {
-    return getRows().map((row) => row.querySelector('td')?.textContent?.trim())
+    return getRows().map((row) => row.querySelector('a')?.textContent?.trim())
 }
 
 function getLastButton(label: string): HTMLButtonElement {
@@ -1059,13 +1059,13 @@ describe('ProxyHost management table', () => {
         expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
         expect(applyProxyConfigurationHandlerMock).not.toHaveBeenCalled()
     })
-    test('renders all columns, compact domain overflow, forward target, IPv6, and status', async () => {
+    test('encodes enabled state in domain badges instead of a separate status column', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)
         const headers = [...document.querySelectorAll('thead th')].map((cell) => cell.textContent)
         expect(headers.join(' ')).toContain('Domains')
         expect(headers.join(' ')).toContain('Forward target')
-        expect(headers.join(' ')).toContain('Status')
+        expect(headers.join(' ')).not.toContain('Status')
         expect(document.body.textContent).toContain('app.example.com')
         expect(document.body.textContent).toContain('+1')
         expect(document.body.textContent).toContain('https://[2001:db8::1]:443')
@@ -1078,6 +1078,17 @@ describe('ProxyHost management table', () => {
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
         expect(domainLink?.getAttribute('aria-label')).toBe('Open app.example.com in a new tab')
+        expect(domainLink?.getAttribute('data-status')).toBe('enabled')
+        expect(
+            document.getElementById(domainLink!.getAttribute('aria-describedby')!)?.textContent,
+        ).toBe('Enabled')
+        const disabledDomain = [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].find(
+            (link) => link.textContent?.trim() === disabledHost.domains[0],
+        )!
+        expect(disabledDomain.getAttribute('data-status')).toBe('disabled')
+        expect(
+            document.getElementById(disabledDomain.getAttribute('aria-describedby')!)?.textContent,
+        ).toBe('Disabled')
     })
 
     test('does not leave certificate job stages in the host status column', async () => {

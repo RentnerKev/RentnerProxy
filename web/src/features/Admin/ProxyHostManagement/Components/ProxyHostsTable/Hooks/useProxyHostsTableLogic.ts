@@ -60,6 +60,7 @@ export default function useProxyHostsTableLogic(
         columns,
         getRowId: getProxyHostRowId,
         initialSorting: [{ id: 'createdAt', desc: true }],
+        initialColumnVisibility: { status: false },
         globalFilterFn: useMemo(() => createProxyHostGlobalFilter(t, locale), [locale, t]),
     })
     const tagsById = useMemo(

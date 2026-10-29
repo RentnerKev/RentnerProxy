@@ -27,6 +27,8 @@ export interface ManagedDomainLinkLogicResult {
 export interface ManagedDomainOverflowProps {
     readonly ariaLabel: string
     readonly domains: ReadonlyArray<string>
+    readonly tone?: 'success' | 'danger'
+    readonly descriptionId?: string | undefined
 }
 
 export interface ManagedDomainOverflowLogicResult {

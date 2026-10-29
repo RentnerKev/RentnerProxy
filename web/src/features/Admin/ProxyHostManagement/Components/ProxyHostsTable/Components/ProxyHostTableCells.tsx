@@ -1,4 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import { useId } from 'react'
 
 import ManagedDomainLink from '@/shared/Domain/ManagedDomainLink.tsx'
 import ManagedDomainOverflow from '@/shared/Domain/ManagedDomainOverflow.tsx'
@@ -11,19 +12,27 @@ import {
 import type {
     ProxyHostCreatedAtCellProps,
     ProxyHostDomainsCellProps,
+    ProxyHostDomainChipProps,
     ProxyHostForwardCellProps,
     ProxyHostStatusCellProps,
 } from '../../../Types/proxy-host-table.types.ts'
 
 const statusBadgeClassName =
-    'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
+    'inline-flex w-fit rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
-function DomainChip({ domain }: { readonly domain: string }) {
+function DomainChip({ domain, status, descriptionId }: ProxyHostDomainChipProps) {
     const chipClassName =
-        'inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+        `inline-flex items-center rounded-full border px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold ${status === 'disabled' ? 'border-danger-text/20 bg-danger-bg text-danger-text' : 'border-success-text/20 bg-success-bg text-success-text'}` +
         ' inline-block max-w-56 truncate align-bottom'
     const isLong = domain.length > 28
-    const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
+    const chip = (
+        <ManagedDomainLink
+            className={chipClassName}
+            domain={domain}
+            aria-describedby={status ? descriptionId : undefined}
+            data-status={status}
+        />
+    )
 
     return isLong ? (
         <CustomTooltip collisionPadding={10} content={domain}>
@@ -34,8 +43,10 @@ function DomainChip({ domain }: { readonly domain: string }) {
     )
 }
 
-export function ProxyHostDomainsCell({ domains, discovery }: ProxyHostDomainsCellProps) {
+export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostDomainsCellProps) {
     const { t } = useTranslationStore()
+    const descriptionId = useId()
+    const status = enabled === undefined ? undefined : enabled ? 'enabled' : 'disabled'
     const visibleDomains = domains.slice(0, 2)
     const extraDomains = domains.slice(2)
 
@@ -45,14 +56,26 @@ export function ProxyHostDomainsCell({ domains, discovery }: ProxyHostDomainsCel
 
     return (
         <div className="grid gap-2">
+            {status ? (
+                <span id={descriptionId} className="sr-only">
+                    {t(`admin.proxyHosts.status.${status}`)}
+                </span>
+            ) : null}
             <div className="flex flex-wrap items-center gap-[0.45rem]">
                 {visibleDomains.map((domain) => (
-                    <DomainChip domain={domain} key={domain} />
+                    <DomainChip
+                        domain={domain}
+                        key={domain}
+                        status={status}
+                        descriptionId={descriptionId}
+                    />
                 ))}
                 {extraDomains.length > 0 ? (
                     <ManagedDomainOverflow
                         ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
                         domains={extraDomains}
+                        tone={status === 'disabled' ? 'danger' : 'success'}
+                        descriptionId={status ? descriptionId : undefined}
                     />
                 ) : null}
             </div>

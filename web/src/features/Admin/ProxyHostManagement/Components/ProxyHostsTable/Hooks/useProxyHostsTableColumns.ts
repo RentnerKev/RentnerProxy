@@ -12,7 +12,6 @@ import {
     ProxyHostCreatedAtCell,
     ProxyHostDomainsCell,
     ProxyHostForwardCell,
-    ProxyHostStatusCell,
 } from '../Components/ProxyHostTableCells.tsx'
 import type { ProxyHostTableActionProps } from '../../../Types/proxy-host-table.types.ts'
 import ProxyHostMonitoringCell from '../Components/ProxyHostMonitoringCell.tsx'
@@ -78,6 +77,7 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostDomainsCell, {
                         domains: row.original.domains,
+                        enabled: row.original.enabled,
                         discovery: row.original.discovery,
                     }),
             },
@@ -101,13 +101,10 @@ export default function useProxyHostsTableColumns({
                 id: 'status',
                 accessorFn: (host) => (host.enabled ? 'enabled' : 'disabled'),
                 header: t('admin.proxyHosts.columns.status'),
-                sortFn: 'text',
+                enableSorting: false,
+                enableHiding: false,
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
-                cell: ({ row }) =>
-                    createElement(ProxyHostStatusCell, {
-                        enabled: row.original.enabled,
-                    }),
             },
             {
                 accessorKey: 'createdAt',
