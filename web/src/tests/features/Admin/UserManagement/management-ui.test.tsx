@@ -8,7 +8,6 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { PERMISSIONS, PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import { roleManagementQueryKeys } from '@/lib/Admin/RoleManagement/roleManagementCache.ts'
@@ -20,10 +19,9 @@ import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) {
-    GlobalRegistrator.register()
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')

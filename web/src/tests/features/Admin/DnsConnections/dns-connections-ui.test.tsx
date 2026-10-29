@@ -4,16 +4,16 @@ import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { DnsZone, DnsConnection } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import type {
     SaveDnsConnectionInput,
     TestDnsConnectionInput,
 } from '@/features/Admin/DnsConnections/Types/validation.types.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { toast } = await import('@rentnerkev/toasts')
-disableMotionAnimations()
 
 const firstZone = { id: 'a'.repeat(32), name: 'one.example' }
 const secondZone = { id: 'b'.repeat(32), name: 'two.example' }

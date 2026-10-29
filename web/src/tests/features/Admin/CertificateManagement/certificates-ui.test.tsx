@@ -15,7 +15,6 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { DDNS_CONNECTION } from '@/tests/Helpers/ddnsFixture.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -27,9 +26,10 @@ import type {
 import { redirectHostManagementQueryKeys } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider, QueryObserver } = await import('@tanstack/react-query')
 const { act, useEffect, useState } = await import('react')

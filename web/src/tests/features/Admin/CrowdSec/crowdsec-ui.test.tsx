@@ -8,12 +8,12 @@ import type {
     CrowdSecConfiguration,
     CrowdSecDashboard,
 } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')

@@ -8,14 +8,14 @@ import {
     domainDiagnosticsInput,
 } from '@/tests/lib/RuntimeDiagnostics/domain-diagnostics.fixture.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { createRuntimeSupportReport } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
 import type { RuntimeSupportReport } from '@/lib/RuntimeDiagnostics/Types/runtime-support-report.types.ts'
 import { supportReportFixture } from '@/tests/lib/RuntimeDiagnostics/runtime-support-report.fixture.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
