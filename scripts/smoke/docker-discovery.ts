@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Short isolated Docker probes and owned cleanup run sequentially.
 import assert from 'node:assert/strict'
-import { mkdir, rm } from 'node:fs/promises'
+import { chmod, mkdir, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { resolve, relative, isAbsolute } from 'node:path'
 import { runSmokeProcess } from './process.ts'
@@ -36,6 +36,7 @@ async function command(args: string[], timeoutMs = 30_000) {
 
 try {
     await mkdir(directory, { recursive: true })
+    await chmod(directory, 0o755)
     const emptyEnvironment = resolve(directory, 'empty.env')
     const baseCompose = resolve(directory, 'base.yml')
     await Bun.write(emptyEnvironment, '')
@@ -148,6 +149,7 @@ try {
         }
     `,
     )
+    await chmod(resolve(directory, 'native-probe.ts'), 0o644)
     await Bun.write(
         resolve(directory, 'probe.ts'),
         `

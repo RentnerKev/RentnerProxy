@@ -13,6 +13,12 @@ import {
     testCrowdSecConnectionService,
     updateCrowdSecConfigurationService,
 } from '@/server/Admin/CrowdSec/crowdsec.service.ts'
+import {
+    DEFAULT_CROWDSEC_CONFIGURATION,
+    buildStoredCrowdSecConfiguration,
+    lockStoredCrowdSecConfiguration,
+    writeStoredCrowdSecConfiguration,
+} from '@/server/Admin/CrowdSec/crowdsec-settings.ts'
 import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
 import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -135,6 +141,9 @@ function fakeController() {
         resetRuntime: () => {
             runtime = disabledRuntime()
         },
+        setRuntime: (value: RuntimeStatus) => {
+            runtime = value
+        },
     }
 }
 
@@ -205,6 +214,19 @@ async function asUser<T>(userId: string, action: () => Promise<T>): Promise<T> {
     return result as T
 }
 
+async function seedLegacyHttpProvider() {
+    const legacy = await buildStoredCrowdSecConfiguration(DEFAULT_CROWDSEC_CONFIGURATION, {
+        mode: 'external',
+        apiUrl: 'https://crowdsec.example.test:8080/',
+        apiKey: EXTERNAL_KEY,
+    })
+    legacy.external!.apiUrl = 'http://crowdsec.example.test:8080/'
+    await getAuthDatabase()
+        .insert(systemSettings)
+        .values({ key: CROWDSEC_SETTINGS_KEY, value: legacy })
+    return legacy
+}
+
 beforeAll(async () => {
     if (!enabled) return
     if (new URL(getDatabaseUrl()!).pathname !== '/rentnerproxy_upstream_test') {
@@ -238,6 +260,100 @@ afterAll(async () => {
 })
 
 describe('CrowdSec configuration with PostgreSQL', () => {
+    integrationTest(
+        'allows repairing legacy HTTP state without sending its saved credential',
+        async () => {
+            const owner = await createUser(SYSTEM_ROLES.OWNER)
+            const legacy = await seedLegacyHttpProvider()
+            controller?.setRuntime({
+                ...disabledRuntime(),
+                mode: 'external',
+                state: 'connected',
+                apiUrl: legacy.external!.apiUrl,
+                credentialConfigured: true,
+                enforcementActive: true,
+            })
+            expect(await asUser(owner, getCrowdSecConfigurationService)).toMatchObject({
+                mode: 'external',
+                externalApiUrl: legacy.external!.apiUrl,
+                hasApiKey: true,
+                synchronized: false,
+            })
+            expect(await reconcileCrowdSecConfiguration()).toBe('pending')
+            expect(controller?.applied).toHaveLength(0)
+            expect(controller?.tested).toHaveLength(0)
+            await expect(
+                asUser(owner, () =>
+                    testCrowdSecConnectionService({ apiUrl: legacy.external!.apiUrl }),
+                ),
+            ).rejects.toMatchObject({ code: 'invalid_input' })
+            await expect(
+                asUser(owner, () =>
+                    updateCrowdSecConfigurationService({
+                        mode: 'external',
+                        apiUrl: legacy.external!.apiUrl,
+                        apiKey: EXTERNAL_KEY,
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'invalid_input' })
+            await expect(
+                asUser(owner, () =>
+                    testCrowdSecConnectionService({
+                        apiUrl: 'https://crowdsec.example.test:8080/',
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'api_key_required' })
+            const repaired = {
+                mode: 'external' as const,
+                apiUrl: 'https://crowdsec.example.test:8080/',
+                apiKey: 'replacement-bouncer-key-value',
+            }
+            await asUser(owner, () =>
+                testCrowdSecConnectionService({ apiUrl: repaired.apiUrl, apiKey: repaired.apiKey }),
+            )
+            expect(
+                (await asUser(owner, () => updateCrowdSecConfigurationService(repaired)))
+                    .runtimeStatus,
+            ).toBe('applied')
+            expect(await asUser(owner, getCrowdSecConfigurationService)).toMatchObject({
+                mode: 'external',
+                externalApiUrl: repaired.apiUrl,
+                synchronized: true,
+            })
+            expect(controller?.applied).toEqual([repaired])
+            expect(controller?.tested).toEqual([repaired, repaired])
+            expect(JSON.stringify(controller?.tested)).not.toContain(EXTERNAL_KEY)
+        },
+    )
+
+    for (const mode of ['disabled', 'managed'] as const) {
+        integrationTest(`can switch a legacy HTTP provider to ${mode}`, async () => {
+            const owner = await createUser(SYSTEM_ROLES.OWNER)
+            const legacy = await seedLegacyHttpProvider()
+            await expect(
+                getAuthDatabase().transaction((transaction) =>
+                    writeStoredCrowdSecConfiguration(transaction, legacy),
+                ),
+            ).rejects.toMatchObject({ code: 'invalid_input' })
+            expect(
+                (await asUser(owner, () => updateCrowdSecConfigurationService({ mode })))
+                    .runtimeStatus,
+            ).toBe('applied')
+            expect(await asUser(owner, getCrowdSecConfigurationService)).toMatchObject({
+                mode,
+                externalApiUrl: legacy.external!.apiUrl,
+                synchronized: true,
+            })
+            const stored = await getAuthDatabase().transaction(lockStoredCrowdSecConfiguration)
+            expect(stored.mode).toBe(mode)
+            expect(stored.external).toEqual(legacy.external)
+            expect(controller?.tested).toHaveLength(0)
+            expect(controller?.applied).toEqual([
+                mode === 'disabled' ? { mode } : { mode, communityEnabled: false },
+            ])
+        })
+    }
+
     integrationTest('defaults an Alpha 6 upgrade to disabled and enforces RBAC', async () => {
         const viewer = await createUser(SYSTEM_ROLES.VIEWER)
         expect(await asUser(viewer, getCrowdSecConfigurationService)).toMatchObject({

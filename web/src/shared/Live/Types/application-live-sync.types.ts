@@ -9,5 +9,6 @@ export interface ApplicationLiveSyncResult {
     readonly status: LiveStatus
     readonly isIdentityPending: boolean
     readonly hasIdentityError: boolean
+    readonly identityGeneration: number
     readonly retryIdentity: () => void
 }

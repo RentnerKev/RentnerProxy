@@ -166,7 +166,7 @@ describe('live WebSocket transport', () => {
             await new Promise((resolve) => setTimeout(resolve, 20))
             const readsAtClose = reads
             publishApplicationChange()
-            await new Promise((resolve) => setTimeout(resolve, 20))
+            await new Promise((resolve) => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
             expect(reads).toBe(readsAtClose)
             expect(runtime.connectionCount).toBe(0)
         } finally {

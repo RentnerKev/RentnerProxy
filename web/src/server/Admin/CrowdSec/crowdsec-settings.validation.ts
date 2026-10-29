@@ -1,5 +1,27 @@
 import { z } from 'zod'
-import { crowdSecApiUrlSchema, crowdSecModeSchema } from '@/features/Admin/CrowdSec/validation.ts'
+import { CROWDSEC_API_URL_MAX_LENGTH } from '@/config/crowdsec.config.ts'
+import { crowdSecModeSchema } from '@/features/Admin/CrowdSec/validation.ts'
+
+const storedApiUrlSchema = z
+    .string()
+    .min(1)
+    .max(CROWDSEC_API_URL_MAX_LENGTH)
+    .refine((value) => value === value.trim())
+    .refine((value) => {
+        try {
+            const url = new URL(value)
+            return (
+                (url.protocol === 'http:' || url.protocol === 'https:') &&
+                url.hostname.length > 0 &&
+                url.username.length === 0 &&
+                url.password.length === 0 &&
+                url.search.length === 0 &&
+                url.hash.length === 0
+            )
+        } catch {
+            return false
+        }
+    })
 
 const encryptedApiKeySchema = z.strictObject({
     ciphertext: z.string().min(1).max(1_024),
@@ -7,7 +29,7 @@ const encryptedApiKeySchema = z.strictObject({
 })
 
 const externalConfigurationSchema = z.strictObject({
-    apiUrl: crowdSecApiUrlSchema,
+    apiUrl: storedApiUrlSchema,
     apiKey: encryptedApiKeySchema,
 })
 
