@@ -19,7 +19,7 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
             closeDisabled={state.pending || state.dirty}
             title={t('admin.hostMonitoring.title')}
             description={props.host.domains.join(', ')}
-            size="lg"
+            size="xl"
             fixedHeight
             navigation={
                 <div

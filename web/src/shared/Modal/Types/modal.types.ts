@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type ModalSize = 'sm' | 'md' | 'lg'
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
 
 export interface ModalProps {
     readonly children?: ReactNode
