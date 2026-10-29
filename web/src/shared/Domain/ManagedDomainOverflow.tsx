@@ -4,7 +4,12 @@ import useManagedDomainOverflowLogic from './Hooks/useManagedDomainOverflowLogic
 
 import ManagedDomainLink from './ManagedDomainLink.tsx'
 
-export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDomainOverflowProps) {
+export default function ManagedDomainOverflow({
+    ariaLabel,
+    domains,
+    tone = 'success',
+    descriptionId,
+}: ManagedDomainOverflowProps) {
     const { handler } = useManagedDomainOverflowLogic()
     if (domains.length === 0) return null
 
@@ -38,10 +43,11 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                         {domains.map((domain) => (
                             <ManagedDomainLink
                                 className={
-                                    'inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+                                    `inline-flex items-center rounded-full border px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold ${tone === 'danger' ? 'border-danger-text/20 bg-danger-bg text-danger-text' : 'border-success-text/20 bg-success-bg text-success-text'}` +
                                     ' max-w-64 wrap-anywhere'
                                 }
                                 domain={domain}
+                                aria-describedby={descriptionId}
                                 key={domain}
                             />
                         ))}

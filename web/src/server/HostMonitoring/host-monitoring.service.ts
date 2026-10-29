@@ -7,11 +7,13 @@ import {
 } from '@/config/host-monitoring.config.ts'
 import {
     hostMonitoringSelectorSchema,
+    hostMonitoringSummarySchema,
     hostMonitoringHistorySchema,
     saveHostMonitoringPolicySchema,
 } from '@/lib/HostMonitoring/validation.ts'
 import type {
     HostMonitoringSettings,
+    HostMonitoringSummary,
     HostMonitoringPolicyView,
 } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -25,6 +27,7 @@ import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import {
     lockHostMonitoringPolicy,
     readHostMonitoringPolicy,
+    readHostMonitoringSummaries,
     readHostMonitoringHistory,
     saveHostMonitoringPolicy,
 } from './host-monitoring.repository.ts'
@@ -106,6 +109,42 @@ async function prepareTransaction(transaction: AuthTransaction): Promise<Date> {
 
 export function createHostMonitoringService(dependencies: HostMonitoringServiceDependencies) {
     return {
+        async getSummary(raw: unknown): Promise<HostMonitoringSummary> {
+            const input = hostMonitoringSummarySchema.safeParse(raw)
+            if (!input.success) throw new HostMonitoringError('invalid_input')
+            const actor = await dependencies.requireActor(PERMISSIONS.PROXY_HOSTS_VIEW)
+            return dependencies.database().transaction(
+                async (transaction) => {
+                    const now = await prepareTransaction(transaction)
+                    await requirePermissionInTransaction(
+                        transaction,
+                        actor.id,
+                        PERMISSIONS.PROXY_HOSTS_VIEW,
+                    )
+                    const rows = await readHostMonitoringSummaries(
+                        transaction,
+                        input.data.proxyHostIds,
+                    )
+                    return {
+                        checkedAt: now,
+                        summaries: rows.map((row) => ({
+                            proxyHostId: row.proxyHostId,
+                            policy: row.policy
+                                ? policyView(
+                                      row.policy,
+                                      {
+                                          enabled: row.enabled,
+                                          domains: row.domain ? [row.domain] : [],
+                                      },
+                                      now,
+                                  )
+                                : null,
+                        })),
+                    }
+                },
+                { isolationLevel: 'repeatable read', accessMode: 'read only' },
+            )
+        },
         async getPolicy(raw: unknown): Promise<HostMonitoringPolicyView | null> {
             const input = hostMonitoringSelectorSchema.safeParse(raw)
             if (!input.success) throw new HostMonitoringError('invalid_input')
@@ -132,6 +171,8 @@ export function createHostMonitoringService(dependencies: HostMonitoringServiceD
                     if (!policy) return { observations: [], incidents: [], nextCursor: null }
                     const history = await readHostMonitoringHistory(transaction, policy.id, {
                         limit: input.data.limit,
+                        status: input.data.status,
+                        ...(input.data.since ? { since: new Date(input.data.since) } : {}),
                         ...(input.data.before
                             ? {
                                   before: {

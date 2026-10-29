@@ -2,7 +2,7 @@
 import '@tanstack/react-start/server-only'
 
 import { randomUUID } from 'node:crypto'
-import { and, asc, desc, eq, gt, isNull, lt, lte, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { HOST_MONITORING_LIMITS } from '@/config/host-monitoring.config.ts'
 import {
@@ -65,6 +65,31 @@ export async function readHostMonitoringPolicy(
         .where(eq(hostCheckPolicies.proxyHostId, proxyHostId))
         .limit(1)
     return policy ?? null
+}
+
+export async function readHostMonitoringSummaries(
+    transaction: AuthTransaction,
+    proxyHostIds: readonly string[],
+) {
+    if (!proxyHostIds.length) return []
+    return transaction
+        .select({
+            proxyHostId: proxyHosts.id,
+            enabled: proxyHosts.enabled,
+            policy: hostCheckPolicies,
+            domain: hostDomains.domain,
+        })
+        .from(proxyHosts)
+        .leftJoin(hostCheckPolicies, eq(hostCheckPolicies.proxyHostId, proxyHosts.id))
+        .leftJoin(
+            hostDomains,
+            and(
+                eq(hostDomains.proxyHostId, proxyHosts.id),
+                eq(hostDomains.domain, hostCheckPolicies.domain),
+            ),
+        )
+        .where(inArray(proxyHosts.id, [...proxyHostIds]))
+        .orderBy(asc(proxyHosts.id))
 }
 
 // The caller holds the runtime-settings lock before taking this lock.
@@ -473,6 +498,10 @@ export async function readHostMonitoringHistory(
         .where(
             and(
                 eq(hostCheckObservations.policyId, policyId),
+                options.status && options.status !== 'all'
+                    ? eq(hostCheckObservations.status, options.status)
+                    : undefined,
+                options.since ? gte(hostCheckObservations.checkedAt, options.since) : undefined,
                 cursor
                     ? or(
                           lt(hostCheckObservations.checkedAt, cursor.checkedAt),
@@ -489,8 +518,22 @@ export async function readHostMonitoringHistory(
     const incidents = await transaction
         .select()
         .from(hostCheckIncidents)
-        .where(eq(hostCheckIncidents.policyId, policyId))
-        .orderBy(desc(hostCheckIncidents.startedAt), desc(hostCheckIncidents.id))
+        .where(
+            and(
+                eq(hostCheckIncidents.policyId, policyId),
+                options.since
+                    ? or(
+                          isNull(hostCheckIncidents.closedAt),
+                          gte(hostCheckIncidents.closedAt, options.since),
+                      )
+                    : undefined,
+            ),
+        )
+        .orderBy(
+            desc(isNull(hostCheckIncidents.closedAt)),
+            desc(hostCheckIncidents.startedAt),
+            desc(hostCheckIncidents.id),
+        )
         .limit(limit)
     return {
         observations: observations.slice(0, limit),

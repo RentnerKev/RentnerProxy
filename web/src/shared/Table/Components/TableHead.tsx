@@ -14,6 +14,7 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                 selector={(state) => ({
                     sorting: state.sorting,
                     columnFilters: state.columnFilters,
+                    columnVisibility: state.columnVisibility,
                 })}
             >
                 {() =>

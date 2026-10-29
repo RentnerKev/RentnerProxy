@@ -1,3 +1,10 @@
+import { HostMonitoringClientError } from '@/lib/HostMonitoring/hostMonitoringClient.ts'
+import { HOST_MONITORING_DEFAULTS } from '@/config/host-monitoring.config.ts'
+import { hostMonitoringQueryKeys } from '@/lib/HostMonitoring/hostMonitoringCache.ts'
+import type {
+    HostMonitoringPolicyView,
+    HostMonitoringSummary,
+} from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
 import BrowserCacheFields from '@/features/Admin/ProxyHostManagement/Components/BrowserCacheFields/index.tsx'
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
@@ -311,6 +318,45 @@ mock.module('@/features/Admin/RuntimeDiagnostics/middleware.ts', () => ({
     }),
 }))
 
+const monitoringPolicy: HostMonitoringPolicyView = {
+    id: '0198d98a-0000-7000-8000-000000000001',
+    proxyHostId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',
+    version: '0198d98a-0000-7000-8000-000000000002',
+    settings: { ...HOST_MONITORING_DEFAULTS, enabled: true, domain: 'app.example.com' },
+    state: 'healthy',
+    availability: 'healthy',
+    lastCheckedAt: new Date(),
+    lastOutcome: 'healthy',
+    lastCode: 'expected_status',
+    lastDurationMs: 12,
+    lastHttpStatus: 200,
+    nextCheckAt: new Date(),
+    observationPoint: 'appliance',
+    publicReachability: 'not_checked',
+}
+const getHostMonitoringSummaryMock = mock(
+    async (_ids: readonly string[]): Promise<HostMonitoringSummary> => ({
+        summaries: [],
+        checkedAt: new Date(),
+    }),
+)
+const getHostMonitoringPolicyMock = mock(
+    async (): Promise<HostMonitoringPolicyView | null> => monitoringPolicy,
+)
+const getHostMonitoringHistoryMock = mock(async () => ({
+    observations: [],
+    incidents: [],
+    nextCursor: null,
+}))
+const saveHostMonitoringPolicyMock = mock(async () => monitoringPolicy)
+mock.module('@/lib/HostMonitoring/hostMonitoringClient.ts', () => ({
+    HostMonitoringClientError,
+    getHostMonitoringSummary: getHostMonitoringSummaryMock,
+    getHostMonitoringPolicy: getHostMonitoringPolicyMock,
+    getHostMonitoringHistory: getHostMonitoringHistoryMock,
+    saveHostMonitoringPolicy: saveHostMonitoringPolicyMock,
+}))
+
 const { default: ProxyHostManagementPage } =
     await import('@/features/Admin/ProxyHostManagement/index.tsx')
 const { default: ProxyHostFormModal } =
@@ -579,7 +625,7 @@ function getRows(): HTMLTableRowElement[] {
 }
 
 function domainOrder(): Array<string | undefined> {
-    return getRows().map((row) => row.querySelector('td')?.textContent?.trim())
+    return getRows().map((row) => row.querySelector('a')?.textContent?.trim())
 }
 
 function getLastButton(label: string): HTMLButtonElement {
@@ -591,6 +637,18 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    getHostMonitoringSummaryMock.mockReset().mockImplementation(async (ids) => ({
+        summaries: ids.map((proxyHostId) => ({
+            proxyHostId,
+            policy: proxyHostId === enabledHost.id ? monitoringPolicy : null,
+        })),
+        checkedAt: new Date(),
+    }))
+    getHostMonitoringPolicyMock.mockReset().mockResolvedValue(monitoringPolicy)
+    getHostMonitoringHistoryMock
+        .mockReset()
+        .mockResolvedValue({ observations: [], incidents: [], nextCursor: null })
+    saveHostMonitoringPolicyMock.mockReset().mockResolvedValue(monitoringPolicy)
     dnsProvidersUnavailable = false
     getCertificateDnsProviders.mockClear()
     toast.dismissAll()
@@ -1001,13 +1059,13 @@ describe('ProxyHost management table', () => {
         expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
         expect(applyProxyConfigurationHandlerMock).not.toHaveBeenCalled()
     })
-    test('renders all columns, compact domain overflow, forward target, IPv6, and status', async () => {
+    test('encodes enabled state in domain badges instead of a separate status column', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)
         const headers = [...document.querySelectorAll('thead th')].map((cell) => cell.textContent)
         expect(headers.join(' ')).toContain('Domains')
         expect(headers.join(' ')).toContain('Forward target')
-        expect(headers.join(' ')).toContain('Status')
+        expect(headers.join(' ')).not.toContain('Status')
         expect(document.body.textContent).toContain('app.example.com')
         expect(document.body.textContent).toContain('+1')
         expect(document.body.textContent).toContain('https://[2001:db8::1]:443')
@@ -1020,6 +1078,17 @@ describe('ProxyHost management table', () => {
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
         expect(domainLink?.getAttribute('aria-label')).toBe('Open app.example.com in a new tab')
+        expect(domainLink?.getAttribute('data-status')).toBe('enabled')
+        expect(
+            document.getElementById(domainLink!.getAttribute('aria-describedby')!)?.textContent,
+        ).toBe('Enabled')
+        const disabledDomain = [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].find(
+            (link) => link.textContent?.trim() === disabledHost.domains[0],
+        )!
+        expect(disabledDomain.getAttribute('data-status')).toBe('disabled')
+        expect(
+            document.getElementById(disabledDomain.getAttribute('aria-describedby')!)?.textContent,
+        ).toBe('Disabled')
     })
 
     test('does not leave certificate job stages in the host status column', async () => {
@@ -1179,6 +1248,116 @@ describe('ProxyHost management table', () => {
     })
 })
 
+describe('ProxyHost monitoring integration', () => {
+    test('VIEW batches the visible page once and opens read-only monitoring from the row menu', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(
+            () => getRows().length === 2 && getHostMonitoringSummaryMock.mock.calls.length === 1,
+        )
+        expect(document.body.textContent).toContain('Upstream availability')
+        expect(getHostMonitoringSummaryMock.mock.calls[0]?.[0]).toEqual(
+            [enabledHost.id, disabledHost.id].toSorted(),
+        )
+        expect(getHostMonitoringPolicyMock).not.toHaveBeenCalled()
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Monitoring'))
+        await waitFor(
+            () =>
+                getHostMonitoringPolicyMock.mock.calls.length === 1 &&
+                document.querySelector('[role="dialog"]') !== null,
+        )
+        await click(getHostTab('Settings'))
+        const dialog = document.querySelector('[role="dialog"]')!
+        expect(dialog.textContent).toContain('app.example.com')
+        expect(dialog.querySelector('input[name="intervalSeconds"]')).toBeNull()
+        expect(dialog.querySelector('form')).toBeNull()
+        expect(dialog.textContent).not.toContain('Save changes')
+        expect(saveHostMonitoringPolicyMock).not.toHaveBeenCalled()
+    })
+
+    test('UPDATE exposes editable monitoring settings', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_UPDATE])
+        await waitFor(() => getRows().length === 2)
+        await click(getButton('Open monitoring for app.example.com'))
+        await waitFor(() => getHostMonitoringPolicyMock.mock.calls.length === 1)
+        await click(getHostTab('Settings'))
+        await waitFor(() => document.querySelector('input[name="intervalSeconds"]') !== null)
+        expect(getButton('Save changes').disabled).toBeTrue()
+        expect(document.querySelector('input[name="intervalSeconds"]')).not.toBeNull()
+    })
+
+    test('without VIEW neither rows nor monitoring requests are exposed', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_UPDATE])
+        expect(document.body.textContent).not.toContain('Upstream availability')
+        expect(
+            document.querySelector('[aria-label="Open monitoring for app.example.com"]'),
+        ).toBeNull()
+        expect(getHostMonitoringSummaryMock).not.toHaveBeenCalled()
+        expect(getHostMonitoringPolicyMock).not.toHaveBeenCalled()
+        expect(getHostMonitoringHistoryMock).not.toHaveBeenCalled()
+    })
+
+    test('batch refresh updates availability without replacing or closing the open action menu', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(() => getRows().length === 2)
+        await waitFor(
+            () =>
+                getButton('Open monitoring for app.example.com').textContent?.includes(
+                    'Healthy',
+                ) === true,
+        )
+        const trigger = getButton('Open actions for app.example.com')
+        const badge = getButton('Open monitoring for app.example.com')
+        const accessibleName = badge.getAttribute('aria-label') ?? badge.textContent
+        expect(accessibleName).toContain('Open monitoring for app.example.com')
+        expect(accessibleName).toContain('Healthy')
+        await openMenu(trigger)
+        const menu = document.querySelector('[role="menu"]')!
+        getHostMonitoringSummaryMock.mockResolvedValue({
+            summaries: [
+                {
+                    proxyHostId: enabledHost.id,
+                    policy: { ...monitoringPolicy, state: 'unhealthy', availability: 'unhealthy' },
+                },
+                { proxyHostId: disabledHost.id, policy: null },
+            ],
+            checkedAt: new Date(),
+        })
+        await act(async () => {
+            await activeQueryClient?.invalidateQueries({ queryKey: hostMonitoringQueryKeys.all })
+        })
+        await waitFor(() => badge.textContent?.includes('Unhealthy') === true)
+        expect(getHostMonitoringSummaryMock).toHaveBeenCalledTimes(2)
+        expect(getButton('Open actions for app.example.com')).toBe(trigger)
+        expect(getButton('Open monitoring for app.example.com')).toBe(badge)
+        expect(menu.isConnected).toBeTrue()
+        expect(document.querySelector('[role="menu"]')).toBe(menu)
+        expect(getMenuItem('Monitoring')).not.toBeNull()
+    })
+
+    test('a denied refresh replaces cached healthy evidence with unavailable and removes its timestamp', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(() => getRows().length === 2)
+        await waitFor(
+            () =>
+                getButton('Open monitoring for app.example.com').textContent?.includes(
+                    'Healthy',
+                ) === true,
+        )
+        const badge = getButton('Open monitoring for app.example.com')
+        expect(badge.querySelector('time')).not.toBeNull()
+        getHostMonitoringSummaryMock.mockRejectedValue(
+            new HostMonitoringClientError('permission_denied'),
+        )
+        await act(async () => {
+            await activeQueryClient?.invalidateQueries({ queryKey: hostMonitoringQueryKeys.all })
+        })
+        await waitFor(() => badge.querySelector('time') === null)
+        expect(badge.textContent).not.toContain('Healthy')
+        expect(getHostMonitoringSummaryMock).toHaveBeenCalledTimes(2)
+    })
+})
+
 describe('ProxyHost permissions and row actions', () => {
     test('Viewer can open Domain check and inspect read-only Config without mutation actions', async () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
@@ -1187,7 +1366,7 @@ describe('ProxyHost permissions and row actions', () => {
         await openMenu(getButton('Open actions for app.example.com'))
         expect(
             [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
-        ).toEqual(['Domain check', 'Config'])
+        ).toEqual(['Monitoring', 'Domain check', 'Config'])
         await click(getMenuItem('Domain check'))
         await waitFor(() => document.querySelector('[role="dialog"]') !== null)
         const domainCheck = document.querySelector('[role="dialog"]')!

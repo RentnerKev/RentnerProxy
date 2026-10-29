@@ -6,6 +6,7 @@ import type {
     SortingState,
     ColumnFiltersState,
     PaginationState,
+    ColumnVisibilityState,
 } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
 import type { DefaultSingleSelectProps } from '@rentnerkev/select/types'
@@ -95,6 +96,7 @@ export interface UseClientTableParams<TData extends RowData> {
     readonly getRowId: (row: TData) => string
     readonly initialSorting?: SortingState
     readonly initialPageSize?: number
+    readonly initialColumnVisibility?: ColumnVisibilityState
     readonly globalFilterFn?: FilterFn<ClientTableFeatures, TData>
 }
 

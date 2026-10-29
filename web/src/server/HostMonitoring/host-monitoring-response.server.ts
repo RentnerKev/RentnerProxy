@@ -8,18 +8,24 @@ import { hostMonitoringService } from './host-monitoring.service.ts'
 import { HostMonitoringError } from './host-monitoring.errors.ts'
 import type { HostMonitoringHttpDependencies } from './Types/host-monitoring-http.types.ts'
 
-function queryInput(request: Request, history: boolean) {
+function queryInput(request: Request, kind: 'policy' | 'history' | 'summary') {
     const params = new URL(request.url).searchParams
-    const allowed = history
-        ? ['proxyHostId', 'limit', 'beforeCheckedAt', 'beforeId']
-        : ['proxyHostId']
+    const allowed =
+        kind === 'summary'
+            ? ['proxyHostIds']
+            : kind === 'history'
+              ? ['proxyHostId', 'limit', 'beforeCheckedAt', 'beforeId', 'status', 'since']
+              : ['proxyHostId']
     for (const key of params.keys())
         if (!allowed.includes(key) || params.getAll(key).length !== 1)
             throw new HostMonitoringError('invalid_input')
+    if (kind === 'summary') return { proxyHostIds: params.get('proxyHostIds')?.split(',') }
     if (params.has('beforeCheckedAt') !== params.has('beforeId'))
         throw new HostMonitoringError('invalid_input')
     return {
         proxyHostId: params.get('proxyHostId'),
+        ...(params.has('status') ? { status: params.get('status') } : {}),
+        ...(params.has('since') ? { since: params.get('since') } : {}),
         ...(params.has('limit') ? { limit: Number(params.get('limit')) } : {}),
         ...(params.has('beforeCheckedAt')
             ? { before: { checkedAt: params.get('beforeCheckedAt'), id: params.get('beforeId') } }
@@ -59,22 +65,27 @@ export function createHostMonitoringHttpHandlers(
         origin: getPublicOrigin,
     },
 ) {
-    async function respond(request: Request, history: boolean): Promise<Response> {
+    async function respond(
+        request: Request,
+        kind: 'policy' | 'history' | 'summary',
+    ): Promise<Response> {
         const headers = new Headers({
             'Cache-Control': 'private, no-store',
             'X-Content-Type-Options': 'nosniff',
         })
         if (request.signal.aborted) return new Response(null, { status: 499, headers })
-        if (request.method !== 'GET' && (history || request.method !== 'POST')) {
-            headers.set('Allow', history ? 'GET' : 'GET, POST')
+        if (request.method !== 'GET' && (kind !== 'policy' || request.method !== 'POST')) {
+            headers.set('Allow', kind !== 'policy' ? 'GET' : 'GET, POST')
             return Response.json({ error: 'invalid_input' }, { status: 405, headers })
         }
         try {
             if (request.method === 'GET')
                 return Response.json(
-                    history
-                        ? await dependencies.service.getHistory(queryInput(request, true))
-                        : await dependencies.service.getPolicy(queryInput(request, false)),
+                    kind === 'summary'
+                        ? await dependencies.service.getSummary(queryInput(request, kind))
+                        : kind === 'history'
+                          ? await dependencies.service.getHistory(queryInput(request, kind))
+                          : await dependencies.service.getPolicy(queryInput(request, kind)),
                     { headers },
                 )
             // Cookie-authenticated writes require the configured origin even for
@@ -110,8 +121,9 @@ export function createHostMonitoringHttpHandlers(
         }
     }
     return {
-        policy: (request: Request) => respond(request, false),
-        history: (request: Request) => respond(request, true),
+        policy: (request: Request) => respond(request, 'policy'),
+        summary: (request: Request) => respond(request, 'summary'),
+        history: (request: Request) => respond(request, 'history'),
     }
 }
 

@@ -22,6 +22,7 @@ export function getProxyHostTableActionItems(
         onDelete,
         onDisable,
         onDomainCheck,
+        onMonitoring,
         onEdit,
         onDuplicate,
         onEnable,
@@ -32,6 +33,14 @@ export function getProxyHostTableActionItems(
 ): Array<ActionMenuItem> {
     const name = getProxyHostName(host)
     const items: Array<ActionMenuItem> = []
+
+    if (onMonitoring) {
+        items.push({
+            label: t('admin.hostMonitoring.action'),
+            onSelect: () => onMonitoring(host),
+            disabled: isPending,
+        })
+    }
 
     if (onDomainCheck) {
         items.push({

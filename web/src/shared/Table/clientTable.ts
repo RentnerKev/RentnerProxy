@@ -1,6 +1,7 @@
 import {
     columnFilteringFeature,
     columnSizingFeature,
+    columnVisibilityFeature,
     createFilteredRowModel,
     createPaginatedRowModel,
     createSortedRowModel,
@@ -15,6 +16,7 @@ import {
 
 export const clientTableFeatures = tableFeatures({
     columnSizingFeature,
+    columnVisibilityFeature,
     columnFilteringFeature,
     globalFilteringFeature,
     filteredRowModel: createFilteredRowModel(),

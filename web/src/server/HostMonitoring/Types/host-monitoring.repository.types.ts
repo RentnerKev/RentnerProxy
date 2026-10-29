@@ -20,6 +20,8 @@ export interface SaveHostMonitoringPolicyInput {
 
 export interface HostMonitoringHistoryOptions {
     readonly before?: { readonly checkedAt: Date; readonly id: string }
+    readonly status?: HostMonitoringObservation['status'] | 'all'
+    readonly since?: Date
     readonly limit: number
 }
 

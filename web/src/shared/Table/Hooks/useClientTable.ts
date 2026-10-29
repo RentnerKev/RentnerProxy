@@ -11,6 +11,7 @@ export default function useClientTable<TData extends RowData>({
     getRowId,
     initialSorting = [],
     initialPageSize = 10,
+    initialColumnVisibility,
     globalFilterFn,
     remote,
 }: UseClientTableParams<TData>): UseClientTableReturn<TData> {
@@ -35,6 +36,7 @@ export default function useClientTable<TData extends RowData>({
             initialState: {
                 sorting: initialSorting,
                 pagination: { pageIndex: 0, pageSize: initialPageSize },
+                ...(initialColumnVisibility ? { columnVisibility: initialColumnVisibility } : {}),
                 ...remote?.initialState,
             },
         },

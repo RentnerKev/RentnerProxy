@@ -14,7 +14,7 @@ const { Modal } = await import('@/shared/Modal/index.tsx')
 
 let root: Root | null = null
 
-function Fixture({ searchable = false, closeDisabled = false }) {
+function Fixture({ searchable = false, closeDisabled = false, focusFooter = false }) {
     const [open, setOpen] = useState(false)
     const [nestedOpen, setNestedOpen] = useState(false)
     const [value, setValue] = useState('alpha')
@@ -39,6 +39,14 @@ function Fixture({ searchable = false, closeDisabled = false }) {
                 title="Parent dialog"
                 description="Choose a value"
                 closeDisabled={closeDisabled}
+                onOpenAutoFocus={
+                    focusFooter
+                        ? (event) => {
+                              event.preventDefault()
+                              document.getElementById('footer-action')?.focus()
+                          }
+                        : undefined
+                }
                 footer={<button id="footer-action">Another action</button>}
             >
                 <CustomSelect
@@ -116,6 +124,22 @@ afterEach(async () => {
     await act(async () => root?.unmount())
     root = null
     document.body.replaceChildren()
+})
+
+test('opening a modal focuses its container instead of automatically outlining the close button', async () => {
+    const dialog = await render()
+    expect(document.activeElement === dialog).toBe(true)
+    const close = dialog.querySelector('button[aria-label="Close dialog"]')
+    expect(close === null).toBe(false)
+    expect(document.activeElement === close).toBe(false)
+    await escape()
+    expect(dialog.isConnected).toBe(false)
+    expect(document.activeElement === document.getElementById('open-modal')).toBe(true)
+})
+
+test('explicit modal autofocus handlers keep their requested focus target', async () => {
+    await render({ focusFooter: true })
+    expect(document.activeElement === document.getElementById('footer-action')).toBe(true)
 })
 
 test.each([false, true])(

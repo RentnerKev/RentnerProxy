@@ -48,6 +48,7 @@ import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-log
 import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admin/diagnostics/domain'
 import { Route as ApiAdminMonitoringHistoryRouteImport } from './routes/api/admin/monitoring/history'
 import { Route as ApiAdminMonitoringPolicyRouteImport } from './routes/api/admin/monitoring/policy'
+import { Route as ApiAdminMonitoringSummaryRouteImport } from './routes/api/admin/monitoring/summary'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -251,6 +252,12 @@ const ApiAdminMonitoringPolicyRoute =
     path: '/api/admin/monitoring/policy',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminMonitoringSummaryRoute =
+  ApiAdminMonitoringSummaryRouteImport.update({
+    id: '/api/admin/monitoring/summary',
+    path: '/api/admin/monitoring/summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
+  '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -328,6 +336,7 @@ export interface FileRoutesByTo {
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
+  '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -370,6 +379,7 @@ export interface FileRoutesById {
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
+  '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
+    | '/api/admin/monitoring/summary'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
+    | '/api/admin/monitoring/summary'
   id:
     | '__root__'
     | '/_authenticated'
@@ -490,6 +502,7 @@ export interface FileRouteTypes {
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
+    | '/api/admin/monitoring/summary'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -505,6 +518,7 @@ export interface RootRouteChildren {
   ApiAdminDiagnosticsDomainRoute: typeof ApiAdminDiagnosticsDomainRoute
   ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
   ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
+  ApiAdminMonitoringSummaryRoute: typeof ApiAdminMonitoringSummaryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -782,6 +796,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminMonitoringPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/monitoring/summary': {
+      id: '/api/admin/monitoring/summary'
+      path: '/api/admin/monitoring/summary'
+      fullPath: '/api/admin/monitoring/summary'
+      preLoaderRoute: typeof ApiAdminMonitoringSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -891,6 +912,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminDiagnosticsDomainRoute: ApiAdminDiagnosticsDomainRoute,
   ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
   ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,
+  ApiAdminMonitoringSummaryRoute: ApiAdminMonitoringSummaryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

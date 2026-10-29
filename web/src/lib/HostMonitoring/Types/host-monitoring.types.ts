@@ -66,3 +66,11 @@ export interface HostMonitoringPolicyView {
     readonly observationPoint: 'appliance'
     readonly publicReachability: 'not_checked'
 }
+
+export interface HostMonitoringSummary {
+    readonly summaries: Array<{
+        readonly proxyHostId: string
+        readonly policy: HostMonitoringPolicyView | null
+    }>
+    readonly checkedAt: Date
+}

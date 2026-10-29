@@ -12,9 +12,9 @@ import {
     ProxyHostCreatedAtCell,
     ProxyHostDomainsCell,
     ProxyHostForwardCell,
-    ProxyHostStatusCell,
 } from '../Components/ProxyHostTableCells.tsx'
 import type { ProxyHostTableActionProps } from '../../../Types/proxy-host-table.types.ts'
+import ProxyHostMonitoringCell from '../Components/ProxyHostMonitoringCell.tsx'
 
 const dateFilter = createDateRangeFilter<ProxyHostSummary>()
 
@@ -30,6 +30,7 @@ export default function useProxyHostsTableColumns({
     onDelete,
     onDisable,
     onDomainCheck,
+    onMonitoring,
     onEdit,
     onDuplicate,
     onEnable,
@@ -76,6 +77,7 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostDomainsCell, {
                         domains: row.original.domains,
+                        enabled: row.original.enabled,
                         discovery: row.original.discovery,
                     }),
             },
@@ -99,13 +101,10 @@ export default function useProxyHostsTableColumns({
                 id: 'status',
                 accessorFn: (host) => (host.enabled ? 'enabled' : 'disabled'),
                 header: t('admin.proxyHosts.columns.status'),
-                sortFn: 'text',
+                enableSorting: false,
+                enableHiding: false,
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
-                cell: ({ row }) =>
-                    createElement(ProxyHostStatusCell, {
-                        enabled: row.original.enabled,
-                    }),
             },
             {
                 accessorKey: 'createdAt',
@@ -118,6 +117,21 @@ export default function useProxyHostsTableColumns({
             },
         ]
 
+        if (onMonitoring) {
+            columns.splice(4, 0, {
+                id: 'availability',
+                header: t('admin.hostMonitoring.column'),
+                enableSorting: false,
+                enableColumnFilter: false,
+                enableGlobalFilter: false,
+                cell: ({ row }) =>
+                    createElement(ProxyHostMonitoringCell, {
+                        host: row.original,
+                        onMonitoring,
+                    }),
+            })
+        }
+
         if (
             canUpdate ||
             (canDuplicate && onDuplicate) ||
@@ -126,7 +140,8 @@ export default function useProxyHostsTableColumns({
             canDisable ||
             canRequestCertificate ||
             onConfig ||
-            onDomainCheck
+            onDomainCheck ||
+            onMonitoring
         ) {
             columns.push({
                 id: 'actions',
@@ -148,6 +163,7 @@ export default function useProxyHostsTableColumns({
                         onDelete,
                         onDisable,
                         ...(onDomainCheck ? { onDomainCheck } : {}),
+                        ...(onMonitoring ? { onMonitoring } : {}),
                         onEdit,
                         onEnable,
                         ...(onRequestCertificate ? { onRequestCertificate } : {}),
@@ -168,6 +184,7 @@ export default function useProxyHostsTableColumns({
         onDelete,
         onDisable,
         onDomainCheck,
+        onMonitoring,
         onEdit,
         onDuplicate,
         onEnable,

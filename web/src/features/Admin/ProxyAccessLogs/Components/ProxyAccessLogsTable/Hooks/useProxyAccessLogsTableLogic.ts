@@ -4,7 +4,7 @@ import useTableFilters from '@/shared/Table/Hooks/useTableFilters.ts'
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs-table.types.ts'
 import useProxyAccessLogsFilterOptions from './useProxyAccessLogsFilterOptions.ts'
 import { createElement } from 'react'
-import ProxyLogStatusBadge from '../Components/ProxyLogStatusBadge.tsx'
+import HttpStatusBadge from '@/shared/HttpStatusBadge/index.tsx'
 
 export default function useProxyAccessLogsTableLogic({
     filters,
@@ -40,7 +40,7 @@ export default function useProxyAccessLogsTableLogic({
                 ...statusOptions.map((status) => ({
                     label: String(status),
                     value: String(status),
-                    content: createElement(ProxyLogStatusBadge, { status }),
+                    content: createElement(HttpStatusBadge, { status }),
                 })),
             ],
             hostOptions: [
