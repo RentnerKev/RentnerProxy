@@ -258,7 +258,7 @@ describe('RentnerMenu action integration', () => {
         expect(document.body.style.pointerEvents).not.toBe('none')
     })
 
-    test('touch activates the same native button without hover', async () => {
+    test('touch pointer events retain native click defaults and do not open on hover', async () => {
         await render(
             <ActionMenu
                 ariaLabel="Actions"
@@ -267,19 +267,21 @@ describe('RentnerMenu action integration', () => {
         )
         const trigger = button('Actions')
         await act(async () => {
-            trigger.dispatchEvent(
-                new PointerEvent('pointerover', { bubbles: true, pointerType: 'touch' }),
-            )
-            trigger.dispatchEvent(
-                new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }),
-            )
-            trigger.dispatchEvent(
-                new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch' }),
-            )
-            trigger.click()
+            for (const type of ['pointerover', 'pointerdown', 'pointerup']) {
+                const event = new PointerEvent(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    pointerType: 'touch',
+                    isPrimary: true,
+                })
+                expect(trigger.dispatchEvent(event)).toBeTrue()
+                expect(event.defaultPrevented).toBeFalse()
+            }
+            await new Promise((resolve) => setTimeout(resolve, 160))
         })
-        expect(trigger.getAttribute('aria-expanded')).toBe('true')
-        expect(document.activeElement === item('Edit')).toBeTrue()
+        expect(trigger.disabled).toBeFalse()
+        expect(trigger.getAttribute('aria-expanded')).toBe('false')
+        expect(document.querySelector('[role="menu"]')).toBeNull()
     })
 
     test.each(['ArrowDown', 'ArrowUp'])(
