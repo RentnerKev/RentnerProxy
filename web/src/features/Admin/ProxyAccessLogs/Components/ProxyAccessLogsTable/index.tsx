@@ -24,7 +24,7 @@ import {
 } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogs.ts'
 import type { ProxyAccessLogsTableProps } from './Types/proxy-access-logs-table.types.ts'
 import ClientIpCountry from './Components/ClientIpCountry.tsx'
-import ProxyLogStatusBadge from './Components/ProxyLogStatusBadge.tsx'
+import HttpStatusBadge from '@/shared/HttpStatusBadge/index.tsx'
 
 function logEntryKey(entry: ProxyAccessLogEntry, index: number): string {
     return `${entry.timestamp}-${entry.host}-${index}`
@@ -345,7 +345,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                                 </CustomTooltip>
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle">
-                                                <ProxyLogStatusBadge status={entry.status} />
+                                                <HttpStatusBadge status={entry.status} />
                                             </td>
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatDuration(entry.durationMs)}

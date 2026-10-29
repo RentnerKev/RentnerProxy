@@ -3,6 +3,8 @@ import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import MonitoringDurationChart from './MonitoringDurationChart/index.tsx'
 import MonitoringChecksTable from './MonitoringChecksTable/index.tsx'
+import HostAvailabilityBadge from './HostAvailabilityBadge.tsx'
+import TableFilterSelect from '@/shared/Table/Components/TableFilterSelect.tsx'
 import type {
     MonitoringDialogHandler,
     MonitoringDialogState,
@@ -33,7 +35,7 @@ export default function MonitoringOverview({
                 </div>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
-                <CustomSelect
+                <TableFilterSelect
                     label={t('admin.hostMonitoring.status')}
                     aria-label={t('admin.hostMonitoring.status')}
                     options={(['all', 'healthy', 'unhealthy', 'unknown'] as const).map((value) => ({
@@ -43,7 +45,12 @@ export default function MonitoringOverview({
                                 ? 'admin.hostMonitoring.all'
                                 : `admin.hostMonitoring.states.${value}`,
                         ),
+                        content:
+                            value === 'all' ? undefined : (
+                                <HostAvailabilityBadge availability={value} />
+                            ),
                     }))}
+                    searchable={false}
                     value={state.status}
                     onValueChange={handler.handleStatus}
                 />

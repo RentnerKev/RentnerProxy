@@ -5,6 +5,7 @@ import type { HostMonitoringObservationView } from '@/lib/HostMonitoring/Types/h
 import { createDateRangeFilter } from '@/lib/Table/tableFilters.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
+import HttpStatusBadge from '@/shared/HttpStatusBadge/index.tsx'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
 import HostAvailabilityBadge from '../../HostAvailabilityBadge.tsx'
@@ -71,11 +72,9 @@ export default function useMonitoringChecksTableLogic(
                 filterFn: (row, _columnId, value) =>
                     String(row.original.httpStatus ?? 'missing') === String(value),
                 cell: ({ row }) =>
-                    createElement(
-                        'span',
-                        { className: 'font-mono' },
-                        row.original.httpStatus ?? '—',
-                    ),
+                    row.original.httpStatus === null
+                        ? '—'
+                        : createElement(HttpStatusBadge, { status: row.original.httpStatus }),
             },
             {
                 accessorKey: 'code',
@@ -119,6 +118,7 @@ export default function useMonitoringChecksTableLogic(
                 options: (['healthy', 'unhealthy', 'unknown'] as const).map((value) => ({
                     value,
                     label: t(`admin.hostMonitoring.states.${value}`),
+                    content: createElement(HostAvailabilityBadge, { availability: value }),
                 })),
             },
             httpStatus: {
@@ -128,6 +128,10 @@ export default function useMonitoringChecksTableLogic(
                     .toSorted((a, b) => (a ?? 0) - (b ?? 0))
                     .map((value) => ({
                         value: String(value ?? 'missing'),
+                        content:
+                            value === null
+                                ? t('admin.hostMonitoring.table.missingHttpStatus')
+                                : createElement(HttpStatusBadge, { status: value }),
                         label:
                             value === null
                                 ? t('admin.hostMonitoring.table.missingHttpStatus')
