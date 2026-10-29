@@ -102,27 +102,24 @@ afterEach(async () => {
     document.body.replaceChildren()
 })
 
-test('persistent errors stay outside dialogs, remain accessible and dismiss without closing them', async () => {
+test('persistent errors remain accessible inside the active dialog and dismiss without closing it', async () => {
     await act(async () => {
         store.toast.error('Certificate could not be applied.', { duration: 0 })
     })
-    const toastRegion = region()
-    expect(toastRegion.parentElement).toBe(document.body)
+    expect(region().parentElement === document.body).toBeTrue()
     await click(document.getElementById('open-parent')!)
     const dialog = document.querySelector('[role="dialog"]')!
     expect(dialog.textContent).toContain('Parent dialog')
-    expect(region()).toBe(toastRegion)
-    expect(region().parentElement).toBe(document.body)
-    expect(toastRegion.closest('[role="dialog"]')).toBeNull()
-    expect(document.querySelector('[data-modal-toast-host]')).toBeNull()
+    const toastRegion = region()
+    expect(dialog.contains(toastRegion)).toBeTrue()
     expect(toastRegion.closest('[aria-hidden="true"]')).toBeNull()
     const dismiss = toastRegion.querySelector<HTMLButtonElement>(
         'button[aria-label="Dismiss notification"]',
     )!
     await act(async () => dismiss.focus())
-    expect(document.activeElement).toBe(dismiss)
+    expect(document.activeElement === dismiss).toBeTrue()
     await act(async () => document.getElementById('open-parent')!.focus())
-    expect(document.activeElement).toBe(dismiss)
+    expect(document.activeElement === dismiss).toBeTrue()
     await act(async () => document.getElementById('open-nested')!.focus())
     expect(dialog.contains(document.activeElement)).toBeTrue()
     await click(dismiss)
@@ -140,36 +137,37 @@ test('nested dialogs keep one stable global stack and retain their own focus and
     const original = store
         .getToastSnapshot()
         .map(({ id, createdAt, duration }) => ({ id, createdAt, duration }))
-    const toastRegion = region()
     await click(document.getElementById('open-parent')!)
+    const parent = document.querySelector('[role="dialog"]')!
+    expect(parent.contains(region())).toBeTrue()
     await click(document.getElementById('open-nested')!)
     const nested = [...document.querySelectorAll('[role="dialog"]')].at(-1)!
     expect(nested.textContent).toContain('Nested dialog')
-    expect(region()).toBe(toastRegion)
-    expect(region().closest('[role="dialog"]')).toBeNull()
+    expect(nested.contains(region())).toBeTrue()
     expect(region().closest('[aria-hidden="true"]')).toBeNull()
     expect(region().querySelectorAll('[role="alert"]')).toHaveLength(2)
     const dismiss = region().querySelector<HTMLButtonElement>(
         'button[aria-label="Dismiss notification"]',
     )!
     await act(async () => dismiss.focus())
-    expect(document.activeElement).toBe(dismiss)
+    expect(document.activeElement === dismiss).toBeTrue()
     const action = nested.querySelector<HTMLButtonElement>('#nested-action')!
     await act(async () => action.focus())
-    expect(document.activeElement).toBe(action)
+    expect(document.activeElement === action).toBeTrue()
     await click(action)
     expect(nested.textContent).toContain('Nested saved')
     expect(region().querySelectorAll('[role="alert"]')).toHaveLength(2)
     await click(nested.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')!)
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Parent dialog')
-    expect(region()).toBe(toastRegion)
+    expect(parent.contains(region())).toBeTrue()
+    expect(region().querySelectorAll('[role="alert"]')).toHaveLength(2)
     await click(
         document.querySelector<HTMLButtonElement>(
             '[role="dialog"] button[aria-label="Close dialog"]',
         )!,
     )
-    expect(region().parentElement).toBe(document.body)
+    expect(region().parentElement === document.body).toBeTrue()
     expect(
         store
             .getToastSnapshot()

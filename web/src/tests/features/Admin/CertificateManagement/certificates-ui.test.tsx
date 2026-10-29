@@ -14,7 +14,7 @@ import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
+import { TOAST_PROVIDER_PROPS, TOAST_ROOT_CLASS } from '@/config/toast.config.ts'
 import { DDNS_CONNECTION } from '@/tests/Helpers/ddnsFixture.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -354,6 +354,12 @@ async function waitForToast(tone: 'success' | 'error' | 'warning'): Promise<void
     await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 300))
     })
+}
+
+function inlineAlerts() {
+    return [...document.querySelectorAll('[role="dialog"] [role="alert"]')].filter(
+        (alert) => !alert.closest(`.${TOAST_ROOT_CLASS}`),
+    )
 }
 
 function button(label: string): HTMLButtonElement {
@@ -2337,8 +2343,8 @@ test('manual DNS propagation failures use one toast per check and cancellation a
         const message =
             'Some TXT values are not publicly visible yet. Wait for propagation and check again.'
         expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(message)
-        expect(document.querySelector('[role=dialog] [role=alert]')).toBeNull()
-        expect(document.querySelector('[role=dialog]')?.textContent).not.toContain(message)
+        expect(inlineAlerts()).toHaveLength(0)
+        expect(document.body.textContent?.split(message)).toHaveLength(2)
         expect(errorToast).toHaveBeenCalledTimes(1)
         await act(async () => {
             refresh!({ ...failed, updatedAt: new Date('2026-10-25T12:35:00Z') })
@@ -2362,7 +2368,7 @@ test('manual DNS propagation failures use one toast per check and cancellation a
             })
         })
         expect(errorToast).toHaveBeenCalledTimes(1)
-        expect(document.querySelector('[role=dialog] [role=alert]')).toBeNull()
+        expect(inlineAlerts()).toHaveLength(0)
     } finally {
         errorToast.mockRestore()
     }

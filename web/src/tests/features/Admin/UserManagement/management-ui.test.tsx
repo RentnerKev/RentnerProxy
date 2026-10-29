@@ -1113,9 +1113,9 @@ describe('user form modal', () => {
             ),
         )
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
-        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
-            'This email address is already in use.',
-        )
+        expect(
+            document.body.textContent?.split('This email address is already in use.'),
+        ).toHaveLength(2)
         expect(displayName?.value).toBe('Changed Name')
         await waitFor(
             () =>
