@@ -3,14 +3,14 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
 import { INPUT_PROVIDER_PROPS } from '@/config/input.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import type { CrowdSecBansTableProps } from '@/features/Admin/CrowdSec/Components/CrowdSecBansTable/Types/crowdsec-bans-table.types.ts'
 import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { InputProvider } = await import('@rentnerkev/inputs')
 const { SelectProvider } = await import('@rentnerkev/select')

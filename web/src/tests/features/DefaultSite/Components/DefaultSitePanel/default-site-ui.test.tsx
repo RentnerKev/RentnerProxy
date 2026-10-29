@@ -7,16 +7,16 @@ import type {
     DefaultSiteFormatResult,
     DefaultSiteSaveResult,
 } from '@/features/DefaultSite/Types/middleware.types.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { getDefaultSitePageViewModel } from '@/lib/DefaultSite/defaultSitePage.ts'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { setClientCspNonce } from '@/lib/Security/cspNonce.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')

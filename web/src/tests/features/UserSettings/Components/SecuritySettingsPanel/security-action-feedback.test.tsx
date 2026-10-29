@@ -3,14 +3,12 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 if (!GlobalRegistrator.isRegistered) {
-    GlobalRegistrator.register()
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 
 const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')

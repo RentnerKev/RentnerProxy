@@ -14,11 +14,11 @@ import { emptyHostTagState, HostTagDomainError, mutateHostTags } from '@/lib/Hos
 import { hostTagMutationSchema } from '@/features/Admin/HostTags/validation.ts'
 import withTestLanguage, { bootstraps, catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import { AuthenticatedLanguageProvider } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-disableMotionAnimations()
 const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
