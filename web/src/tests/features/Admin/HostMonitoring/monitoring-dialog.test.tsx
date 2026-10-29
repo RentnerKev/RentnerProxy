@@ -235,7 +235,7 @@ test('closed dialog does not fetch and unconfigured monitoring stays read-only u
     expect(requests.some((request) => request.method === 'POST')).toBe(false)
 })
 
-test('unknown observations and open incidents remain visible without editable settings for a viewer', async () => {
+test('a viewer can inspect unknown checks without the removed summary and incident sections', async () => {
     responsePolicy = { ...policy, state: 'unknown', availability: 'stale' }
     responseHistory = {
         observations: [
@@ -278,7 +278,10 @@ test('unknown observations and open incidents remain visible without editable se
     }
     await render({ ...props, permissions: [PERMISSIONS.PROXY_HOSTS_VIEW] }, true)
     expect(document.querySelector('table tbody')?.textContent).toContain('Unknown')
-    expect(document.querySelector('article')?.textContent).toContain('Open')
+    expect(document.querySelector('article') === null).toBe(true)
+    expect(document.body.textContent).not.toContain('Checks run from this RentnerProxy instance')
+    expect(document.body.textContent).not.toContain('Proxy configuration enabled')
+    expect(document.body.textContent).not.toContain('Retention:')
     const chart = document.querySelector('svg[aria-label="Response duration"]')
     expect(chart).not.toBeNull()
     expect(chart?.getAttribute('tabindex')).toBe('0')
@@ -349,7 +352,12 @@ test('rolling history refreshes its first-page window and keeps pagination on th
         })
         await flush()
         expect(logic.state.more).toBe(false)
-        expect(logic.state.capped).toBe(true)
+        const atLimit = requests.length
+        await act(async () => {
+            logic.handler.handleMore()
+        })
+        await flush()
+        expect(requests.length).toBe(atLimit)
         const beforeRefresh = requests.length
         await act(async () => {
             await client.refetchQueries({ queryKey: historyKey, exact: true })

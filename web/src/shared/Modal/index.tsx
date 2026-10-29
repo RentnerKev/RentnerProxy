@@ -7,13 +7,24 @@ import { CalendarProvider } from '@rentnerkev/calendar'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 import useModalLogic from './Hooks/useModalLogic.ts'
-import type { ModalProps, ModalSize } from './Types/modal.types.ts'
+import type { ModalHeight, ModalProps, ModalSize } from './Types/modal.types.ts'
 
 const contentSizeClassNames: Record<ModalSize, string> = {
     sm: 'max-w-md',
     md: 'max-w-xl',
     lg: 'max-w-3xl',
     xl: 'max-w-6xl',
+}
+
+const contentHeightClassNames: Record<ModalHeight, { maximum: string; fixed: string }> = {
+    default: {
+        maximum: 'max-h-[calc(100dvh-1rem)] sm:max-h-[min(44rem,calc(100dvh-3rem))]',
+        fixed: 'h-[min(44rem,calc(100dvh-1rem))] sm:h-[min(44rem,calc(100dvh-3rem))]',
+    },
+    tall: {
+        maximum: 'max-h-[calc(100dvh-1rem)] sm:max-h-[min(56rem,calc(100dvh-1.5rem))]',
+        fixed: 'h-[min(56rem,calc(100dvh-1rem))] sm:h-[min(56rem,calc(100dvh-1.5rem))]',
+    },
 }
 
 export function Modal({
@@ -24,6 +35,7 @@ export function Modal({
     children,
     footer,
     fixedHeight = false,
+    height = 'default',
     navigation,
     onOpenAutoFocus,
     onClosed,
@@ -52,7 +64,7 @@ export function Modal({
                     onCloseAutoFocus={handler.handleCloseAutoFocus}
                     onEscapeKeyDown={handler.handleEscapeKeyDown}
                     onInteractOutside={handler.preventClose}
-                    className={`fixed inset-0 z-50 m-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-surface shadow-panel outline-hidden sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:w-[calc(100%-3rem)] ${contentSizeClassNames[size]} ${fixedHeight ? 'h-[min(44rem,calc(100dvh-1rem))] sm:h-[min(44rem,calc(100dvh-3rem))]' : 'h-fit'} data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none`}
+                    className={`fixed inset-0 z-50 m-auto flex w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-surface shadow-panel outline-hidden sm:w-[calc(100%-3rem)] ${contentSizeClassNames[size]} ${contentHeightClassNames[height].maximum} ${fixedHeight ? contentHeightClassNames[height].fixed : 'h-fit'} data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none`}
                 >
                     <SelectProvider portalContainer={state.selectPortalContainer}>
                         <CalendarProvider portalContainer={state.selectPortalContainer}>

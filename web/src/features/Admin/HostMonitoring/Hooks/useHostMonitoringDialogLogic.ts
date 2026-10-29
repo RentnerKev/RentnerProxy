@@ -228,11 +228,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     const observations = pages
         .flatMap((page) => page.observations)
         .slice(0, HOST_MONITORING_UI.historyLoadedLimit)
-    const incidents = [
-        ...new Map(
-            pages.flatMap((page) => page.incidents).map((incident) => [incident.id, incident]),
-        ).values(),
-    ]
     const formatter = useMemo(
         () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }),
         [locale],
@@ -327,13 +322,9 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         historyError: historyQuery.isError,
         historyLoading: historyQuery.isPending,
         observations,
-        incidents,
         status,
         period,
         more: Boolean(historyQuery.hasNextPage),
-        capped:
-            pages.length * HOST_MONITORING_UI.historyPageLimit >=
-                HOST_MONITORING_UI.historyLoadedLimit && Boolean(pages.at(-1)?.nextCursor),
         loadingMore: historyQuery.isFetchingNextPage,
         pending: mutation.isPending,
         dirty,

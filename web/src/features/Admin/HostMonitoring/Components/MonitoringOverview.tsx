@@ -31,25 +31,7 @@ export default function MonitoringOverview({
                         </button>
                     ) : null}
                 </div>
-            ) : (
-                <div className="flex flex-wrap gap-x-6 gap-y-2 border-y border-border py-3 text-xs">
-                    <span>
-                        {t('admin.hostMonitoring.checkedAt')}:{' '}
-                        <time dateTime={state.policy.lastCheckedAt?.toISOString()}>
-                            {handler.formatDate(state.policy.lastCheckedAt)}
-                        </time>
-                    </span>
-                    <span>
-                        {t('admin.hostMonitoring.duration')}:{' '}
-                        {state.policy.lastDurationMs === null
-                            ? '—'
-                            : `${state.policy.lastDurationMs} ms`}
-                    </span>
-                    <span>
-                        {t('admin.hostMonitoring.httpStatus')}: {state.policy.lastHttpStatus ?? '—'}
-                    </span>
-                </div>
-            )}
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
                 <CustomSelect
                     label={t('admin.hostMonitoring.status')}
@@ -127,108 +109,6 @@ export default function MonitoringOverview({
                         loadingMore={state.loadingMore}
                         onLoadMore={handler.handleMore}
                     />
-                    {state.capped ? (
-                        <p className="text-xs text-muted">{t('admin.hostMonitoring.historyCap')}</p>
-                    ) : null}
-                    {state.policy ? (
-                        <p className="m-0 text-xs leading-relaxed text-muted">
-                            {t('admin.hostMonitoring.historyLimit', {
-                                count: state.observations.length,
-                                days: state.policy.settings.retentionDays,
-                                samples: state.policy.settings.sampleLimit,
-                                incidents: state.policy.settings.incidentLimit,
-                            })}
-                        </p>
-                    ) : null}
-                    <section className="grid gap-3">
-                        <h3 className="m-0 text-sm font-bold">
-                            {t('admin.hostMonitoring.incidents')}
-                        </h3>
-                        {state.incidents.length === 0 ? (
-                            <p className="m-0 text-xs text-muted">
-                                {t('admin.hostMonitoring.noIncidents')}
-                            </p>
-                        ) : (
-                            state.incidents.map((incident) => (
-                                <article
-                                    key={incident.id}
-                                    className="border-l-2 border-danger-text/40 pl-3"
-                                >
-                                    <dl className="m-0 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.startedAt')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {handler.formatDate(incident.startedAt)}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.detectedAt')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {handler.formatDate(incident.detectedAt)}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.recoveryStartedAt')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {handler.formatDate(incident.recoveryStartedAt)}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.recoveredAt')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {incident.recoveredAt
-                                                    ? handler.formatDate(incident.recoveredAt)
-                                                    : incident.closedAt
-                                                      ? '—'
-                                                      : t('admin.hostMonitoring.openIncident')}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.closedAt')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {handler.formatDate(incident.closedAt)}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.closedReason')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {incident.closedReason
-                                                    ? t(
-                                                          `admin.hostMonitoring.closures.${incident.closedReason}`,
-                                                      )
-                                                    : '—'}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted">
-                                                {t('admin.hostMonitoring.outcome')}
-                                            </dt>
-                                            <dd className="m-0">
-                                                {t(
-                                                    `admin.hostMonitoring.codes.${incident.failureCode}`,
-                                                )}
-                                                {incident.recoveryCode
-                                                    ? ` → ${t(`admin.hostMonitoring.codes.${incident.recoveryCode}`)}`
-                                                    : null}
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                </article>
-                            ))
-                        )}
-                    </section>
                 </>
             )}
         </div>

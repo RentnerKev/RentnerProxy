@@ -42,11 +42,9 @@ export interface MonitoringDialogState {
     readonly historyError: boolean
     readonly historyLoading: boolean
     readonly observations: HostMonitoringHistoryView['observations']
-    readonly incidents: HostMonitoringHistoryView['incidents']
     readonly status: HostMonitoringHistoryQuery['status']
     readonly period: MonitoringPeriod
     readonly more: boolean
-    readonly capped: boolean
     readonly loadingMore: boolean
     readonly pending: boolean
     readonly dirty: boolean

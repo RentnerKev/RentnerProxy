@@ -4,7 +4,6 @@ import { Modal } from '@/shared/Modal/index.tsx'
 import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import HostAvailabilityBadge from './Components/HostAvailabilityBadge.tsx'
 import MonitoringOverview from './Components/MonitoringOverview.tsx'
 import useHostMonitoringDialogLogic from './Hooks/useHostMonitoringDialogLogic.ts'
 import type { HostMonitoringDialogProps } from './Types/host-monitoring-dialog.types.ts'
@@ -21,6 +20,7 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
             description={props.host.domains.join(', ')}
             size="xl"
             fixedHeight
+            height="tall"
             navigation={
                 <div
                     role="tablist"
@@ -91,25 +91,6 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
             }
         >
             <div className="grid min-w-0 gap-4">
-                <p className="m-0 border-l-2 border-accent-border pl-3 text-sm leading-relaxed text-muted">
-                    {t('admin.hostMonitoring.observationPoint')}
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <HostAvailabilityBadge
-                        availability={
-                            state.loading
-                                ? 'loading'
-                                : state.error
-                                  ? 'unavailable'
-                                  : (state.policy?.availability ?? 'disabled')
-                        }
-                    />
-                    <span className="text-xs text-muted">
-                        {t(
-                            `admin.hostMonitoring.${props.host.enabled ? 'hostEnabled' : 'hostDisabled'}`,
-                        )}
-                    </span>
-                </div>
                 {!state.canView ? (
                     <p role="alert" className="text-sm text-danger-text">
                         {t('admin.hostMonitoring.permissionDenied')}

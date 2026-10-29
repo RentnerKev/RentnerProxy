@@ -49,6 +49,10 @@ export default function useModalLogic({
 
                 returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null
                 onOpenAutoFocus?.(event)
+                if (!event.defaultPrevented && event.target instanceof HTMLElement) {
+                    event.preventDefault()
+                    event.target.focus()
+                }
             },
             handleOpenChange: (nextOpen: boolean) => {
                 if (!nextOpen && closeDisabled) {

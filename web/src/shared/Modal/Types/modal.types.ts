@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
+export type ModalHeight = 'default' | 'tall'
 
 export interface ModalProps {
     readonly children?: ReactNode
@@ -8,6 +9,7 @@ export interface ModalProps {
     readonly description: ReactNode
     readonly footer?: ReactNode
     readonly fixedHeight?: boolean
+    readonly height?: ModalHeight
     readonly navigation?: ReactNode
     readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
     readonly onClosed?: (() => void) | undefined
@@ -31,6 +33,7 @@ export interface ConfirmDialogProps {
 }
 
 export interface PreventableEvent {
+    readonly defaultPrevented?: boolean
     readonly preventDefault: () => void
     readonly target?: EventTarget | null
 }
