@@ -207,12 +207,19 @@ impl SupervisorState {
     }
 }
 
-fn normalize_api_url(value: &str) -> Result<String, CrowdSecError> {
+pub(super) fn normalize_api_url(value: &str) -> Result<String, CrowdSecError> {
     if value.is_empty() || value.len() > 2_048 || value != value.trim() {
         return Err(CrowdSecError::InvalidConfiguration);
     }
     let mut url = Url::parse(value).map_err(|_| CrowdSecError::InvalidConfiguration)?;
     if !matches!(url.scheme(), "http" | "https")
+        || (url.scheme() == "http"
+            && !url.host_str().is_some_and(|host| {
+                host.trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .parse::<std::net::IpAddr>()
+                    .is_ok_and(|ip| ip.is_loopback())
+            }))
         || !url.username().is_empty()
         || url.password().is_some()
         || url.host().is_none()

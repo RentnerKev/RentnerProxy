@@ -33,7 +33,7 @@ pub(super) async fn authorize_certificate_request(
 
 fn authorize(headers: &HeaderMap, token: Option<&ControllerToken>) -> Result<(), ApiError> {
     let Some(token) = token else {
-        return Ok(());
+        return Err(ApiError::unauthorized());
     };
     let Some(value) = headers
         .get("authorization")

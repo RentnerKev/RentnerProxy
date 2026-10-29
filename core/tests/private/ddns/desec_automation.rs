@@ -5,7 +5,7 @@ use crate::runtime::ddns::{
 };
 const NOW: i64 = 1_900_000_000;
 #[tokio::test]
-async fn created_rrset_is_reused_on_schedule_and_after_restart() {
+async fn created_rrset_remains_unchanged_after_restart_but_cannot_be_updated() {
     let fixture = Fixture::new(vec![]).await;
     let automation = Automation::new(fixture.path.clone());
     automation
@@ -54,8 +54,13 @@ async fn created_rrset_is_reused_on_schedule_and_after_restart() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(run.targets[0].status, Status::Updated);
-    assert_eq!(fixture.data.lock().unwrap().writes.len(), 2);
+    assert_eq!(run.targets[0].status, Status::Failed);
+    assert_eq!(
+        run.targets[0].error,
+        Some(crate::runtime::ddns::models::Error::UpdatePreconditionUnsupported)
+    );
+    assert_eq!(fixture.data.lock().unwrap().methods, vec!["POST"]);
+    assert_eq!(fixture.data.lock().unwrap().writes.len(), 1);
 }
 
 #[tokio::test]
@@ -205,14 +210,12 @@ async fn changing_selection_discards_automatic_create_reuse() {
 }
 
 #[tokio::test]
-async fn successful_creation_authority_survives_transient_failures_and_restart() {
+async fn successful_creation_authority_survives_transient_read_failures_and_restart() {
     use crate::runtime::ddns::Engine;
     use axum::http::StatusCode;
-    for (write_failure, status) in [
-        (false, StatusCode::TOO_MANY_REQUESTS),
-        (false, StatusCode::SERVICE_UNAVAILABLE),
-        (true, StatusCode::TOO_MANY_REQUESTS),
-        (true, StatusCode::SERVICE_UNAVAILABLE),
+    for status in [
+        StatusCode::TOO_MANY_REQUESTS,
+        StatusCode::SERVICE_UNAVAILABLE,
     ] {
         let fixture = Fixture::new(vec![]).await;
         let automation = Automation::new(fixture.path.clone());
@@ -246,11 +249,7 @@ async fn successful_creation_authority_survives_transient_failures_and_restart()
         {
             let mut data = fixture.data.lock().unwrap();
             data.ip = "2001:4860:4860::8888".into();
-            if write_failure {
-                data.write_status = status;
-            } else {
-                data.status = status;
-            }
+            data.status = status;
         }
         let failed = automation
             .run_at(&fixture.store, &fixture.engine, None, NOW + 300)
@@ -275,6 +274,7 @@ async fn successful_creation_authority_survives_transient_failures_and_restart()
             let mut data = fixture.data.lock().unwrap();
             data.status = StatusCode::OK;
             data.write_status = StatusCode::OK;
+            data.ip = "2001:4860:4860::8844".into();
         }
         // A fresh engine models process restart, restoring the durable provider
         // deadline from automation state rather than waiting on wall-clock time.
@@ -290,16 +290,13 @@ async fn successful_creation_authority_survives_transient_failures_and_restart()
             .unwrap();
         assert_eq!(
             recovered.targets[0].status,
-            Status::Updated,
-            "write_failure={write_failure}, status={status}"
+            Status::Unchanged,
+            "status={status}"
         );
         assert_eq!(
             recovered.targets[0].current.as_ref().unwrap().id,
             created_id
         );
-        assert_eq!(
-            fixture.data.lock().unwrap().writes.len(),
-            if write_failure { 3 } else { 2 }
-        );
+        assert_eq!(fixture.data.lock().unwrap().writes.len(), 1);
     }
 }

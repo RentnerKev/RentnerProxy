@@ -46,6 +46,45 @@ test('a missing JSON body remains null', async () => {
     ).toBeNull()
 })
 
+test.each(['http://controller.example:8081', 'http://192.0.2.1:8081'])(
+    'never transmits a controller token to remote plaintext HTTP: %s',
+    async (url) => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = url
+        const request = spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({}))
+        fetchSpy = request
+        expect(
+            await controllerRequest('/internal/v1/proxy/access-logs', {
+                privileged: true,
+                timeoutMs: 20,
+            }),
+        ).toBeNull()
+        expect(request).not.toHaveBeenCalled()
+    },
+)
+
+test('internal loopback requests require credentials independently of caller flags', async () => {
+    process.env.RENTNERPROXY_CONTROLLER_TOKEN = ''
+    const request = spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({}))
+    fetchSpy = request
+    expect(await controllerRequest('/internal/v1/proxy/status', { timeoutMs: 20 })).toBeNull()
+    expect(request).not.toHaveBeenCalled()
+})
+
+test.each(['http://127.0.0.1:8081', 'https://controller.example:8443'])(
+    'authenticates internal requests over supported transport: %s',
+    async (url) => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = url
+        const request = spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ready: true }))
+        fetchSpy = request
+        expect(await controllerRequest('/internal/v1/proxy/status', { timeoutMs: 20 })).toEqual({
+            ready: true,
+        })
+        expect(request.mock.calls[0]?.[1]?.headers).toMatchObject({
+            authorization: `Bearer ${'T'.repeat(32)}`,
+        })
+    },
+)
+
 test('an exact byte-limit response succeeds', async () => {
     expect(await read(Response.json({ v: 1 }), { timeoutMs: 100, responseLimit: 7 })).toEqual({
         v: 1,

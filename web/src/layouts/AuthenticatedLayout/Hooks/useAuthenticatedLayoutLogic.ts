@@ -12,7 +12,7 @@ import useNavigationGroupPreferences from './useNavigationGroupPreferences.ts'
 export default function useAuthenticatedLayoutLogic(
     user: AuthenticatedUser,
 ): AuthenticatedLayoutLogicResult {
-    useApplicationLiveSync()
+    const live = useApplicationLiveSync()
     useEffect(() => () => toast.dismissAll(), [])
     const logout = useLogout()
     const theme = useThemeMode(user.themeMode)
@@ -21,6 +21,12 @@ export default function useAuthenticatedLayoutLogic(
 
     return {
         state: {
+            isIdentityPending: live.isIdentityPending,
+            identityGeneration: live.identityGeneration,
+            identityLoadingMessage: t('common.loading'),
+            hasIdentityError: live.hasIdentityError,
+            identityErrorMessage: t('system.error.causes.serviceUnavailable.description'),
+            retryLabel: t('common.retry'),
             isLoggingOut: logout.state.isLoggingOut,
             themeMode: theme.state.themeMode,
             isSavingTheme: theme.state.isSaving,
@@ -37,6 +43,7 @@ export default function useAuthenticatedLayoutLogic(
             },
         },
         handler: {
+            handleRetryIdentity: live.retryIdentity,
             handleLogout: logout.handler.handleLogout,
             handleToggleTheme: theme.handler.handleToggle,
             handleNavigationGroupChange: navigationGroups.updateGroup,

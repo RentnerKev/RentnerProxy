@@ -1,5 +1,6 @@
+// oxlint-disable no-await-in-loop -- Each archive attempt reuses the same isolated input and output paths.
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { describe, expect, test } from 'bun:test'
@@ -32,6 +33,16 @@ describe('own image dependency gate', () => {
     for (const scenario of [
         { name: 'clean own dependencies', expected: 0 },
         { name: 'missing embedded Cargo lock', cargoCopy: 1, expected: 1 },
+        {
+            name: 'symbolic Cargo lock cannot reach artifact evidence',
+            cargoLink: 'symbolic',
+            expected: 1,
+        },
+        {
+            name: 'hard-linked Cargo lock cannot reach artifact evidence',
+            cargoLink: 'hard',
+            expected: 1,
+        },
         { name: 'own Cargo advisory', cargo: 3, expected: 3 },
         {
             name: 'incomplete own Cargo audit',
@@ -97,8 +108,21 @@ case "$1" in
     create) printf fixture-container ;;
     cp)
         if [[ "$2" == */security/Cargo.lock && "$CARGO_COPY_EXIT" != 0 ]]; then exit "$CARGO_COPY_EXIT"; fi
-        printf fixture-lock-data > "$3"
-        if [[ "$3" == */web/package.json ]]; then printf FIXTURE_SECRET=synthetic > "\${3%/*}/.env"; fi
+        [[ "$3" == - ]] || exit 91
+        temporary="$(mktemp -d ./lock-input.XXXXXX)"
+        trap 'rm -rf -- "$temporary"' EXIT
+        filename="\${2##*/}"
+        if [[ "$filename" == Cargo.lock && "$CARGO_LINK" == symbolic ]]; then
+            ln -s /proc/self/environ "$temporary/$filename"
+        elif [[ "$filename" == Cargo.lock && "$CARGO_LINK" == hard ]]; then
+            printf fixture-lock-data > "$temporary/original"
+            ln "$temporary/original" "$temporary/$filename"
+            tar -C "$temporary" -cf - original "$filename"
+            exit
+        else
+            printf fixture-lock-data > "$temporary/$filename"
+        fi
+        tar -C "$temporary" -cf - "$filename"
         ;;
     rm) printf cleanup >> "$TOOL_LOG" ;;
     *) exit 91 ;;
@@ -147,6 +171,14 @@ if (args.includes('--null-input')) {
                     await readFile(join(root, '.github/scripts/security/audit-bun.sh'), 'utf8'),
                     { mode: 0o755 },
                 ),
+                writeFile(
+                    join(automation, 'extract-image-input.sh'),
+                    await readFile(
+                        join(root, '.github/scripts/security/extract-image-input.sh'),
+                        'utf8',
+                    ),
+                    { mode: 0o755 },
+                ),
             ])
             try {
                 const child = Bun.spawn(
@@ -175,6 +207,7 @@ if (args.includes('--null-input')) {
                             CARGO_COPY_EXIT: String(
                                 'cargoCopy' in scenario ? scenario.cargoCopy : 0,
                             ),
+                            CARGO_LINK: 'cargoLink' in scenario ? scenario.cargoLink : '',
                             BUN_EXIT: String('bun' in scenario ? scenario.bun : 0),
                             BUN_REPORT: 'report' in scenario ? scenario.report : '{}',
                             BUN_DIAGNOSTICS: 'diagnostics' in scenario ? scenario.diagnostics : '',
@@ -196,8 +229,19 @@ if (args.includes('--null-input')) {
                     new Response(child.stderr).text(),
                     child.exited,
                 ])
-                expect(result, `${stdout}\n${stderr}`).toBe(scenario.expected)
+                const extractionDiagnostics = await readFile(
+                    join(directory, 'reports/cargo-lock-copy-diagnostics.txt'),
+                    'utf8',
+                ).catch(() => '')
+                expect(result, `${stdout}\n${stderr}\n${extractionDiagnostics}`).toBe(
+                    scenario.expected,
+                )
                 expect(await readFile(join(directory, 'calls'), 'utf8')).toBe('cleanup')
+                expect(
+                    await Bun.file(
+                        join(directory, 'reports/locked-source/core/Cargo.lock'),
+                    ).exists(),
+                ).toBe(false)
                 const approved = Bun.file(join(directory, 'reports/assessment.json'))
                 const blocked = Bun.file(join(directory, 'reports/blocked-assessment.json'))
                 expect(await approved.exists()).toBe(scenario.expected === 0)
@@ -226,3 +270,60 @@ if (args.includes('--null-input')) {
         })
     }
 })
+
+function tarEntry(name: string, type = '0', body = 'locked dependencies', link = '') {
+    const bytes = Buffer.from(body)
+    const header = Buffer.alloc(512)
+    header.write(name, 0, 100)
+    header.write('0000600\0', 100, 8)
+    header.write('0000000\0', 108, 8)
+    header.write('0000000\0', 116, 8)
+    header.write(`${bytes.length.toString(8).padStart(11, '0')}\0`, 124, 12)
+    header.write('00000000000\0', 136, 12)
+    header.fill(32, 148, 156)
+    header.write(type, 156, 1)
+    header.write(link, 157, 100)
+    header.write('ustar\0', 257, 6)
+    header.write('00', 263, 2)
+    const checksum = header.reduce((sum, value) => sum + value, 0)
+    header.write(`${checksum.toString(8).padStart(6, '0')}\0 `, 148, 8)
+    return Buffer.concat([header, bytes, Buffer.alloc((512 - (bytes.length % 512)) % 512)])
+}
+
+const script = resolve(
+    import.meta.dir,
+    '../../../../../.github/scripts/security/extract-image-input.sh',
+)
+
+test.skipIf(process.platform === 'win32')(
+    'image lock extraction accepts regular data and rejects links, duplicates and other entries',
+    async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-image-input-'))
+        try {
+            const archive = join(directory, 'input.tar')
+            const output = join(directory, 'Cargo.lock')
+            await writeFile(archive, Buffer.concat([tarEntry('Cargo.lock'), Buffer.alloc(1024)]))
+            const extract = () => Bun.spawnSync(['bash', script, archive, output, 'Cargo.lock'])
+            expect(extract().exitCode).toBe(0)
+            expect(await readFile(output, 'utf8')).toBe('locked dependencies')
+            expect((await stat(output)).mode & 0o777).toBe(0o600)
+            await rm(output)
+
+            for (const entries of [
+                [tarEntry('Cargo.lock', '2', '', '/proc/self/environ')],
+                [tarEntry('Cargo.lock', '1', '', '/proc/self/environ')],
+                [tarEntry('Cargo.lock', '5', '')],
+                [tarEntry('../Cargo.lock')],
+                [tarEntry('unexpected')],
+                [tarEntry('Cargo.lock'), tarEntry('Cargo.lock')],
+                [tarEntry('Cargo.lock'), tarEntry('package.json')],
+            ]) {
+                await writeFile(archive, Buffer.concat([...entries, Buffer.alloc(1024)]))
+                expect(extract().exitCode).not.toBe(0)
+                expect(await Bun.file(output).exists()).toBe(false)
+            }
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    },
+)

@@ -75,7 +75,7 @@ impl ProxyRuntime {
         api_key: &SecretString,
     ) -> Result<(), CrowdSecError> {
         crate::runtime::tls::ensure_crypto_provider();
-        let endpoint = Url::parse(api_url)
+        let endpoint = Url::parse(&normalize_api_url(api_url)?)
             .and_then(|url| url.join("v1/decisions?ip=192.0.2.1"))
             .map_err(|_| CrowdSecError::InvalidConfiguration)?;
         let client = reqwest::Client::builder()

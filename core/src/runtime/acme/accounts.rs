@@ -41,6 +41,7 @@ impl ProxyRuntime {
             Arc::clone(self),
             id.to_owned(),
             request.environment,
+            &directory,
         )
         .map_err(|_| CertificateError::AcmeFailed)?;
         self.acme_account_with_builder(
@@ -81,6 +82,7 @@ impl ProxyRuntime {
             Arc::clone(self),
             id.to_owned(),
             request.environment,
+            &directory,
         )
         .map_err(|_| CertificateError::AcmeFailed)?
         .observing(observer);

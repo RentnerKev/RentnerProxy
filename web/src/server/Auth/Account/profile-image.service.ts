@@ -11,6 +11,7 @@ import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { createNormalizedProfileImageWebp } from './profile-image-processing.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 
 export async function updateCurrentProfileImageService(dataUrl: string): Promise<void> {
     const currentSession = await getCurrentSessionService()
@@ -47,6 +48,7 @@ export async function updateCurrentProfileImageService(dataUrl: string): Promise
             throw new AuthDomainError('authentication_required', 'Authentication is required.')
         }
     })
+    publishApplicationChange()
 }
 
 export async function getProfileImageAssetService(

@@ -34,6 +34,7 @@ pub(super) struct Data {
     pub bad_ack: bool,
     pub next_page: bool,
     pub pause_ack: bool,
+    pub replace_before_create: bool,
     pub entered: Arc<tokio::sync::Notify>,
     pub release: Arc<tokio::sync::Notify>,
 }
@@ -80,6 +81,7 @@ impl Fixture {
             bad_ack: false,
             next_page: false,
             pause_ack: false,
+            replace_before_create: false,
             entered: Arc::new(tokio::sync::Notify::new()),
             release: Arc::new(tokio::sync::Notify::new()),
         }));
@@ -204,6 +206,21 @@ fn mutate(
     headers.insert("retry-after", "23".parse().unwrap());
     if !data.write_status.is_success() {
         return (data.write_status, headers, Json(json!({})));
+    }
+    if kind.is_none() {
+        if data.replace_before_create {
+            let mut replacement = rrset(body["type"].as_str().unwrap(), &["2001:4860:4860::9999"]);
+            replacement["created"] = json!("2026-02-01T00:00:00Z");
+            data.rrsets.push(replacement);
+            data.replace_before_create = false;
+        }
+        if data
+            .rrsets
+            .iter()
+            .any(|rrset| rrset["type"] == body["type"])
+        {
+            return (StatusCode::BAD_REQUEST, headers, Json(json!({})));
+        }
     }
     let mut result = if let Some(kind) = kind {
         data.rrsets

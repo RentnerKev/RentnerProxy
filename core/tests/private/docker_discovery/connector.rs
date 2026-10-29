@@ -108,6 +108,51 @@ async fn fixture() -> (String, Arc<Fixture>, tokio::task::JoinHandle<()>) {
     });
     (endpoint, fixture, task)
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_unix_socket_uses_only_filtered_reads_and_preserves_socket_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = directory();
+    let socket = root.join("docker.sock");
+    let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let fixture = Arc::new(Fixture::default());
+    *fixture.containers.lock().await = vec![container('a')];
+    let router = Router::new()
+        .fallback(any(response))
+        .with_state(fixture.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let endpoint = format!("unix://{}", socket.display());
+    let docker = client::Docker::new(&endpoint).unwrap();
+    let candidates = docker.inventory().await.unwrap();
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].container_id, "a".repeat(64));
+    let requests = fixture.requests.lock().await;
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|(method, _)| method == "GET"));
+    assert!(
+        requests[0]
+            .1
+            .starts_with("/v1.47/containers/json?all=1&filters=")
+    );
+    assert_eq!(
+        requests[1].1,
+        format!("/v1.47/containers/{}/json", "a".repeat(64))
+    );
+    assert_eq!(
+        std::fs::metadata(&socket).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    drop(requests);
+    drop(docker);
+    server.abort();
+    let _ = server.await;
+    std::fs::remove_dir_all(root).unwrap();
+}
 async fn ready(discovery: &Discovery) -> models::Snapshot {
     tokio::time::timeout(Duration::from_secs(8), async {
         loop {

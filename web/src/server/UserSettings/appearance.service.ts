@@ -16,6 +16,7 @@ import { systemSettings } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 
 function requireStoredUserAppearance(input: unknown): string {
     const accentColor = parseStoredUserAppearance(input)
@@ -34,6 +35,9 @@ export async function updateCurrentUserAccentColorService(
     }
 
     const accentColor = input.accentColor ?? DEFAULT_ACCENT_COLOR
+    if (user.accentColor === accentColor) {
+        return { userId: user.id, accentColor }
+    }
     const value = { version: 1 as const, accentColor }
     const rows = await getAuthDatabase()
         .insert(systemSettings)
@@ -47,5 +51,7 @@ export async function updateCurrentUserAccentColorService(
     if (!saved) {
         throw new AuthDomainError('service_unavailable', 'User appearance could not be saved.')
     }
-    return { userId: user.id, accentColor: requireStoredUserAppearance(saved.value) }
+    const savedAccentColor = requireStoredUserAppearance(saved.value)
+    publishApplicationChange()
+    return { userId: user.id, accentColor: savedAccentColor }
 }

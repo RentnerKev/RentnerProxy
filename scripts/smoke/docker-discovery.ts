@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Short isolated Docker probes and owned cleanup run sequentially.
 import assert from 'node:assert/strict'
-import { mkdir, rm } from 'node:fs/promises'
+import { chmod, mkdir, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { resolve, relative, isAbsolute } from 'node:path'
 import { runSmokeProcess } from './process.ts'
@@ -8,6 +8,7 @@ import { smokeDockerArguments } from './resources.ts'
 import {
     DOCKER_DISCOVERY_COMPOSE_EXAMPLE,
     DOCKER_DISCOVERY_NATIVE_EXAMPLE,
+    DOCKER_DISCOVERY_GUIDE_EXAMPLES,
 } from '../../web/src/config/docker-discovery.config.ts'
 
 // Optional socket-proxy ACL smoke. No real engine socket or production volume is mounted.
@@ -35,6 +36,7 @@ async function command(args: string[], timeoutMs = 30_000) {
 
 try {
     await mkdir(directory, { recursive: true })
+    await chmod(directory, 0o755)
     const emptyEnvironment = resolve(directory, 'empty.env')
     const baseCompose = resolve(directory, 'base.yml')
     await Bun.write(emptyEnvironment, '')
@@ -62,19 +64,26 @@ try {
         )
         const api = configured.services['docker-api']
         const app = configured.services['example-app']
-        assert.deepEqual(Object.keys(api.networks), ['discovery-control'])
         assert.deepEqual(Object.keys(app.networks), ['proxy'])
-        assert.equal(configured.networks['discovery-control'].internal, true)
         assert.equal(app.labels['rentnerproxy.network'], configured.networks.proxy.name)
-        assert.equal(api.read_only, true)
-        assert.deepEqual(api.cap_drop, ['ALL'])
-        assert.equal(
-            api.volumes.find((mount: { target: string }) => mount.target === '/var/run/docker.sock')
-                ?.read_only,
-            true,
-        )
         assert.equal(app.volumes, undefined)
         if (mode === 'appliance') {
+            assert.ok(api, 'the appliance uses its private socket proxy')
+            assert.equal(
+                DOCKER_DISCOVERY_GUIDE_EXAMPLES.appliance.endpoint,
+                'http://docker-api:2375',
+            )
+            assert.deepEqual(Object.keys(api.networks), ['discovery-control'])
+            assert.equal(configured.networks['discovery-control'].internal, true)
+            assert.equal(api.read_only, true)
+            assert.deepEqual(api.cap_drop, ['ALL'])
+            assert.deepEqual(api.security_opt, ['no-new-privileges:true'])
+            assert.equal(
+                api.volumes.find(
+                    (mount: { target: string }) => mount.target === '/var/run/docker.sock',
+                )?.read_only,
+                true,
+            )
             assert.equal(api.ports, undefined)
             assert.deepEqual(Object.keys(configured.services.rentnerproxy.networks).toSorted(), [
                 'default',
@@ -82,22 +91,65 @@ try {
                 'proxy',
             ])
         } else {
-            assert.equal(api.ports.length, 1)
-            assert.equal(api.ports[0].host_ip, '127.0.0.1')
-            assert.equal(api.ports[0].published, '2375')
+            assert.equal(
+                DOCKER_DISCOVERY_GUIDE_EXAMPLES.native.endpoint,
+                'unix:///var/run/docker.sock',
+            )
+            assert.equal(api, undefined, 'native discovery must not introduce a TCP socket proxy')
+            assert.deepEqual(Object.keys(configured.services), ['example-app'])
+            assert.deepEqual(Object.keys(configured.networks), ['proxy'])
+            assert.equal(app.ports, undefined, 'the native example publishes no Docker API port')
         }
     }
     console.log(
-        'Docker discovery UI Compose examples: isolated rendering, restricted API and separate application networks passed',
+        'Docker discovery UI Compose examples: private appliance proxy and native Unix socket setup passed',
     )
     await Bun.write(
         resolve(directory, 'engine.ts'),
         `
+        import { chmodSync } from 'node:fs'
         Bun.serve({ unix: '/fixture/docker.sock', fetch(request) {
             return Response.json({ method: request.method, path: new URL(request.url).pathname })
         } })
+        chmodSync('/fixture/docker.sock', 0o600)
     `,
     )
+    await Bun.write(
+        resolve(directory, 'native-probe.ts'),
+        `
+        import assert from 'node:assert/strict'
+        import { statSync } from 'node:fs'
+        import { createConnection } from 'node:net'
+        const socket = '/fixture/docker.sock'
+        const metadata = statSync(socket)
+        assert.equal(metadata.isSocket(), true)
+        assert.equal(metadata.uid, 0)
+        assert.equal(metadata.mode & 0o777, 0o600)
+        const request = (path) => fetch('http://localhost' + path, {
+            unix: socket, signal: AbortSignal.timeout(3000), redirect: 'error',
+        })
+        if (process.argv[2] === 'denied') {
+            assert.equal(process.getuid(), 1000)
+            await assert.rejects(new Promise((resolve, reject) => {
+                const client = createConnection({ path: socket })
+                client.once('connect', () => { client.destroy(); resolve(undefined) })
+                client.once('error', reject)
+                client.setTimeout(3000, () => client.destroy(new Error('Socket permission probe timed out')))
+            }), { code: 'EACCES' })
+            console.log('Docker discovery native Unix socket: unrelated OS user denied')
+        } else {
+            assert.equal(process.getuid(), 0)
+            for (const path of ['/v1.47/containers/json?all=1', '/v1.47/containers/' + 'a'.repeat(64) + '/json', '/v1.47/events']) {
+                const response = await request(path)
+                assert.equal(response.status, 200)
+                const data = await response.json()
+                assert.deepEqual(data, { method: 'GET', path: path.split('?')[0] })
+            }
+            console.log('Docker discovery native Unix socket: 3 allowed reads without a TCP network passed')
+        }
+    `,
+    )
+    await chmod(resolve(directory, 'native-probe.ts'), 0o644)
     await Bun.write(
         resolve(directory, 'probe.ts'),
         `
@@ -182,7 +234,7 @@ try {
             'bun',
             '--no-env-file',
             '-e',
-            `import { existsSync } from 'node:fs'; console.log(existsSync('/fixture/docker.sock'))`,
+            `import { existsSync, statSync } from 'node:fs'; console.log(existsSync('/fixture/docker.sock') && (statSync('/fixture/docker.sock').mode & 0o777) === 0o600)`,
         ])
         if (result === 'true') {
             socketReady = true
@@ -191,6 +243,37 @@ try {
         await Bun.sleep(100)
     }
     assert.ok(socketReady, 'isolated mock Docker socket becomes ready')
+    // Probe only this owned mock socket. Neither run can reach a real Docker engine
+    // or any TCP network; access is enforced by the socket's existing OS permissions.
+    for (const [user, expectation] of [
+        ['0:0', 'allowed'],
+        ['1000:1000', 'denied'],
+    ] as const) {
+        console.log(
+            await command([
+                'run',
+                '--rm',
+                '--network',
+                'none',
+                '--user',
+                user,
+                '--read-only',
+                '--cap-drop',
+                'ALL',
+                '--security-opt',
+                'no-new-privileges:true',
+                '--mount',
+                `type=volume,source=${volume},target=/fixture,readonly`,
+                '--mount',
+                `type=bind,source=${directory},target=/smoke,readonly`,
+                bun,
+                'bun',
+                '--no-env-file',
+                '/smoke/native-probe.ts',
+                expectation,
+            ]),
+        )
+    }
     await command([
         'run',
         '--detach',

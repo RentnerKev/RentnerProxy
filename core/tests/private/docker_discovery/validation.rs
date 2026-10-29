@@ -236,7 +236,20 @@ fn rust_and_web_share_the_management_snapshot_fixture() {
 #[test]
 fn endpoint_contract_rejects_credentials_paths_redirect_inputs_and_unsupported_transports() {
     for value in [
-        "unix:///var/run/docker.sock",
+        "unix://docker/var/run/docker.sock",
+        "unix:/var/run/docker.sock",
+        "unix://user:secret@docker/var/run/docker.sock",
+        "unix:///",
+        "unix:////var/run/docker.sock",
+        "unix:///var/run/",
+        "unix:///var/../run/docker.sock",
+        "unix:///var/./run/docker.sock",
+        "unix:///var//run/docker.sock",
+        "unix:///var/run/docker.sock?query",
+        "unix:///var/run/docker.sock#fragment",
+        "unix:///var/run/docker%2esock",
+        "unix:///var/run/docker\\sock",
+        "unix:///var/run/docker\0sock",
         "tcp://docker:2375",
         "http://user:pass@docker:2375",
         "http://docker/path",
@@ -258,6 +271,24 @@ fn endpoint_contract_rejects_credentials_paths_redirect_inputs_and_unsupported_t
         "https://docker.example.com:2376",
     ] {
         assert_eq!(client::validate_endpoint(value), Ok(()));
+    }
+}
+
+#[test]
+fn unix_socket_endpoints_are_valid_only_on_supported_platforms() {
+    for value in [
+        "unix:///var/run/docker.sock",
+        "unix:///run/user/1000/docker-engine",
+    ] {
+        if cfg!(unix) {
+            assert_eq!(client::validate_endpoint(value), Ok(()));
+        } else {
+            assert_eq!(client::validate_endpoint(value), Err(Error::InvalidInput));
+            assert!(matches!(
+                client::Docker::new(value),
+                Err(Error::InvalidInput)
+            ));
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 import type { StoredCrowdSecConfiguration } from '@/server/Admin/CrowdSec/Types/crowdsec-settings.types.ts'
+import { storedCrowdSecConfigurationSchema } from '@/server/Admin/CrowdSec/crowdsec-settings.validation.ts'
 
 const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
 const encryptionKeyA = Buffer.from(new Uint8Array(32).fill(21)).toString('base64')
@@ -20,10 +21,53 @@ const {
     DEFAULT_CROWDSEC_CONFIGURATION,
     buildStoredCrowdSecConfiguration,
     crowdSecControllerRequestFromStored,
+    externalApiKeyFromStored,
     normalizeCrowdSecApiUrl,
 } = await import('@/server/Admin/CrowdSec/crowdsec-settings.ts')
 
 describe('CrowdSec persisted configuration', () => {
+    test('reads legacy HTTP providers without allowing their credentials into controller requests', async () => {
+        const legacy = storedCrowdSecConfigurationSchema.parse({
+            version: 1,
+            mode: 'external',
+            external: {
+                apiUrl: 'http://crowdsec.example.test:8080/',
+                apiKey: { ciphertext: 'not-valid-ciphertext', iv: 'not-valid-iv' },
+            },
+        })
+        await expect(crowdSecControllerRequestFromStored(legacy)).rejects.toMatchObject({
+            code: 'invalid_input',
+        })
+        await expect(externalApiKeyFromStored(legacy)).rejects.toMatchObject({
+            code: 'invalid_input',
+        })
+        await Promise.all(
+            (['disabled', 'managed'] as const).map(async (mode) => {
+                const recovered = await buildStoredCrowdSecConfiguration(legacy, { mode })
+                expect(recovered.external).toEqual(legacy.external)
+                expect(await crowdSecControllerRequestFromStored(recovered)).toEqual(
+                    mode === 'disabled' ? { mode } : { mode, communityEnabled: false },
+                )
+            }),
+        )
+    })
+
+    test.each([
+        'ftp://crowdsec.example.test/',
+        'http://user:password@crowdsec.example.test/',
+        'http://crowdsec.example.test/?key=value',
+        'http://crowdsec.example.test/#fragment',
+        ' http://crowdsec.example.test/',
+    ])('still rejects malformed or credential-bearing stored URLs: %s', (apiUrl) => {
+        expect(
+            storedCrowdSecConfigurationSchema.safeParse({
+                version: 1,
+                mode: 'external',
+                external: { apiUrl, apiKey: { ciphertext: 'ciphertext', iv: 'iv' } },
+            }).success,
+        ).toBeFalse()
+    })
+
     test('keeps the online preference for managed mode without creating another mode', async () => {
         const managed = await buildStoredCrowdSecConfiguration(DEFAULT_CROWDSEC_CONFIGURATION, {
             mode: 'managed',

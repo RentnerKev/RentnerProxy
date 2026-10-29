@@ -113,7 +113,23 @@ jobs:
               with:
                   if-no-files-found: error
                   name: production-advisory-evidence
-                  path: ${{ runner.temp }}/dependency-image-report
+                  path: |
+                      ${{ runner.temp }}/dependency-image-report/manifest.json
+                      ${{ runner.temp }}/dependency-image-report/config.json
+                      ${{ runner.temp }}/dependency-image-report/identity.json
+                      ${{ runner.temp }}/dependency-image-report/assessment.json
+                      ${{ runner.temp }}/dependency-image-report/blocked-assessment.json
+                      ${{ runner.temp }}/dependency-image-report/cargo-lock-copy-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/source-revision.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo-lock.sha256
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo.json
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-revision.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-database.json
+                      ${{ runner.temp }}/dependency-image-report/bun-lock.sha256
+                      ${{ runner.temp }}/dependency-image-report/bun-audit.json
+                      ${{ runner.temp }}/dependency-image-report/bun-audit-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/bun-audit-status.txt
                   retention-days: 30
 
     deployed-dev:

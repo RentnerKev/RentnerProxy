@@ -134,7 +134,7 @@ fn secret_file(contents: &str) -> PathBuf {
 
 #[test]
 fn defaults_to_loopback_controller_port_and_temporary_development_state() {
-    let config = Config::from_values(None, None, None, None, None, false)
+    let config = Config::from_values(None, Some(valid_token()), None, None, None, false)
         .unwrap_or_else(|error| panic!("default configuration should parse: {error}"));
     assert_eq!(config.listen_addr, SocketAddr::from(([127, 0, 0, 1], 8081)));
     assert!(config.proxy_state_dir.is_absolute());
@@ -144,35 +144,35 @@ fn defaults_to_loopback_controller_port_and_temporary_development_state() {
 #[test]
 fn configured_caddy_requires_a_unix_private_control_transport() {
     // A controller bearer does not protect Caddy's independent admin API.
-    for token in [None, Some(valid_token())] {
-        let result = Config::from_values(
-            None,
-            token,
-            Some(PathBuf::from("caddy-fixture-must-not-execute")),
-            None,
-            None,
-            false,
-        );
-        if cfg!(unix) {
-            assert!(result.is_ok());
-        } else {
-            assert!(matches!(result, Err(ConfigError::UnsupportedCaddyPlatform)));
-            let message = result.err().unwrap().to_string();
-            assert!(message.contains("RENTNERPROXY_CADDY_BIN"));
-            assert!(message.contains("Unix"));
-            assert!(!message.contains(valid_token()));
-        }
-        assert!(Config::from_values(None, token, None, None, None, false).is_ok());
+    let result = Config::from_values(
+        None,
+        Some(valid_token()),
+        Some(PathBuf::from("caddy-fixture-must-not-execute")),
+        None,
+        None,
+        false,
+    );
+    if cfg!(unix) {
+        assert!(result.is_ok());
+    } else {
+        assert!(matches!(result, Err(ConfigError::UnsupportedCaddyPlatform)));
+        let message = result.err().unwrap().to_string();
+        assert!(message.contains("RENTNERPROXY_CADDY_BIN"));
+        assert!(message.contains("Unix"));
+        assert!(!message.contains(valid_token()));
     }
+    assert!(Config::from_values(None, Some(valid_token()), None, None, None, false).is_ok());
 }
 
 #[test]
-fn non_loopback_requires_a_safe_token() {
-    let missing = Config::from_values(Some("0.0.0.0:8081"), None, None, None, None, false);
-    assert!(matches!(
-        missing,
-        Err(ConfigError::MissingControllerToken { .. })
-    ));
+fn every_listen_address_requires_a_safe_token() {
+    for address in ["127.0.0.1:8081", "[::1]:8081", "0.0.0.0:8081"] {
+        let missing = Config::from_values(Some(address), None, None, None, None, false);
+        assert!(matches!(
+            missing,
+            Err(ConfigError::MissingControllerToken { .. })
+        ));
+    }
 
     let config = Config::from_values(
         Some("0.0.0.0:8081"),
@@ -234,13 +234,13 @@ fn rejects_conflicting_or_unsafe_controller_token_files() {
 #[test]
 fn requires_an_explicit_absolute_state_directory_for_release() {
     assert!(matches!(
-        Config::from_values(None, None, None, None, None, true),
+        Config::from_values(None, Some(valid_token()), None, None, None, true),
         Err(ConfigError::MissingProxyStateDir { .. })
     ));
     assert!(matches!(
         Config::from_values(
             None,
-            None,
+            Some(valid_token()),
             None,
             Some(PathBuf::from("relative")),
             None,
@@ -254,7 +254,7 @@ fn requires_an_explicit_absolute_state_directory_for_release() {
 fn validates_the_proxy_http_port() {
     for port in ["0", "70000", "not-a-port"] {
         assert!(matches!(
-            Config::from_values(None, None, None, None, Some(port), false),
+            Config::from_values(None, Some(valid_token()), None, None, Some(port), false),
             Err(ConfigError::InvalidProxyHttpPort { .. })
         ));
     }

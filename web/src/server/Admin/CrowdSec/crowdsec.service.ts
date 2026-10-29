@@ -3,6 +3,7 @@ import '@tanstack/react-start/server-only'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
+    crowdSecApiUrlSchema,
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
     crowdSecConsoleEnrollmentSchema,
@@ -62,7 +63,11 @@ function runtimeMatches(
             runtime.credentialConfigured === false &&
             runtime.communityEnabled === (stored.communityEnabled ?? false)
         )
-    return runtime.credentialConfigured && runtime.apiUrl === stored.external?.apiUrl
+    return (
+        crowdSecApiUrlSchema.safeParse(stored.external?.apiUrl).success &&
+        runtime.credentialConfigured &&
+        runtime.apiUrl === stored.external?.apiUrl
+    )
 }
 
 async function loadReconcileSnapshot(): Promise<ReconcileSnapshot> {

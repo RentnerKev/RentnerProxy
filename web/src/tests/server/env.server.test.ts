@@ -283,6 +283,21 @@ describe('parseTrustedManagementOrigin', () => {
 })
 
 describe('production environment validation', () => {
+    test.each(['http://controller.example:8081', 'http://192.0.2.1:8081'])(
+        'rejects a remote plaintext controller: %s',
+        (url) => {
+            configureRequiredProductionEnvironment()
+            process.env.RENTNERPROXY_CONTROLLER_URL = url
+            expect(() => validateProductionEnvironment()).toThrow('RENTNERPROXY_CONTROLLER_URL')
+        },
+    )
+
+    test('accepts an encrypted remote controller', () => {
+        configureRequiredProductionEnvironment()
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example:8443'
+        expect(() => validateProductionEnvironment()).not.toThrow()
+    })
+
     test('continues accepting deployments that only configure the legacy origin', () => {
         configureRequiredProductionEnvironment()
         process.env.RENTNERPROXY_PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN

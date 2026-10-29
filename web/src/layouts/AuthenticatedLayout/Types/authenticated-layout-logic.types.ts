@@ -10,6 +10,12 @@ import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 
 export interface AuthenticatedLayoutLogicResult {
     readonly state: {
+        readonly isIdentityPending: boolean
+        readonly identityGeneration: number
+        readonly identityLoadingMessage: string
+        readonly hasIdentityError: boolean
+        readonly identityErrorMessage: string
+        readonly retryLabel: string
         readonly isLoggingOut: boolean
         readonly themeMode: UserThemeMode
         readonly isSavingTheme: boolean
@@ -26,6 +32,7 @@ export interface AuthenticatedLayoutLogicResult {
         }
     }
     readonly handler: {
+        readonly handleRetryIdentity: () => void
         readonly handleLogout: () => void
         readonly handleToggleTheme: () => void
         readonly handleNavigationGroupChange: (change: NavigationGroupChange) => void

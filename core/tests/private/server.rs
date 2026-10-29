@@ -33,6 +33,14 @@ fn app() -> Router {
     app_with_state(AppState::new(runtime, None))
 }
 
+const DEFAULT_TOKEN: &str = "synthetic-server-controller-token-for-tests";
+
+fn default_token() -> Option<ControllerToken> {
+    Config::from_values(None, Some(DEFAULT_TOKEN), None, None, None, false)
+        .unwrap()
+        .controller_token
+}
+
 struct TestEngine(AtomicBool);
 
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -132,6 +140,7 @@ fn request_with_method(method: &str, uri: &str, body: Body) -> Request<Body> {
     Request::builder()
         .method(method)
         .uri(uri)
+        .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
         .body(body)
         .unwrap()
 }
@@ -219,7 +228,7 @@ async fn readiness_requires_a_running_runtime_but_is_public() {
         .unwrap();
     assert_eq!(unavailable_body.as_ref(), br#"{"status":"not_ready"}"#);
 
-    let ready = test_app(None)
+    let ready = test_app(default_token())
         .await
         .oneshot(
             Request::builder()
@@ -326,7 +335,7 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let preview = router
         .clone()
         .oneshot(request_with_method(
@@ -417,11 +426,12 @@ async fn access_log_query_validation_is_bounded() {
         "?unknown=value",
         "?limit=1&limit=2",
     ] {
-        let response = test_app(None)
+        let response = test_app(default_token())
             .await
             .oneshot(
                 Request::builder()
                     .uri(format!("/internal/v1/proxy/access-logs{query}"))
+                    .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -433,11 +443,12 @@ async fn access_log_query_validation_is_bounded() {
             "{query}"
         );
     }
-    let malformed_snapshot = test_app(None)
+    let malformed_snapshot = test_app(default_token())
         .await
         .oneshot(
             Request::builder()
                 .uri("/internal/v1/proxy/access-logs?snapshot=bad!")
+                .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -448,7 +459,7 @@ async fn access_log_query_validation_is_bounded() {
 
 #[tokio::test]
 async fn access_log_snapshot_response_has_explicit_reset_and_expiry() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let first = router
         .clone()
         .oneshot(request_with_method(
@@ -510,12 +521,13 @@ async fn access_log_snapshot_response_has_explicit_reset_and_expiry() {
 
 #[tokio::test]
 async fn access_log_query_decodes_utf8_and_rejects_oversized_input() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let response = router
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/internal/v1/proxy/access-logs?search=%C3%A4%26%3F&limit=1")
+                .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -530,6 +542,7 @@ async fn access_log_query_decodes_utf8_and_rejects_oversized_input() {
                     "/internal/v1/proxy/access-logs?search={}",
                     "x".repeat(4097)
                 ))
+                .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -540,7 +553,7 @@ async fn access_log_query_decodes_utf8_and_rejects_oversized_input() {
 
 #[tokio::test]
 async fn all_config_source_endpoints_redact_basic_auth_but_keep_revision_and_handler() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let payload = basic_auth_payload();
     let expected_revision =
         serde_json::from_slice::<serde_json::Value>(&payload).unwrap()["revision"]
@@ -604,7 +617,7 @@ async fn all_config_source_endpoints_redact_basic_auth_but_keep_revision_and_han
 
 #[tokio::test]
 async fn apply_validates_hash_and_reports_safe_statuses() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let response = router
         .clone()
         .oneshot(request("/internal/v1/proxy/config", valid_payload()))
@@ -634,11 +647,12 @@ async fn apply_validates_hash_and_reports_safe_statuses() {
 
 #[tokio::test]
 async fn status_is_private_and_does_not_expose_configuration() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/internal/v1/proxy/status")
+                .header("authorization", format!("Bearer {DEFAULT_TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -706,7 +720,7 @@ async fn crowdsec_dashboard_requires_internal_auth_and_never_caches() {
 
 #[tokio::test]
 async fn oversized_proxy_configuration_returns_a_safe_bounded_error() {
-    let response = test_app(None)
+    let response = test_app(default_token())
         .await
         .oneshot(request(
             "/internal/v1/proxy/config",
@@ -758,7 +772,7 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let host_path = "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config";
     let before_apply = router
         .clone()
@@ -843,7 +857,7 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
 
 #[tokio::test]
 async fn proxy_host_source_endpoint_does_not_expose_redirect_host_fragments() {
-    let router = test_app(None).await;
+    let router = test_app(default_token()).await;
     let mut payload: ProxyConfigRequest = serde_json::from_slice(&valid_payload()).unwrap();
     let redirect_id = "018f4b4a-7d1f-7abc-8def-0123456789ac";
     payload.redirect_hosts.push(crate::models::RedirectHost {
@@ -931,8 +945,8 @@ async fn encoded_path_traversal_is_rejected_by_resource_routes() {
 
 #[tokio::test]
 async fn routers_keep_their_captured_runtime_state_isolated() {
-    let first = test_app(None).await;
-    let second = test_app(None).await;
+    let first = test_app(default_token()).await;
+    let second = test_app(default_token()).await;
 
     let applied = first
         .clone()
@@ -1013,13 +1027,48 @@ async fn certificate_endpoints_require_a_configured_token_even_on_loopback() {
             );
         }
     }
-    for path in ["/health", "/internal/v1/proxy/status"] {
+    for path in ["/health", "/ready"] {
         let response = router
             .clone()
             .oneshot(request_with_method("GET", path, Body::empty()))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+}
+
+#[tokio::test]
+async fn privileged_endpoints_fail_closed_when_no_controller_token_is_configured() {
+    let router = test_app(None).await;
+    for (method, path) in [
+        ("GET", "/internal/v1/proxy/access-logs"),
+        ("GET", "/internal/v1/proxy/status"),
+        ("PUT", "/internal/v1/proxy/config"),
+        ("POST", "/internal/v1/proxy/config/preview"),
+        ("POST", "/internal/v1/crowdsec/console/enroll"),
+        ("PUT", "/internal/v1/crowdsec/config"),
+    ] {
+        for authorization in [None, Some("Bearer arbitrary-browser-supplied-token")] {
+            let mut request = Request::builder()
+                .method(method)
+                .uri(path)
+                .header("host", "attacker.example.test")
+                .header("origin", "https://attacker.example.test")
+                .header("content-type", "text/plain");
+            if let Some(authorization) = authorization {
+                request = request.header("authorization", authorization);
+            }
+            let response = router
+                .clone()
+                .oneshot(request.body(Body::from("untrusted body")).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{method} {path}"
+            );
+        }
     }
 }
 

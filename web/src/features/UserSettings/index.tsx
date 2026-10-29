@@ -50,6 +50,8 @@ export default function UserSettingsPage({ user, activeSection }: UserSettingsPa
                         }
                     >
                         <SecuritySettingsPanel
+                            key={user.id}
+                            userId={user.id}
                             section={activeSection === 'passkeys' ? 'passkeys' : 'two-factor'}
                         />
                     </Activity>

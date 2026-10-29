@@ -65,6 +65,11 @@ describe('CrowdSec configuration validation', () => {
 
     test.each([
         'ftp://crowdsec.example.test',
+        'http://crowdsec.example.test/',
+        'http://192.0.2.10:8080/',
+        'http://localhost:8080/',
+        'http://127.0.0.1.example.test/',
+        'http://[::ffff:127.0.0.1]/',
         'https://user:password@crowdsec.example.test',
         'https://crowdsec.example.test/?token=secret',
         'https://crowdsec.example.test/#fragment',
@@ -74,6 +79,13 @@ describe('CrowdSec configuration validation', () => {
     ])('rejects unsafe external endpoint %s', (apiUrl) => {
         expect(crowdSecApiUrlSchema.safeParse(apiUrl).success).toBeFalse()
     })
+
+    test.each(['http://127.0.0.1:8080/', 'http://127.1.2.3/', 'http://[::1]:8080/'])(
+        'allows an unencrypted literal loopback endpoint %s',
+        (apiUrl) => {
+            expect(crowdSecApiUrlSchema.safeParse(apiUrl).success).toBeTrue()
+        },
+    )
 
     test('bounds API keys to printable non-whitespace ASCII', () => {
         expect(
@@ -93,7 +105,7 @@ describe('CrowdSec configuration validation', () => {
     test('allows an omitted key so the service can reuse it only for the stored endpoint', () => {
         expect(
             testCrowdSecConnectionSchema.safeParse({
-                apiUrl: 'http://crowdsec.internal:8080/',
+                apiUrl: 'https://crowdsec.internal:8080/',
             }).success,
         ).toBeTrue()
     })

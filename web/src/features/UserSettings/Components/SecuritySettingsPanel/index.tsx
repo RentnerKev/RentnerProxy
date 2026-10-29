@@ -12,11 +12,13 @@ import type { SecuritySettingsSection } from '../../Types/user-settings-section.
 
 export default function SecuritySettingsPanel({
     section,
+    userId,
 }: {
     readonly section: SecuritySettingsSection
+    readonly userId: string
 }) {
     const { t } = useTranslationStore()
-    const security = useSecurityPageLogic()
+    const security = useSecurityPageLogic(userId)
     const { state, handler, setter } = security
     return (
         <>

@@ -30,7 +30,20 @@ describe('Docker discovery configuration validation', () => {
     })
 
     test.each([
-        'unix:///var/run/docker.sock',
+        'unix://docker/var/run/docker.sock',
+        'unix:/var/run/docker.sock',
+        'unix://user:secret@docker/var/run/docker.sock',
+        'unix:///',
+        'unix:////var/run/docker.sock',
+        'unix:///var/run/',
+        'unix:///var/../run/docker.sock',
+        'unix:///var/./run/docker.sock',
+        'unix:///var//run/docker.sock',
+        'unix:///var/run/docker.sock?query',
+        'unix:///var/run/docker.sock#fragment',
+        'unix:///var/run/docker%2esock',
+        'unix:///var/run/docker\\sock',
+        'unix:///var/run/docker\0sock',
         'tcp://docker:2375',
         'http://docker/path',
         'http://docker/?',
@@ -41,4 +54,17 @@ describe('Docker discovery configuration validation', () => {
     ])('rejects unsupported endpoint %s', (value) => {
         expect(dockerEndpointSchema.safeParse(value).success).toBe(false)
     })
+
+    test.each(['unix:///var/run/docker.sock', 'unix:///run/user/1000/docker-engine'])(
+        'accepts a local Unix socket endpoint %s',
+        (endpoint) => {
+            expect(dockerEndpointSchema.safeParse(endpoint).success).toBe(true)
+            expect(
+                saveDockerDiscoverySchema.safeParse({
+                    ...input,
+                    configuration: { enabled: true, endpoint },
+                }).success,
+            ).toBe(true)
+        },
+    )
 })

@@ -13,7 +13,11 @@ test.each([
         let session = null
         let rows = [{}]
         let calls = 0
+        let changes = 0
         const writes = []
+        mock.module('./server/WebSockets/applicationChanges.ts', () => ({
+            publishApplicationChange: () => { changes++ },
+        }))
         mock.module('./server/Auth/Access/sessions.service.ts', () => ({
             getCurrentSessionService: async () => session,
         }))
@@ -38,7 +42,9 @@ test.each([
         const saved = await attempt()
         rows = []
         const unavailable = await attempt()
-        console.log(JSON.stringify({anonymous, denied, deniedCalls, saved, unavailable, writes}))
+        session.user[${JSON.stringify(key)}] = ${JSON.stringify(value)}
+        const unchanged = await attempt()
+        console.log(JSON.stringify({anonymous, denied, deniedCalls, saved, unavailable, unchanged, changes, writes}))
     `
         const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
         const preference = { [key]: value }
@@ -48,6 +54,8 @@ test.each([
             deniedCalls: 0,
             saved: value,
             unavailable: 'service_unavailable',
+            unchanged: value,
+            changes: 1,
             writes: [
                 { userId: 'current-user', ...preference },
                 preference,

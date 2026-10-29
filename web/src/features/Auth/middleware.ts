@@ -15,6 +15,7 @@ export const getAuthStateHandler = createServerFn({ method: 'GET' }).handler(asy
 
     return {
         setupRequired: state.setupRequired,
+        sessionId: state.session?.id ?? null,
         user: state.user
             ? {
                   id: state.user.id,

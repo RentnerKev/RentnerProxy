@@ -308,7 +308,11 @@ export function validateProductionEnvironment(): void {
     if (!valkeyUrl) invalidVariables.push('VALKEY_URL')
     if (!appEncryptionKey) invalidVariables.push('APP_ENCRYPTION_KEY')
     if (!publicOrigin) invalidVariables.push(PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE)
-    if (!process.env.RENTNERPROXY_CONTROLLER_URL?.trim() || !controllerUrl)
+    if (
+        !process.env.RENTNERPROXY_CONTROLLER_URL?.trim() ||
+        !controllerUrl ||
+        (!isLoopbackControllerUrl(controllerUrl) && !controllerUrl.startsWith('https://'))
+    )
         invalidVariables.push('RENTNERPROXY_CONTROLLER_URL')
     if (!controllerToken) invalidVariables.push('RENTNERPROXY_CONTROLLER_TOKEN')
     if (!smtp) invalidVariables.push('SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_FROM')

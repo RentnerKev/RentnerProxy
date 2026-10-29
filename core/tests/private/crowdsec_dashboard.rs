@@ -3,6 +3,36 @@ use super::{
     snapshot_for,
 };
 
+#[tokio::test]
+async fn dashboard_refuses_plaintext_dns_targets_before_sending_credentials() {
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!(
+        "http://localhost:{}/",
+        listener.local_addr().unwrap().port()
+    );
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = [0; 4096];
+        let _ = stream.read(&mut request).await.unwrap();
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]")
+            .await
+            .unwrap();
+    });
+    let decisions = super::fetch_decisions(
+        &url,
+        &crate::models::SecretString::new("synthetic-bouncer-key".to_owned()),
+    )
+    .await;
+    server.abort();
+    assert!(decisions.is_none());
+}
+
 #[test]
 fn parses_real_bouncer_counter_and_decision_gauge_without_other_metrics() {
     let body = br#"
