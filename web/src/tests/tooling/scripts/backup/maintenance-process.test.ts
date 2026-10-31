@@ -81,6 +81,7 @@ describe('maintenance process deadline includes all I/O', () => {
 })
 
 async function abortReadyChild(descendant: boolean) {
+    const startedAt = performance.now()
     await mkdir(join(cwd, 'tmp'), { recursive: true })
     const directory = await mkdtemp(join(cwd, 'tmp', 'maintenance-abort-'))
     const marker = join(directory, 'ready')
@@ -134,17 +135,31 @@ async function abortReadyChild(descendant: boolean) {
         if (pids.nested !== null) {
             if (process.platform === 'linux') {
                 let status: string | undefined
-                try {
-                    status = await readFile(`/proc/${pids.nested}/stat`, 'utf8')
-                } catch (error) {
+                const deadline = Math.min(performance.now() + 1000, startedAt + 5000)
+                // SIGKILL delivery to the owned group is asynchronous, even after its parent is reaped.
+                while (true) {
+                    try {
+                        // oxlint-disable-next-line no-await-in-loop -- Observe this same killed PID until its bounded termination completes.
+                        status = await readFile(`/proc/${pids.nested}/stat`, 'utf8')
+                    } catch (error) {
+                        if (
+                            !(error instanceof Error) ||
+                            !('code' in error) ||
+                            (error.code !== 'ENOENT' && error.code !== 'ESRCH')
+                        )
+                            throw error
+                        status = undefined
+                    }
                     if (
-                        !(error instanceof Error) ||
-                        !('code' in error) ||
-                        (error.code !== 'ENOENT' && error.code !== 'ESRCH')
+                        status === undefined ||
+                        /\) Z /u.test(status) ||
+                        performance.now() >= deadline
                     )
-                        throw error
+                        break
+                    // oxlint-disable-next-line no-await-in-loop -- Yield briefly for the already-signalled child; never retry a maintenance operation.
+                    await new Promise((resolveSignal) => setTimeout(resolveSignal, 5))
                 }
-                // A killed grandchild can briefly remain as an orphan zombie awaiting init's reap.
+                // A killed grandchild can remain as an orphan zombie awaiting init's reap.
                 if (status !== undefined) expect(status).toMatch(/\) Z /u)
             } else expect(() => process.kill(pids.nested!, 0)).toThrow()
         }
