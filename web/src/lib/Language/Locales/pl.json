@@ -461,7 +461,8 @@
                 "certificate_renewal": "Odnowienie certyfikatu",
                 "ddns": "Dynamiczny DNS",
                 "proxy_configuration": "Konfiguracja serwera proxy",
-                "backup": "Kopie zapasowe"
+                "backup": "Kopie zapasowe",
+                "host_availability": "Awarie i przywracanie hostów"
             },
             "severities": {
                 "warning": "Ostrzeżenie",

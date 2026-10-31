@@ -4,6 +4,45 @@ import { PAYLOAD } from '../Notifications/Types/transport-test.types.ts'
 
 const options = { appUrl: 'https://proxy.example' }
 
+test('host outage mail includes safe diagnostic context, timestamps and a canonical management link', () => {
+    const host = {
+        domain: '<img src="file:///private">',
+        failureCode: 'upstream_timeout' as const,
+        detectedAt: PAYLOAD.occurredAt,
+        recoveryStartedAt: null,
+        managementPath: '/proxy-hosts' as const,
+        managementUrl: 'javascript:alert(1)',
+    }
+    const template = createNotificationEmailTemplate(
+        {
+            ...PAYLOAD,
+            category: 'host_availability',
+            code: 'host_unavailable',
+            host,
+        },
+        options,
+    )
+    expect(template.text).toContain('nicht rechtzeitig geantwortet')
+    expect(template.text).toContain('Störung bestätigt:')
+    expect(template.text).toContain('https://proxy.example/proxy-hosts')
+    expect(template.html).toContain(Bun.escapeHTML(host.domain))
+    expect(template.html).not.toContain(host.domain)
+    expect(template.html).toContain('href="https://proxy.example/proxy-hosts"')
+    expect(template.html).not.toContain('javascript:')
+    const recovered = createNotificationEmailTemplate(
+        {
+            ...PAYLOAD,
+            category: 'host_availability',
+            type: 'recovery',
+            code: 'operation_recovered',
+            host: { ...host, recoveryStartedAt: PAYLOAD.occurredAt },
+        },
+        options,
+    )
+    expect(recovered.text).toContain('Erste erfolgreiche Prüfung:')
+    expect(recovered.text).toContain('öffentliche Erreichbarkeit wird damit nicht geprüft')
+})
+
 describe('notification email templates', () => {
     test.each([
         { category: 'ddns', heading: 'DDNS-Aktualisierung fehlgeschlagen' },

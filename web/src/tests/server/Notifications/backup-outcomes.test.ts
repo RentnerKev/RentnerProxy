@@ -3,6 +3,10 @@ import { NOTIFICATION_LIMITS } from '@/config/notifications.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { getAllowedNotificationCategories } from '@/lib/Notifications/notification-access.ts'
 import { getNotificationDeliveryState } from '@/lib/Notifications/delivery-state.ts'
+import {
+    cancelHostAvailabilityIncidents,
+    observeHostAvailabilityTransition,
+} from '@/server/Notifications/host-availability.ts'
 import { enqueueBackupOutcomeNotifications } from '@/server/Notifications/backup-outcomes.ts'
 import {
     createNotificationState,
@@ -330,4 +334,89 @@ test('backup scheduling state cannot extend incident lifetimes or move beyond th
     expect(notificationStateSchema.safeParse(wrongCategory).success).toBe(false)
     state.deliveries[0]!.backupAvailableAt = state.deliveries[0]!.createdAt + 86400 * 1000 + 1
     expect(notificationStateSchema.safeParse(state).success).toBe(false)
+})
+
+test('host availability incidents and standalone backup outcomes coexist through claim and completion', () => {
+    const mixed = {
+        ...configuration,
+        channels: [{ ...channel, events: ['backup', 'host_availability'] as const }],
+    }
+    const hostId = id()
+    const hostIncidentId = id()
+    const state = observeHostAvailabilityTransition(
+        createNotificationState(),
+        mixed,
+        {
+            kind: 'outage',
+            incidentId: hostIncidentId,
+            proxyHostId: hostId,
+            startedAt: 1000,
+            occurredAt: 2000,
+            failures: 2,
+            host: {
+                policyId: id(),
+                policyVersion: id(),
+                contextProof: 'sha256:' + 'a'.repeat(64),
+                contextRevision: 'sha256:' + 'b'.repeat(64),
+                domain: 'upstream.example.test',
+                failureCode: 'upstream_timeout',
+                detectedAt: new Date(2000).toISOString(),
+                recoveryStartedAt: null,
+                managementPath: '/proxy-hosts',
+            },
+        },
+        2000,
+        id,
+    )
+    expect(state.incidents).toHaveLength(1)
+    expect(state.deliveries).toHaveLength(1)
+    const merged = enqueueBackupOutcomeNotifications(state, mixed, [event()], 2000, id)
+    expect(merged.state.incidents).toHaveLength(1)
+    expect(merged.state.deliveries).toHaveLength(2)
+    expect(notificationStateSchema.safeParse(merged.state).success).toBe(true)
+    const cancelledHost = cancelHostAvailabilityIncidents(
+        merged.state,
+        new Set([hostIncidentId]),
+        2001,
+    )
+    const afterCancellation = claimNotificationDelivery(cancelledHost, mixed, 2002, id)
+    expect(afterCancellation.delivery?.payload.category).toBe('backup')
+    const backupRetried = finishNotificationDelivery(
+        afterCancellation.state,
+        mixed,
+        afterCancellation.delivery!.leaseToken,
+        { success: false, code: 'destination_unavailable', retryable: true },
+        2003,
+    )
+    expect(
+        backupRetried.deliveries.find((delivery) => delivery.payload.category === 'backup'),
+    ).toMatchObject({ status: 'pending', backupAvailableAt: 2000 })
+    const hostClaim = claimNotificationDelivery(merged.state, mixed, 2000, id)
+    expect(hostClaim.delivery?.payload.category).toBe('host_availability')
+    const hostDelivered = finishNotificationDelivery(
+        hostClaim.state,
+        mixed,
+        hostClaim.delivery!.leaseToken,
+        { success: true },
+        2001,
+    )
+    const backupClaim = claimNotificationDelivery(hostDelivered, mixed, 2002, id)
+    expect(backupClaim.delivery?.payload.category).toBe('backup')
+    expect(backupClaim.delivery?.payload.host).toBeUndefined()
+    const completed = finishNotificationDelivery(
+        backupClaim.state,
+        mixed,
+        backupClaim.delivery!.leaseToken,
+        { success: true },
+        2003,
+    )
+    expect(completed.deliveries.map((delivery) => delivery.status)).toEqual([
+        'succeeded',
+        'succeeded',
+    ])
+    expect(completed.incidents[0]?.id).toBe(hostIncidentId)
+    expect(completed.incidents[0]?.channels[0]?.failure).toBe('succeeded')
+    expect(
+        getAllowedNotificationCategories([PERMISSIONS.BACKUPS_VIEW, PERMISSIONS.PROXY_HOSTS_VIEW]),
+    ).toEqual(['proxy_configuration', 'backup', 'host_availability'])
 })

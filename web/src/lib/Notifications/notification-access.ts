@@ -15,6 +15,7 @@ export function getAllowedNotificationCategories(
     )
         categories.push('proxy_configuration')
     if (permissions.includes(PERMISSIONS.BACKUPS_VIEW)) categories.push('backup')
+    if (permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)) categories.push('host_availability')
     return categories
 }
 

@@ -1,6 +1,16 @@
 import type { NotificationChannelPolicy } from '@/lib/Notifications/Types/notifications.types.ts'
 import type { NotificationState, NotificationClaimedDelivery } from './notification-state.types.ts'
 import type { MailAppearance } from '@/server/Mail/Types/mail-theme.types.ts'
+import type { HostMonitoringOutcomeCode } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
+
+export interface HostAvailabilityIncidentSource {
+    readonly id: string
+    readonly startedAt: Date
+    readonly detectedAt: Date
+    readonly recoveryStartedAt: Date | null
+    readonly recoveredAt: Date | null
+    readonly failureCode: HostMonitoringOutcomeCode
+}
 
 export interface EncryptedNotificationDestination {
     readonly ciphertext: string

@@ -307,6 +307,51 @@ describe('Beta-2 native receiver fixtures', () => {
         30_000,
     )
 
+    test('accepts host-availability wire context and rejects incidental internal fields', async () => {
+        const fixture = createBeta2Receivers()
+        try {
+            const id = crypto.randomUUID()
+            const payload = {
+                schemaVersion: 1,
+                id,
+                incidentId: crypto.randomUUID(),
+                type: 'incident',
+                category: 'host_availability',
+                severity: 'error',
+                resourceId: crypto.randomUUID(),
+                code: 'host_unavailable',
+                occurredAt: '2026-10-31T00:00:00.000Z',
+                startedAt: '2026-10-30T23:59:00.000Z',
+                failures: 3,
+                host: {
+                    domain: 'service.example.test',
+                    failureCode: 'upstream_timeout',
+                    detectedAt: '2026-10-31T00:00:00.000Z',
+                    recoveryStartedAt: null,
+                    managementPath: '/proxy-hosts',
+                    managementUrl: 'https://management.example.test/proxy-hosts',
+                },
+            }
+            const send = (body: unknown) =>
+                fetch(fixture.url + '/webhook', {
+                    method: 'POST',
+                    headers: {
+                        authorization: 'Bearer beta2-fixture-webhook-token',
+                        'content-type': 'application/json',
+                        'idempotency-key': id,
+                        'x-rentnerproxy-event-id': id,
+                    },
+                    body: JSON.stringify(body),
+                })
+            expect((await send(payload)).status).toBe(204)
+            expect(
+                (await send({ ...payload, host: { ...payload.host, contextProof: 'private' } }))
+                    .status,
+            ).toBe(400)
+        } finally {
+            await fixture.stop()
+        }
+    })
     test('validates webhook authorization, safe payload and request identity, including receiver outages', async () => {
         const fixture = createBeta2Receivers()
         try {

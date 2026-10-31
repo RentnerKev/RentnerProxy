@@ -4,6 +4,7 @@ import type {
     NotificationDeliveryError,
     NotificationPayload,
     NotificationSeverity,
+    HostAvailabilityNotification,
 } from '@/lib/Notifications/Types/notifications.types.ts'
 
 export interface NotificationEngineConfiguration {
@@ -35,6 +36,30 @@ export interface NotificationIncident {
     recoveredAt: number | null
     recoveryEvidence: string | null
     channels: NotificationIncidentChannel[]
+    host?: HostAvailabilityNotificationContext | undefined
+}
+
+export interface HostAvailabilityNotificationContext extends HostAvailabilityNotification {
+    readonly policyId: string
+    readonly policyVersion: string
+    readonly contextProof: string
+    readonly contextRevision: string
+    readonly subscriptions?:
+        | readonly {
+              readonly channelId: string
+              readonly channelRevision: number
+          }[]
+        | undefined
+}
+
+export interface HostAvailabilityNotificationTransition {
+    readonly kind: 'outage' | 'recovery'
+    readonly incidentId: string
+    readonly proxyHostId: string
+    readonly startedAt: number
+    readonly occurredAt: number
+    readonly failures: number
+    readonly host: HostAvailabilityNotificationContext
 }
 
 export interface NotificationQueuedDelivery {

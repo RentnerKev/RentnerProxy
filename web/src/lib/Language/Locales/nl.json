@@ -438,7 +438,8 @@
                 "certificate_renewal": "Certificaatvernieuwing",
                 "ddns": "Dynamische DNS",
                 "proxy_configuration": "Proxyconfiguratie",
-                "backup": "Back-ups"
+                "backup": "Back-ups",
+                "host_availability": "Hostuitval en herstel"
             },
             "severities": {
                 "warning": "Waarschuwing",
