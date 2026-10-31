@@ -1,16 +1,20 @@
 // oxlint-disable no-await-in-loop -- Filesystem fixtures assert each ordered cleanup and recovery boundary.
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
     createBackupAgentHandler,
+    loadManagedBackupState,
     reconcileBackupArtifacts,
     reconcileBackupControl,
     recoverManagedBackupState,
     removeRetainedBackup,
 } from '../../../../../../docker/production/backups/agent.ts'
 import { createManagedBackupEngine } from '../../../../../../scripts/backup/managed-jobs.ts'
+import { verifyPublishedBackup } from '../../../../../../scripts/backup/publication.ts'
 import type { ManagedBackupJob } from '../../../../../../web/src/lib/Backups/Types/backups.types.ts'
 
 const actorId = '00000000-0000-4000-8000-000000000001'
@@ -311,6 +315,39 @@ async function publishedFixture(root: string, job: ManagedBackupJob, staging = f
     return directory
 }
 
+async function verifiedFixture(root: string, job: ManagedBackupJob) {
+    const directory = await publishedFixture(root, job)
+    const header = Buffer.alloc(512)
+    header.write('./')
+    header.write('0000700\0', 100)
+    header.write('00000000000\0', 124)
+    header.fill(32, 148, 156)
+    header[156] = 53
+    header.write(
+        header
+            .reduce((sum, byte) => sum + byte, 0)
+            .toString(8)
+            .padStart(6, '0') + '\0 ',
+        148,
+    )
+    const archive = Buffer.concat([header, Buffer.alloc(1024)])
+    const metadata = JSON.parse(await readFile(join(directory, 'metadata.json'), 'utf8'))
+    for (const [name, bytes, field] of [
+        ['app-encryption-key', Buffer.from('A'.repeat(43) + '=\n'), 'applicationEncryptionKey'],
+        ['postgres.dump', Buffer.from('synthetic dump'), 'postgres'],
+        ['controller-state.tar', archive, 'controllerState'],
+        ['crowdsec-state.tar', archive, 'crowdSecState'],
+    ] as const) {
+        await writeFile(join(directory, name), bytes)
+        metadata[field].bytes = bytes.length
+        metadata[field].sha256 = createHash('sha256').update(bytes).digest('hex')
+    }
+    await writeFile(join(directory, 'metadata.json'), JSON.stringify(metadata))
+    const verified = await verifyPublishedBackup(directory)
+    job.artifact = { id: job.id, metadataSha256: verified.metadataSha256, bytes: verified.bytes }
+    return directory
+}
+
 describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation', () => {
     test('reclaims known corrupt failed publications, interrupted and trimmed orphans while preserving retained bytes and history', () =>
         filesystemFixture(async (root, base) => {
@@ -338,6 +375,11 @@ describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation',
             const partialPath = join(root, '.staging-' + partial.id)
             await mkdir(partialPath, { mode: 0o700 })
             await writeFile(join(partialPath, 'postgres.dump'), 'partial capture', { mode: 0o600 })
+            const partialCanonical = join(root, partial.id)
+            await mkdir(partialCanonical, { mode: 0o700 })
+            await writeFile(join(partialCanonical, 'postgres.dump'), 'partial old cleanup', {
+                mode: 0o600,
+            })
             const history = structuredClone([retained, failed, interrupted, partial])
             await reconcileBackupArtifacts(history, root)
             expect(await readdir(root)).toEqual([retained.id])
@@ -362,13 +404,158 @@ describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation',
             const olderPath = await publishedFixture(root, older)
             await reconcileBackupArtifacts([older], root)
             expect(await readdir(root)).toEqual([older.id])
-            const latestPath = await publishedFixture(root, latest)
+            const latestPath = await verifiedFixture(root, latest)
             const bytes = await readFile(join(latestPath, 'postgres.dump'))
             await reconcileBackupArtifacts([older, latest], root)
             expect(await readdir(root)).toEqual([latest.id])
             await expect(readFile(join(olderPath, 'postgres.dump'))).rejects.toThrow('ENOENT')
             expect(await readFile(join(latestPath, 'postgres.dump'))).toEqual(bytes)
             expect(latest.retained).toBe(false)
+        }))
+
+    test('a corrupted newest success cannot authorize deleting an older successful point', () =>
+        filesystemFixture(async (root, base) => {
+            const older = {
+                ...base,
+                state: 'succeeded' as const,
+                artifact: { id: base.id, metadataSha256: 'a'.repeat(64), bytes: 100 },
+            }
+            const latest = {
+                ...older,
+                id: idFor(25),
+                artifact: { id: idFor(25), metadataSha256: 'b'.repeat(64), bytes: 100 },
+            }
+            const olderPath = await publishedFixture(root, older)
+            await verifiedFixture(root, latest)
+            await writeFile(join(root, latest.id, 'postgres.dump'), 'corrupted replacement')
+            const before = await readFile(join(olderPath, 'postgres.dump'))
+            const history = structuredClone([older, latest])
+            await reconcileBackupArtifacts(history, root)
+            expect((await readdir(root)).toSorted()).toEqual([older.id, latest.id].toSorted())
+            expect(await readFile(join(olderPath, 'postgres.dump'))).toEqual(before)
+            expect(history).toEqual([older, latest])
+        }))
+
+    test.each(['known', 'orphan', 'empty'] as const)(
+        'restarts a partially unlinked %s deletion receipt without depending on metadata',
+        (kind) =>
+            filesystemFixture(async (root, base) => {
+                const retained = { ...base, state: 'succeeded' as const, retained: true }
+                const retainedPath = await publishedFixture(root, retained)
+                const key = await readFile(join(retainedPath, 'app-encryption-key'))
+                const failed = { ...base, id: idFor(60), state: 'failed' as const }
+                const canonical = await publishedFixture(root, failed)
+                const receipt = join(root, '.deleting-' + idFor(900))
+                const jobs = kind === 'orphan' ? [retained] : [retained, failed]
+                const history = structuredClone(jobs)
+                await expect(
+                    reconcileBackupArtifacts(jobs, root, {
+                        id: () => idFor(900),
+                        verifyReplacement: async () => false,
+                        remove: async (directory) => {
+                            expect(directory).toBe(receipt)
+                            await expect(
+                                readFile(join(canonical, 'metadata.json')),
+                            ).rejects.toThrow('ENOENT')
+                            for (const name of kind === 'empty'
+                                ? await readdir(directory)
+                                : ['metadata.json', 'postgres.dump']) {
+                                await rm(join(directory, name))
+                            }
+                            throw new Error('simulated stop after partial unlink')
+                        },
+                    }),
+                ).rejects.toThrow('simulated stop after partial unlink')
+                expect(await readdir(receipt)).toHaveLength(kind === 'empty' ? 0 : 3)
+                await reconcileBackupArtifacts(jobs, root)
+                expect(await readdir(root)).toEqual([retained.id])
+                expect(await readFile(join(retainedPath, 'app-encryption-key'))).toEqual(key)
+                expect(jobs).toEqual(history)
+            }),
+    )
+
+    test('never overwrites an existing deletion receipt', () =>
+        filesystemFixture(async (root, base) => {
+            const failed = { ...base, state: 'failed' as const }
+            const canonical = await publishedFixture(root, failed)
+            const receipt = join(root, '.deleting-' + idFor(901))
+            await expect(
+                reconcileBackupArtifacts([failed], root, {
+                    id: () => {
+                        // Create the collision after enumeration, before rename.
+                        mkdirSync(receipt, { mode: 0o700 })
+                        writeFileSync(join(receipt, 'postgres.dump'), 'held receipt', {
+                            mode: 0o600,
+                        })
+                        return idFor(901)
+                    },
+                    verifyReplacement: async () => false,
+                    remove: async () => {
+                        throw new Error('colliding receipt must never be removed')
+                    },
+                }),
+            ).rejects.toThrow('backup deletion receipt already exists')
+            expect(await readFile(join(receipt, 'postgres.dump'), 'utf8')).toBe('held receipt')
+            expect(await readdir(canonical)).toHaveLength(5)
+        }))
+
+    test('preserves malformed deletion names and fails closed for foreign or linked receipt contents', () =>
+        filesystemFixture(async (root, base) => {
+            const retained = { ...base, state: 'succeeded' as const, retained: true }
+            const retainedPath = await publishedFixture(root, retained)
+            const key = await readFile(join(retainedPath, 'app-encryption-key'))
+            const malformed = join(root, '.deleting-not-a-uuid')
+            await mkdir(malformed, { mode: 0o700 })
+            await writeFile(join(malformed, 'operator-note'), 'foreign data', { mode: 0o600 })
+            await reconcileBackupArtifacts([retained], root)
+            expect(await readFile(join(malformed, 'operator-note'), 'utf8')).toBe('foreign data')
+            const receipt = join(root, '.deleting-' + idFor(902))
+            await mkdir(receipt, { mode: 0o700 })
+            await writeFile(join(receipt, 'operator-note'), 'foreign data', { mode: 0o600 })
+            await expect(reconcileBackupArtifacts([retained], root)).rejects.toThrow(
+                'invalid backup entries',
+            )
+            expect(await readFile(join(receipt, 'operator-note'), 'utf8')).toBe('foreign data')
+            await rm(receipt, { recursive: true })
+            await symlink(retainedPath, receipt)
+            await expect(reconcileBackupArtifacts([retained], root)).rejects.toThrow(
+                'invalid backup directory',
+            )
+            expect(await readFile(join(retainedPath, 'app-encryption-key'))).toEqual(key)
+        }))
+
+    test('journal loss in a nonempty store blocks fresh initialization before any state write', () =>
+        filesystemFixture(async (root, base) => {
+            const canonical = await publishedFixture(root, base)
+            const key = await readFile(join(canonical, 'app-encryption-key'))
+            let writes = 0
+            const dependencies = {
+                read: () =>
+                    loadManagedBackupState({
+                        read: async () =>
+                            JSON.parse(await readFile(join(root, 'jobs.json'), 'utf8')),
+                        entries: () => readdir(root),
+                    }),
+                write: async () => {
+                    writes += 1
+                },
+                now: () => 0,
+                id: () => requestId,
+                source: () => base.source,
+                execute: async () => {
+                    throw new Error('not executed')
+                },
+                verify: async () => false,
+                remove: async () => {},
+            }
+            await expect(createManagedBackupEngine(dependencies)).rejects.toThrow(
+                'backup journal is missing',
+            )
+            expect(writes).toBe(0)
+            expect(await readFile(join(canonical, 'app-encryption-key'))).toEqual(key)
+            await rm(canonical, { recursive: true })
+            await createManagedBackupEngine(dependencies)
+            expect(writes).toBe(1)
         }))
 
     test('protects current running and queued directories during live cleanup', () =>

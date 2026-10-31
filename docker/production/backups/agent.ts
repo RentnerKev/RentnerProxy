@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Poll one supervisor result and inspect fixed owned files sequentially.
 import { randomUUID } from 'node:crypto'
-import { chmod, chown, lstat, opendir, rm } from 'node:fs/promises'
+import { chmod, chown, lstat, opendir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
@@ -65,15 +65,13 @@ async function boundedDirectoryEntries(directory: string, maximum: number) {
     return entries
 }
 
-async function ownedArtifactDirectory(id: string, staging = false, root = artifactsRoot) {
-    z.uuid().parse(id)
-    const directory = join(root, (staging ? '.staging-' : '') + id)
+async function inspectOwnedArtifactDirectory(directory: string, partial: boolean) {
     const info = await lstat(directory)
     if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== 0 || (info.mode & 0o077) !== 0)
         throw new UnsafeBackupArtifact('invalid backup directory')
     const entries = await boundedDirectoryEntries(directory, artifactNames.length)
     if (
-        (!staging && entries.length !== artifactNames.length) ||
+        (!partial && entries.length !== artifactNames.length) ||
         entries.some((name) => !artifactNames.includes(name))
     )
         throw new UnsafeBackupArtifact('invalid backup entries')
@@ -91,7 +89,35 @@ async function ownedArtifactDirectory(id: string, staging = false, root = artifa
     return directory
 }
 
-export async function reconcileBackupArtifacts(jobs: ManagedBackupJob[], root = artifactsRoot) {
+async function ownedArtifactDirectory(id: string, staging = false, root = artifactsRoot) {
+    z.uuid().parse(id)
+    return inspectOwnedArtifactDirectory(join(root, (staging ? '.staging-' : '') + id), staging)
+}
+
+function canonicalUuid(value: string) {
+    return value === value.toLowerCase() && z.uuid().safeParse(value).success
+}
+
+export async function reconcileBackupArtifacts(
+    jobs: ManagedBackupJob[],
+    root = artifactsRoot,
+    disposal = {
+        id: (): string => randomUUID(),
+        remove: (directory: string) => rm(directory, { recursive: true }),
+        verifyReplacement: async (job: ManagedBackupJob) => {
+            try {
+                const artifact = await artifactFor(job, root)
+                return (
+                    artifact.id === job.artifact?.id &&
+                    artifact.metadataSha256 === job.artifact.metadataSha256 &&
+                    artifact.bytes === job.artifact.bytes
+                )
+            } catch {
+                return false
+            }
+        },
+    },
+) {
     const journal = new Map(jobs.map((job) => [job.id, job]))
     const newestSuccessful = jobs.findLastIndex(
         (job) => job.state === 'succeeded' && job.artifact?.id === job.id,
@@ -99,9 +125,19 @@ export async function reconcileBackupArtifacts(jobs: ManagedBackupJob[], root = 
     // The producer caps its store at 64 entries. Bound even inspection of a
     // damaged/foreign-filled store without reading every payload or retained point.
     for (const name of await boundedDirectoryEntries(root, 128)) {
+        if (name.startsWith('.deleting-')) {
+            if (!canonicalUuid(name.slice('.deleting-'.length))) continue
+            // The durable rename records ownership before files are unlinked.
+            // Recovery no longer depends on metadata surviving a partial rm.
+            const directory = await inspectOwnedArtifactDirectory(join(root, name), true)
+            await syncBackupDirectory(root)
+            await disposal.remove(directory)
+            await syncBackupDirectory(root)
+            continue
+        }
         const staging = name.startsWith('.staging-')
         const id = staging ? name.slice('.staging-'.length) : name
-        if (id !== id.toLowerCase() || !z.uuid().safeParse(id).success) continue
+        if (!canonicalUuid(id)) continue
         const job = journal.get(id)
         if (job?.state === 'queued' || job?.state === 'running') continue
         if (
@@ -112,7 +148,7 @@ export async function reconcileBackupArtifacts(jobs: ManagedBackupJob[], root = 
             continue
         let directory: string
         try {
-            directory = await ownedArtifactDirectory(id, staging, root)
+            directory = await inspectOwnedArtifactDirectory(join(root, name), job !== undefined)
         } catch (error) {
             if (missing(error)) continue
             // Journal identity is stronger evidence than the reserved orphan
@@ -133,15 +169,32 @@ export async function reconcileBackupArtifacts(jobs: ManagedBackupJob[], root = 
                 continue
             }
         }
+        if (!staging && job?.state === 'succeeded') {
+            const replacement = jobs[newestSuccessful]
+            if (!replacement || !(await disposal.verifyReplacement(replacement))) continue
+        }
         // Uncommitted publication cleanup never changes success/history or
         // authorizes pruning the last retained successful recovery point.
-        await rm(directory, { recursive: true })
+        const deletionId = disposal.id()
+        if (!canonicalUuid(deletionId)) throw new UnsafeBackupArtifact('invalid deletion receipt')
+        const receipt = join(root, '.deleting-' + deletionId)
+        try {
+            await lstat(receipt)
+            throw new UnsafeBackupArtifact('backup deletion receipt already exists')
+        } catch (error) {
+            if (!missing(error)) throw error
+        }
+        // Preserve any existing receipt inode. The exclusive agent owns this
+        // root-private namespace, so the checked rename cannot race another job.
+        await rename(directory, receipt)
+        await syncBackupDirectory(root)
+        await disposal.remove(receipt)
         await syncBackupDirectory(root)
     }
 }
 
-async function artifactFor(job: ManagedBackupJob) {
-    const directory = await ownedArtifactDirectory(job.id)
+async function artifactFor(job: ManagedBackupJob, root = artifactsRoot) {
+    const directory = await ownedArtifactDirectory(job.id, false, root)
     const verified = await verifyPublishedBackup(directory)
     const source = managedBackupSourceSchema.parse(verified.metadata.source)
     if (JSON.stringify(source) !== JSON.stringify(job.source))
@@ -174,6 +227,24 @@ export async function recoverManagedBackupState(
         }
     }
     return state
+}
+
+export async function loadManagedBackupState(
+    io = {
+        read: () => readPrivateJson(stateFile),
+        entries: () => boundedDirectoryEntries(artifactsRoot, 128),
+    },
+) {
+    try {
+        return await recoverManagedBackupState(await io.read())
+    } catch (error) {
+        if (!missing(error)) throw error
+        if ((await io.entries()).length !== 0)
+            throw new Error('backup journal is missing for a nonempty artifact store', {
+                cause: error,
+            })
+        return null
+    }
 }
 
 export async function removeRetainedBackup(
@@ -318,14 +389,7 @@ export async function startBackupAgent() {
     const stop = new AbortController()
     let fatal = false
     const engine = await createManagedBackupEngine({
-        read: async () => {
-            try {
-                return await recoverManagedBackupState(await readPrivateJson(stateFile))
-            } catch (error) {
-                if (missing(error)) return null
-                throw error
-            }
-        },
+        read: () => loadManagedBackupState(),
         write: (state) => writePrivateJson(stateFile, state),
         now: Date.now,
         id: randomUUID,
