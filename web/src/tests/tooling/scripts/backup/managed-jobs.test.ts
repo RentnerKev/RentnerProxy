@@ -261,6 +261,49 @@ describe('durable bounded managed backup engine', () => {
         expect((await engine.status()).jobs.filter((job) => job.retained)).toHaveLength(50)
         expect(f.removed).toHaveLength(1)
     })
+    test('failed pruning and later execution failures cannot discard the latest verified ownership record', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({
+            id: job.id,
+            metadataSha256: digest,
+            bytes: 100,
+        })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration({ ...f.config(), retentionCount: 50 })
+        for (let index = 0; index < 50; index++) {
+            await engine.start(f.request())
+            await engine.tick()
+        }
+        f.dependencies.remove = async () => {
+            throw new Error('old artifact removal unavailable')
+        }
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        expect((await engine.status()).jobs.find((job) => job.id === replacement.id)).toMatchObject(
+            {
+                state: 'succeeded',
+                retained: false,
+                artifact: { id: replacement.id },
+            },
+        )
+        f.dependencies.execute = async () => {
+            throw new Error('capture unavailable')
+        }
+        for (let index = 0; index < 110; index++) {
+            await engine.start(f.request())
+            await engine.tick()
+        }
+        const restarted = await createManagedBackupEngine(f.dependencies)
+        const status = await restarted.status()
+        expect(status.jobs).toHaveLength(100)
+        expect(status.jobs.filter((job) => job.retained)).toHaveLength(50)
+        expect(status.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+            state: 'succeeded',
+            retained: false,
+            artifact: { id: replacement.id },
+        })
+        expect(f.removed).toEqual([])
+    })
     test('idle ticks and identical request replays do not rewrite durable state', async () => {
         const f = fixture()
         const write = f.dependencies.write

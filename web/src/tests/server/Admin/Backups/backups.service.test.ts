@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { BackupDomainError } from '@/server/Admin/Backups/backup.errors.ts'
 import { createBackupAdminService } from '@/server/Admin/Backups/backups.service.ts'
 import type { BackupAdminDependencies } from '@/server/Admin/Backups/Types/backups-service.types.ts'
 import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
@@ -94,6 +95,7 @@ function fixture(
     }
     return {
         service: createBackupAdminService(dependencies),
+        dependencies,
         steps,
         audits,
         controllerInputs,
@@ -119,8 +121,8 @@ test('manual backup applies manage authorization, rate limit and transactional r
         'limit',
         'transaction',
         'reauthorize',
-        'audit',
         'controller',
+        'audit',
         'commit',
     ])
     expect(f.controllerInputs).toEqual([{ requestId, actorId }])
@@ -149,7 +151,7 @@ test('configuration preserves expected revision and validated settings while inj
     })
 })
 
-test.each(['authorize', 'limit', 'reauthorize', 'audit'] as const)(
+test.each(['authorize', 'limit', 'reauthorize'] as const)(
     '%s failure prevents controller admission and committed audit',
     async (failAt) => {
         const f = fixture(failAt)
@@ -161,10 +163,11 @@ test.each(['authorize', 'limit', 'reauthorize', 'audit'] as const)(
     },
 )
 
-test('controller failure rolls back the request audit and is never returned as success', async () => {
+test('controller failure prevents request audit and is never returned as success', async () => {
     const f = fixture('controller')
     await expect(f.service.requestBackupService({ requestId })).rejects.toBe(f.failure)
     expect(f.audits).toHaveLength(0)
+    expect(f.steps).not.toContain('audit')
     expect(f.steps.at(-1)).toBe('rollback')
 })
 
@@ -185,5 +188,59 @@ test('invalid or impersonated mutation inputs cannot reach rate limit, audit or 
     ).rejects.toMatchObject({ code: 'invalid_input' })
     expect(f.steps).not.toContain('limit')
     expect(f.controllerInputs).toHaveLength(0)
+    expect(f.audits).toHaveLength(0)
+})
+
+test.each(['start', 'config'] as const)(
+    '%s admission does not hold the global audit lock while the controller is pending',
+    async (operation) => {
+        const f = fixture()
+        const entered = Promise.withResolvers<void>()
+        const finished = Promise.withResolvers<ManagedBackupStatus>()
+        const pendingController = async () => {
+            entered.resolve()
+            return finished.promise
+        }
+        f.dependencies.controller.start = pendingController
+        f.dependencies.controller.configure = pendingController
+        const pending =
+            operation === 'start'
+                ? f.service.requestBackupService({ requestId })
+                : f.service.updateBackupConfigurationService(configurationInput)
+        await entered.promise
+        expect(f.steps).toContain('reauthorize')
+        expect(f.steps).not.toContain('audit')
+        expect(f.audits).toHaveLength(0)
+        finished.resolve(status)
+        expect(await pending).toEqual(status)
+        expect(f.audits).toHaveLength(1)
+    },
+)
+
+test.each(['start', 'config'] as const)(
+    '%s audit failure is reported honestly after root admission and cannot return success',
+    async (operation) => {
+        const f = fixture('audit')
+        const pending =
+            operation === 'start'
+                ? f.service.requestBackupService({ requestId })
+                : f.service.updateBackupConfigurationService(configurationInput)
+        await expect(pending).rejects.toBe(f.failure)
+        expect(f.controllerInputs).toHaveLength(1)
+        expect(f.audits).toHaveLength(0)
+        expect(f.steps.slice(-3)).toEqual(['controller', 'audit', 'rollback'])
+    },
+)
+
+test('root revision conflict is preserved and cannot produce a successful application audit', async () => {
+    const f = fixture()
+    const conflict = new BackupDomainError('revision_conflict')
+    f.dependencies.controller.configure = async () => {
+        throw conflict
+    }
+    await expect(f.service.updateBackupConfigurationService(configurationInput)).rejects.toBe(
+        conflict,
+    )
+    expect(f.steps).not.toContain('audit')
     expect(f.audits).toHaveLength(0)
 })

@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Poll one supervisor result and inspect fixed owned files sequentially.
 import { randomUUID } from 'node:crypto'
-import { chmod, chown, lstat, readdir, rm } from 'node:fs/promises'
+import { chmod, chown, lstat, opendir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
@@ -8,6 +8,7 @@ import {
     ManagedBackupError,
 } from '../../../scripts/backup/managed-jobs.ts'
 import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/backup/publication.ts'
+import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
 import {
     managedBackupArtifactSchema,
     managedBackupStateSchema,
@@ -52,18 +53,30 @@ function missing(error: unknown) {
     return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
 
-async function ownedArtifactDirectory(id: string, staging = false) {
+class UnsafeBackupArtifact extends Error {}
+
+async function boundedDirectoryEntries(directory: string, maximum: number) {
+    const entries: string[] = []
+    const handle = await opendir(directory)
+    for await (const entry of handle) {
+        if (entries.length >= maximum) throw new UnsafeBackupArtifact('too many backup entries')
+        entries.push(entry.name)
+    }
+    return entries
+}
+
+async function ownedArtifactDirectory(id: string, staging = false, root = artifactsRoot) {
     z.uuid().parse(id)
-    const directory = join(artifactsRoot, (staging ? '.staging-' : '') + id)
+    const directory = join(root, (staging ? '.staging-' : '') + id)
     const info = await lstat(directory)
     if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== 0 || (info.mode & 0o077) !== 0)
-        throw new Error('invalid backup directory')
-    const entries = await readdir(directory)
+        throw new UnsafeBackupArtifact('invalid backup directory')
+    const entries = await boundedDirectoryEntries(directory, artifactNames.length)
     if (
         (!staging && entries.length !== artifactNames.length) ||
         entries.some((name) => !artifactNames.includes(name))
     )
-        throw new Error('invalid backup entries')
+        throw new UnsafeBackupArtifact('invalid backup entries')
     for (const name of entries) {
         const file = await lstat(join(directory, name))
         if (
@@ -73,9 +86,58 @@ async function ownedArtifactDirectory(id: string, staging = false) {
             file.uid !== 0 ||
             (file.mode & 0o077) !== 0
         )
-            throw new Error('invalid backup file')
+            throw new UnsafeBackupArtifact('invalid backup file')
     }
     return directory
+}
+
+export async function reconcileBackupArtifacts(jobs: ManagedBackupJob[], root = artifactsRoot) {
+    const journal = new Map(jobs.map((job) => [job.id, job]))
+    const newestSuccessful = jobs.findLastIndex(
+        (job) => job.state === 'succeeded' && job.artifact?.id === job.id,
+    )
+    // The producer caps its store at 64 entries. Bound even inspection of a
+    // damaged/foreign-filled store without reading every payload or retained point.
+    for (const name of await boundedDirectoryEntries(root, 128)) {
+        const staging = name.startsWith('.staging-')
+        const id = staging ? name.slice('.staging-'.length) : name
+        if (id !== id.toLowerCase() || !z.uuid().safeParse(id).success) continue
+        const job = journal.get(id)
+        if (job?.state === 'queued' || job?.state === 'running') continue
+        if (
+            !staging &&
+            job?.state === 'succeeded' &&
+            (job.retained || jobs.indexOf(job) >= newestSuccessful)
+        )
+            continue
+        let directory: string
+        try {
+            directory = await ownedArtifactDirectory(id, staging, root)
+        } catch (error) {
+            if (missing(error)) continue
+            // Journal identity is stronger evidence than the reserved orphan
+            // namespace: a referenced unsafe directory blocks cleanup/export.
+            if (!job && error instanceof UnsafeBackupArtifact) continue
+            throw error
+        }
+        if (!job) {
+            try {
+                const metadata = parseBackupMetadata(
+                    await readPrivateJson(join(directory, 'metadata.json'), 65_536),
+                )
+                managedBackupSourceSchema.parse(metadata.source)
+            } catch (error) {
+                // Only the managed production format establishes orphan
+                // ownership. Legacy backups and unrelated contents stay put.
+                if (error instanceof Error && 'code' in error && !missing(error)) throw error
+                continue
+            }
+        }
+        // Uncommitted publication cleanup never changes success/history or
+        // authorizes pruning the last retained successful recovery point.
+        await rm(directory, { recursive: true })
+        await syncBackupDirectory(root)
+    }
 }
 
 async function artifactFor(job: ManagedBackupJob) {
@@ -271,6 +333,9 @@ export async function startBackupAgent() {
         execute: async (job) => {
             if (JSON.stringify(job.source) !== JSON.stringify(source))
                 throw new ManagedBackupError('execution_failed')
+            // The engine serializes execution and has durably marked this job
+            // running. Protect it while clearing earlier failed publications.
+            await reconcileBackupArtifacts((await engine.status()).jobs)
             try {
                 await lstat(activeFile)
                 throw new ManagedBackupError('recovery_failed')
@@ -328,14 +393,7 @@ export async function startBackupAgent() {
         })
     }
     await clearCompletedControl('startup')
-    for (const job of (await engine.status()).jobs) {
-        if (job.state !== 'failed' && job.state !== 'interrupted') continue
-        try {
-            await rm(await ownedArtifactDirectory(job.id, true), { recursive: true })
-        } catch (error) {
-            if (!missing(error)) throw error
-        }
-    }
+    await reconcileBackupArtifacts((await engine.status()).jobs)
     const socket = join(controlRoot, 'agent.sock')
     const server = Bun.serve({
         unix: socket,

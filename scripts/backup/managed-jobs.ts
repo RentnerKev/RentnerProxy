@@ -27,8 +27,15 @@ const active = (job: ManagedBackupJob) => job.state === 'queued' || job.state ==
 const interval = (hours: number) => hours * 60 * 60 * 1000
 
 function trim(draft: ManagedBackupState, limit = 100) {
+    // A verified replacement may exceed the retained-record cap when pruning fails.
+    // Keep its ownership record until a newer successful recovery point exists.
+    const latestSuccess = draft.jobs.findLast(
+        (job) => job.state === 'succeeded' && job.artifact !== null,
+    )
     while (draft.jobs.length > limit) {
-        const index = draft.jobs.findIndex((job) => !active(job) && !job.retained)
+        const index = draft.jobs.findIndex(
+            (job) => !active(job) && !job.retained && job.id !== latestSuccess?.id,
+        )
         if (index < 0) throw new ManagedBackupError('capacity')
         draft.jobs.splice(index, 1)
     }

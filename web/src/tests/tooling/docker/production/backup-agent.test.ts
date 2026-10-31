@@ -1,11 +1,17 @@
+// oxlint-disable no-await-in-loop -- Filesystem fixtures assert each ordered cleanup and recovery boundary.
 import { describe, expect, test } from 'bun:test'
+import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
     createBackupAgentHandler,
+    reconcileBackupArtifacts,
     reconcileBackupControl,
     recoverManagedBackupState,
     removeRetainedBackup,
 } from '../../../../../../docker/production/backups/agent.ts'
 import { createManagedBackupEngine } from '../../../../../../scripts/backup/managed-jobs.ts'
+import type { ManagedBackupJob } from '../../../../../../web/src/lib/Backups/Types/backups.types.ts'
 
 const actorId = '00000000-0000-4000-8000-000000000001'
 const requestId = '00000000-0000-4000-8000-000000000002'
@@ -114,7 +120,7 @@ describe('private root backup agent routes', () => {
         expect(await conflict.json()).toEqual({ error: 'conflict' })
     })
 
-    test('startup clears interrupted active work without a result and preserves the published artifact', async () => {
+    test('startup clears interrupted active work without a result and preserves publication identity', async () => {
         const { engine } = await fixture()
         const job = await engine.start({ actorId, requestId })
         job.state = 'interrupted'
@@ -255,4 +261,197 @@ describe('private root backup agent routes', () => {
         expect(response.status).toBe(503)
         expect(await response.json()).toEqual({ error: 'unavailable' })
     })
+})
+
+const rootFilesystem = process.platform === 'linux' && process.getuid?.() === 0
+const idFor = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+
+async function filesystemFixture(run: (root: string, job: ManagedBackupJob) => Promise<void>) {
+    const root = await mkdtemp(join(tmpdir(), 'rentnerproxy-agent-reconcile-'))
+    try {
+        const { engine } = await fixture()
+        await run(root, await engine.start({ actorId, requestId }))
+    } finally {
+        await rm(root, { recursive: true, force: true })
+    }
+}
+
+async function publishedFixture(root: string, job: ManagedBackupJob, staging = false) {
+    const directory = join(root, (staging ? '.staging-' : '') + job.id)
+    await mkdir(directory, { mode: 0o700 })
+    const artifact = { bytes: 12, sha256: 'a'.repeat(64) }
+    const metadata = {
+        format: 'rentnerproxy-production-backup',
+        version: 4,
+        createdAt: '2026-10-31T00:00:00.000Z',
+        redis: 'excluded',
+        applicationEncryptionKey: { ...artifact, file: 'app-encryption-key' },
+        postgres: {
+            ...artifact,
+            database: 'rentnerproxy',
+            user: 'rentnerproxy',
+            dump: 'postgres.dump',
+        },
+        controllerState: { ...artifact, archive: 'controller-state.tar' },
+        crowdSecState: { ...artifact, archive: 'crowdsec-state.tar' },
+        deployment: { publicOrigin: 'https://proxy.example.test', trustedProxyCidrs: '' },
+        source: job.source,
+    }
+    // Deliberately invalid payload hashes model a post-publication verify failure.
+    // Ownership inspection must not mistake validity of payloads for provenance.
+    for (const name of [
+        'app-encryption-key',
+        'postgres.dump',
+        'controller-state.tar',
+        'crowdsec-state.tar',
+    ]) {
+        await writeFile(join(directory, name), 'synthetic fixture bytes: ' + name, { mode: 0o600 })
+    }
+    await writeFile(join(directory, 'metadata.json'), JSON.stringify(metadata), { mode: 0o600 })
+    return directory
+}
+
+describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation', () => {
+    test('reclaims known corrupt failed publications, interrupted and trimmed orphans while preserving retained bytes and history', () =>
+        filesystemFixture(async (root, base) => {
+            const retained = { ...base, state: 'succeeded' as const, retained: true }
+            const failed = { ...base, id: idFor(20), state: 'failed' as const }
+            const interrupted = {
+                ...base,
+                id: idFor(21),
+                state: 'interrupted' as const,
+                artifact: { id: idFor(21), metadataSha256: 'b'.repeat(64), bytes: 100 },
+            }
+            const retainedPath = await publishedFixture(root, retained)
+            const before = await Promise.all(
+                (await readdir(retainedPath)).map(
+                    async (name) => [name, await readFile(join(retainedPath, name))] as const,
+                ),
+            )
+            const failedPath = await publishedFixture(root, failed)
+            await writeFile(join(failedPath, 'metadata.json'), '{invalid metadata')
+            await publishedFixture(root, interrupted)
+            // This canonical UUID no longer has a job record after historical trimming.
+            await publishedFixture(root, { ...base, id: idFor(22) })
+            await publishedFixture(root, failed, true)
+            const partial = { ...base, id: idFor(23), state: 'failed' as const }
+            const partialPath = join(root, '.staging-' + partial.id)
+            await mkdir(partialPath, { mode: 0o700 })
+            await writeFile(join(partialPath, 'postgres.dump'), 'partial capture', { mode: 0o600 })
+            const history = structuredClone([retained, failed, interrupted, partial])
+            await reconcileBackupArtifacts(history, root)
+            expect(await readdir(root)).toEqual([retained.id])
+            expect(history).toEqual([retained, failed, interrupted, partial])
+            for (const [name, bytes] of before) {
+                expect(await readFile(join(retainedPath, name))).toEqual(bytes)
+            }
+        }))
+
+    test('preserves the latest verified success while retention is pending and removes only older unretained successes', () =>
+        filesystemFixture(async (root, base) => {
+            const older = {
+                ...base,
+                state: 'succeeded' as const,
+                artifact: { id: base.id, metadataSha256: 'a'.repeat(64), bytes: 100 },
+            }
+            const latest = {
+                ...older,
+                id: idFor(24),
+                artifact: { id: idFor(24), metadataSha256: 'b'.repeat(64), bytes: 100 },
+            }
+            const olderPath = await publishedFixture(root, older)
+            await reconcileBackupArtifacts([older], root)
+            expect(await readdir(root)).toEqual([older.id])
+            const latestPath = await publishedFixture(root, latest)
+            const bytes = await readFile(join(latestPath, 'postgres.dump'))
+            await reconcileBackupArtifacts([older, latest], root)
+            expect(await readdir(root)).toEqual([latest.id])
+            await expect(readFile(join(olderPath, 'postgres.dump'))).rejects.toThrow('ENOENT')
+            expect(await readFile(join(latestPath, 'postgres.dump'))).toEqual(bytes)
+            expect(latest.retained).toBe(false)
+        }))
+
+    test('protects current running and queued directories during live cleanup', () =>
+        filesystemFixture(async (root, base) => {
+            for (const state of ['running', 'queued'] as const) {
+                const job = { ...base, state }
+                const canonical = await publishedFixture(root, job)
+                const staging = await publishedFixture(root, job, true)
+                await reconcileBackupArtifacts([job], root)
+                expect((await readdir(root)).toSorted()).toEqual(
+                    [job.id, '.staging-' + job.id].toSorted(),
+                )
+                await rm(canonical, { recursive: true })
+                await rm(staging, { recursive: true })
+            }
+        }))
+
+    test('leaves unrelated names, legacy metadata, unsafe orphan directories and linked files untouched', () =>
+        filesystemFixture(async (root, base) => {
+            await writeFile(join(root, 'operator-note'), 'foreign data')
+            const legacy = await publishedFixture(root, { ...base, id: idFor(30) })
+            const metadataPath = join(legacy, 'metadata.json')
+            const metadata = JSON.parse(await readFile(metadataPath, 'utf8'))
+            metadata.source = { imageId: 'sha256:' + 'c'.repeat(64), revision: null, version: null }
+            await writeFile(metadataPath, JSON.stringify(metadata))
+            const foreign = await publishedFixture(root, { ...base, id: idFor(31) })
+            await writeFile(join(foreign, 'operator-note'), 'foreign data')
+            await symlink(legacy, join(root, idFor(32)))
+            const linked = await publishedFixture(root, { ...base, id: idFor(33) })
+            await rm(join(linked, 'postgres.dump'))
+            await symlink(join(legacy, 'postgres.dump'), join(linked, 'postgres.dump'))
+            const hardlinked = await publishedFixture(root, { ...base, id: idFor(34) })
+            await rm(join(hardlinked, 'postgres.dump'))
+            await link(join(legacy, 'postgres.dump'), join(hardlinked, 'postgres.dump'))
+            const partial = join(root, '.staging-' + idFor(35))
+            await mkdir(partial, { mode: 0o700 })
+            const before = (await readdir(root)).toSorted()
+            await reconcileBackupArtifacts([], root)
+            expect((await readdir(root)).toSorted()).toEqual(before)
+            expect(await readFile(join(root, 'operator-note'), 'utf8')).toBe('foreign data')
+        }))
+
+    test('fails closed for a referenced unsafe terminal directory and bounds root enumeration', () =>
+        filesystemFixture(async (root, base) => {
+            const job = { ...base, state: 'failed' as const }
+            await symlink('/tmp', join(root, job.id))
+            await expect(reconcileBackupArtifacts([job], root)).rejects.toThrow(
+                'invalid backup directory',
+            )
+            await rm(join(root, job.id))
+            for (let index = 0; index < 129; index += 1) {
+                await writeFile(join(root, 'foreign-' + index), 'foreign')
+            }
+            await expect(reconcileBackupArtifacts([], root)).rejects.toThrow(
+                'too many backup entries',
+            )
+            expect(await readdir(root)).toHaveLength(129)
+        }))
+
+    test('more than 64 failed publications in one agent lifetime keep capacity for the next export', () =>
+        filesystemFixture(async (root, base) => {
+            const retained = Array.from({ length: 50 }, (_, index) => ({
+                ...base,
+                id: idFor(1000 + index),
+                state: 'succeeded' as const,
+                retained: true,
+            }))
+            for (const job of retained) await publishedFixture(root, job)
+            const retainedPath = join(root, retained[0]!.id)
+            const keyBefore = await readFile(join(retainedPath, 'app-encryption-key'))
+            const jobs: ManagedBackupJob[] = [...retained]
+            const retainedIds = retained.map((job) => job.id).toSorted()
+            for (let index = 0; index < 70; index += 1) {
+                const current = { ...base, id: idFor(100 + index), state: 'running' as const }
+                // This is the same pre-execution boundary used by the live agent.
+                await reconcileBackupArtifacts([...jobs, current], root)
+                expect((await readdir(root)).toSorted()).toEqual(retainedIds)
+                await publishedFixture(root, current)
+                jobs.push({ ...current, state: 'failed', error: 'recovery_failed' })
+                if (jobs.length > 99) jobs.splice(50, 1)
+            }
+            await reconcileBackupArtifacts(jobs, root)
+            expect((await readdir(root)).toSorted()).toEqual(retainedIds)
+            expect(await readFile(join(retainedPath, 'app-encryption-key'))).toEqual(keyBefore)
+        }))
 })

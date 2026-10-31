@@ -281,7 +281,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 latest = await status(container)
                 const job = latest.jobs.find((entry) => entry.id === jobId)
                 if (job && ['failed', 'interrupted'].includes(job.state))
-                    throw new Error('backup did not succeed')
+                    assert.fail('backup did not succeed: ' + job.state)
                 return job?.state === 'succeeded' && job.retained
             },
             'successful managed backup',

@@ -28,7 +28,18 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
         await dependencies.limit(actor.id)
         return dependencies.transaction(async (transaction) => {
             await transaction.authorize(actor.id, PERMISSIONS.BACKUPS_MANAGE)
-            // Admission requires an audit write. The root journal remains authoritative if the database commit later fails.
+            const result = await (configuration
+                ? dependencies.controller.configure(
+                      managedBackupConfigurationUpdateSchema.parse({
+                          ...parsed.data,
+                          actorId: actor.id,
+                      }),
+                  )
+                : dependencies.controller.start(
+                      managedBackupStartSchema.parse({ ...parsed.data, actorId: actor.id }),
+                  ))
+            // Acquire the global audit lock only after controller I/O. Root admission is already durably journaled
+            // and remains authoritative if the application audit insert or commit fails.
             await transaction.audit({
                 actorUserId: actor.id,
                 actorKind: 'user',
@@ -38,16 +49,7 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
                 result: 'success',
                 metadata: {},
             })
-            return configuration
-                ? dependencies.controller.configure(
-                      managedBackupConfigurationUpdateSchema.parse({
-                          ...parsed.data,
-                          actorId: actor.id,
-                      }),
-                  )
-                : dependencies.controller.start(
-                      managedBackupStartSchema.parse({ ...parsed.data, actorId: actor.id }),
-                  )
+            return result
         })
     }
     return {
