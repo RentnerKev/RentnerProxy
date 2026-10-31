@@ -378,6 +378,16 @@ export async function reconcileBackupControl(
         await io.remove(path)
     }
 }
+export async function reconcileCompletedBackups(
+    jobs: ManagedBackupJob[],
+    phase: 'startup' | 'runtime',
+    io: Parameters<typeof reconcileBackupControl>[2],
+    root = artifactsRoot,
+) {
+    await reconcileBackupControl(jobs, phase, io)
+    await reconcileBackupArtifacts(jobs, root)
+}
+
 export async function startBackupAgent() {
     if (process.getuid?.() !== 0) throw new Error('backup agent requires root')
     await privateDirectory(backupRoot)
@@ -449,8 +459,8 @@ export async function startBackupAgent() {
         },
         remove: (job) => removeRetainedBackup(job),
     })
-    async function clearCompletedControl(phase: 'startup' | 'runtime') {
-        await reconcileBackupControl((await engine.status()).jobs, phase, {
+    async function reconcileCompletedWork(phase: 'startup' | 'runtime') {
+        await reconcileCompletedBackups((await engine.status()).jobs, phase, {
             read: async (path) => {
                 try {
                     return await readPrivateJson(path, 4096)
@@ -462,8 +472,7 @@ export async function startBackupAgent() {
             remove: (path) => rm(path),
         })
     }
-    await clearCompletedControl('startup')
-    await reconcileBackupArtifacts((await engine.status()).jobs)
+    await reconcileCompletedWork('startup')
     const socket = join(controlRoot, 'agent.sock')
     const server = Bun.serve({
         unix: socket,
@@ -489,7 +498,7 @@ export async function startBackupAgent() {
                     process.exitCode = 1
                     return
                 }
-                await clearCompletedControl('runtime')
+                await reconcileCompletedWork('runtime')
             })
             .catch(() => {
                 console.error('[backups] Job processing unavailable')

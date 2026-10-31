@@ -14,12 +14,13 @@ import {
     writeFile,
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import {
     createBackupAgentHandler,
     loadManagedBackupState,
     reconcileBackupArtifacts,
     reconcileBackupControl,
+    reconcileCompletedBackups,
     recoverManagedBackupState,
     removeRetainedBackup,
 } from '../../../../../../docker/production/backups/agent.ts'
@@ -365,6 +366,74 @@ async function verifiedFixture(root: string, job: ManagedBackupJob) {
 }
 
 describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation', () => {
+    test.each(['verification', 'execution'] as const)(
+        'manual-only %s failures reclaim publications immediately after completion while preserving the last good backup',
+        (failure) =>
+            filesystemFixture(async (root, base) => {
+                const retained = { ...base, state: 'succeeded' as const, retained: true }
+                const retainedPath = await verifiedFixture(root, retained)
+                const before = await Promise.all(
+                    (await readdir(retainedPath)).map(
+                        async (name) => [name, await readFile(join(retainedPath, name))] as const,
+                    ),
+                )
+                const { engine: seed } = await fixture()
+                const initial: ManagedBackupState = {
+                    ...(await seed.status()),
+                    version: 1,
+                    configurationRequests: [],
+                    jobs: [retained],
+                }
+                let counter = 2200
+                const engine = await createManagedBackupEngine({
+                    read: async () => initial,
+                    write: async () => {},
+                    now: () => 0,
+                    id: () => idFor(counter++),
+                    source: () => base.source,
+                    execute: async (job) => {
+                        await publishedFixture(root, job)
+                        if (failure === 'execution') throw new Error('capture failed')
+                        return { id: job.id, metadataSha256: 'b'.repeat(64), bytes: 100 }
+                    },
+                    verify: async () => false,
+                    remove: async () => {
+                        throw new Error('a failed job must never prune retained backups')
+                    },
+                })
+                const job = await engine.start({ actorId, requestId: idFor(2201) })
+                await engine.tick()
+                const status = await engine.status()
+                expect(status.configuration.enabled).toBe(false)
+                expect(status.jobs.at(-1)?.state).toBe('failed')
+                expect(status.jobs.at(-1)?.error).toBe(
+                    failure === 'verification' ? 'artifact_invalid' : 'execution_failed',
+                )
+                expect((await readdir(root)).toSorted()).toEqual([retained.id, job.id].toSorted())
+                const control = new Map<string, unknown>([
+                    ['active.json', { id: job.id }],
+                    ['result.json', { id: job.id, success: failure === 'verification' }],
+                ])
+                await reconcileCompletedBackups(
+                    status.jobs,
+                    'runtime',
+                    {
+                        read: async (path) => control.get(basename(path)) ?? null,
+                        remove: async (path) => {
+                            control.delete(basename(path))
+                        },
+                    },
+                    root,
+                )
+                expect(control.size).toBe(0)
+                expect(await readdir(root)).toEqual([retained.id])
+                expect(await engine.status()).toEqual(status)
+                for (const [name, bytes] of before) {
+                    expect(await readFile(join(retainedPath, name))).toEqual(bytes)
+                }
+            }),
+    )
+
     test('retention resumes after partial unlink and restart, then the engine restores the configured point count', () =>
         filesystemFixture(async (root, base) => {
             const oldest = { ...base, state: 'succeeded' as const, retained: true }
