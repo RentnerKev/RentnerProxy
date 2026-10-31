@@ -416,10 +416,10 @@
             "webhook": "Webhook",
             "events": "Eventos",
             "minimumSeverity": "Gravidade mínima",
-            "thresholdSeconds": "Duração mínima do incidente (segundos)",
+            "thresholdSeconds": "Duração mínima do incidente / atraso do backup (segundos)",
             "enabled": "Ativado",
             "disabled": "Desativado",
-            "recovery": "Enviar notificações de recuperação",
+            "recovery": "Enviar recuperações e backups concluídos",
             "replaceDestination": "Substituir destino",
             "keepDestination": "O destino guardado e o token bearer permanecem inalterados, a menos que substitua o destino. Os segredos guardados nunca são apresentados.",
             "recipients": "Destinatários (separados por vírgulas)",
@@ -458,7 +458,8 @@
             "categories": {
                 "certificate_renewal": "Renovação de certificados",
                 "ddns": "DNS dinâmico",
-                "proxy_configuration": "Configuração do proxy"
+                "proxy_configuration": "Configuração do proxy",
+                "backup": "Backups"
             },
             "severities": {
                 "warning": "Aviso",
@@ -468,13 +469,16 @@
             "types": {
                 "incident": "Incidente",
                 "recovery": "Recuperação",
-                "test": "Teste"
+                "test": "Teste",
+                "success": "Sucesso"
             },
             "incidentStates": {
                 "active": "Incidente ativo",
                 "recovered": "Recuperado",
                 "test": "Teste",
-                "unknown": "Indisponível"
+                "unknown": "Indisponível",
+                "backup_succeeded": "Backup concluído",
+                "backup_failed": "Backup falhou"
             },
             "deliveryStates": {
                 "pending": "Pendente",

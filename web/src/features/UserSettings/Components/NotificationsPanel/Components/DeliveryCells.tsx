@@ -19,7 +19,7 @@ export function DeliveryHealthCell({ row }: { row: DeliveryRow }) {
     const { t } = useTranslationStore()
     return (
         <span
-            className={`inline-flex max-w-full rounded-lg px-2 py-1 text-xs font-bold ${row.incidentState === 'active' ? 'bg-danger-bg text-danger-text' : row.incidentState === 'recovered' ? 'bg-success-bg text-success-text' : 'bg-surface-raised text-muted'}`}
+            className={`inline-flex max-w-full rounded-lg px-2 py-1 text-xs font-bold ${row.incidentState === 'active' || row.incidentState === 'backup_failed' ? 'bg-danger-bg text-danger-text' : row.incidentState === 'recovered' || row.incidentState === 'backup_succeeded' ? 'bg-success-bg text-success-text' : 'bg-surface-raised text-muted'}`}
         >
             {t(`account.notifications.incidentStates.${row.incidentState}`)}
         </span>

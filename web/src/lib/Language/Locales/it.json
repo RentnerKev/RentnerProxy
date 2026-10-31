@@ -416,10 +416,10 @@
             "webhook": "Webhook",
             "events": "Eventi",
             "minimumSeverity": "Gravità minima",
-            "thresholdSeconds": "Durata minima dell’incidente (secondi)",
+            "thresholdSeconds": "Durata minima del problema / ritardo backup (secondi)",
             "enabled": "Attivato",
             "disabled": "Disattivato",
-            "recovery": "Invia notifiche di ripristino",
+            "recovery": "Invia ripristini e backup riusciti",
             "replaceDestination": "Sostituisci destinazione",
             "keepDestination": "La destinazione salvata e il token bearer restano invariati a meno che tu non sostituisca la destinazione. I segreti salvati non vengono mai mostrati.",
             "recipients": "Destinatari (separati da virgole)",
@@ -458,7 +458,8 @@
             "categories": {
                 "certificate_renewal": "Rinnovo dei certificati",
                 "ddns": "DNS dinamico",
-                "proxy_configuration": "Configurazione del proxy"
+                "proxy_configuration": "Configurazione del proxy",
+                "backup": "Backup"
             },
             "severities": {
                 "warning": "Avviso",
@@ -468,13 +469,16 @@
             "types": {
                 "incident": "Incidente",
                 "recovery": "Ripristino",
-                "test": "Test"
+                "test": "Test",
+                "success": "Successo"
             },
             "incidentStates": {
                 "active": "Incidente attivo",
                 "recovered": "Ripristinato",
                 "test": "Test",
-                "unknown": "Non disponibile"
+                "unknown": "Non disponibile",
+                "backup_succeeded": "Backup riuscito",
+                "backup_failed": "Backup non riuscito"
             },
             "deliveryStates": {
                 "pending": "In attesa",

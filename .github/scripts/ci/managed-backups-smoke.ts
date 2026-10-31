@@ -259,7 +259,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 ...(argument ? [argument] : []),
             ],
             'fixture probe ' + mode,
-            mode === 'concurrent' ? 200_000 : 60_000,
+            mode === 'web-api' ? 240_000 : mode === 'concurrent' ? 200_000 : 60_000,
         )
         return JSON.parse(output) as unknown
     }
@@ -423,6 +423,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             ),
             scope,
         )
+        await probe(source, 'audit-settled')
         const beforeLockProbe = await stateDigest(source)
         await verifyVolumeLock(1)
         assert.equal(await stateDigest(source), beforeLockProbe)
@@ -554,8 +555,14 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         const webJob = z.strictObject({ id: z.uuid() }).parse(await probe(source, 'web-api'))
         await completed(source, webJob.id)
         await healthy(source)
+        await command(
+            ['docker', 'restart', '--time', '35', source],
+            'restart source after durable backup notifications',
+        )
+        await healthy(source)
+        await probe(source, 'notification-replay')
         passed(
-            'real web API enforces sessions, roles, Origin and strict inputs before durably admitting the owner backup',
+            'real web API enforces access and durable owner jobs with DB outcome notifications, queue policy and restart deduplication',
         )
 
         await command(
@@ -599,8 +606,48 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             'install private restore verification probe',
         )
         await probe(target, 'markers')
+        await probe(target, 'notification-restored')
         passed(
             'existing production restore recovers the database and controller markers into a fresh healthy appliance',
+        )
+        const auditPosition = z.strictObject({
+            storeId: z.uuid(),
+            sequence: z.number().int().nonnegative(),
+        })
+        const beforeRewind = auditPosition.parse(await probe(source, 'audit-position'))
+        assert.ok(beforeRewind.sequence > 0)
+        await command(
+            [
+                process.execPath,
+                '--no-env-file',
+                join(repositoryRoot, 'scripts/production-restore.ts'),
+                '--project',
+                sourceProject,
+                '--input',
+                backupPath,
+                '--confirm-replace',
+            ],
+            'restore earlier web backup into the existing owned source volume',
+            600_000,
+        )
+        const restoredSource = await id(sourceProject)
+        await healthy(restoredSource)
+        await command(
+            ['docker', 'cp', bundleFile, restoredSource + ':' + containerProbe],
+            'install same volume recovery verification probe',
+        )
+        await probe(restoredSource, 'markers')
+        await probe(restoredSource, 'notification-restored')
+        const afterRestoreJob = managedBackupJobSchema.parse(await probe(restoredSource, 'start'))
+        await completed(restoredSource, afterRestoreJob.id)
+        const progressed = auditPosition.parse(
+            await probe(restoredSource, 'restore-progress', afterRestoreJob.id),
+        )
+        assert.equal(progressed.storeId, beforeRewind.storeId)
+        assert.ok(progressed.sequence > beforeRewind.sequence)
+        await healthy(restoredSource)
+        passed(
+            'same volume restore safely resumes root audit acknowledgements without replaying paused notifications',
         )
     } finally {
         if (lockProbePending) {

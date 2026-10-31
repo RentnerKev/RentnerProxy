@@ -26,7 +26,7 @@ const payload = z.strictObject({
     schemaVersion: z.literal(1),
     id: identifier,
     incidentId: identifier,
-    type: z.enum(['incident', 'recovery', 'test']),
+    type: z.enum(['incident', 'recovery', 'success', 'test']),
     category: z.enum(NOTIFICATION_CATEGORIES),
     severity: z.enum([...NOTIFICATION_SEVERITIES, 'info']),
     resourceId: z.string().min(1).max(512),
@@ -37,6 +37,8 @@ const payload = z.strictObject({
         'proxy_apply_failed',
         'operation_recovered',
         'notification_test',
+        'backup_succeeded',
+        'backup_failed',
     ]),
     occurredAt: z.iso.datetime(),
     startedAt: z.iso.datetime(),
@@ -91,6 +93,7 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
                     payload,
                     status: z.enum(['pending', 'inflight', 'succeeded', 'failed', 'cancelled']),
                     attempts: z.number().int().min(0).max(NOTIFICATION_LIMITS.attempts),
+                    backupAvailableAt: time.optional(),
                     createdAt: time,
                     updatedAt: time,
                     nextAttemptAt: time,
@@ -150,6 +153,16 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
                     context.addIssue({ code: 'custom', message: 'Duplicate delivery lease' })
                 leases.add(delivery.leaseToken)
             }
+            if (
+                delivery.backupAvailableAt !== undefined &&
+                (delivery.payload.category !== 'backup' ||
+                    delivery.backupAvailableAt < delivery.createdAt ||
+                    delivery.backupAvailableAt > delivery.createdAt + 86400 * 1000)
+            )
+                context.addIssue({
+                    code: 'custom',
+                    message: 'Invalid backup delivery availability',
+                })
             if (
                 delivery.updatedAt < delivery.createdAt ||
                 new TextEncoder().encode(JSON.stringify(delivery.payload)).byteLength >

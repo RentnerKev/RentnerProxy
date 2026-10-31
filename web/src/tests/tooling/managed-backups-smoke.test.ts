@@ -3,6 +3,7 @@ import {
     managedBackupSmokeCompose,
     validateManagedBackupTestImage,
 } from '../../../../.github/scripts/ci/managed-backups-smoke.ts'
+import { backupNotificationPayloadSchema } from '../../../../.github/scripts/ci/fixtures/managed-backup-probe.ts'
 import { SMOKE_RUN_LABEL, smokeRunScope } from '../../../../scripts/smoke/resources.ts'
 
 describe('managed backup isolated smoke configuration', () => {
@@ -61,5 +62,49 @@ describe('managed backup isolated smoke configuration', () => {
         expect(document.networks.default.internal).toBe(true)
         expect(document.networks.default.external).toBeUndefined()
         expect(document.networks.default.labels[SMOKE_RUN_LABEL]).toBe(scope)
+    })
+})
+
+describe('backup notification smoke receiver contract', () => {
+    const payload = {
+        schemaVersion: 1,
+        id: '00000000-0000-4000-8000-000000000001',
+        incidentId: '00000000-0000-4000-8000-000000000002',
+        type: 'success',
+        category: 'backup',
+        severity: 'info',
+        resourceId: '00000000-0000-4000-8000-000000000003',
+        code: 'backup_succeeded',
+        occurredAt: '2026-10-31T00:00:00.000Z',
+        startedAt: '2026-10-31T00:00:00.000Z',
+        failures: 0,
+    }
+    test('accepts the success and failure wire payloads used by the private receiver', () => {
+        expect(backupNotificationPayloadSchema.safeParse(payload).success).toBe(true)
+        expect(
+            backupNotificationPayloadSchema.safeParse({
+                ...payload,
+                type: 'incident',
+                severity: 'error',
+                failures: 1,
+                code: 'backup_failed',
+            }).success,
+        ).toBe(true)
+    })
+    test('rejects mixed outcome semantics and incidental sensitive fields', () => {
+        expect(
+            backupNotificationPayloadSchema.safeParse({ ...payload, code: 'backup_failed' })
+                .success,
+        ).toBe(false)
+        expect(
+            backupNotificationPayloadSchema.safeParse({ ...payload, filePath: '/private/backup' })
+                .success,
+        ).toBe(false)
+        expect(
+            backupNotificationPayloadSchema.safeParse({
+                ...payload,
+                authorization: 'synthetic-fixture-only',
+            }).success,
+        ).toBe(false)
     })
 })

@@ -1,3 +1,4 @@
+import { getNotificationDeliveryState } from '@/lib/Notifications/delivery-state.ts'
 import { createElement, useMemo, useState } from 'react'
 import {
     DeliveryChannelCell,
@@ -21,14 +22,10 @@ export default function useDeliveryTableLogic({ status, channels }: DeliveryTabl
         return status.deliveries.map((delivery) => ({
             ...delivery,
             channelName: names.get(delivery.channelId) ?? t('account.notifications.deletedChannel'),
-            incidentState:
-                delivery.type === 'test'
-                    ? 'test'
-                    : incidents.get(delivery.incidentId)?.recoveredAt
-                      ? 'recovered'
-                      : incidents.has(delivery.incidentId)
-                        ? 'active'
-                        : 'unknown',
+            incidentState: getNotificationDeliveryState(
+                delivery,
+                incidents.get(delivery.incidentId),
+            ),
         }))
     }, [status, channels, t])
     type Row = (typeof rows)[number]
@@ -90,7 +87,7 @@ export default function useDeliveryTableLogic({ status, channels }: DeliveryTabl
             channelName: { type: 'text', placeholder: t('account.notifications.search') },
             type: {
                 type: 'select',
-                options: ['incident', 'recovery', 'test'].map((value) => ({
+                options: ['incident', 'recovery', 'success', 'test'].map((value) => ({
                     value: t(`account.notifications.types.${value}`),
                     label: t(`account.notifications.types.${value}`),
                 })),
@@ -106,7 +103,14 @@ export default function useDeliveryTableLogic({ status, channels }: DeliveryTabl
             },
             incidentState: {
                 type: 'select',
-                options: ['active', 'recovered', 'test', 'unknown'].map((value) => ({
+                options: [
+                    'active',
+                    'recovered',
+                    'backup_succeeded',
+                    'backup_failed',
+                    'test',
+                    'unknown',
+                ].map((value) => ({
                     value: t(`account.notifications.incidentStates.${value}`),
                     label: t(`account.notifications.incidentStates.${value}`),
                 })),

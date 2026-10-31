@@ -395,10 +395,10 @@
             "webhook": "Webhook",
             "events": "Gebeurtenissen",
             "minimumSeverity": "Minimale ernst",
-            "thresholdSeconds": "Minimale incidentduur (seconden)",
+            "thresholdSeconds": "Minimale storingsduur / back-upvertraging (seconden)",
             "enabled": "Ingeschakeld",
             "disabled": "Uitgeschakeld",
-            "recovery": "Herstelmeldingen verzenden",
+            "recovery": "Herstelmeldingen en geslaagde back-ups versturen",
             "replaceDestination": "Bestemming vervangen",
             "keepDestination": "De opgeslagen bestemming en bearer-token blijven ongewijzigd tenzij je de bestemming vervangt. Opgeslagen geheimen worden nooit getoond.",
             "recipients": "Ontvangers (gescheiden door komma’s)",
@@ -437,7 +437,8 @@
             "categories": {
                 "certificate_renewal": "Certificaatvernieuwing",
                 "ddns": "Dynamische DNS",
-                "proxy_configuration": "Proxyconfiguratie"
+                "proxy_configuration": "Proxyconfiguratie",
+                "backup": "Back-ups"
             },
             "severities": {
                 "warning": "Waarschuwing",
@@ -447,13 +448,16 @@
             "types": {
                 "incident": "Incident",
                 "recovery": "Herstel",
-                "test": "Test"
+                "test": "Test",
+                "success": "Geslaagd"
             },
             "incidentStates": {
                 "active": "Actief incident",
                 "recovered": "Hersteld",
                 "test": "Test",
-                "unknown": "Niet beschikbaar"
+                "unknown": "Niet beschikbaar",
+                "backup_succeeded": "Back-up geslaagd",
+                "backup_failed": "Back-up mislukt"
             },
             "deliveryStates": {
                 "pending": "In wachtrij",

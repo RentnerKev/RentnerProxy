@@ -44,6 +44,7 @@ export interface NotificationQueuedDelivery {
     payload: NotificationPayload
     status: NotificationDeliveryStatus
     attempts: number
+    backupAvailableAt?: number | undefined
     createdAt: number
     updatedAt: number
     nextAttemptAt: number

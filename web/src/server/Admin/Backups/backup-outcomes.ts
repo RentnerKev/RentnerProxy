@@ -6,9 +6,16 @@ import type { BackupAuditCursor, BackupAuditDependencies } from './Types/backup-
 export const backupAuditCursorSchema = z.strictObject({
     storeId: z.uuid().nullable(),
     sequence: z.number().int().nonnegative().safe(),
+    restorePending: z.literal(true).optional(),
 })
 export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedBackupStatus) {
-    const previous = cursor.storeId === status.storeId ? cursor.sequence : 0
+    // Only the trusted restore transaction may authorize rebasing after an older database image.
+    const previous =
+        cursor.restorePending && status.auditEvents.length > 0
+            ? status.auditEvents[0]!.sequence - 1
+            : cursor.storeId === status.storeId
+              ? cursor.sequence
+              : 0
     let sequence = -1
     for (const event of status.auditEvents) {
         if (event.sequence <= sequence || (sequence >= 0 && event.sequence !== sequence + 1))
@@ -43,7 +50,11 @@ export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedB
     }))
     return {
         events,
-        cursor: { storeId: status.storeId, sequence: batch.at(-1)?.sequence ?? previous },
+        sourceEvents: batch,
+        cursor:
+            cursor.restorePending && batch.length === 0
+                ? cursor
+                : { storeId: status.storeId, sequence: batch.at(-1)?.sequence ?? previous },
     }
 }
 
@@ -54,20 +65,48 @@ export function createBackupAuditIngestor(dependencies: BackupAuditDependencies)
             // Read under the cursor lock: snapshots from different root stores must not overtake each other.
             const status = await dependencies.status(signal)
             signal.throwIfAborted()
-            const batch = planBackupAuditBatch(transaction.cursor, status)
+            const planned = planBackupAuditBatch(transaction.cursor, status)
+            const admission = await transaction.enqueue(planned.sourceEvents)
+            if (
+                !Number.isSafeInteger(admission.accepted) ||
+                admission.accepted < 0 ||
+                admission.accepted > planned.events.length
+            )
+                throw new Error('Invalid backup notification admission')
+            const accepted = planned.sourceEvents.slice(0, admission.accepted)
+            const batch: { events: AuditEventInput[]; cursor: BackupAuditCursor } = {
+                events: planned.events.slice(0, admission.accepted),
+                cursor:
+                    transaction.cursor.restorePending && accepted.length === 0
+                        ? transaction.cursor
+                        : {
+                              storeId: status.storeId,
+                              sequence:
+                                  accepted.at(-1)?.sequence ??
+                                  (transaction.cursor.storeId === status.storeId
+                                      ? transaction.cursor.sequence
+                                      : 0),
+                          },
+            }
             if (batch.events.length > 0) await transaction.append(batch.events)
             signal.throwIfAborted()
             if (
                 batch.cursor.storeId !== transaction.cursor.storeId ||
-                batch.cursor.sequence !== transaction.cursor.sequence
+                batch.cursor.sequence !== transaction.cursor.sequence ||
+                batch.cursor.restorePending !== transaction.cursor.restorePending
             )
                 await transaction.save(batch.cursor)
             signal.throwIfAborted()
-            return { count: batch.events.length, cursor: batch.cursor }
+            return { count: batch.events.length, cursor: batch.cursor, changed: admission.changed }
         })
+        if (committed.changed) dependencies.changed?.()
         signal.throwIfAborted()
         // Producer disposal is safe only after the transaction has durably committed.
-        await dependencies.acknowledge(committed.cursor, signal)
+        if (!committed.cursor.restorePending && committed.cursor.storeId !== null)
+            await dependencies.acknowledge(
+                { storeId: committed.cursor.storeId, sequence: committed.cursor.sequence },
+                signal,
+            )
         return committed.count
     }
 }

@@ -1,6 +1,7 @@
 export const NOTIFICATION_CATEGORIES = [
     'certificate_renewal',
     'ddns',
+    'backup',
     'proxy_configuration',
 ] as const
 export const NOTIFICATION_SEVERITIES = ['warning', 'error', 'critical'] as const

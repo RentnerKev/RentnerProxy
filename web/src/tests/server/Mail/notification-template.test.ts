@@ -108,3 +108,37 @@ test('manual DNS renewal mail requests fresh TXT values without claiming automat
     }
     expect(template.text).toContain('DNS prüfen und fortsetzen')
 })
+
+test('backup success mail describes a completed job without a fictitious outage or recovery', () => {
+    const template = createNotificationEmailTemplate(
+        {
+            ...PAYLOAD,
+            category: 'backup',
+            type: 'success',
+            code: 'backup_succeeded',
+            severity: 'info',
+            failures: 0,
+        },
+        options,
+    )
+    expect(template.subject).toBe('RentnerProxy: Backup erfolgreich abgeschlossen')
+    for (const body of [template.html, template.text]) {
+        expect(body).toContain('Backup-ID')
+        expect(body).toContain('Abgeschlossen am')
+        expect(body).toContain('keine weitere Aktion erforderlich')
+        expect(body).not.toContain('Beginn der Störung')
+        expect(body).not.toContain('Fehlversuche')
+        expect(body).not.toContain('Entwarnung')
+        expect(body).not.toContain('Behoben')
+    }
+})
+
+test('backup failure mail describes a failed completed job with no made-up incident start', () => {
+    const template = createNotificationEmailTemplate(
+        { ...PAYLOAD, category: 'backup', type: 'incident', code: 'backup_failed' },
+        options,
+    )
+    expect(template.subject).toBe('RentnerProxy: Backup fehlgeschlagen')
+    expect(template.text).toContain('Ergebnis: Fehlgeschlagen')
+    expect(template.text).not.toContain('Beginn der Störung')
+})

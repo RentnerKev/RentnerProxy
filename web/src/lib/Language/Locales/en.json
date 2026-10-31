@@ -602,10 +602,10 @@
             "webhook": "Webhook",
             "events": "Events",
             "minimumSeverity": "Minimum severity",
-            "thresholdSeconds": "Minimum incident duration (seconds)",
+            "thresholdSeconds": "Minimum incident duration / backup delay (seconds)",
             "enabled": "Enabled",
             "disabled": "Disabled",
-            "recovery": "Send recovery notifications",
+            "recovery": "Send recoveries and successful backups",
             "replaceDestination": "Replace destination",
             "keepDestination": "The saved destination and bearer token stay unchanged unless you replace the destination. Saved secrets are never displayed.",
             "recipients": "Recipients (comma separated)",
@@ -644,7 +644,8 @@
             "categories": {
                 "certificate_renewal": "Certificate renewal",
                 "ddns": "Dynamic DNS",
-                "proxy_configuration": "Proxy configuration"
+                "proxy_configuration": "Proxy configuration",
+                "backup": "Backups"
             },
             "severities": {
                 "warning": "Warning",
@@ -654,13 +655,16 @@
             "types": {
                 "incident": "Incident",
                 "recovery": "Recovery",
-                "test": "Test"
+                "test": "Test",
+                "success": "Success"
             },
             "incidentStates": {
                 "active": "Active incident",
                 "recovered": "Recovered",
                 "test": "Test",
-                "unknown": "Unavailable"
+                "unknown": "Unavailable",
+                "backup_succeeded": "Backup succeeded",
+                "backup_failed": "Backup failed"
             },
             "deliveryStates": {
                 "pending": "Pending",

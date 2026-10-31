@@ -1,4 +1,6 @@
 import '@tanstack/react-start/server-only'
+import { enqueueBackupOutcomesInTransaction } from '@/server/Notifications/backup-outcomes.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import { eq, sql } from 'drizzle-orm'
 import { systemSettings } from '@/db/schema.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -9,6 +11,7 @@ import { createBackupAuditWorker } from './backup-outcomes.worker.ts'
 
 const CURSOR_KEY = 'managed_backup_audit_cursor_v1'
 const ingest = createBackupAuditIngestor({
+    changed: publishApplicationChange,
     status: (signal) => backupsController.status(signal),
     acknowledge: (cursor, signal) => backupsController.acknowledgeAudit(cursor, signal),
     transaction: (run) =>
@@ -31,6 +34,7 @@ const ingest = createBackupAuditIngestor({
             )
             return run({
                 cursor,
+                enqueue: (events) => enqueueBackupOutcomesInTransaction(transaction, events),
                 append: (events) => appendAuditEventsInTransactionService(transaction, events),
                 save: async (value) => {
                     await transaction

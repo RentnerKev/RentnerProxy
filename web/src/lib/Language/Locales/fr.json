@@ -416,10 +416,10 @@
             "webhook": "Webhook",
             "events": "Événements",
             "minimumSeverity": "Gravité minimale",
-            "thresholdSeconds": "Durée minimale de l’incident (secondes)",
+            "thresholdSeconds": "Durée minimale de panne / délai de sauvegarde (secondes)",
             "enabled": "Activé",
             "disabled": "Désactivé",
-            "recovery": "Envoyer les notifications de rétablissement",
+            "recovery": "Envoyer les rétablissements et les sauvegardes réussies",
             "replaceDestination": "Remplacer la destination",
             "keepDestination": "La destination enregistrée et le jeton bearer restent inchangés, sauf si vous remplacez la destination. Les secrets enregistrés ne sont jamais affichés.",
             "recipients": "Destinataires (séparés par des virgules)",
@@ -458,7 +458,8 @@
             "categories": {
                 "certificate_renewal": "Renouvellement des certificats",
                 "ddns": "DNS dynamique",
-                "proxy_configuration": "Configuration du proxy"
+                "proxy_configuration": "Configuration du proxy",
+                "backup": "Sauvegardes"
             },
             "severities": {
                 "warning": "Avertissement",
@@ -468,13 +469,16 @@
             "types": {
                 "incident": "Incident",
                 "recovery": "Rétablissement",
-                "test": "Test"
+                "test": "Test",
+                "success": "Réussite"
             },
             "incidentStates": {
                 "active": "Incident actif",
                 "recovered": "Rétabli",
                 "test": "Test",
-                "unknown": "Indisponible"
+                "unknown": "Indisponible",
+                "backup_succeeded": "Sauvegarde réussie",
+                "backup_failed": "Sauvegarde échouée"
             },
             "deliveryStates": {
                 "pending": "En attente",

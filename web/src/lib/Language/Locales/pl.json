@@ -418,10 +418,10 @@
             "webhook": "Webhook",
             "events": "Zdarzenia",
             "minimumSeverity": "Minimalny poziom ważności",
-            "thresholdSeconds": "Minimalny czas trwania incydentu (sekundy)",
+            "thresholdSeconds": "Minimalny czas awarii / opóźnienie kopii (sekundy)",
             "enabled": "Włączone",
             "disabled": "Wyłączone",
-            "recovery": "Wysyłaj powiadomienia o przywróceniu działania",
+            "recovery": "Wysyłaj powiadomienia o przywróceniu i udanych kopiach",
             "replaceDestination": "Zmień miejsce docelowe",
             "keepDestination": "Zapisane miejsce docelowe i token bearer pozostaną bez zmian, chyba że zmienisz miejsce docelowe. Zapisane sekrety nigdy nie są wyświetlane.",
             "recipients": "Odbiorcy (oddzieleni przecinkami)",
@@ -460,7 +460,8 @@
             "categories": {
                 "certificate_renewal": "Odnowienie certyfikatu",
                 "ddns": "Dynamiczny DNS",
-                "proxy_configuration": "Konfiguracja serwera proxy"
+                "proxy_configuration": "Konfiguracja serwera proxy",
+                "backup": "Kopie zapasowe"
             },
             "severities": {
                 "warning": "Ostrzeżenie",
@@ -470,13 +471,16 @@
             "types": {
                 "incident": "Incydent",
                 "recovery": "Przywrócenie działania",
-                "test": "Test"
+                "test": "Test",
+                "success": "Sukces"
             },
             "incidentStates": {
                 "active": "Aktywny incydent",
                 "recovered": "Działanie przywrócone",
                 "test": "Test",
-                "unknown": "Niedostępne"
+                "unknown": "Niedostępne",
+                "backup_succeeded": "Kopia zakończona",
+                "backup_failed": "Kopia nieudana"
             },
             "deliveryStates": {
                 "pending": "Oczekuje",
