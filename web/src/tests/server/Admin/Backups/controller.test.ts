@@ -92,3 +92,30 @@ test('busy controller admission remains a conflict rather than unavailable', asy
     const controller = createBackupsController(async () => ({ error: 'busy' }))
     await expect(controller.start({ actorId, requestId })).rejects.toMatchObject({ code: 'busy' })
 })
+
+test('audit acknowledgement is privileged, bounded, validated and abortable on its fixed internal route', async () => {
+    const calls: Parameters<typeof controllerRequest>[] = []
+    const controller = createBackupsController(async (...args) => {
+        calls.push(args)
+        return snapshot
+    })
+    const signal = new AbortController().signal
+    await controller.acknowledgeAudit({ storeId: requestId, sequence: 7 }, signal)
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toEqual([
+        '/internal/v1/backups/audit/ack',
+        {
+            privileged: true,
+            acceptErrorResponse: true,
+            timeoutMs: 5_000,
+            responseLimit: 524288,
+            method: 'POST',
+            body: JSON.stringify({ storeId: requestId, sequence: 7 }),
+            signal,
+        },
+    ])
+    await expect(
+        controller.acknowledgeAudit({ storeId: requestId, sequence: Number.MAX_SAFE_INTEGER + 1 }),
+    ).rejects.toThrow()
+    expect(calls).toHaveLength(1)
+})

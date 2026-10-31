@@ -158,6 +158,10 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         )
         .route("/internal/v1/backups/start", post(handlers::backups::start))
         .route(
+            "/internal/v1/backups/audit/ack",
+            post(handlers::backups::acknowledge_audit),
+        )
+        .route(
             "/internal/v1/backups/config",
             axum::routing::put(handlers::backups::config),
         )

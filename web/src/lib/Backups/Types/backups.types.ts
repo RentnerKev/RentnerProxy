@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type {
     managedBackupArtifactSchema,
+    managedBackupAuditAcknowledgementSchema,
     managedBackupAuditEventSchema,
     managedBackupConfigurationSchema,
     managedBackupConfigurationUpdateSchema,
@@ -11,6 +12,9 @@ import type {
     managedBackupStatusSchema,
 } from '../validation.ts'
 
+export type ManagedBackupAuditAcknowledgement = z.infer<
+    typeof managedBackupAuditAcknowledgementSchema
+>
 export type ManagedBackupArtifact = z.infer<typeof managedBackupArtifactSchema>
 export type ManagedBackupAuditEvent = z.infer<typeof managedBackupAuditEventSchema>
 export type ManagedBackupConfiguration = z.infer<typeof managedBackupConfigurationSchema>

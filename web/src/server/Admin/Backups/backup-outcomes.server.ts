@@ -10,6 +10,7 @@ import { createBackupAuditWorker } from './backup-outcomes.worker.ts'
 const CURSOR_KEY = 'managed_backup_audit_cursor_v1'
 const ingest = createBackupAuditIngestor({
     status: (signal) => backupsController.status(signal),
+    acknowledge: (cursor, signal) => backupsController.acknowledgeAudit(cursor, signal),
     transaction: (run) =>
         getAuthDatabase().transaction(async (transaction) => {
             await transaction.execute(sql`set local statement_timeout = '5000ms'`)

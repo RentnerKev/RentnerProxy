@@ -5,6 +5,7 @@ import {
     ManagedBackupError,
 } from '../../../../../../scripts/backup/managed-jobs.ts'
 import type { ManagedBackupDependencies } from '../../../../../../scripts/backup/Types/managed-jobs.types.ts'
+import { BACKUP_AUDIT_POLICY } from '../../../../config/backups.config.ts'
 import type { ManagedBackupState } from '../../../../lib/Backups/Types/backups.types.ts'
 import {
     managedBackupConfigurationUpdateSchema,
@@ -368,13 +369,154 @@ describe('durable bounded managed backup engine', () => {
             await engine.start(f.request())
             await engine.tick()
             await engine.updateConfiguration({ ...f.config(index + 1), enabled: false })
+            const batch = await engine.status()
+            await engine.acknowledgeAudit({
+                storeId: batch.storeId,
+                sequence: batch.auditEvents.at(-1)!.sequence,
+            })
         }
         const status = await engine.status()
         expect(status.jobs).toHaveLength(100)
         expect(status.jobs.filter((job) => job.retained)).toHaveLength(1)
         expect(f.removed).toHaveLength(119)
-        expect(status.auditEvents).toHaveLength(500)
+        expect(status.auditEvents).toHaveLength(0)
         expect(f.read().configurationRequests).toHaveLength(100)
-        expect(status.auditEvents.at(-1)!.sequence).toBeGreaterThan(500)
+        expect(f.read().auditAcknowledged).toBeGreaterThan(500)
     })
+})
+
+test('an ingestion outage preserves more than 500 events and backpressures admission across restart until durable acknowledgement', async () => {
+    const f = fixture()
+    let engine = await createManagedBackupEngine(f.dependencies)
+    await engine.updateConfiguration(f.config())
+    let completed = 0
+    for (let index = 0; index < 200; index++) {
+        try {
+            await engine.start(f.request())
+        } catch (error) {
+            expect(error).toMatchObject({ code: 'capacity' })
+            break
+        }
+        await engine.tick()
+        completed++
+    }
+    expect(completed).toBeGreaterThan(120)
+    const before = await engine.status()
+    expect(before.auditEvents.length).toBeGreaterThan(500)
+    expect(before.auditEvents.length).toBeLessThanOrEqual(BACKUP_AUDIT_POLICY.capacity)
+    expect(before.auditEvents.map((event) => event.sequence)).toEqual(
+        Array.from({ length: before.auditEvents.length }, (_, index) => index + 1),
+    )
+    engine = await createManagedBackupEngine(f.dependencies)
+    await expect(engine.start(f.request())).rejects.toMatchObject({ code: 'capacity' })
+    f.setNow(3_600_000)
+    await engine.tick()
+    expect(await engine.status()).toEqual(before)
+    await expect(engine.acknowledgeAudit({ storeId: f.id(), sequence: 1 })).rejects.toMatchObject({
+        code: 'revision_conflict',
+    })
+    await expect(
+        engine.acknowledgeAudit({ storeId: before.storeId, sequence: 10_000 }),
+    ).rejects.toMatchObject({ code: 'revision_conflict' })
+    await engine.acknowledgeAudit({ storeId: before.storeId, sequence: 100 })
+    await engine.acknowledgeAudit({ storeId: before.storeId, sequence: 90 })
+    expect((await engine.status()).auditEvents).toEqual(before.auditEvents.slice(100))
+    const last = before.auditEvents.at(-1)!.sequence
+    await engine.acknowledgeAudit({ storeId: before.storeId, sequence: last })
+    engine = await createManagedBackupEngine(f.dependencies)
+    expect((await engine.status()).auditEvents).toEqual([])
+    expect(f.read().auditAcknowledged).toBe(last)
+    await engine.tick()
+    const resumed = await engine.status()
+    expect(resumed.auditEvents[0]?.sequence).toBe(last + 1)
+    expect(resumed.jobs.at(-1)?.state).toBe('succeeded')
+})
+
+test('accepted work reserves the entire worst-case retention lifecycle while configuration admission is backpressured', async () => {
+    const f = fixture()
+    const engine = await createManagedBackupEngine(f.dependencies)
+    await engine.updateConfiguration({ ...f.config(), retentionCount: 50 })
+    for (let index = 0; index < 50; index++) {
+        await engine.start(f.request())
+        await engine.tick()
+    }
+    let revision = 1
+    while (
+        (await engine.status()).auditEvents.length <
+        BACKUP_AUDIT_POLICY.capacity - BACKUP_AUDIT_POLICY.jobEvents - 1
+    ) {
+        await engine.updateConfiguration({ ...f.config(revision++), retentionCount: 50 })
+    }
+    await engine.updateConfiguration({ ...f.config(revision++), retentionCount: 1 })
+    const before = await engine.status()
+    await engine.start(f.request())
+    await expect(engine.updateConfiguration(f.config(revision))).rejects.toMatchObject({
+        code: 'capacity',
+    })
+    const write = f.dependencies.write
+    let concurrentStart: Promise<unknown> | undefined
+    let concurrentConfig: Promise<unknown> | undefined
+    f.dependencies.write = async (state) => {
+        await write(state)
+        if (state.auditEvents.at(-1)?.kind === 'succeeded') {
+            // Queue mutations at the persisted-success boundary, ahead of pruning.
+            concurrentStart = engine.start(f.request()).catch((error: unknown) => error)
+            concurrentConfig = engine
+                .updateConfiguration(f.config(revision))
+                .catch((error: unknown) => error)
+        }
+    }
+    await engine.tick()
+    expect(await concurrentStart).toMatchObject({ code: 'busy' })
+    expect(await concurrentConfig).toMatchObject({ code: 'capacity' })
+    const after = await engine.status()
+    expect(after.jobs.at(-1)?.state).toBe('succeeded')
+    expect(after.jobs.filter((job) => job.retained)).toHaveLength(1)
+    expect(f.removed).toHaveLength(50)
+    expect(after.auditEvents).toHaveLength(BACKUP_AUDIT_POLICY.capacity)
+    expect(after.auditEvents.slice(0, before.auditEvents.length)).toEqual(before.auditEvents)
+})
+
+test.each(['queued', 'running'] as const)(
+    'legacy 500-event journals can recover %s work without truncation',
+    async (state) => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.start(f.request())
+        const legacy = structuredClone(f.read())
+        delete legacy.auditAcknowledged
+        legacy.jobs[0]!.state = state
+        legacy.auditEvents = Array.from({ length: 500 }, (_, index) => ({
+            sequence: index + 1,
+            kind: 'configuration_updated' as const,
+            jobId: null,
+            actorId: null,
+            at: 0,
+        }))
+        f.dependencies.read = async () => legacy
+        const recovered = await createManagedBackupEngine(f.dependencies)
+        await recovered.tick()
+        const status = await recovered.status()
+        expect(status.auditEvents.slice(0, 500)).toEqual(legacy.auditEvents)
+        expect(status.auditEvents.length).toBeGreaterThan(500)
+        expect(status.jobs[0]?.state).toBe(state === 'queued' ? 'succeeded' : 'interrupted')
+    },
+)
+
+test('failed acknowledgement persistence cannot release the retained producer prefix', async () => {
+    const f = fixture()
+    const engine = await createManagedBackupEngine(f.dependencies)
+    await engine.start(f.request())
+    const before = await engine.status()
+    const write = f.dependencies.write
+    f.dependencies.write = async () => {
+        throw new Error('ack write unavailable')
+    }
+    await expect(engine.acknowledgeAudit({ storeId: before.storeId, sequence: 1 })).rejects.toThrow(
+        'ack write unavailable',
+    )
+    expect(await engine.status()).toEqual(before)
+    f.dependencies.write = write
+    await engine.acknowledgeAudit({ storeId: before.storeId, sequence: 1 })
+    expect((await engine.status()).auditEvents).toEqual([])
 })

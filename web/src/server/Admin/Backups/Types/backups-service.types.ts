@@ -12,5 +12,5 @@ export interface BackupAdminDependencies {
     readonly transaction: <T>(
         run: (transaction: BackupMutationTransaction) => Promise<T>,
     ) => Promise<T>
-    readonly controller: typeof backupsController
+    readonly controller: Pick<typeof backupsController, 'status' | 'start' | 'configure'>
 }

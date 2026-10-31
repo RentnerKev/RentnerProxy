@@ -1,7 +1,12 @@
 import { z } from 'zod'
+import { BACKUP_AUDIT_POLICY } from '../../config/backups.config.ts'
 
 const timestamp = z.number().int().nonnegative().safe()
 const digest = z.string().regex(/^[a-f0-9]{64}$/u)
+export const managedBackupAuditAcknowledgementSchema = z.strictObject({
+    storeId: z.uuid(),
+    sequence: timestamp,
+})
 export const managedBackupStartSchema = z.strictObject({ requestId: z.uuid(), actorId: z.uuid() })
 export const managedBackupConfigurationUpdateSchema = managedBackupStartSchema.extend({
     expectedRevision: z.number().int().nonnegative().safe(),
@@ -67,12 +72,13 @@ export const managedBackupStatusSchema = z.strictObject({
     storeId: z.uuid(),
     configuration: managedBackupConfigurationSchema,
     jobs: z.array(managedBackupJobSchema).max(100),
-    auditEvents: z.array(managedBackupAuditEventSchema).max(500),
+    auditEvents: z.array(managedBackupAuditEventSchema).max(BACKUP_AUDIT_POLICY.capacity),
 })
 export const managedBackupStateSchema = managedBackupStatusSchema
     .extend({
         version: z.literal(1),
-        auditEvents: z.array(managedBackupAuditEventSchema).max(500),
+        auditAcknowledged: timestamp.optional(),
+        auditEvents: z.array(managedBackupAuditEventSchema).max(BACKUP_AUDIT_POLICY.capacity),
         configurationRequests: z
             .array(
                 z.strictObject({
@@ -83,6 +89,12 @@ export const managedBackupStateSchema = managedBackupStatusSchema
             .max(100),
     })
     .superRefine((state, context) => {
+        let previous = state.auditAcknowledged ?? (state.auditEvents[0]?.sequence ?? 1) - 1
+        for (const event of state.auditEvents) {
+            if (event.sequence !== previous + 1)
+                context.addIssue({ code: 'custom', message: 'Non-contiguous backup audit events' })
+            previous = event.sequence
+        }
         if (
             state.jobs.filter((job) => job.state === 'queued' || job.state === 'running').length > 1
         ) {

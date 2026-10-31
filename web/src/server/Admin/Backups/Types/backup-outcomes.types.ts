@@ -1,5 +1,8 @@
 import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
-import type { ManagedBackupStatus } from '@/lib/Backups/Types/backups.types.ts'
+import type {
+    ManagedBackupAuditAcknowledgement,
+    ManagedBackupStatus,
+} from '@/lib/Backups/Types/backups.types.ts'
 
 export interface BackupAuditCursor {
     readonly storeId: string | null
@@ -12,6 +15,10 @@ export interface BackupAuditTransaction {
 }
 export interface BackupAuditDependencies {
     readonly status: (signal: AbortSignal) => Promise<ManagedBackupStatus>
+    readonly acknowledge: (
+        cursor: ManagedBackupAuditAcknowledgement,
+        signal: AbortSignal,
+    ) => Promise<unknown>
     readonly transaction: <T>(
         run: (transaction: BackupAuditTransaction) => Promise<T>,
     ) => Promise<T>

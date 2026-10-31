@@ -29,6 +29,13 @@ struct Config {
     retention_count: u32,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuditAcknowledgement {
+    store_id: String,
+    sequence: u64,
+}
+
 fn canonical_uuid(value: &str) -> bool {
     value.len() == 36
         && value.bytes().enumerate().all(|(index, byte)| {
@@ -58,6 +65,18 @@ fn parse<T: serde::de::DeserializeOwned>(body: Result<Bytes, BytesRejection>) ->
 
 pub(in crate::server) async fn status() -> Response {
     forward("GET", "/status", Vec::new()).await
+}
+
+pub(in crate::server) async fn acknowledge_audit(body: Result<Bytes, BytesRejection>) -> Response {
+    let Some(request) = parse::<AuditAcknowledgement>(body).filter(|request| {
+        canonical_uuid(&request.store_id) && request.sequence <= 9_007_199_254_740_991
+    }) else {
+        return error(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match serde_json::to_vec(&request) {
+        Ok(body) => forward("POST", "/audit/ack", body).await,
+        Err(_) => unavailable(),
+    }
 }
 
 pub(in crate::server) async fn start(body: Result<Bytes, BytesRejection>) -> Response {

@@ -11,6 +11,7 @@ import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/bac
 import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
 import {
     managedBackupArtifactSchema,
+    managedBackupAuditAcknowledgementSchema,
     managedBackupStateSchema,
     managedBackupConfigurationUpdateSchema,
     managedBackupSourceSchema,
@@ -295,7 +296,9 @@ export function createBackupAgentHandler(engine: Engine) {
                 ? managedBackupStartSchema
                 : request.method === 'PUT' && path === '/config'
                   ? managedBackupConfigurationUpdateSchema
-                  : null
+                  : request.method === 'POST' && path === '/audit/ack'
+                    ? managedBackupAuditAcknowledgementSchema
+                    : null
         if (schema === null) return Response.json({ error: 'not_found' }, { status: 404 })
         let input: unknown
         try {
@@ -331,6 +334,7 @@ export function createBackupAgentHandler(engine: Engine) {
         }
         try {
             if (path === '/start') await engine.start(input)
+            else if (path === '/audit/ack') await engine.acknowledgeAudit(input)
             else await engine.updateConfiguration(input)
             return Response.json(await engine.status())
         } catch (error) {

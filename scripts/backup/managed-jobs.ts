@@ -1,10 +1,12 @@
 import {
     managedBackupArtifactSchema,
+    managedBackupAuditAcknowledgementSchema,
     managedBackupConfigurationUpdateSchema,
     managedBackupSourceSchema,
     managedBackupStartSchema,
     managedBackupStateSchema,
 } from '../../web/src/lib/Backups/validation.ts'
+import { BACKUP_AUDIT_POLICY } from '../../web/src/config/backups.config.ts'
 import type {
     ManagedBackupAuditEvent,
     ManagedBackupJob,
@@ -25,6 +27,14 @@ export class ManagedBackupError extends Error {
 
 const active = (job: ManagedBackupJob) => job.state === 'queued' || job.state === 'running'
 const interval = (hours: number) => hours * 60 * 60 * 1000
+
+function hasAuditRoom(draft: ManagedBackupState, needed: number) {
+    const sequence = draft.auditEvents.at(-1)?.sequence ?? draft.auditAcknowledged ?? 0
+    return (
+        draft.auditEvents.length + needed <= BACKUP_AUDIT_POLICY.capacity &&
+        Number.isSafeInteger(sequence + needed)
+    )
+}
 
 function trim(draft: ManagedBackupState, limit = 100) {
     // A verified replacement may exceed the retained-record cap when pruning fails.
@@ -57,6 +67,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                   },
                   jobs: [],
                   auditEvents: [],
+                  auditAcknowledged: 0,
                   configurationRequests: [],
               }
             : managedBackupStateSchema.parse(loaded)
@@ -70,14 +81,14 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         job: ManagedBackupJob | null,
         actorId: string | null = job?.actorId ?? null,
     ) {
+        if (!hasAuditRoom(draft, 1)) throw new ManagedBackupError('capacity')
         draft.auditEvents.push({
-            sequence: (draft.auditEvents.at(-1)?.sequence ?? 0) + 1,
+            sequence: (draft.auditEvents.at(-1)?.sequence ?? draft.auditAcknowledged ?? 0) + 1,
             kind,
             jobId: job?.id ?? null,
             actorId,
             at: dependencies.now(),
         })
-        draft.auditEvents = draft.auditEvents.slice(-500)
     }
 
     function mutate<T>(operation: (draft: ManagedBackupState) => T | Promise<T>): Promise<T> {
@@ -117,7 +128,10 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         actorId: string | null,
         scheduledFor: number | null,
     ) {
-        if (draft.jobs.some(active)) throw new ManagedBackupError('busy')
+        // Retention still owns completion capacity after the success record is committed.
+        if (executing || draft.jobs.some(active)) throw new ManagedBackupError('busy')
+        if (!hasAuditRoom(draft, BACKUP_AUDIT_POLICY.jobEvents))
+            throw new ManagedBackupError('capacity')
         trim(draft, 99)
         const job: ManagedBackupJob = {
             id: dependencies.id(),
@@ -174,6 +188,10 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                     throw new ManagedBackupError('revision_conflict')
                 return previous.configuration
             }
+            // Reserve all lifecycle and worst-case pruning events for accepted work.
+            const reserved =
+                executing || draft.jobs.some(active) ? BACKUP_AUDIT_POLICY.jobEvents - 1 : 0
+            if (!hasAuditRoom(draft, 1 + reserved)) throw new ManagedBackupError('capacity')
             const config = draft.configuration
             if (request.expectedRevision !== config.revision)
                 throw new ManagedBackupError('revision_conflict')
@@ -197,6 +215,22 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             draft.configurationRequests = draft.configurationRequests.slice(-100)
             audit(draft, 'configuration_updated', null, request.actorId)
             return draft.configuration
+        })
+    }
+
+    async function acknowledgeAudit(input: unknown) {
+        const acknowledgement = managedBackupAuditAcknowledgementSchema.parse(input)
+        return mutate((draft) => {
+            const last = draft.auditEvents.at(-1)?.sequence ?? draft.auditAcknowledged ?? 0
+            if (acknowledgement.storeId !== draft.storeId || acknowledgement.sequence > last)
+                throw new ManagedBackupError('revision_conflict')
+            if (acknowledgement.sequence <= (draft.auditAcknowledged ?? 0)) return
+            if (!draft.auditEvents.some((event) => event.sequence === acknowledgement.sequence))
+                throw new ManagedBackupError('revision_conflict')
+            draft.auditAcknowledged = acknowledgement.sequence
+            draft.auditEvents = draft.auditEvents.filter(
+                (event) => event.sequence > acknowledgement.sequence,
+            )
         })
     }
 
@@ -231,6 +265,8 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             const config = draft.configuration
             const now = dependencies.now()
             if (!queued && config.enabled && config.nextRunAt !== null && config.nextRunAt <= now) {
+                // A delayed consumer must not drop audit records or strand an accepted job.
+                if (!hasAuditRoom(draft, BACKUP_AUDIT_POLICY.jobEvents)) return null
                 const due = config.nextRunAt
                 queued = await admit(draft, dependencies.id(), null, due)
                 config.nextRunAt =
@@ -295,5 +331,5 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         }
     }
 
-    return { status, start, updateConfiguration, tick }
+    return { status, start, updateConfiguration, tick, acknowledgeAudit }
 }

@@ -43,7 +43,12 @@ async fn call(
 
 #[tokio::test]
 async fn backups_always_require_configured_explicit_token() {
-    for (method, path) in [("GET", "/status"), ("POST", "/start"), ("PUT", "/config")] {
+    for (method, path) in [
+        ("GET", "/status"),
+        ("POST", "/start"),
+        ("PUT", "/config"),
+        ("POST", "/audit/ack"),
+    ] {
         for (configured, authorized) in [(false, false), (false, true), (true, false)] {
             let response = call(
                 app(configured),
@@ -319,4 +324,35 @@ async fn unix_agent_status_uses_fixed_http_suffix() {
     );
     std::fs::remove_file(&socket).unwrap();
     std::fs::remove_dir(&root).unwrap();
+}
+
+#[tokio::test]
+async fn invalid_audit_acknowledgements_never_reach_agent() {
+    for body in [
+        serde_json::json!({"storeId": ID, "sequence": -1}),
+        serde_json::json!({"storeId": ID, "sequence": 1.5}),
+        serde_json::json!({"storeId": ID, "sequence": 9_007_199_254_740_992_u64}),
+        serde_json::json!({"storeId": "../wrong-store", "sequence": 1}),
+        serde_json::json!({"storeId": ID, "sequence": 1, "path": "/etc"}),
+        serde_json::json!({"sequence": 1}),
+    ] {
+        let response = call(
+            app(true),
+            "POST",
+            "/internal/v1/backups/audit/ack",
+            body.to_string(),
+            true,
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+    let request = parse::<AuditAcknowledgement>(Ok(Bytes::from(
+        serde_json::json!({"storeId": ID, "sequence": 9_007_199_254_740_991_u64}).to_string(),
+    )))
+    .unwrap();
+    assert_eq!(request.sequence, 9_007_199_254_740_991);
+    assert_eq!(
+        serde_json::to_value(request).unwrap(),
+        serde_json::json!({"storeId": ID, "sequence": 9_007_199_254_740_991_u64})
+    );
 }

@@ -850,3 +850,30 @@ describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation',
             expect(await readFile(join(retainedPath, 'app-encryption-key'))).toEqual(keyBefore)
         }))
 })
+
+test('agent audit acknowledgement rejects malformed, foreign and future cursors and disposes only acknowledged events', async () => {
+    const { handle, engine } = await fixture()
+    await engine.start({ actorId, requestId })
+    const status = await engine.status()
+    for (const input of [
+        { storeId: status.storeId, sequence: -1 },
+        { storeId: status.storeId, sequence: 1, extra: true },
+    ])
+        expect((await handle(request('POST', '/audit/ack', input))).status).toBe(400)
+    for (const input of [
+        { storeId: actorId, sequence: 1 },
+        { storeId: status.storeId, sequence: 2 },
+    ])
+        expect((await handle(request('POST', '/audit/ack', input))).status).toBe(409)
+    expect((await engine.status()).auditEvents).toHaveLength(1)
+    expect(
+        (await handle(request('POST', '/audit/ack', { storeId: status.storeId, sequence: 1 })))
+            .status,
+    ).toBe(200)
+    expect((await engine.status()).auditEvents).toEqual([])
+    expect(
+        (await handle(request('POST', '/audit/ack', { storeId: status.storeId, sequence: 1 })))
+            .status,
+    ).toBe(200)
+    expect((await handle(request('GET', '/audit/ack'))).status).toBe(404)
+})

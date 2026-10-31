@@ -1,4 +1,6 @@
+// oxlint-disable no-await-in-loop -- Ordered outage fixtures finish each job and durable batch before advancing.
 import { expect, test } from 'bun:test'
+import { createManagedBackupEngine } from '../../../../../../scripts/backup/managed-jobs.ts'
 import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import type {
     ManagedBackupStatus,
@@ -41,6 +43,7 @@ function persistence() {
     let audit: AuditEventInput[] = []
     let failSave = false
     let failAppend = false
+    let failCommit = false
     const transaction: BackupAuditDependencies['transaction'] = (run) => {
         const pending = chain.then(async () => {
             let draft = structuredClone(cursor)
@@ -56,6 +59,7 @@ function persistence() {
                     draft = structuredClone(nextCursor)
                 },
             })
+            if (failCommit) throw new Error('commit unavailable')
             cursor = draft
             audit.push(...rows)
             return value
@@ -70,6 +74,9 @@ function persistence() {
         transaction,
         cursor: () => cursor,
         audit: () => audit,
+        failCommit: (value: boolean) => {
+            failCommit = value
+        },
         failSave: (value: boolean) => {
             failSave = value
         },
@@ -142,6 +149,7 @@ test('concurrent workers and process restart share durable cursor without duplic
     let reads = 0
     const dependencies: BackupAuditDependencies = {
         transaction: store.transaction,
+        acknowledge: async () => {},
         status: async () => {
             reads++
             return snapshot([event(1), event(2, 'failed')])
@@ -156,21 +164,24 @@ test('concurrent workers and process restart share durable cursor without duplic
     expect(store.cursor()).toEqual({ storeId, sequence: 2 })
 })
 
-test.each(['append', 'save'] as const)(
+test.each(['append', 'save', 'commit'] as const)(
     '%s failure atomically rolls back audit and cursor so retry ingests once',
     async (failure) => {
         const store = persistence()
         const ingest = createBackupAuditIngestor({
             transaction: store.transaction,
+            acknowledge: async () => {},
             status: async () => snapshot([event(1)]),
         })
         if (failure === 'append') store.failAppend(true)
-        else store.failSave(true)
+        else if (failure === 'save') store.failSave(true)
+        else store.failCommit(true)
         await expect(ingest(freshSignal())).rejects.toThrow()
         expect(store.audit()).toHaveLength(0)
         expect(store.cursor()).toEqual({ storeId: null, sequence: 0 })
         store.failAppend(false)
         store.failSave(false)
+        store.failCommit(false)
         expect(await ingest(freshSignal())).toBe(1)
         expect(await ingest(freshSignal())).toBe(0)
         expect(store.audit()).toHaveLength(1)
@@ -182,6 +193,7 @@ test('bounded ingestion catches up in batches and new root stores reset the curs
     let current = snapshot(Array.from({ length: 250 }, (_, i) => event(i + 1)))
     const ingest = createBackupAuditIngestor({
         transaction: store.transaction,
+        acknowledge: async () => {},
         status: async () => current,
     })
     expect(await ingest(freshSignal())).toBe(100)
@@ -199,6 +211,7 @@ test('unavailable root or aborted synchronization cannot fabricate outcomes or a
     const store = persistence()
     const unavailable = createBackupAuditIngestor({
         transaction: store.transaction,
+        acknowledge: async () => {},
         status: async () => {
             throw new Error('root unavailable')
         },
@@ -207,6 +220,7 @@ test('unavailable root or aborted synchronization cannot fabricate outcomes or a
     const controller = new AbortController()
     const cancelled = createBackupAuditIngestor({
         transaction: store.transaction,
+        acknowledge: async () => {},
         status: async () => {
             controller.abort()
             return snapshot([event(1)])
@@ -277,4 +291,120 @@ test('worker coalesces overlapping polls, aborts shutdown, and reports only avai
     await pending
     expect(pendingSignal?.aborted).toBe(true)
     expect(warnings).toBe(2)
+})
+
+test.each([{ sequences: [2] }, { sequences: [1, 3] }, { sequences: [1, 2, 4] }])(
+    'audit sequence gaps %j fail before append, commit or acknowledgement',
+    async ({ sequences }) => {
+        const store = persistence()
+        let acknowledgements = 0
+        const ingest = createBackupAuditIngestor({
+            transaction: store.transaction,
+            status: async () => snapshot(sequences.map((sequence) => event(sequence))),
+            acknowledge: async () => {
+                acknowledgements++
+            },
+        })
+        await expect(ingest(freshSignal())).rejects.toThrow()
+        expect(store.audit()).toEqual([])
+        expect(store.cursor()).toEqual({ storeId: null, sequence: 0 })
+        expect(acknowledgements).toBe(0)
+    },
+)
+
+test.each(['append', 'save', 'commit'] as const)(
+    '%s failure never acknowledges uncommitted root events',
+    async (failure) => {
+        const store = persistence()
+        if (failure === 'append') store.failAppend(true)
+        else if (failure === 'save') store.failSave(true)
+        else store.failCommit(true)
+        let acknowledged = false
+        const ingest = createBackupAuditIngestor({
+            transaction: store.transaction,
+            status: async () => snapshot([event(1)]),
+            acknowledge: async () => {
+                acknowledged = true
+            },
+        })
+        await expect(ingest(freshSignal())).rejects.toThrow()
+        expect(acknowledged).toBe(false)
+        expect(store.audit()).toEqual([])
+    },
+)
+
+test('acknowledgement failure after commit retries disposal without duplicating audit rows', async () => {
+    const store = persistence()
+    let fail = true
+    let acknowledgements = 0
+    const ingest = createBackupAuditIngestor({
+        transaction: store.transaction,
+        status: async () => snapshot([event(1), event(2)]),
+        acknowledge: async (cursor) => {
+            acknowledgements++
+            expect(store.cursor()).toEqual(cursor)
+            expect(store.audit()).toHaveLength(2)
+            if (fail) throw new Error('ack transport unavailable')
+        },
+    })
+    await expect(ingest(freshSignal())).rejects.toThrow('ack transport unavailable')
+    expect(store.cursor()).toEqual({ storeId, sequence: 2 })
+    fail = false
+    expect(await ingest(freshSignal())).toBe(0)
+    expect(store.audit()).toHaveLength(2)
+    expect(acknowledgements).toBe(2)
+})
+
+test('real producer and consumer catch up after an outage exceeding the former window without losing outcomes', async () => {
+    let saved: unknown = null
+    let counter = 1000
+    const id = () => `00000000-0000-4000-8000-${String(counter++).padStart(12, '0')}`
+    const engine = await createManagedBackupEngine({
+        read: async () => saved,
+        write: async (state) => {
+            saved = structuredClone(state)
+        },
+        now: () => 0,
+        id,
+        source: () => ({
+            imageId: null,
+            revision: null,
+            version: 'test',
+            buildSha256: 'a'.repeat(64),
+        }),
+        execute: async (job) => ({ id: job.id, metadataSha256: 'b'.repeat(64), bytes: 100 }),
+        verify: async () => true,
+        remove: async () => {},
+    })
+    let completed = 0
+    for (let index = 0; index < 200; index++) {
+        try {
+            await engine.start({ actorId, requestId: id() })
+        } catch (error) {
+            expect(error).toMatchObject({ code: 'capacity' })
+            break
+        }
+        await engine.tick()
+        completed++
+    }
+    const pending = await engine.status()
+    expect(pending.auditEvents.length).toBeGreaterThan(500)
+    const store = persistence()
+    const ingest = createBackupAuditIngestor({
+        transaction: store.transaction,
+        status: async () => engine.status(),
+        acknowledge: (cursor) => engine.acknowledgeAudit(cursor),
+    })
+    while ((await engine.status()).auditEvents.length > 0) await ingest(freshSignal())
+    expect(store.audit()).toHaveLength(pending.auditEvents.length)
+    expect(store.audit().filter((row) => row.action === 'save')).toHaveLength(completed)
+    expect(store.cursor()).toEqual({
+        storeId: pending.storeId,
+        sequence: pending.auditEvents.at(-1)!.sequence,
+    })
+    await engine.start({ actorId, requestId: id() })
+    await engine.tick()
+    await ingest(freshSignal())
+    expect(store.audit().filter((row) => row.action === 'save')).toHaveLength(completed + 1)
+    expect((await engine.status()).auditEvents).toEqual([])
 })

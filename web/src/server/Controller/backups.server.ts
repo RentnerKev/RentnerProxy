@@ -1,8 +1,12 @@
 import '@tanstack/react-start/server-only'
 import { z } from 'zod'
-import { managedBackupStatusSchema } from '@/lib/Backups/validation.ts'
+import {
+    managedBackupAuditAcknowledgementSchema,
+    managedBackupStatusSchema,
+} from '@/lib/Backups/validation.ts'
 import type {
     ManagedBackupStart,
+    ManagedBackupAuditAcknowledgement,
     ManagedBackupConfigurationUpdate,
 } from '@/lib/Backups/Types/backups.types.ts'
 import { BACKUP_ERRORS, BackupDomainError } from '@/server/Admin/Backups/backup.errors.ts'
@@ -32,6 +36,17 @@ export function createBackupsController(request = controllerRequest) {
                 await request('/internal/v1/backups/status', {
                     ...options,
                     timeoutMs: 5_000,
+                    ...(signal ? { signal } : {}),
+                }),
+            )
+        },
+        async acknowledgeAudit(input: ManagedBackupAuditAcknowledgement, signal?: AbortSignal) {
+            return decode(
+                await request('/internal/v1/backups/audit/ack', {
+                    ...options,
+                    timeoutMs: 5_000,
+                    method: 'POST',
+                    body: JSON.stringify(managedBackupAuditAcknowledgementSchema.parse(input)),
                     ...(signal ? { signal } : {}),
                 }),
             )

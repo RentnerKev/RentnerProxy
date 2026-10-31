@@ -11,10 +11,13 @@ export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedB
     const previous = cursor.storeId === status.storeId ? cursor.sequence : 0
     let sequence = -1
     for (const event of status.auditEvents) {
-        if (event.sequence <= sequence) throw new Error('Invalid backup event sequence')
+        if (event.sequence <= sequence || (sequence >= 0 && event.sequence !== sequence + 1))
+            throw new Error('Invalid backup event sequence')
         sequence = event.sequence
     }
     const batch = status.auditEvents.filter((event) => event.sequence > previous).slice(0, 100)
+    if (batch.length > 0 && batch[0]!.sequence !== previous + 1)
+        throw new Error('Missing backup audit events')
     const events: AuditEventInput[] = batch.map((event) => ({
         actorUserId: event.actorId,
         actorKind: event.actorId === null ? 'system' : 'user',
@@ -45,8 +48,8 @@ export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedB
 }
 
 export function createBackupAuditIngestor(dependencies: BackupAuditDependencies) {
-    return (signal: AbortSignal) =>
-        dependencies.transaction(async (transaction) => {
+    return async (signal: AbortSignal) => {
+        const committed = await dependencies.transaction(async (transaction) => {
             signal.throwIfAborted()
             // Read under the cursor lock: snapshots from different root stores must not overtake each other.
             const status = await dependencies.status(signal)
@@ -60,6 +63,11 @@ export function createBackupAuditIngestor(dependencies: BackupAuditDependencies)
             )
                 await transaction.save(batch.cursor)
             signal.throwIfAborted()
-            return batch.events.length
+            return { count: batch.events.length, cursor: batch.cursor }
         })
+        signal.throwIfAborted()
+        // Producer disposal is safe only after the transaction has durably committed.
+        await dependencies.acknowledge(committed.cursor, signal)
+        return committed.count
+    }
 }
