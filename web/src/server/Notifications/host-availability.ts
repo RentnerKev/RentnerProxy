@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { NotificationDomainError } from './notification.errors.ts'
 import {
     appendNotificationIncident,
     admitNotificationIncidents,
@@ -65,7 +66,7 @@ export function observeHostAvailabilityTransition(
             ),
             now,
         )
-        appendNotificationIncident(next, configuration, {
+        const admitted = appendNotificationIncident(next, configuration, {
             id: transition.incidentId,
             category: 'host_availability',
             resourceId: transition.proxyHostId,
@@ -90,6 +91,7 @@ export function observeHostAvailabilityTransition(
                     })),
             },
         })
+        if (!admitted) throw new NotificationDomainError('configuration_unavailable')
     } else {
         // Admit a threshold-qualified outage before closing it, even when the sender was offline.
         const incident = next.incidents.find(

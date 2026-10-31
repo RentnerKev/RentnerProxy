@@ -332,4 +332,27 @@ describe('host availability transitions use the durable notification outbox', ()
                 .type,
         ).toBe('recovery')
     })
+
+    test('hard incident saturation rejects source acceptance until its notification can be persisted', () => {
+        const state = createNotificationState()
+        state.incidents = Array.from({ length: NOTIFICATION_LIMITS.incidents }, () => ({
+            id: randomUUID(),
+            category: 'ddns' as const,
+            resourceId: randomUUID(),
+            severity: 'error' as const,
+            startedAt: 1_000,
+            observedAt: 1_000,
+            evidence: 'current-outage',
+            failures: 1,
+            recoveredAt: null,
+            recoveryEvidence: null,
+            channels: [],
+        }))
+        expect(() => transition(restart(state))).toThrow('configuration_unavailable')
+        expect(state.incidents).toHaveLength(NOTIFICATION_LIMITS.incidents)
+        state.incidents.pop()
+        const accepted = transition(restart(state))
+        expect(accepted.incidents.some((incident) => incident.id === incidentId)).toBe(true)
+        expect(accepted.deliveries[0]?.payload.incidentId).toBe(incidentId)
+    })
 })

@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { HOST_MONITORING_DEFAULTS } from '@/config/host-monitoring.config.ts'
-import { NOTIFICATION_SETTINGS_KEY, NOTIFICATION_STATE_KEY } from '@/config/notifications.config.ts'
+import {
+    NOTIFICATION_LIMITS,
+    NOTIFICATION_SETTINGS_KEY,
+    NOTIFICATION_STATE_KEY,
+} from '@/config/notifications.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { db } from '@/db/index.ts'
 import {
@@ -595,6 +599,85 @@ describe('host availability notification PostgreSQL bridge', () => {
             expect(runtime.engine.deliveries).toHaveLength(1)
             expect(runtime.engine.deliveries[0]?.payload.type).toBe('incident')
             expect(await claimNextNotificationDelivery()).toBeNull()
+        },
+    )
+
+    integrationTest(
+        'a full notification incident store rolls back source completion and permits retry after capacity returns',
+        async () => {
+            const policy = await fixture()
+            await db.transaction(async (transaction) => {
+                await lockNotificationConfiguration(transaction)
+                const runtime = await lockNotificationRuntime(transaction)
+                const now = Date.now()
+                runtime.engine.incidents = Array.from(
+                    { length: NOTIFICATION_LIMITS.incidents },
+                    (_, index) => ({
+                        id: randomUUID(),
+                        category: 'ddns',
+                        resourceId: `capacity-fixture-${index}`,
+                        severity: 'error',
+                        startedAt: now,
+                        observedAt: now,
+                        evidence: `capacity-${index}`,
+                        failures: 1,
+                        recoveredAt: null,
+                        recoveryEvidence: null,
+                        channels: [],
+                    }),
+                )
+                await writeNotificationRuntime(transaction, runtime)
+            })
+            const admitted = await claim(policy)
+            const before = await policyRow(policy)
+            const current = await context(policy)
+            const saturated = await readRuntime()
+            await expect(
+                completeHostMonitoringClaim(admitted, unhealthy, async () => true, current),
+            ).rejects.toMatchObject({ code: 'configuration_unavailable' })
+            expect(await policyRow(policy)).toEqual(before)
+            expect(await readRuntime()).toEqual(saturated)
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckObservations)
+                    .where(eq(hostCheckObservations.policyId, policy.id)),
+            ).toHaveLength(0)
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckIncidents)
+                    .where(eq(hostCheckIncidents.policyId, policy.id)),
+            ).toHaveLength(0)
+            await db.transaction(async (transaction) => {
+                await lockNotificationConfiguration(transaction)
+                const runtime = await lockNotificationRuntime(transaction)
+                runtime.engine.incidents.pop()
+                await writeNotificationRuntime(transaction, runtime)
+            })
+            // The rejected completion retained the original lease and source version for a safe retry.
+            expect(
+                await completeHostMonitoringClaim(admitted, unhealthy, async () => true, current),
+            ).toBe(true)
+            const [source] = await db
+                .select()
+                .from(hostCheckIncidents)
+                .where(eq(hostCheckIncidents.policyId, policy.id))
+            expect(source).toBeDefined()
+            expect(
+                await db
+                    .select()
+                    .from(hostCheckObservations)
+                    .where(eq(hostCheckObservations.policyId, policy.id)),
+            ).toHaveLength(1)
+            const committed = await readRuntime()
+            expect(committed.engine.incidents).toHaveLength(NOTIFICATION_LIMITS.incidents)
+            expect(
+                committed.engine.incidents.find((incident) => incident.id === source!.id),
+            ).toMatchObject({ category: 'host_availability', resourceId: policy.proxyHostId })
+            const delivery = await claimNextNotificationDelivery()
+            expect(delivery?.payload).toMatchObject({ type: 'incident', incidentId: source!.id })
+            expect(await authorizeNotificationDelivery(delivery!)).not.toBeNull()
         },
     )
 

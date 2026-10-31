@@ -39,12 +39,29 @@ const webhookPayload = z.strictObject({
         'certificate_renewal_failed',
         'ddns_update_failed',
         'proxy_apply_failed',
+        'host_unavailable',
         'operation_recovered',
         'notification_test',
     ]),
     occurredAt: z.iso.datetime(),
     startedAt: z.iso.datetime(),
     failures: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    host: z
+        .strictObject({
+            domain: z.string().min(1).max(253),
+            failureCode: z.enum([
+                'unexpected_status',
+                'upstream_unreachable',
+                'upstream_timeout',
+                'upstream_dns_failed',
+                'tls_failed',
+            ]),
+            detectedAt: z.iso.datetime(),
+            recoveryStartedAt: z.iso.datetime().nullable(),
+            managementPath: z.literal('/proxy-hosts'),
+            managementUrl: z.url().optional(),
+        })
+        .optional(),
 })
 
 function privateAddress(): string {

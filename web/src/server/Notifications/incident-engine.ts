@@ -218,7 +218,7 @@ export function appendNotificationIncident(
     state: NotificationState,
     configuration: NotificationEngineConfiguration,
     incident: NotificationIncident,
-): void {
+): boolean {
     if (state.incidents.length >= NOTIFICATION_LIMITS.incidents) {
         const resolved = state.incidents.findIndex(
             (candidate) =>
@@ -231,7 +231,7 @@ export function appendNotificationIncident(
         )
         if (resolved < 0) {
             defer(state)
-            return
+            return false
         }
         state.incidents.splice(resolved, 1)
     }
@@ -239,7 +239,9 @@ export function appendNotificationIncident(
     if (!withinStateLimit(state)) {
         state.incidents.pop()
         defer(state)
+        return false
     }
+    return true
 }
 
 export function admitNotificationIncidents(
