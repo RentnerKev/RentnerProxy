@@ -137,7 +137,11 @@ async function abortReadyChild(descendant: boolean) {
                 try {
                     status = await readFile(`/proc/${pids.nested}/stat`, 'utf8')
                 } catch (error) {
-                    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT')
+                    if (
+                        !(error instanceof Error) ||
+                        !('code' in error) ||
+                        (error.code !== 'ENOENT' && error.code !== 'ESRCH')
+                    )
                         throw error
                 }
                 // A killed grandchild can briefly remain as an orphan zombie awaiting init's reap.
