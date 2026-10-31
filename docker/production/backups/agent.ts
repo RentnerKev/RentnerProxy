@@ -98,6 +98,22 @@ function canonicalUuid(value: string) {
     return value === value.toLowerCase() && z.uuid().safeParse(value).success
 }
 
+async function stageBackupDisposal(directory: string, root: string, deletionId: string) {
+    if (!canonicalUuid(deletionId)) throw new UnsafeBackupArtifact('invalid deletion receipt')
+    const receipt = join(root, '.deleting-' + deletionId)
+    try {
+        await lstat(receipt)
+        throw new UnsafeBackupArtifact('backup deletion receipt already exists')
+    } catch (error) {
+        if (!missing(error)) throw error
+    }
+    // Preserve any existing receipt inode. The exclusive agent owns this
+    // root-private namespace, so the checked rename cannot race another job.
+    await rename(directory, receipt)
+    await syncBackupDirectory(root)
+    return receipt
+}
+
 export async function reconcileBackupArtifacts(
     jobs: ManagedBackupJob[],
     root = artifactsRoot,
@@ -175,19 +191,7 @@ export async function reconcileBackupArtifacts(
         }
         // Uncommitted publication cleanup never changes success/history or
         // authorizes pruning the last retained successful recovery point.
-        const deletionId = disposal.id()
-        if (!canonicalUuid(deletionId)) throw new UnsafeBackupArtifact('invalid deletion receipt')
-        const receipt = join(root, '.deleting-' + deletionId)
-        try {
-            await lstat(receipt)
-            throw new UnsafeBackupArtifact('backup deletion receipt already exists')
-        } catch (error) {
-            if (!missing(error)) throw error
-        }
-        // Preserve any existing receipt inode. The exclusive agent owns this
-        // root-private namespace, so the checked rename cannot race another job.
-        await rename(directory, receipt)
-        await syncBackupDirectory(root)
+        const receipt = await stageBackupDisposal(directory, root, disposal.id())
         await disposal.remove(receipt)
         await syncBackupDirectory(root)
     }
@@ -259,20 +263,22 @@ export async function removeRetainedBackup(
                 throw error
             }
         },
-        inspect: (id: string) => ownedArtifactDirectory(id),
+        inspect: (directory: string) => inspectOwnedArtifactDirectory(directory, false),
         remove: (directory: string) => rm(directory, { recursive: true }),
-        sync: () => syncBackupDirectory(artifactsRoot),
+        sync: (directory: string) => syncBackupDirectory(directory),
     },
+    root = artifactsRoot,
 ) {
     z.uuid().parse(job.id)
     if (job.state !== 'succeeded' || !job.retained || job.artifact?.id !== job.id)
         throw new Error('backup cannot be removed')
     // A prior removal may have reached disk before its retained=false state write. Only
     // absence of this exact canonical directory is idempotent; partial damage still fails.
-    if (!(await io.exists(join(artifactsRoot, job.id)))) return
-    const directory = await io.inspect(job.id)
-    await io.remove(directory)
-    await io.sync()
+    if (!(await io.exists(join(root, job.id)))) return
+    const directory = await io.inspect(join(root, job.id))
+    const receipt = await stageBackupDisposal(directory, root, randomUUID())
+    await io.remove(receipt)
+    await io.sync(root)
 }
 export function createBackupAgentHandler(engine: Engine) {
     return async (request: Request): Promise<Response> => {

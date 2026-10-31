@@ -2,7 +2,17 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+    link,
+    lstat,
+    mkdir,
+    mkdtemp,
+    readFile,
+    readdir,
+    rm,
+    symlink,
+    writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -14,8 +24,14 @@ import {
     removeRetainedBackup,
 } from '../../../../../../docker/production/backups/agent.ts'
 import { createManagedBackupEngine } from '../../../../../../scripts/backup/managed-jobs.ts'
-import { verifyPublishedBackup } from '../../../../../../scripts/backup/publication.ts'
-import type { ManagedBackupJob } from '../../../../../../web/src/lib/Backups/Types/backups.types.ts'
+import {
+    syncBackupDirectory,
+    verifyPublishedBackup,
+} from '../../../../../../scripts/backup/publication.ts'
+import type {
+    ManagedBackupJob,
+    ManagedBackupState,
+} from '../../../../../../web/src/lib/Backups/Types/backups.types.ts'
 
 const actorId = '00000000-0000-4000-8000-000000000001'
 const requestId = '00000000-0000-4000-8000-000000000002'
@@ -349,6 +365,129 @@ async function verifiedFixture(root: string, job: ManagedBackupJob) {
 }
 
 describe.skipIf(!rootFilesystem)('root Linux backup publication reconciliation', () => {
+    test('retention resumes after partial unlink and restart, then the engine restores the configured point count', () =>
+        filesystemFixture(async (root, base) => {
+            const oldest = { ...base, state: 'succeeded' as const, retained: true }
+            const other = { ...oldest, id: idFor(1200), requestId: idFor(1201) }
+            await verifiedFixture(root, oldest)
+            const otherPath = await verifiedFixture(root, other)
+            const otherBytes = await readFile(join(otherPath, 'postgres.dump'))
+            const { engine: seed } = await fixture()
+            let state: ManagedBackupState = {
+                ...(await seed.status()),
+                version: 1,
+                configurationRequests: [],
+                jobs: [oldest, other],
+            }
+            state.configuration.retentionCount = 2
+            let counter = 2000
+            let interrupt = true
+            const retentionIo = {
+                exists: async (directory: string) => {
+                    try {
+                        await lstat(directory)
+                        return true
+                    } catch (error) {
+                        if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+                            return false
+                        throw error
+                    }
+                },
+                inspect: async (directory: string) => {
+                    await verifyPublishedBackup(directory)
+                    return directory
+                },
+                remove: async (directory: string) => {
+                    expect(directory).toContain('/.deleting-')
+                    if (interrupt) {
+                        interrupt = false
+                        await rm(join(directory, 'metadata.json'))
+                        await rm(join(directory, 'postgres.dump'))
+                        throw new Error('simulated retention stop after partial unlink')
+                    }
+                    await rm(directory, { recursive: true })
+                },
+                sync: () => syncBackupDirectory(root),
+            }
+            const restart = () =>
+                createManagedBackupEngine({
+                    read: async () => structuredClone(state),
+                    write: async (value) => {
+                        state = structuredClone(value)
+                    },
+                    now: () => 0,
+                    id: () => idFor(counter++),
+                    source: () => base.source,
+                    execute: async (job) => {
+                        await verifiedFixture(root, job)
+                        return job.artifact!
+                    },
+                    verify: async (job) => {
+                        try {
+                            const verified = await verifyPublishedBackup(join(root, job.id))
+                            return (
+                                job.artifact?.id === job.id &&
+                                verified.metadataSha256 === job.artifact.metadataSha256 &&
+                                verified.bytes === job.artifact.bytes
+                            )
+                        } catch {
+                            return false
+                        }
+                    },
+                    remove: (job) => removeRetainedBackup(job, retentionIo, root),
+                })
+            let engine = await restart()
+            const replacement = await engine.start({ actorId, requestId: idFor(3000) })
+            await engine.tick()
+            let status = await engine.status()
+            expect(status.jobs.find((job) => job.id === replacement.id)?.state).toBe('succeeded')
+            expect(status.jobs.filter((job) => job.retained)).toHaveLength(3)
+            const receipt = (await readdir(root)).find((name) => name.startsWith('.deleting-'))!
+            expect(await readdir(join(root, receipt))).toHaveLength(3)
+            await expect(lstat(join(root, oldest.id))).rejects.toThrow('ENOENT')
+            const replacementBytes = await readFile(join(root, replacement.id, 'postgres.dump'))
+            expect(await readFile(join(otherPath, 'postgres.dump'))).toEqual(otherBytes)
+
+            engine = await restart()
+            await reconcileBackupArtifacts((await engine.status()).jobs, root)
+            expect((await readdir(root)).toSorted()).toEqual([other.id, replacement.id].toSorted())
+            expect(await readFile(join(otherPath, 'postgres.dump'))).toEqual(otherBytes)
+            expect(await readFile(join(root, replacement.id, 'postgres.dump'))).toEqual(
+                replacementBytes,
+            )
+            // The absent canonical point is idempotent even though its old journal
+            // still says retained. The next real prune can advance past it.
+            await removeRetainedBackup(oldest, undefined, root)
+            const next = await engine.start({ actorId, requestId: idFor(3001) })
+            await engine.tick()
+            status = await engine.status()
+            expect(status.jobs.filter((job) => job.retained).map((job) => job.id)).toEqual([
+                replacement.id,
+                next.id,
+            ])
+            expect((await readdir(root)).toSorted()).toEqual([replacement.id, next.id].toSorted())
+            expect(await readFile(join(root, replacement.id, 'postgres.dump'))).toEqual(
+                replacementBytes,
+            )
+            expect((await verifyPublishedBackup(join(root, next.id))).metadata.source).toEqual(
+                base.source,
+            )
+        }))
+
+    test('a partial retained canonical point without a deletion receipt remains fail closed', () =>
+        filesystemFixture(async (root, base) => {
+            const retained = { ...base, state: 'succeeded' as const, retained: true }
+            const canonical = await verifiedFixture(root, retained)
+            await rm(join(canonical, 'metadata.json'))
+            const before = await readFile(join(canonical, 'postgres.dump'))
+            await expect(removeRetainedBackup(retained, undefined, root)).rejects.toThrow(
+                'invalid backup entries',
+            )
+            expect(await readdir(root)).toEqual([retained.id])
+            expect(await readdir(canonical)).toHaveLength(4)
+            expect(await readFile(join(canonical, 'postgres.dump'))).toEqual(before)
+        }))
+
     test('reclaims known corrupt failed publications, interrupted and trimmed orphans while preserving retained bytes and history', () =>
         filesystemFixture(async (root, base) => {
             const retained = { ...base, state: 'succeeded' as const, retained: true }
