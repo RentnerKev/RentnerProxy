@@ -5,6 +5,7 @@ import {
     NOTIFICATION_SEVERITIES,
 } from '@/config/notifications.config.ts'
 import type { NotificationState } from './Types/notification-state.types.ts'
+import { hostAvailabilityNotificationSchema } from '@/lib/Notifications/validation.ts'
 
 const time = z.number().int().min(0).max(8_640_000_000_000_000)
 const counter = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
@@ -35,12 +36,14 @@ const payload = z.strictObject({
         'certificate_renewal_failed',
         'ddns_update_failed',
         'proxy_apply_failed',
+        'host_unavailable',
         'operation_recovered',
         'notification_test',
     ]),
     occurredAt: z.iso.datetime(),
     startedAt: z.iso.datetime(),
     failures: counter,
+    host: hostAvailabilityNotificationSchema.optional(),
 })
 
 export const notificationStateSchema: z.ZodType<NotificationState> = z
@@ -79,6 +82,23 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
                             }),
                         )
                         .max(NOTIFICATION_LIMITS.totalChannels),
+                    host: hostAvailabilityNotificationSchema
+                        .extend({
+                            policyId: identifier,
+                            policyVersion: identifier,
+                            contextProof: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+                            contextRevision: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+                            subscriptions: z
+                                .array(
+                                    z.strictObject({
+                                        channelId: identifier,
+                                        channelRevision: revision,
+                                    }),
+                                )
+                                .max(NOTIFICATION_LIMITS.totalChannels)
+                                .optional(),
+                        })
+                        .optional(),
                 }),
             )
             .max(NOTIFICATION_LIMITS.incidents),
@@ -115,6 +135,8 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
             context.addIssue({ code: 'custom', message: 'Invalid proxy apply chronology' })
         const incidentIds = new Set<string>()
         for (const incident of state.incidents) {
+            if ((incident.category === 'host_availability') !== Boolean(incident.host))
+                context.addIssue({ code: 'custom', message: 'Invalid host incident context' })
             const key = JSON.stringify([incident.category, incident.resourceId])
             if (incidentIds.has(incident.id) || (incident.recoveredAt === null && open.has(key)))
                 context.addIssue({ code: 'custom', message: 'Duplicate incident' })
@@ -136,6 +158,12 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
         const deliveryIds = new Set<string>()
         const leases = new Set<string>()
         for (const delivery of state.deliveries) {
+            if (
+                delivery.payload.type !== 'test' &&
+                (delivery.payload.category === 'host_availability') !==
+                    Boolean(delivery.payload.host)
+            )
+                context.addIssue({ code: 'custom', message: 'Invalid host delivery context' })
             if (deliveryIds.has(delivery.id) || delivery.id !== delivery.payload.id)
                 context.addIssue({ code: 'custom', message: 'Invalid delivery identity' })
             deliveryIds.add(delivery.id)

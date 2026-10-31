@@ -5,6 +5,7 @@ import type {
 } from '@/lib/Notifications/Types/notifications.types.ts'
 import { sendNotificationEmailService } from '@/server/Mail/mail.service.ts'
 import type { MailAppearance } from '@/server/Mail/Types/mail-theme.types.ts'
+import { getPublicOrigin } from '@/server/env.server.ts'
 import { deliverWebhookNotification } from './webhook-delivery.ts'
 import { parseWebhookDestination } from './webhook-policy.ts'
 
@@ -39,6 +40,7 @@ export async function deliverNotification(
         return { success: false, code: 'destination_blocked', retryable: false }
     }
     // Construct an allowlisted object so incidental source fields can never cross the transport boundary.
+    const origin = payload.host ? getPublicOrigin() : null
     const safe: NotificationPayload = {
         schemaVersion: 1,
         id: payload.id,
@@ -51,6 +53,18 @@ export async function deliverNotification(
         occurredAt: payload.occurredAt,
         startedAt: payload.startedAt,
         failures: payload.failures,
+        ...(payload.host
+            ? {
+                  host: {
+                      domain: payload.host.domain,
+                      failureCode: payload.host.failureCode,
+                      detectedAt: payload.host.detectedAt,
+                      recoveryStartedAt: payload.host.recoveryStartedAt,
+                      managementPath: '/proxy-hosts',
+                      ...(origin ? { managementUrl: new URL('/proxy-hosts', origin).href } : {}),
+                  },
+              }
+            : {}),
     }
     try {
         return destination.kind === 'email'

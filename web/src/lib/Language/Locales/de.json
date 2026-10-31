@@ -644,7 +644,8 @@
             "categories": {
                 "certificate_renewal": "Zertifikatserneuerung",
                 "ddns": "Dynamisches DNS",
-                "proxy_configuration": "Proxy-Konfiguration"
+                "proxy_configuration": "Proxy-Konfiguration",
+                "host_availability": "Host-Ausfälle und Wiederherstellung"
             },
             "severities": {
                 "warning": "Warnung",

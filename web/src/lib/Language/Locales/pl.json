@@ -460,7 +460,8 @@
             "categories": {
                 "certificate_renewal": "Odnowienie certyfikatu",
                 "ddns": "Dynamiczny DNS",
-                "proxy_configuration": "Konfiguracja serwera proxy"
+                "proxy_configuration": "Konfiguracja serwera proxy",
+                "host_availability": "Awarie i przywracanie hostów"
             },
             "severities": {
                 "warning": "Ostrzeżenie",

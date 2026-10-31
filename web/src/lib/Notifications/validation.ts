@@ -4,6 +4,20 @@ import {
     NOTIFICATION_LIMITS,
     NOTIFICATION_SEVERITIES,
 } from '@/config/notifications.config.ts'
+import { HOST_MONITORING_OUTCOME_CODES } from '@/config/host-monitoring.config.ts'
+
+export const hostAvailabilityNotificationSchema = z.strictObject({
+    domain: z
+        .string()
+        .min(1)
+        .max(253)
+        .regex(/^[a-z0-9.-]+$/u),
+    failureCode: z.enum(HOST_MONITORING_OUTCOME_CODES),
+    detectedAt: z.iso.datetime(),
+    recoveryStartedAt: z.iso.datetime().nullable(),
+    managementPath: z.literal('/proxy-hosts'),
+    managementUrl: z.url().max(2_048).optional(),
+})
 
 const notificationIdSchema = z.uuid().regex(/^[a-f0-9-]+$/u)
 export const notificationRevisionSchema = z.number().int().min(0).max(4_294_967_295)

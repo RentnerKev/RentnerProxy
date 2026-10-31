@@ -2,9 +2,19 @@ import type {
     NOTIFICATION_CATEGORIES,
     NOTIFICATION_SEVERITIES,
 } from '@/config/notifications.config.ts'
+import type { HostMonitoringOutcomeCode } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]
 export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number]
+
+export interface HostAvailabilityNotification {
+    readonly domain: string
+    readonly failureCode: HostMonitoringOutcomeCode
+    readonly detectedAt: string
+    readonly recoveryStartedAt: string | null
+    readonly managementPath: '/proxy-hosts'
+    readonly managementUrl?: string | undefined
+}
 
 export interface NotificationPayload {
     readonly schemaVersion: 1
@@ -19,11 +29,13 @@ export interface NotificationPayload {
         | 'certificate_renewal_failed'
         | 'ddns_update_failed'
         | 'proxy_apply_failed'
+        | 'host_unavailable'
         | 'operation_recovered'
         | 'notification_test'
     readonly occurredAt: string
     readonly startedAt: string
     readonly failures: number
+    readonly host?: HostAvailabilityNotification | undefined
 }
 
 export interface NotificationChannelPolicy {

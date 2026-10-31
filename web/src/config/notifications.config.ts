@@ -2,6 +2,7 @@ export const NOTIFICATION_CATEGORIES = [
     'certificate_renewal',
     'ddns',
     'proxy_configuration',
+    'host_availability',
 ] as const
 export const NOTIFICATION_SEVERITIES = ['warning', 'error', 'critical'] as const
 export const NOTIFICATION_SETTINGS_KEY = 'notification_configuration_v1'

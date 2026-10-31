@@ -32,7 +32,7 @@ const webhookPayload = z.strictObject({
     id: z.uuid(),
     incidentId: z.uuid(),
     type: z.enum(['incident', 'recovery', 'test']),
-    category: z.enum(['certificate_renewal', 'ddns', 'proxy_configuration']),
+    category: z.enum(['certificate_renewal', 'ddns', 'proxy_configuration', 'host_availability']),
     severity: z.enum(['info', 'warning', 'error', 'critical']),
     resourceId: z.string().min(1).max(512),
     code: z.enum([

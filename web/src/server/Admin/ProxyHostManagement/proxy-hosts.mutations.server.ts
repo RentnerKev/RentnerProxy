@@ -34,6 +34,7 @@ import { assertDiscoveryHostEditable } from '@/server/Admin/DockerDiscovery/disc
 import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
 import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { invalidateHostMonitoringForHostsInTransaction } from '@/server/HostMonitoring/host-monitoring.repository.ts'
 
 function invalidInput(): ProxyHostDomainError {
     return new ProxyHostDomainError('invalid_input', 'Proxy host input is invalid.')
@@ -341,6 +342,21 @@ export async function updateProxyHostInTransaction(
         forceHttps,
         domains,
     )
+    const previousDomains = await transaction
+        .select({ domain: hostDomains.domain })
+        .from(hostDomains)
+        .where(eq(hostDomains.proxyHostId, proxyHost.id))
+    const availabilityChanged =
+        parsedInput.enabled !== proxyHost.enabled ||
+        parsedInput.forwardScheme !== proxyHost.forwardScheme ||
+        parsedInput.forwardHost !== proxyHost.forwardHost ||
+        parsedInput.forwardPort !== proxyHost.forwardPort ||
+        JSON.stringify(previousDomains.map(({ domain }) => domain).toSorted()) !==
+            JSON.stringify(domains) ||
+        (parsedInput.forwardScheme === 'https' &&
+            (upstreamTls.verifyUpstreamTls !== proxyHost.verifyUpstreamTls ||
+                upstreamTls.upstreamTlsServerName !== proxyHost.upstreamTlsServerName ||
+                upstreamTls.trustedCaId !== proxyHost.trustedCaId))
     const rows = await transaction
         .update(proxyHosts)
         .set({
@@ -379,6 +395,12 @@ export async function updateProxyHostInTransaction(
         await writeProxyHostHttpSettings(transaction, proxyHost.id, httpSettings)
     }
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
+    if (availabilityChanged)
+        await invalidateHostMonitoringForHostsInTransaction(
+            transaction,
+            [proxyHost.id],
+            !parsedInput.enabled && proxyHost.enabled ? 'monitoring_disabled' : 'policy_changed',
+        )
     if (parsedInput.responseCache !== undefined)
         await writeAuthorizedResponseCacheSettings(
             transaction,

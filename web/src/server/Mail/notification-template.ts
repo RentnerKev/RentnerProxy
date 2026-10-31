@@ -35,6 +35,16 @@ const CATEGORY_COPY = {
         recovery: 'Die gewünschte Proxy-Konfiguration wurde erfolgreich aktiviert.',
         nextStep: 'Prüfe den Proxy-Status und die letzte Fehlermeldung in RentnerProxy.',
     },
+    host_availability: {
+        label: 'Host-Verfügbarkeit',
+        heading: 'Überwachter Upstream nicht erreichbar',
+        summary:
+            'Die Verfügbarkeitsprüfung auf der Appliance hat eine Störung des überwachten Upstreams bestätigt.',
+        recovery:
+            'Die Verfügbarkeitsprüfung auf der Appliance ist wieder erfolgreich. Die öffentliche Erreichbarkeit wird damit nicht geprüft.',
+        nextStep:
+            'Öffne den betroffenen Proxy-Host in RentnerProxy und prüfe seine Verfügbarkeitshistorie.',
+    },
 } satisfies Record<NotificationCategory, NotificationMailCategoryDefinition>
 
 const DATE_FORMAT = new Intl.DateTimeFormat('de-DE', {
@@ -124,6 +134,28 @@ export function createNotificationEmailTemplate(
                   ? []
                   : [['Fehlversuche', String(payload.failures)] as [string, string]]),
           ]
+    const managementUrl = !isTest && payload.host ? new URL('/proxy-hosts', appUrl).href : null
+    if (!isTest && payload.host) {
+        const summaries = {
+            unexpected_status: 'Der Upstream hat einen unerwarteten HTTP-Status zurückgegeben.',
+            upstream_unreachable: 'Die Verbindung zum Upstream ist fehlgeschlagen.',
+            upstream_timeout: 'Der Upstream hat nicht rechtzeitig geantwortet.',
+            upstream_dns_failed: 'Der DNS-Name des Upstreams konnte nicht aufgelöst werden.',
+            tls_failed: 'Die TLS-Prüfung des Upstreams ist fehlgeschlagen.',
+        }
+        details.unshift(['Host', payload.host.domain])
+        details.push(
+            ['Störung bestätigt', formatTime(payload.host.detectedAt)],
+            [
+                'Fehler',
+                Object.hasOwn(summaries, payload.host.failureCode)
+                    ? summaries[payload.host.failureCode as keyof typeof summaries]
+                    : 'Die Verfügbarkeitsprüfung ist fehlgeschlagen.',
+            ],
+        )
+        if (isRecovery && payload.host.recoveryStartedAt)
+            details.push(['Erste erfolgreiche Prüfung', formatTime(payload.host.recoveryStartedAt)])
+    }
     const subject = `RentnerProxy: ${heading}`
     const text = [
         'RentnerProxy',
@@ -135,6 +167,7 @@ export function createNotificationEmailTemplate(
         ...details.map(([label, value]) => `${label}: ${value}`),
         '',
         nextStep,
+        ...(managementUrl ? ['', `Host-Verwaltung: ${managementUrl}`] : []),
         '',
         `Nachrichten-ID: ${payload.id}`,
     ].join('\n')
@@ -161,6 +194,7 @@ export function createNotificationEmailTemplate(
         <tr>
             <td style="padding:8px 24px 24px;">
                 <p style="margin:0;color:${theme.softInk};font-size:13px;line-height:1.7;">${Bun.escapeHTML(nextStep)}</p>
+                ${managementUrl ? `<p style="margin:12px 0 0;"><a href="${Bun.escapeHTML(managementUrl)}" style="color:${theme.ink};">Host-Verwaltung öffnen</a></p>` : ''}
             </td>
         </tr>`,
     })
