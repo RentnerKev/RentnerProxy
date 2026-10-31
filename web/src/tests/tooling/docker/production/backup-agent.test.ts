@@ -215,6 +215,35 @@ describe('private root backup agent routes', () => {
             }),
         ).rejects.toThrow('IO failed')
     })
+    test('startup reconciles graceful-stop recovery failure without a result while runtime refuses it', async () => {
+        const { engine } = await fixture()
+        const job = await engine.start({ actorId, requestId })
+        job.state = 'failed'
+        job.error = 'recovery_failed'
+        job.startedAt = 0
+        job.finishedAt = 100
+        job.durationMs = 100
+        const removed: string[] = []
+        const io = {
+            read: async (path: string) => (path.endsWith('active.json') ? { id: job.id } : null),
+            remove: async (path: string) => {
+                removed.push(path)
+            },
+        }
+        await expect(reconcileBackupControl([job], 'runtime', io)).rejects.toThrow(
+            'backup lifecycle incomplete',
+        )
+        expect(removed).toEqual([])
+        await reconcileBackupControl([job], 'startup', io)
+        expect(removed).toHaveLength(1)
+        expect(removed[0]).toEndWith('active.json')
+        expect(job).toMatchObject({
+            state: 'failed',
+            error: 'recovery_failed',
+            artifact: null,
+            retained: false,
+        })
+    })
     test('sanitizes internal persistence failures', async () => {
         const { engine } = await fixture()
         engine.start = async () => {

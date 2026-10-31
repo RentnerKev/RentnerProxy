@@ -225,10 +225,10 @@ export async function reconcileBackupControl(
             throw new Error('backup lifecycle incomplete')
         if (path === activeFile) {
             const result = await io.read(resultFile)
-            // The unique agent reconciles old interrupted work before consumers start. A missing
+            // The unique agent reconciles stopped work before consumers start. A missing
             // result cannot prove success, but must not make a stopped container unbootable.
             if (result === null) {
-                if (phase !== 'startup' || job.state !== 'interrupted')
+                if (phase !== 'startup' || (job.state !== 'interrupted' && job.state !== 'failed'))
                     throw new Error('backup lifecycle incomplete')
             } else {
                 if (resultSchema.parse(result).id !== identity.id)
