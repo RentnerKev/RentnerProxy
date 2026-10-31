@@ -151,6 +151,25 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             state.clone(),
             authorize_certificate_request,
         ));
+    let backups = Router::new()
+        .route(
+            "/internal/v1/backups/status",
+            get(handlers::backups::status),
+        )
+        .route("/internal/v1/backups/start", post(handlers::backups::start))
+        .route(
+            "/internal/v1/backups/audit/ack",
+            post(handlers::backups::acknowledge_audit),
+        )
+        .route(
+            "/internal/v1/backups/config",
+            axum::routing::put(handlers::backups::config),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(2_048))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authorize_certificate_request,
+        ));
     let diagnostics = Router::new()
         .route(
             "/internal/v1/diagnostics/domain",
@@ -409,6 +428,7 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             }),
         )
         .merge(certificates)
+        .merge(backups)
         .merge(connections)
         .merge(ddns)
         .merge(discovery)

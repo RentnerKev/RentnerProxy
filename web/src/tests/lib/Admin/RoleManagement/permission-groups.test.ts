@@ -30,6 +30,7 @@ describe('role permission groups', () => {
             'redirect_hosts.',
             'certificates.',
             'dns_connections.',
+            'backups.',
             'ddns.',
             'notifications.',
             'docker_discovery.',

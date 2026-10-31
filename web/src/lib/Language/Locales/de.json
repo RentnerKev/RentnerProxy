@@ -602,10 +602,10 @@
             "webhook": "Webhook",
             "events": "Ereignisse",
             "minimumSeverity": "Minimaler Schweregrad",
-            "thresholdSeconds": "Minimale Störungsdauer (Sekunden)",
+            "thresholdSeconds": "Minimale Störungsdauer / Backup-Verzögerung (Sekunden)",
             "enabled": "Aktiviert",
             "disabled": "Deaktiviert",
-            "recovery": "Entwarnungen senden",
+            "recovery": "Entwarnungen und erfolgreiche Backups senden",
             "replaceDestination": "Ziel ersetzen",
             "keepDestination": "Gespeichertes Ziel und Bearer-Token bleiben erhalten, bis du das Ziel ersetzt. Gespeicherte Geheimnisse werden nie angezeigt.",
             "recipients": "Empfänger (durch Komma getrennt)",
@@ -645,6 +645,7 @@
                 "certificate_renewal": "Zertifikatserneuerung",
                 "ddns": "Dynamisches DNS",
                 "proxy_configuration": "Proxy-Konfiguration",
+                "backup": "Backups",
                 "host_availability": "Host-Ausfälle und Wiederherstellung"
             },
             "severities": {
@@ -655,13 +656,16 @@
             "types": {
                 "incident": "Störung",
                 "recovery": "Entwarnung",
-                "test": "Test"
+                "test": "Test",
+                "success": "Erfolg"
             },
             "incidentStates": {
                 "active": "Aktive Störung",
                 "recovered": "Behoben",
                 "test": "Test",
-                "unknown": "Nicht verfügbar"
+                "unknown": "Nicht verfügbar",
+                "backup_succeeded": "Backup erfolgreich",
+                "backup_failed": "Backup fehlgeschlagen"
             },
             "deliveryStates": {
                 "pending": "Ausstehend",
@@ -3621,7 +3625,8 @@
             "dns_connections": "DNS-Verbindungen",
             "ddns": "Dynamisches DNS",
             "notifications": "Benachrichtigungen",
-            "docker_discovery": "Docker Discovery"
+            "docker_discovery": "Docker Discovery",
+            "backups": "Backups"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -3714,6 +3719,10 @@
         "ddns": {
             "view": "DDNS-Status ansehen",
             "manage": "DDNS-Konfiguration verwalten"
+        },
+        "backups": {
+            "view": "Verwaltete Backups anzeigen",
+            "manage": "Backups und Zeitpläne verwalten"
         }
     },
     "systemRoles": {

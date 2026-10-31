@@ -98,6 +98,8 @@ function postgresRestoreCommand(validateOnly: boolean): string {
                   ')',
                   "UPDATE rentnerproxy.system_settings AS settings SET value = jsonb_set(jsonb_set(jsonb_set(normalized.value, '{enabled}', 'false'::jsonb), '{pausedAfterRestore}', 'true'::jsonb), '{revision}', to_jsonb(least((normalized.value->>'revision')::bigint + 1, 4294967295))) FROM normalized WHERE settings.id = normalized.id;",
                   "DELETE FROM rentnerproxy.system_settings WHERE key = 'notification_delivery_state_v1';",
+                  // The volume's root journal survives a database restore; explicitly rebase its rewound consumer once.
+                  'INSERT INTO rentnerproxy.system_settings(key, value) VALUES (\'managed_backup_audit_cursor_v1\', \'{"storeId":null,"sequence":0,"restorePending":true}\'::jsonb) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();',
                   'RESTORE_NOTIFICATION_SQL',
               ]),
         'restore_phase=execute',

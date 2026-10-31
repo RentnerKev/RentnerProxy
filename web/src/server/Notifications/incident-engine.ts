@@ -70,6 +70,12 @@ export function createNotificationState(): NotificationState {
     }
 }
 
+function deliveryLifetimeStartedAt(delivery: NotificationQueuedDelivery) {
+    return delivery.payload.category === 'backup'
+        ? (delivery.backupAvailableAt ?? delivery.createdAt)
+        : delivery.createdAt
+}
+
 function isActive(delivery: NotificationQueuedDelivery) {
     return delivery.status === 'pending' || delivery.status === 'inflight'
 }
@@ -150,7 +156,7 @@ function reconcile(
             // A manual test is one attempt, never a delayed background send after a crash.
             terminate(state, delivery, 'failed', nowMs)
         } else if (
-            nowMs - delivery.createdAt >= NOTIFICATION_LIMITS.deliveryLifetimeMs ||
+            nowMs - deliveryLifetimeStartedAt(delivery) >= NOTIFICATION_LIMITS.deliveryLifetimeMs ||
             delivery.attempts >= NOTIFICATION_LIMITS.attempts
         ) {
             terminate(state, delivery, 'failed', nowMs)
@@ -580,7 +586,7 @@ export function finishNotificationDelivery(
                 !terminalCode &&
                 channelAllowed &&
                 delivery.attempts < NOTIFICATION_LIMITS.attempts &&
-                nowMs - delivery.createdAt < NOTIFICATION_LIMITS.deliveryLifetimeMs
+                nowMs - deliveryLifetimeStartedAt(delivery) < NOTIFICATION_LIMITS.deliveryLifetimeMs
             ) {
                 delivery.status = 'pending'
                 const retryAfter =

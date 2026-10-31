@@ -45,6 +45,9 @@ import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login
 import { Route as ApiMigrationExportRouteImport } from './routes/api/migration/export'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-logo/$accent'
+import { Route as ApiAdminBackupsConfigRouteImport } from './routes/api/admin/backups/config'
+import { Route as ApiAdminBackupsStartRouteImport } from './routes/api/admin/backups/start'
+import { Route as ApiAdminBackupsStatusRouteImport } from './routes/api/admin/backups/status'
 import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admin/diagnostics/domain'
 import { Route as ApiAdminMonitoringHistoryRouteImport } from './routes/api/admin/monitoring/history'
 import { Route as ApiAdminMonitoringPolicyRouteImport } from './routes/api/admin/monitoring/policy'
@@ -234,6 +237,21 @@ const MediaMailLogoAccentRoute = MediaMailLogoAccentRouteImport.update({
   path: '/media/mail-logo/$accent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminBackupsConfigRoute = ApiAdminBackupsConfigRouteImport.update({
+  id: '/api/admin/backups/config',
+  path: '/api/admin/backups/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminBackupsStartRoute = ApiAdminBackupsStartRouteImport.update({
+  id: '/api/admin/backups/start',
+  path: '/api/admin/backups/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminBackupsStatusRoute = ApiAdminBackupsStatusRouteImport.update({
+  id: '/api/admin/backups/status',
+  path: '/api/admin/backups/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminDiagnosticsDomainRoute =
   ApiAdminDiagnosticsDomainRouteImport.update({
     id: '/api/admin/diagnostics/domain',
@@ -294,6 +312,9 @@ export interface FileRoutesByFullPath {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login/': typeof PublicLoginIndexRoute
+  '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
+  '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
+  '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
@@ -333,6 +354,9 @@ export interface FileRoutesByTo {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login': typeof PublicLoginIndexRoute
+  '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
+  '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
+  '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
@@ -376,6 +400,9 @@ export interface FileRoutesById {
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
   '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/_public/login/': typeof PublicLoginIndexRoute
+  '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
+  '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
+  '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
   '/api/admin/diagnostics/domain': typeof ApiAdminDiagnosticsDomainRoute
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
@@ -418,6 +445,9 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/login/'
+    | '/api/admin/backups/config'
+    | '/api/admin/backups/start'
+    | '/api/admin/backups/status'
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
@@ -457,6 +487,9 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/login'
+    | '/api/admin/backups/config'
+    | '/api/admin/backups/start'
+    | '/api/admin/backups/status'
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
@@ -499,6 +532,9 @@ export interface FileRouteTypes {
     | '/media/avatars/$userId'
     | '/media/mail-logo/$accent'
     | '/_public/login/'
+    | '/api/admin/backups/config'
+    | '/api/admin/backups/start'
+    | '/api/admin/backups/status'
     | '/api/admin/diagnostics/domain'
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
@@ -515,6 +551,9 @@ export interface RootRouteChildren {
   HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
   MediaMailLogoAccentRoute: typeof MediaMailLogoAccentRoute
+  ApiAdminBackupsConfigRoute: typeof ApiAdminBackupsConfigRoute
+  ApiAdminBackupsStartRoute: typeof ApiAdminBackupsStartRoute
+  ApiAdminBackupsStatusRoute: typeof ApiAdminBackupsStatusRoute
   ApiAdminDiagnosticsDomainRoute: typeof ApiAdminDiagnosticsDomainRoute
   ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
   ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
@@ -775,6 +814,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaMailLogoAccentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/backups/config': {
+      id: '/api/admin/backups/config'
+      path: '/api/admin/backups/config'
+      fullPath: '/api/admin/backups/config'
+      preLoaderRoute: typeof ApiAdminBackupsConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/backups/start': {
+      id: '/api/admin/backups/start'
+      path: '/api/admin/backups/start'
+      fullPath: '/api/admin/backups/start'
+      preLoaderRoute: typeof ApiAdminBackupsStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/backups/status': {
+      id: '/api/admin/backups/status'
+      path: '/api/admin/backups/status'
+      fullPath: '/api/admin/backups/status'
+      preLoaderRoute: typeof ApiAdminBackupsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/diagnostics/domain': {
       id: '/api/admin/diagnostics/domain'
       path: '/api/admin/diagnostics/domain'
@@ -909,6 +969,9 @@ const rootRouteChildren: RootRouteChildren = {
   HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
   MediaMailLogoAccentRoute: MediaMailLogoAccentRoute,
+  ApiAdminBackupsConfigRoute: ApiAdminBackupsConfigRoute,
+  ApiAdminBackupsStartRoute: ApiAdminBackupsStartRoute,
+  ApiAdminBackupsStatusRoute: ApiAdminBackupsStatusRoute,
   ApiAdminDiagnosticsDomainRoute: ApiAdminDiagnosticsDomainRoute,
   ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
   ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,

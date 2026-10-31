@@ -1,6 +1,7 @@
 export const NOTIFICATION_CATEGORIES = [
     'certificate_renewal',
     'ddns',
+    'backup',
     'proxy_configuration',
     'host_availability',
 ] as const

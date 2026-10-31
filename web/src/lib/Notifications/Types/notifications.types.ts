@@ -20,7 +20,7 @@ export interface NotificationPayload {
     readonly schemaVersion: 1
     readonly id: string
     readonly incidentId: string
-    readonly type: 'incident' | 'recovery' | 'test'
+    readonly type: 'incident' | 'recovery' | 'success' | 'test'
     readonly category: NotificationCategory
     readonly severity: NotificationSeverity | 'info'
     readonly resourceId: string
@@ -32,6 +32,8 @@ export interface NotificationPayload {
         | 'host_unavailable'
         | 'operation_recovered'
         | 'notification_test'
+        | 'backup_succeeded'
+        | 'backup_failed'
     readonly occurredAt: string
     readonly startedAt: string
     readonly failures: number

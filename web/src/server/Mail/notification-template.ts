@@ -28,6 +28,13 @@ const CATEGORY_COPY = {
         nextStep:
             'Öffne die DDNS-Einstellungen in RentnerProxy und prüfe den betroffenen Eintrag und seine DNS-Verbindung.',
     },
+    backup: {
+        label: 'Backups',
+        heading: 'Backup fehlgeschlagen',
+        summary: 'Ein verwaltetes Backup wurde nicht erfolgreich abgeschlossen.',
+        recovery: 'Ein verwaltetes Backup wurde erfolgreich abgeschlossen.',
+        nextStep: 'Prüfe den Backup-Status in RentnerProxy.',
+    },
     proxy_configuration: {
         label: 'Proxy-Konfiguration',
         heading: 'Proxy-Konfiguration nicht übernommen',
@@ -81,14 +88,16 @@ export function createNotificationEmailTemplate(
         },
     }
     const category = CATEGORY_COPY[payload.category]
+    const isBackup = payload.category === 'backup'
+    const isSuccess = payload.type === 'success'
     const isTest = payload.type === 'test'
     const isRecovery = payload.type === 'recovery'
     const isManualDns =
         payload.code === 'certificate_renewal_manual_dns_required' && !isTest && !isRecovery
     const status =
-        isTest || isRecovery
+        isTest || isRecovery || isSuccess
             ? {
-                  label: isTest ? 'Testnachricht' : 'Behoben',
+                  label: isTest ? 'Testnachricht' : isSuccess ? 'Abgeschlossen' : 'Behoben',
                   color: theme.successText,
                   background: theme.successBackground,
               }
@@ -101,39 +110,48 @@ export function createNotificationEmailTemplate(
               : severityStyle[payload.severity]
     const heading = isTest
         ? 'Testnachricht angekommen'
-        : isRecovery
-          ? `Entwarnung: ${category.label}`
-          : isManualDns
-            ? 'Neue DNS-TXT-Werte für die Erneuerung nötig'
-            : category.heading
+        : isSuccess
+          ? 'Backup erfolgreich abgeschlossen'
+          : isRecovery
+            ? `Entwarnung: ${category.label}`
+            : isManualDns
+              ? 'Neue DNS-TXT-Werte für die Erneuerung nötig'
+              : category.heading
     const summary = isTest
         ? 'Diese Testmail bestätigt, dass RentnerProxy Nachrichten an diese Adresse zustellen kann.'
-        : isRecovery
+        : isRecovery || isSuccess
           ? category.recovery
           : isManualDns
             ? 'Die Zertifikatserneuerung wartet auf deine manuelle DNS-Bestätigung. Dafür werden neue TXT-Werte benötigt.'
             : category.summary
     const nextStep = isTest
         ? 'Ereignisse und Empfänger kannst du in deinem Konto unter Benachrichtigungen anpassen.'
-        : isRecovery
+        : isRecovery || isSuccess
           ? 'Für diese Meldung ist keine weitere Aktion erforderlich.'
           : isManualDns
             ? 'Öffne das betroffene Zertifikat in RentnerProxy. Lege alle dort gezeigten TXT-Werte unter den exakten Namen an und wähle „DNS prüfen und fortsetzen“. Bestehende andere TXT-Werte erhalten.'
             : category.nextStep
     const details: [string, string][] = isTest
         ? [['Versendet am', formatTime(payload.occurredAt)]]
-        : [
-              ['Bereich', category.label],
-              ['Ressourcen-ID', payload.resourceId],
-              [
-                  isManualDns ? 'Erneuerung gestartet' : 'Beginn der Störung',
-                  formatTime(payload.startedAt),
-              ],
-              [isRecovery ? 'Behoben am' : 'Letzte Meldung', formatTime(payload.occurredAt)],
-              ...(isManualDns
-                  ? []
-                  : [['Fehlversuche', String(payload.failures)] as [string, string]]),
-          ]
+        : isBackup
+          ? [
+                ['Bereich', category.label],
+                ['Backup-ID', payload.resourceId],
+                ['Abgeschlossen am', formatTime(payload.occurredAt)],
+                ['Ergebnis', isSuccess ? 'Erfolgreich' : 'Fehlgeschlagen'],
+            ]
+          : [
+                ['Bereich', category.label],
+                ['Ressourcen-ID', payload.resourceId],
+                [
+                    isManualDns ? 'Erneuerung gestartet' : 'Beginn der Störung',
+                    formatTime(payload.startedAt),
+                ],
+                [isRecovery ? 'Behoben am' : 'Letzte Meldung', formatTime(payload.occurredAt)],
+                ...(isManualDns
+                    ? []
+                    : [['Fehlversuche', String(payload.failures)] as [string, string]]),
+            ]
     const managementUrl = !isTest && payload.host ? new URL('/proxy-hosts', appUrl).href : null
     if (!isTest && payload.host) {
         const summaries = {

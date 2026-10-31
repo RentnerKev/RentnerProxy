@@ -3,6 +3,8 @@ export type MaintenanceProcessOptions = Readonly<{
     timeoutMs: number
     input?: Uint8Array
     env?: NodeJS.ProcessEnv
+    signal?: AbortSignal | undefined
+    maximumOutputBytes?: number
     outputFile?: { file: FileHandle; maximumBytes: number }
 }>
 

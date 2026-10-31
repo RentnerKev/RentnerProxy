@@ -43,9 +43,33 @@ describe('notification restore pause command contract', () => {
         const command = postgresCommand(true)
         expect(command).not.toContain(NOTIFICATION_SETTINGS_KEY)
         expect(command).not.toContain(NOTIFICATION_STATE_KEY)
+        expect(command).not.toContain('managed_backup_audit_cursor_v1')
         expect(command).not.toContain('RESTORE_NOTIFICATION_SQL')
         expect(command).toContain('data_directory=/tmp/backup-postgres')
         expect(command).toContain('bun /opt/rentnerproxy/web/docker/web/validate-backup.ts')
+    })
+
+    test('only the committed restore explicitly rebases the surviving root journal consumer', () => {
+        const command = postgresCommand(false)
+        const sql = command
+            .split("<<'RESTORE_NOTIFICATION_SQL'\n")[1]
+            ?.split('\nRESTORE_NOTIFICATION_SQL')[0]
+        const statement = sql
+            ?.split('\n')
+            .find((line) => line.includes('managed_backup_audit_cursor_v1'))
+        expect(statement).toBeDefined()
+        const serialized = /'([^']+)'::jsonb/u.exec(statement!)?.[1]
+        expect(JSON.parse(serialized!)).toEqual({
+            storeId: null,
+            sequence: 0,
+            restorePending: true,
+        })
+        expect(statement).toContain('ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value')
+        expect(command.indexOf(statement!)).toBeGreaterThan(
+            command.indexOf('cat "$rendered_sql_path"'),
+        )
+        expect(command.indexOf(statement!)).toBeLessThan(command.indexOf('psql --host='))
+        expect(command).toContain('--single-transaction --set=ON_ERROR_STOP=1')
     })
 })
 

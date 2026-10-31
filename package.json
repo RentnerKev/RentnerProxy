@@ -16,6 +16,7 @@
         "runtime:reliability": "bun --no-env-file --no-orphans scripts/runtime-reliability/run.ts",
         "runtime:scale": "bun --no-env-file --no-orphans scripts/runtime-scale/run.ts",
         "production:smoke": "bun --no-orphans .github/scripts/ci/appliance-compose-smoke.ts",
+        "backups:smoke": "bun --no-env-file --no-orphans .github/scripts/ci/managed-backups-smoke.ts",
         "build": "bun --no-env-file --no-orphans scripts/build.ts",
         "build:web": "bun --no-env-file --bun vite build --configLoader native --config vite.config.ts && bun --no-env-file build web/src/server/WebSockets/realtimeWebSocket.ts --target=bun --outfile=web/dist/server/realtimeWebSocket.js && bun --no-env-file --check --tsconfig-override tsconfig.json",
         "build:core": "cargo build --release --manifest-path core/Cargo.toml",

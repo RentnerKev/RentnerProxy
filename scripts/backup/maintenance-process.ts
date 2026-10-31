@@ -10,6 +10,7 @@ export async function runMaintenanceProcess(
     args: readonly string[],
     options: MaintenanceProcessOptions,
 ): Promise<MaintenanceProcessResult> {
+    options.signal?.throwIfAborted()
     if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
         throw new Error('Maintenance process timeout must be positive and finite')
     const deadline = performance.now() + options.timeoutMs
@@ -28,6 +29,7 @@ export async function runMaintenanceProcess(
     const chunks: Uint8Array[] = []
     const hash = createHash('sha256')
     let written = 0
+    let buffered = 0
     let diagnostic = Buffer.alloc(0)
     let timedOut = false
     let failed = false
@@ -51,7 +53,15 @@ export async function runMaintenanceProcess(
                     hash.update(chunk)
                     written += chunk.length
                 }
-            } else chunks.push(next.value)
+            } else {
+                buffered += next.value.length
+                if (
+                    options.maximumOutputBytes !== undefined &&
+                    buffered > options.maximumOutputBytes
+                )
+                    throw new Error('maintenance output is too large')
+                chunks.push(next.value)
+            }
         }
     })()
     const stderr = (async () => {
@@ -76,6 +86,12 @@ export async function runMaintenanceProcess(
         await child.stdin.end()
     })()
     let timer: ReturnType<typeof setTimeout> | undefined
+    let cancel: (() => void) | undefined
+    const cancelled = new Promise<never>((_, reject) => {
+        cancel = () => reject(new Error('maintenance cancelled'))
+        options.signal?.addEventListener('abort', cancel, { once: true })
+        if (options.signal?.aborted) cancel()
+    })
     const expired = new Promise<never>((_, reject) => {
         timer = setTimeout(
             () => {
@@ -86,7 +102,7 @@ export async function runMaintenanceProcess(
         )
     })
     try {
-        await Promise.race([Promise.all([exited, stdout, stderr, input]), expired])
+        await Promise.race([Promise.all([exited, stdout, stderr, input]), expired, cancelled])
         // A delayed timer must not turn an operation finishing after its budget into success.
         timedOut ||= performance.now() > deadline
         interrupted = timedOut
@@ -96,6 +112,7 @@ export async function runMaintenanceProcess(
         interrupted = true
     } finally {
         clearTimeout(timer)
+        if (cancel) options.signal?.removeEventListener('abort', cancel)
         if (interrupted) {
             if (process.platform !== 'win32') {
                 try {

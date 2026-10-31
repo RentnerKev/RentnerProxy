@@ -6,15 +6,12 @@ import { commandOption, composeArguments, readComposeProject } from './backup/co
 import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
 import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
-import {
-    crowdSecArchiveExclusions,
-    parseBackupMetadata,
-    validateStateArchiveFile,
-} from './backup/format.ts'
+import { crowdSecArchiveExclusions, validateStateArchiveFile } from './backup/format.ts'
 import { deploymentSchema } from './backup/validation.ts'
 import type { BackupMetadata } from './backup/Types/format.types.ts'
 import { randomUUID } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, open, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, open, rm, stat } from 'node:fs/promises'
+import { publishProductionBackup, syncBackupDirectory } from './backup/publication.ts'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -278,48 +275,9 @@ async function backup(): Promise<void> {
             redis: 'excluded',
             version: CURRENT_COMPATIBILITY_PROFILE.backup.writtenVersion,
         }
-        parseBackupMetadata(metadata)
-        const metadataPath = join(stagingPath, 'metadata.json')
-        await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + '\n', {
-            encoding: 'utf8',
-            mode: 0o600,
-        })
-        await chmod(metadataPath, 0o600)
-        await chmod(stagingPath, 0o700)
-        await Promise.all(
-            [
-                appEncryptionKeyPath,
-                dumpPath,
-                stateArchivePath,
-                crowdSecArchivePath,
-                metadataPath,
-            ].map(async (path) => {
-                const handle = await open(path, 'r+')
-                try {
-                    await handle.sync()
-                } finally {
-                    await handle.close()
-                }
-            }),
-        )
-        if (process.platform !== 'win32') {
-            const directory = await open(stagingPath, 'r')
-            try {
-                await directory.sync()
-            } finally {
-                await directory.close()
-            }
-        }
-        await rename(stagingPath, finalPath)
+        await publishProductionBackup(stagingPath, finalPath, metadata)
         backupPublished = true
-        if (process.platform !== 'win32') {
-            const directory = await open(outputRoot, 'r')
-            try {
-                await directory.sync()
-            } finally {
-                await directory.close()
-            }
-        }
+        await syncBackupDirectory(outputRoot)
     } catch (error) {
         await rm(stagingPath, { force: true, recursive: true })
         throw error

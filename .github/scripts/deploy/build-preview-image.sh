@@ -6,6 +6,7 @@ mkdir -p "$artifact_directory"
 
 docker buildx build \
     --build-arg "RENTNERPROXY_BUILD_VERSION=$IMMUTABLE_TAG" \
+    --build-arg "RENTNERPROXY_BUILD_REVISION=$TESTED_SHA" \
     --file source/docker/production/Dockerfile \
     --label 'org.opencontainers.image.title=RentnerProxy PR Preview' \
     --label 'org.opencontainers.image.description=Unreviewed pull request preview for testing only.' \

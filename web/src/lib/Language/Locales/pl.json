@@ -418,10 +418,10 @@
             "webhook": "Webhook",
             "events": "Zdarzenia",
             "minimumSeverity": "Minimalny poziom ważności",
-            "thresholdSeconds": "Minimalny czas trwania incydentu (sekundy)",
+            "thresholdSeconds": "Minimalny czas awarii / opóźnienie kopii (sekundy)",
             "enabled": "Włączone",
             "disabled": "Wyłączone",
-            "recovery": "Wysyłaj powiadomienia o przywróceniu działania",
+            "recovery": "Wysyłaj powiadomienia o przywróceniu i udanych kopiach",
             "replaceDestination": "Zmień miejsce docelowe",
             "keepDestination": "Zapisane miejsce docelowe i token bearer pozostaną bez zmian, chyba że zmienisz miejsce docelowe. Zapisane sekrety nigdy nie są wyświetlane.",
             "recipients": "Odbiorcy (oddzieleni przecinkami)",
@@ -461,6 +461,7 @@
                 "certificate_renewal": "Odnowienie certyfikatu",
                 "ddns": "Dynamiczny DNS",
                 "proxy_configuration": "Konfiguracja serwera proxy",
+                "backup": "Kopie zapasowe",
                 "host_availability": "Awarie i przywracanie hostów"
             },
             "severities": {
@@ -471,13 +472,16 @@
             "types": {
                 "incident": "Incydent",
                 "recovery": "Przywrócenie działania",
-                "test": "Test"
+                "test": "Test",
+                "success": "Sukces"
             },
             "incidentStates": {
                 "active": "Aktywny incydent",
                 "recovered": "Działanie przywrócone",
                 "test": "Test",
-                "unknown": "Niedostępne"
+                "unknown": "Niedostępne",
+                "backup_succeeded": "Kopia zakończona",
+                "backup_failed": "Kopia nieudana"
             },
             "deliveryStates": {
                 "pending": "Oczekuje",
@@ -3651,7 +3655,8 @@
             "dns_connections": "Połączenia DNS",
             "ddns": "Dynamiczny DNS",
             "notifications": "Powiadomienia",
-            "docker_discovery": "Wykrywanie Dockera"
+            "docker_discovery": "Wykrywanie Dockera",
+            "backups": "Kopie zapasowe"
         },
         "app": {
             "access": "Dostęp do aplikacji"
@@ -3744,6 +3749,10 @@
         "docker_discovery": {
             "view": "Wyświetlanie połączenia i kandydatów Dockera",
             "manage": "Zarządzanie połączeniem wykrywania Dockera"
+        },
+        "backups": {
+            "view": "Wyświetlanie zarządzanych kopii zapasowych",
+            "manage": "Zarządzanie kopiami zapasowymi i harmonogramami"
         }
     },
     "systemRoles": {

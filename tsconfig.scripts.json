@@ -1,4 +1,9 @@
 {
     "extends": "./tsconfig.json",
-    "include": ["scripts/**/*.ts", ".github/scripts/**/*.ts", "docker/web/**/*.ts"]
+    "include": [
+        "scripts/**/*.ts",
+        ".github/scripts/**/*.ts",
+        "docker/web/**/*.ts",
+        "docker/production/backups/**/*.ts"
+    ]
 }

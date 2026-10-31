@@ -416,10 +416,10 @@
             "webhook": "Webhook",
             "events": "Eventi",
             "minimumSeverity": "Gravità minima",
-            "thresholdSeconds": "Durata minima dell’incidente (secondi)",
+            "thresholdSeconds": "Durata minima del problema / ritardo backup (secondi)",
             "enabled": "Attivato",
             "disabled": "Disattivato",
-            "recovery": "Invia notifiche di ripristino",
+            "recovery": "Invia ripristini e backup riusciti",
             "replaceDestination": "Sostituisci destinazione",
             "keepDestination": "La destinazione salvata e il token bearer restano invariati a meno che tu non sostituisca la destinazione. I segreti salvati non vengono mai mostrati.",
             "recipients": "Destinatari (separati da virgole)",
@@ -459,6 +459,7 @@
                 "certificate_renewal": "Rinnovo dei certificati",
                 "ddns": "DNS dinamico",
                 "proxy_configuration": "Configurazione del proxy",
+                "backup": "Backup",
                 "host_availability": "Interruzioni e ripristino degli host"
             },
             "severities": {
@@ -469,13 +470,16 @@
             "types": {
                 "incident": "Incidente",
                 "recovery": "Ripristino",
-                "test": "Test"
+                "test": "Test",
+                "success": "Successo"
             },
             "incidentStates": {
                 "active": "Incidente attivo",
                 "recovered": "Ripristinato",
                 "test": "Test",
-                "unknown": "Non disponibile"
+                "unknown": "Non disponibile",
+                "backup_succeeded": "Backup riuscito",
+                "backup_failed": "Backup non riuscito"
             },
             "deliveryStates": {
                 "pending": "In attesa",
@@ -3636,7 +3640,8 @@
             "dns_connections": "Connessioni DNS",
             "ddns": "DNS dinamico",
             "notifications": "Notifiche",
-            "docker_discovery": "Rilevamento Docker"
+            "docker_discovery": "Rilevamento Docker",
+            "backups": "Backup"
         },
         "app": {
             "access": "Accesso all’applicazione"
@@ -3729,6 +3734,10 @@
         "docker_discovery": {
             "view": "Visualizza la connessione e i candidati Docker",
             "manage": "Gestisci la connessione di rilevamento Docker"
+        },
+        "backups": {
+            "view": "Visualizza i backup gestiti",
+            "manage": "Gestisci backup e pianificazioni"
         }
     },
     "systemRoles": {
