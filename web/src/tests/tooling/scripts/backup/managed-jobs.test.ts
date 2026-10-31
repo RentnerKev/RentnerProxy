@@ -64,6 +64,23 @@ function gate() {
     return { promise, release: resolve }
 }
 
+async function responsive<T>(operation: Promise<T>): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+        return await Promise.race([
+            operation,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error('control request waited for retention IO')),
+                    500,
+                )
+            }),
+        ])
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
 describe('durable bounded managed backup engine', () => {
     test('strict contracts reject paths, extra options, and invalid numeric values', () => {
         const fixtureState = fixture()
@@ -171,6 +188,206 @@ describe('durable bounded managed backup engine', () => {
         finish.release()
         await running
         expect((await engine.status()).jobs[0]?.state).toBe('succeeded')
+    })
+
+    test.each(['verify', 'remove'] as const)(
+        'blocked retention %s keeps status/config/ACK responsive and rejects new work without delayed admission',
+        async (phase) => {
+            const f = fixture()
+            const engine = await createManagedBackupEngine(f.dependencies)
+            await engine.updateConfiguration(f.config())
+            const old = await engine.start(f.request())
+            await engine.tick()
+            const entered = gate()
+            const finish = gate()
+            let verifications = 0
+            f.dependencies.verify = async () => {
+                if (++verifications === 2 && phase === 'verify') {
+                    entered.release()
+                    await finish.promise
+                }
+                return true
+            }
+            f.dependencies.remove = async (job) => {
+                if (phase === 'remove') {
+                    entered.release()
+                    await finish.promise
+                }
+                f.removed.push(job.id)
+            }
+            const request = f.request()
+            const replacement = await engine.start(request)
+            const running = engine.tick()
+            const rejected = f.request()
+            try {
+                await responsive(entered.promise)
+                const completed = await responsive(engine.status())
+                expect(completed.jobs.find((job) => job.id === replacement.id)?.state).toBe(
+                    'succeeded',
+                )
+                expect(f.read().jobs.find((job) => job.id === replacement.id)?.state).toBe(
+                    'succeeded',
+                )
+                await expect(responsive(engine.start(rejected))).rejects.toMatchObject({
+                    code: 'busy',
+                })
+                expect((await responsive(engine.start(request))).id).toBe(replacement.id)
+                await expect(
+                    responsive(engine.start({ ...request, actorId: f.id() })),
+                ).rejects.toMatchObject({ code: 'revision_conflict' })
+                await responsive(engine.tick())
+                const acknowledgement = completed.auditEvents.at(-1)!.sequence
+                await responsive(
+                    engine.acknowledgeAudit({
+                        storeId: completed.storeId,
+                        sequence: acknowledgement,
+                    }),
+                )
+                const configuration = await responsive(
+                    engine.updateConfiguration({
+                        ...f.config(1),
+                        enabled: false,
+                        intervalHours: 2,
+                        retentionCount: 2,
+                    }),
+                )
+                const during = await responsive(engine.status())
+                expect(during.configuration).toEqual(configuration)
+                expect(during.auditEvents.map((event) => event.kind)).toEqual([
+                    'configuration_updated',
+                ])
+                finish.release()
+                await running
+                const after = await engine.status()
+                expect(after.configuration).toEqual(configuration)
+                expect(f.read().auditAcknowledged).toBe(acknowledgement)
+                expect(after.auditEvents.every((event) => event.sequence > acknowledgement)).toBe(
+                    true,
+                )
+                expect(after.auditEvents.map((event) => event.kind)).toEqual(
+                    phase === 'verify'
+                        ? ['configuration_updated']
+                        : ['configuration_updated', 'pruned'],
+                )
+                expect(f.removed).toEqual(phase === 'verify' ? [] : [old.id])
+                expect(
+                    after.jobs.find((job) => job.requestId === rejected.requestId),
+                ).toBeUndefined()
+                expect((await engine.start(rejected)).state).toBe('queued')
+            } finally {
+                finish.release()
+                await running
+            }
+        },
+    )
+
+    test('the first pruned commit retains the verified replacement before later slow IO', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration({ ...f.config(), retentionCount: 50 })
+        for (let index = 0; index < 50; index++) {
+            await engine.start(f.request())
+            await engine.tick()
+        }
+        await engine.updateConfiguration(f.config(1))
+        const entered = gate()
+        const finish = gate()
+        let verifications = 0
+        f.dependencies.verify = async () => {
+            if (++verifications === 3) {
+                entered.release()
+                await finish.promise
+            }
+            return true
+        }
+        const replacement = await engine.start(f.request())
+        const running = engine.tick()
+        try {
+            await responsive(entered.promise)
+            const during = await responsive(engine.status())
+            expect(during.jobs.find((job) => job.id === replacement.id)?.retained).toBe(true)
+            expect(during.jobs.filter((job) => job.retained)).toHaveLength(50)
+            expect(during.auditEvents.filter((event) => event.kind === 'pruned')).toHaveLength(1)
+            expect(f.removed).toHaveLength(1)
+            await responsive(engine.updateConfiguration({ ...f.config(2), retentionCount: 50 }))
+            finish.release()
+            await running
+            expect(f.removed).toHaveLength(1)
+            expect((await engine.status()).jobs.filter((job) => job.retained)).toHaveLength(50)
+        } finally {
+            finish.release()
+            await running
+        }
+    })
+
+    test('busy retention still rejects a scheduled request key replayed as manual work', async () => {
+        const f = fixture()
+        let engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const old = await engine.start(f.request())
+        await engine.tick()
+        const stored = f.read().jobs.find((job) => job.id === old.id)!
+        stored.origin = 'schedule'
+        stored.actorId = null
+        engine = await createManagedBackupEngine(f.dependencies)
+        const entered = gate()
+        const finish = gate()
+        f.dependencies.remove = async () => {
+            entered.release()
+            await finish.promise
+        }
+        await engine.start(f.request())
+        const running = engine.tick()
+        try {
+            await responsive(entered.promise)
+            await expect(
+                responsive(engine.start({ requestId: old.requestId, actorId })),
+            ).rejects.toMatchObject({ code: 'revision_conflict' })
+        } finally {
+            finish.release()
+            await running
+        }
+    })
+
+    test('a failed pruned commit confirms no deletion audit and restart resumes idempotent retention safely', async () => {
+        const f = fixture()
+        const physical = new Set<string>()
+        f.dependencies.execute = async (job) => {
+            physical.add(job.id)
+            return { id: job.id, metadataSha256: digest, bytes: 100 }
+        }
+        f.dependencies.verify = async (job) => physical.has(job.id)
+        f.dependencies.remove = async (job) => {
+            physical.delete(job.id)
+        }
+        let engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const old = await engine.start(f.request())
+        await engine.tick()
+        const replacement = await engine.start(f.request())
+        const write = f.dependencies.write
+        f.dependencies.write = async (draft) => {
+            if (draft.auditEvents.at(-1)?.kind === 'pruned') throw new Error('pruned commit failed')
+            await write(draft)
+        }
+        await expect(engine.tick()).rejects.toThrow('pruned commit failed')
+        expect(physical.has(old.id)).toBe(false)
+        expect(physical.has(replacement.id)).toBe(true)
+        expect(f.read().jobs.find((job) => job.id === old.id)?.retained).toBe(true)
+        expect(f.read().auditEvents.some((event) => event.kind === 'pruned')).toBe(false)
+        expect(f.read().jobs.find((job) => job.id === replacement.id)?.state).toBe('succeeded')
+        f.dependencies.write = write
+        engine = await createManagedBackupEngine(f.dependencies)
+        const next = await engine.start(f.request())
+        await engine.tick()
+        expect([...physical]).toEqual([next.id])
+        const after = await engine.status()
+        expect(after.jobs.filter((job) => job.retained).map((job) => job.id)).toEqual([next.id])
+        expect(
+            after.auditEvents
+                .filter((event) => event.kind === 'pruned')
+                .map((event) => event.jobId),
+        ).toEqual([old.id, replacement.id])
     })
 
     test('restart interrupts a persisted running job and preserves published artifact without success promotion', async () => {

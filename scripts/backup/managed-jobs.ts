@@ -166,6 +166,10 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
 
     async function start(input: unknown) {
         const request = managedBackupStartSchema.parse(input)
+        // Reject work requested during retention before it can wait behind a
+        // later state write and become an unintended post-maintenance admission.
+        if (executing && !state.jobs.some((job) => job.requestId === request.requestId))
+            throw new ManagedBackupError('busy')
         return mutate(async (draft) => {
             const previous = draft.jobs.find((job) => job.requestId === request.requestId)
             if (previous) {
@@ -234,25 +238,62 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         })
     }
 
-    // Retention must verify and remove each point in order, preserving a verified replacement.
-    /* eslint-disable no-await-in-loop */
-    async function prune(draft: ManagedBackupState, replacement: ManagedBackupJob) {
-        const retained = draft.jobs.filter(
-            (job) => job.state === 'succeeded' && (job.retained || job.id === replacement.id),
+    function planPruning(replacementId: string) {
+        const replacement = state.jobs.find((job) => job.id === replacementId)
+        if (!replacement || replacement.state !== 'succeeded')
+            throw new ManagedBackupError('recovery_failed')
+        const retained = state.jobs.filter(
+            (job) => job.state === 'succeeded' && (job.retained || job.id === replacementId),
         )
-        const excess = retained.length - draft.configuration.retentionCount
-        for (const candidate of retained
-            .filter((job) => job.id !== replacement.id)
-            .slice(0, Math.max(0, excess))) {
-            // Reverify immediately before every deletion; failed/interrupted jobs are never candidates.
+        if (retained.length <= state.configuration.retentionCount) return null
+        const candidate = retained.find((job) => job.id !== replacementId)
+        return candidate ? structuredClone({ candidate, replacement }) : null
+    }
+
+    // Verification and filesystem deletion must not own the control-plane chain.
+    /* eslint-disable no-await-in-loop */
+    async function prune(replacementId: string) {
+        while (true) {
+            await chain
+            const planned = planPruning(replacementId)
+            if (!planned) return
             try {
-                if (!(await dependencies.verify(structuredClone(replacement)))) return
-                await dependencies.remove(structuredClone(candidate))
+                if (!(await dependencies.verify(planned.replacement))) return
+                // Controls may commit during verification. Read their committed
+                // policy again, then dispatch without yielding between check and call.
+                await chain
+                const current = planPruning(replacementId)
+                if (
+                    !current ||
+                    current.candidate.id !== planned.candidate.id ||
+                    JSON.stringify(current.candidate.artifact) !==
+                        JSON.stringify(planned.candidate.artifact) ||
+                    JSON.stringify(current.replacement.artifact) !==
+                        JSON.stringify(planned.replacement.artifact)
+                )
+                    return
+                await dependencies.remove(current.candidate)
             } catch {
                 return
             }
-            candidate.retained = false
-            audit(draft, 'pruned', candidate)
+            // Acknowledge each completed removal against fresh state. Concurrent
+            // configuration and producer ACKs must never be overwritten by a plan.
+            await mutate((draft) => {
+                const candidate = draft.jobs.find((job) => job.id === planned.candidate.id)
+                const replacement = draft.jobs.find((job) => job.id === replacementId)
+                if (
+                    !candidate ||
+                    candidate.state !== 'succeeded' ||
+                    !candidate.retained ||
+                    !replacement ||
+                    replacement.state !== 'succeeded'
+                )
+                    throw new ManagedBackupError('recovery_failed')
+                candidate.retained = false
+                replacement.retained =
+                    draft.jobs.filter((job) => job.id !== replacementId && job.retained).length < 50
+                audit(draft, 'pruned', candidate)
+            })
         }
     }
 
@@ -316,11 +357,11 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             })
             // Commit the verified recovery point before any old artifact can be removed.
             if (error === null) {
-                await mutate(async (draft) => {
+                await prune(job.id)
+                await mutate((draft) => {
                     const replacement = draft.jobs.find((entry) => entry.id === job.id)
                     if (!replacement || replacement.state !== 'succeeded')
                         throw new ManagedBackupError('recovery_failed')
-                    await prune(draft, replacement)
                     replacement.retained =
                         draft.jobs.filter((entry) => entry.id !== replacement.id && entry.retained)
                             .length < 50
