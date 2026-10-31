@@ -94,14 +94,26 @@ async function abortReadyChild(descendant: boolean) {
     })
     let result: ReturnType<typeof runMaintenanceProcess> | undefined
     try {
-        const nested = descendant
-            ? `const nested = Bun.spawn([process.execPath, '--no-env-file', '-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"], { stdout: 'inherit', stderr: 'inherit', stdin: 'ignore' });`
-            : ''
-        const script = `process.on('SIGTERM', () => {}); ${nested} await Bun.write(${JSON.stringify(marker + '.tmp')}, JSON.stringify({ pid: process.pid, nested: ${descendant ? 'nested.pid' : 'null'} })); await (await import('node:fs/promises')).rename(${JSON.stringify(marker + '.tmp')}, ${JSON.stringify(marker)}); setInterval(() => {}, 1000)`
+        const script = `
+            process.on('SIGTERM', () => {})
+            const nested = process.env.MAINTENANCE_ABORT_DESCENDANT === '1'
+                ? Bun.spawn([process.execPath, '--no-env-file', '-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"], { stdout: 'inherit', stderr: 'inherit', stdin: 'ignore' })
+                : null
+            const marker = process.env.MAINTENANCE_ABORT_MARKER
+            if (!marker) throw new Error('Missing fixture marker')
+            await Bun.write(marker + '.tmp', JSON.stringify({ pid: process.pid, nested: nested?.pid ?? null }))
+            await (await import('node:fs/promises')).rename(marker + '.tmp', marker)
+            setInterval(() => {}, 1000)
+        `
         result = runMaintenanceProcess(child(script), {
             cwd,
             timeoutMs: 5_000,
             signal: controller.signal,
+            env: {
+                ...process.env,
+                MAINTENANCE_ABORT_MARKER: marker,
+                MAINTENANCE_ABORT_DESCENDANT: descendant ? '1' : '0',
+            },
         })
         await Promise.race([
             ready,
