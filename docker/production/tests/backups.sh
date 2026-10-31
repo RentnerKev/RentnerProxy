@@ -321,7 +321,58 @@ test_startup_admission() (
     printf 'PASS: queued catch-up waits for initial web readiness before maintenance admission\n'
 )
 
+test_lock_filesystem() (
+    [[ $(uname -s) == Linux && $(id -u) == 0 ]] \
+        || { printf 'SKIP: backup lock cases require disposable Linux namespace root\n'; exit 77; }
+    local scratch variant before lock_inode
+    scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-backup-lock.XXXXXX")
+    trap 'rm -rf -- "$scratch"' EXIT
+    local backup_state_directory="$scratch/backups" protected="$scratch/protected"
+    load_function "$backup_supervisor" initialize_backup_lock
+    printf 'protected fixture\n' > "$protected"
+    chmod 0644 "$protected"
+    before=$(stat -c '%u:%g:%a:%h' -- "$protected")
+    for variant in symlink file permissions owner; do
+        case $variant in
+            symlink) ln -s "$scratch" "$backup_state_directory" ;;
+            file) touch "$backup_state_directory" ;;
+            permissions) mkdir -m 0755 "$backup_state_directory" ;;
+            owner)
+                mkdir -m 0700 "$backup_state_directory"
+                chown 10001:10001 "$backup_state_directory"
+                ;;
+        esac
+        if (initialize_backup_lock); then fail "accepted unsafe backup state directory: $variant"; fi
+        [[ ! -e $scratch/agent.lock ]] || fail 'backup lock followed a directory selector'
+        rm -rf -- "$backup_state_directory"
+    done
+    for variant in symlink hardlink directory owner; do
+        mkdir -m 0700 "$backup_state_directory"
+        case $variant in
+            symlink) ln -s "$protected" "$backup_state_directory/agent.lock" ;;
+            hardlink) ln "$protected" "$backup_state_directory/agent.lock" ;;
+            directory) mkdir "$backup_state_directory/agent.lock" ;;
+            owner)
+                touch "$backup_state_directory/agent.lock"
+                chown 10001:10001 "$backup_state_directory/agent.lock"
+                ;;
+        esac
+        if (initialize_backup_lock); then fail "accepted unsafe backup agent lock: $variant"; fi
+        [[ $(stat -c '%a' -- "$protected") == 644 ]] || fail 'backup lock changed a protected target'
+        rm -rf -- "$backup_state_directory"
+    done
+    [[ $(stat -c '%u:%g:%a:%h' -- "$protected") == "$before" ]] || fail 'backup lock changed protected metadata'
+    initialize_backup_lock
+    [[ $(stat -c '%u:%a' -- "$backup_state_directory") == 0:700 ]] || fail 'backup state directory is not private'
+    [[ $(stat -c '%u:%a:%h' -- "$backup_state_directory/agent.lock") == 0:600:1 ]] || fail 'backup lock metadata is unsafe'
+    lock_inode=$(stat -c '%d:%i' -- "$backup_state_directory/agent.lock")
+    initialize_backup_lock
+    [[ $(stat -c '%d:%i' -- "$backup_state_directory/agent.lock") == "$lock_inode" ]] || fail 'backup lock inode was replaced'
+    printf 'PASS: private persistent lock rejects unsafe directories/selectors and preserves its inode\n'
+)
+
 if [[ ${1:-} == --linux-processes ]]; then
+    test_lock_filesystem
     test_process_guard
     exit
 fi

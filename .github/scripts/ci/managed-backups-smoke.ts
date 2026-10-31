@@ -85,6 +85,8 @@ export async function runManagedBackupsSmoke(): Promise<number> {
     const sourceProject = 'rentnerproxy-managed-source-' + runId
     const targetProject = 'rentnerproxy-managed-restore-' + runId
     const helper = 'rentnerproxy-managed-maintenance-' + runId
+    const lockProbe = 'rentnerproxy-managed-lock-' + runId
+    const volume = sourceProject + '_data'
     const explicitImage = process.env.RENTNERPROXY_MANAGED_BACKUP_TEST_IMAGE
     const sharedImage = explicitImage === undefined ? sharedSmokeImage('appliance') : undefined
     const image = validateManagedBackupTestImage(
@@ -132,6 +134,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
     let checks = 0
     let imageBuilt = false
     let cleanupFailed = false
+    let lockProbePending = false
     let helperCreated = false
     let sourceCreated = false
     let targetCreated = false
@@ -156,6 +159,47 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         } catch {
             cleanupFailed = true
         }
+    }
+    async function verifyVolumeLock(expectedExit: 0 | 1) {
+        lockProbePending = true
+        const result = await runMaintenanceProcess(
+            smokeDockerArguments([
+                'docker',
+                'run',
+                '--rm',
+                '--name',
+                lockProbe,
+                '--label',
+                SMOKE_RUN_LABEL + '=' + scope,
+                '--network',
+                'none',
+                '--volume',
+                volume + ':/var/lib/rentnerproxy',
+                '--entrypoint',
+                'flock',
+                image,
+                '-n',
+                '/var/lib/rentnerproxy/backups/agent.lock',
+                'true',
+            ]),
+            { cwd: repositoryRoot, env: environment, timeoutMs: 30_000, maximumOutputBytes: 1_024 },
+        )
+        assert.equal(result.timedOut, false)
+        assert.equal(result.stopped, true)
+        assert.equal(result.exitCode, expectedExit)
+        assert.equal(result.stdout.byteLength, 0)
+        lockProbePending = false
+    }
+    async function stateDigest(container: string) {
+        const value = await command(
+            ['docker', 'exec', container, 'sha256sum', '/var/lib/rentnerproxy/backups/jobs.json'],
+            'inspect private fixture state digest',
+        )
+        const digest = /^([a-f0-9]{64})  \/var\/lib\/rentnerproxy\/backups\/jobs\.json$/u.exec(
+            value,
+        )?.[1]
+        assert.ok(digest)
+        return digest
     }
     async function id(project: string) {
         const value = await command(
@@ -340,7 +384,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                     'ls',
                     '--all',
                     '--filter',
-                    'name=^/' + helper + '$',
+                    'name=^/(' + helper + '|' + lockProbe + ')$',
                     '--format',
                     '{{.ID}}',
                 ],
@@ -365,6 +409,23 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         await probe(source, 'seed')
         await probe(source, 'configure')
         passed('controller authentication and web UID backup isolation')
+        assert.equal(
+            await command(
+                [
+                    'docker',
+                    'volume',
+                    'inspect',
+                    '--format',
+                    '{{index .Labels "' + SMOKE_RUN_LABEL + '"}}',
+                    volume,
+                ],
+                'verify shared lock fixture volume ownership',
+            ),
+            scope,
+        )
+        const beforeLockProbe = await stateDigest(source)
+        await verifyVolumeLock(1)
+        assert.equal(await stateDigest(source), beforeLockProbe)
 
         const first = managedBackupJobSchema.parse(await probe(source, 'concurrent'))
         await completed(source, first.id)
@@ -397,7 +458,6 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             ['docker', 'stop', '--time', '35', source],
             'stop source before offline schedule fixture',
         )
-        const volume = sourceProject + '_data'
         assert.equal(
             await command(
                 [
@@ -411,6 +471,10 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 'verify private source volume ownership',
             ),
             scope,
+        )
+        await verifyVolumeLock(0)
+        passed(
+            'persistent-volume agent lock excludes another namespace without journal changes and releases after owner stop',
         )
         helperCreated = true
         await command(
@@ -539,6 +603,39 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             'existing production restore recovers the database and controller markers into a fresh healthy appliance',
         )
     } finally {
+        if (lockProbePending) {
+            try {
+                const existing = await command(
+                    [
+                        'docker',
+                        'container',
+                        'ls',
+                        '--all',
+                        '--filter',
+                        'name=^/' + lockProbe + '$',
+                        '--format',
+                        '{{.ID}}',
+                    ],
+                    'locate owned lock probe cleanup',
+                )
+                if (existing !== '') {
+                    const owner = await command(
+                        [
+                            'docker',
+                            'inspect',
+                            '--format',
+                            '{{index .Config.Labels "' + SMOKE_RUN_LABEL + '"}}',
+                            lockProbe,
+                        ],
+                        'verify owned lock probe cleanup',
+                    )
+                    if (owner === scope) await bestEffort(['docker', 'rm', '--force', lockProbe])
+                    else cleanupFailed = true
+                }
+            } catch {
+                cleanupFailed = true
+            }
+        }
         if (helperCreated) {
             try {
                 const owner = await command(

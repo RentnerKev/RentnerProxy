@@ -2,11 +2,34 @@
 
 # Sourced by the root production supervisor, which retains all child ownership.
 readonly backup_control_directory=/run/rentnerproxy/backups
+readonly backup_state_directory=/var/lib/rentnerproxy/backups
 readonly backup_exporter=/opt/rentnerproxy/web/backup-export.js
 backup_recovery_job=''
 
+initialize_backup_lock() {
+    local lock_file="$backup_state_directory/agent.lock"
+    if [[ -e $backup_state_directory || -L $backup_state_directory ]]; then
+        [[ -d $backup_state_directory && ! -L $backup_state_directory ]] \
+            || fatal 'the backup state directory is not a real directory'
+        [[ $(stat -c '%u:%a' -- "$backup_state_directory") == 0:700 ]] \
+            || fatal 'the backup state directory has unsafe ownership or permissions'
+    else
+        install -d -m 0700 -o root -g root "$backup_state_directory"
+    fi
+    if [[ -e $lock_file || -L $lock_file ]]; then
+        [[ -f $lock_file && ! -L $lock_file ]] \
+            || fatal 'the backup agent lock is not a regular file'
+        [[ $(stat -c '%u:%h' -- "$lock_file") == 0:1 ]] \
+            || fatal 'the backup agent lock has unsafe ownership or links'
+    fi
+    # Preserve the inode: other namespaces may already hold its advisory lock.
+    touch -- "$lock_file"
+    chmod 0600 -- "$lock_file"
+}
+
 start_backup_agent() {
-    local lock_file=/run/rentnerproxy/backup-agent.lock
+    local lock_file="$backup_state_directory/agent.lock"
+    initialize_backup_lock
     if [[ -e $backup_control_directory || -L $backup_control_directory ]]; then
         [[ -d $backup_control_directory && ! -L $backup_control_directory ]] \
             || fatal 'the backup control directory is not a real directory'
@@ -14,14 +37,6 @@ start_backup_agent() {
             || fatal 'the backup control directory is not root-owned'
     fi
     install -d -m 0750 -o root -g rentnerproxy "$backup_control_directory"
-    if [[ -e $lock_file || -L $lock_file ]]; then
-        [[ -f $lock_file && ! -L $lock_file ]] \
-            || fatal 'the backup agent lock is not a regular file'
-        [[ $(stat -c '%u:%h' -- "$lock_file") == 0:1 ]] \
-            || fatal 'the backup agent lock has unsafe ownership or links'
-    fi
-    touch -- "$lock_file"
-    chmod 0600 -- "$lock_file"
     # /run can survive a container stop/start. Do not accept an old socket as ready.
     rm -f -- "$backup_control_directory/agent.sock"
     start_child backups flock --no-fork -n "$lock_file" \
