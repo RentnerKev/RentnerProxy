@@ -48,6 +48,7 @@ import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/Trusted
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 import { certificateJobSummary } from './certificate-jobs.storage.server.ts'
+import { invalidateHostMonitoringForHostsInTransaction } from '@/server/HostMonitoring/host-monitoring.repository.ts'
 import {
     assertDiscoveryHostEditable,
     readDiscoveryRegistry,
@@ -263,6 +264,7 @@ export async function deleteProxyHostService(
             await assertDiscoveryHostEditable(transaction, proxyHost.id)
             await assignHostTagsInTransaction(transaction, 'proxy', proxyHost.id, [])
             await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
+            await invalidateHostMonitoringForHostsInTransaction(transaction, [proxyHost.id])
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
@@ -332,6 +334,13 @@ async function setProxyHostEnabledService(
             if (!updatedProxyHost) {
                 throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
             }
+
+            if (!enabled)
+                await invalidateHostMonitoringForHostsInTransaction(
+                    transaction,
+                    [proxyHost.id],
+                    'monitoring_disabled',
+                )
 
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,

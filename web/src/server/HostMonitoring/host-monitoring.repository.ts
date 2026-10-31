@@ -21,6 +21,11 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import {
+    cancelHostAvailabilityForHostsInTransaction,
+    recordHostAvailabilityTransitionInTransaction,
+} from '@/server/Notifications/host-availability.repository.ts'
+import type { HostAvailabilityIncidentSource } from '@/server/Notifications/Types/notification-internal.types.ts'
 import type {
     HostMonitoringClaim,
     HostMonitoringContextMatches,
@@ -104,6 +109,57 @@ export async function lockHostMonitoringPolicy(
         .where(eq(hostCheckPolicies.proxyHostId, proxyHostId))
         .for('update')
     return policy ?? null
+}
+
+// The caller holds the runtime-settings lock, before monitoring and notification locks.
+export async function invalidateHostMonitoringForHostsInTransaction(
+    transaction: AuthTransaction,
+    proxyHostIds: readonly string[],
+    reason: 'policy_changed' | 'monitoring_disabled' = 'policy_changed',
+): Promise<void> {
+    if (proxyHostIds.length === 0) return
+    await lockMonitoring(transaction)
+    const policies = await transaction
+        .update(hostCheckPolicies)
+        .set({
+            version: sql`uuidv7()`,
+            state: 'unknown',
+            failureCount: 0,
+            recoveryCount: 0,
+            failureStartedAt: null,
+            recoveryStartedAt: null,
+            contextProof: null,
+            contextRevision: null,
+            leaseToken: null,
+            leaseExpiresAt: null,
+            lastCheckedAt: null,
+            lastOutcome: null,
+            lastCode: null,
+            lastDurationMs: null,
+            lastHttpStatus: null,
+            nextCheckAt: sql`clock_timestamp()`,
+            updatedAt: sql`clock_timestamp()`,
+        })
+        .where(inArray(hostCheckPolicies.proxyHostId, [...proxyHostIds]))
+        .returning({ id: hostCheckPolicies.id })
+    if (policies.length > 0)
+        await transaction
+            .update(hostCheckIncidents)
+            .set({
+                closedReason: reason,
+                closedAt: sql`clock_timestamp()`,
+                recoveryStartedAt: null,
+            })
+            .where(
+                and(
+                    inArray(
+                        hostCheckIncidents.policyId,
+                        policies.map((policy) => policy.id),
+                    ),
+                    isNull(hostCheckIncidents.closedReason),
+                ),
+            )
+    await cancelHostAvailabilityForHostsInTransaction(transaction, proxyHostIds)
 }
 
 export async function saveHostMonitoringPolicy(
@@ -332,15 +388,20 @@ export async function completeHostMonitoringClaim(
                 durationMs: outcome.durationMs,
                 httpStatus: outcome.httpStatus,
             })
+            let notificationIncident: HostAvailabilityIncidentSource | undefined
             if (change.transition?.kind === 'outage') {
-                await transaction.insert(hostCheckIncidents).values({
-                    policyId: policy.id,
-                    startedAt: change.transition.firstObservedAt,
-                    detectedAt: change.transition.confirmedAt,
-                    failureCode: change.transition.code,
-                })
+                const [incident] = await transaction
+                    .insert(hostCheckIncidents)
+                    .values({
+                        policyId: policy.id,
+                        startedAt: change.transition.firstObservedAt,
+                        detectedAt: change.transition.confirmedAt,
+                        failureCode: change.transition.code,
+                    })
+                    .returning()
+                notificationIncident = incident
             } else if (change.transition?.kind === 'recovery') {
-                await transaction
+                const [incident] = await transaction
                     .update(hostCheckIncidents)
                     .set({
                         recoveryStartedAt: change.transition.firstObservedAt,
@@ -355,6 +416,8 @@ export async function completeHostMonitoringClaim(
                             isNull(hostCheckIncidents.closedReason),
                         ),
                     )
+                    .returning()
+                notificationIncident = incident
             } else if (previous.state === 'unhealthy') {
                 await transaction
                     .update(hostCheckIncidents)
@@ -395,6 +458,14 @@ export async function completeHostMonitoringClaim(
                 )
                 .returning({ id: hostCheckPolicies.id })
             if (updated.length === 0) throw new ExpiredHostMonitoringClaim()
+            if (notificationIncident && change.transition)
+                await recordHostAvailabilityTransitionInTransaction(
+                    transaction,
+                    policy,
+                    context,
+                    notificationIncident,
+                    change.transition.kind,
+                )
             return true
         })
         .catch((error: unknown) => {

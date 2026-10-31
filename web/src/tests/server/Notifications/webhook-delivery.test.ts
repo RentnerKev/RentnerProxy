@@ -232,6 +232,42 @@ describe('bounded webhook delivery', () => {
         expect(JSON.parse(received)).toEqual(PAYLOAD)
         expect(received).not.toContain('must-not-leave')
     })
+    test('host webhook context strips internal fields and builds the management link from its own origin', async () => {
+        let received = ''
+        const destination = await receiver((request, response) => {
+            request.on('data', (chunk: Buffer) => {
+                received += chunk.toString()
+            })
+            request.on('end', () => {
+                response.writeHead(200)
+                response.end()
+            })
+        })
+        const source = {
+            ...PAYLOAD,
+            category: 'host_availability' as const,
+            code: 'host_unavailable' as const,
+            host: {
+                domain: 'service.example.test',
+                failureCode: 'upstream_timeout' as const,
+                detectedAt: PAYLOAD.occurredAt,
+                recoveryStartedAt: null,
+                managementPath: '/proxy-hosts' as const,
+                managementUrl: 'https://attacker.invalid/private',
+                contextProof: 'must-not-leave',
+                authorizationToken: 'must-not-leave',
+            },
+        }
+        expect(await deliverNotification(destination, source)).toEqual({ success: true })
+        expect(JSON.parse(received).host).toMatchObject({
+            domain: 'service.example.test',
+            failureCode: 'upstream_timeout',
+            detectedAt: PAYLOAD.occurredAt,
+            managementPath: '/proxy-hosts',
+        })
+        expect(received).not.toContain('must-not-leave')
+        expect(received).not.toContain('attacker.invalid')
+    })
     test('never follows redirects and safely classifies retry responses', async () => {
         await Promise.all(
             [302, 400, 408, 429, 503].map(async (status) => {

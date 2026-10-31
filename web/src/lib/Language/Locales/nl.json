@@ -437,7 +437,8 @@
             "categories": {
                 "certificate_renewal": "Certificaatvernieuwing",
                 "ddns": "Dynamische DNS",
-                "proxy_configuration": "Proxyconfiguratie"
+                "proxy_configuration": "Proxyconfiguratie",
+                "host_availability": "Hostuitval en herstel"
             },
             "severities": {
                 "warning": "Waarschuwing",

@@ -85,6 +85,10 @@ describe('notification ownership and current access', () => {
                 PERMISSIONS.REDIRECT_HOSTS_VIEW,
             ]),
         ).toEqual(['certificate_renewal', 'proxy_configuration'])
+        expect(getAllowedNotificationCategories([PERMISSIONS.PROXY_HOSTS_VIEW])).toEqual([
+            'proxy_configuration',
+            'host_availability',
+        ])
         expect(canUsePrivateNotificationDestinations([PERMISSIONS.NOTIFICATIONS_VIEW])).toBeFalse()
         expect(canUsePrivateNotificationDestinations([PERMISSIONS.NOTIFICATIONS_MANAGE])).toBeTrue()
     })

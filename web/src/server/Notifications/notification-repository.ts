@@ -29,6 +29,10 @@ import type {
     NotificationDeliveryAuthorization,
 } from './Types/notification-internal.types.ts'
 import type { NotificationCollectedBatch } from './Types/notification-worker.types.ts'
+import {
+    authorizeHostAvailabilityDeliveryInTransaction,
+    reconcileHostAvailabilityInTransaction,
+} from './host-availability.repository.ts'
 
 export async function claimNotificationCollection(): Promise<NotificationCollectionClaim | null> {
     // Keep the disabled default read-only, including before the first channel is configured.
@@ -66,8 +70,13 @@ export async function commitNotificationCollection(
             await lockNotificationConfiguration(transaction),
         )
         const runtime = await lockNotificationRuntime(transaction)
+        const engine = await reconcileHostAvailabilityInTransaction(
+            transaction,
+            runtime.engine,
+            Date.now(),
+        )
         const committed = commitNotificationCollectedBatch(
-            runtime,
+            engine === runtime.engine ? runtime : { ...runtime, engine },
             configuration,
             claim,
             batch,
@@ -76,7 +85,7 @@ export async function commitNotificationCollection(
         )
         if (committed.runtime !== runtime)
             await writeNotificationRuntime(transaction, committed.runtime)
-        return committed.changed
+        return committed.changed || engine !== runtime.engine
     })
 }
 
@@ -91,12 +100,12 @@ export async function claimNextNotificationDelivery(): Promise<NotificationDeliv
             await lockNotificationConfiguration(transaction),
         )
         const runtime = await lockNotificationRuntime(transaction)
-        const result = claimNotificationDelivery(
+        const engine = await reconcileHostAvailabilityInTransaction(
+            transaction,
             runtime.engine,
-            configuration,
             Date.now(),
-            randomUUID,
         )
+        const result = claimNotificationDelivery(engine, configuration, Date.now(), randomUUID)
         if (JSON.stringify(runtime.engine) !== JSON.stringify(result.state)) {
             runtime.engine = result.state
             await writeNotificationRuntime(transaction, runtime)
@@ -152,6 +161,8 @@ export async function authorizeNotificationDelivery(
                     candidate.events.includes(claim.payload.category),
             )
             if (!channel) return null
+            if (!(await authorizeHostAvailabilityDeliveryInTransaction(transaction, claim)))
+                return null
             if (!channel.ownerUserId) return { channel, allowPrivateDestinations: true }
             const owner = await resolveActiveUserAccessInTransaction(
                 transaction,

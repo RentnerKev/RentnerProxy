@@ -1,7 +1,7 @@
 import type { TrustedCaMutationResult, TrustedCaRow } from './Types/trusted-cas.types.ts'
 import '@tanstack/react-start/server-only'
 
-import { asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -31,6 +31,7 @@ import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-se
 import { TrustedCaDomainError } from './trusted-cas.errors.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
+import { invalidateHostMonitoringForHostsInTransaction } from '@/server/HostMonitoring/host-monitoring.repository.ts'
 
 function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const parsed = schema.safeParse(input)
@@ -125,7 +126,7 @@ async function persistTrustedCa(
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(transaction, actorId, permission)
             if (existingId) {
-                await getTrustedCaForUpdate(transaction, existingId)
+                const previous = await getTrustedCaForUpdate(transaction, existingId)
                 await transaction
                     .update(trustedCas)
                     .set({
@@ -139,6 +140,25 @@ async function persistTrustedCa(
                         updatedAt: new Date(),
                     })
                     .where(eq(trustedCas.id, existingId))
+                if (
+                    previous.pem !== metadata.pem ||
+                    previous.fingerprintSha256 !== metadata.fingerprintSha256
+                ) {
+                    const affected = await transaction
+                        .select({ id: proxyHosts.id })
+                        .from(proxyHosts)
+                        .where(
+                            and(
+                                eq(proxyHosts.trustedCaId, existingId),
+                                eq(proxyHosts.forwardScheme, 'https'),
+                                eq(proxyHosts.verifyUpstreamTls, true),
+                            ),
+                        )
+                    await invalidateHostMonitoringForHostsInTransaction(
+                        transaction,
+                        affected.map((host) => host.id),
+                    )
+                }
                 await appendAuditEventInTransactionService(transaction, {
                     actorUserId: actorId,
                     actorKind: 'user',
