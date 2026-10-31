@@ -23,6 +23,8 @@ export const PERMISSIONS = {
     CERTIFICATES_RENEW: 'certificates.renew',
     DNS_CONNECTIONS_VIEW: 'dns_connections.view',
     DNS_CONNECTIONS_MANAGE: 'dns_connections.manage',
+    BACKUPS_VIEW: 'backups.view',
+    BACKUPS_MANAGE: 'backups.manage',
     DDNS_VIEW: 'ddns.view',
     DDNS_MANAGE: 'ddns.manage',
     NOTIFICATIONS_VIEW: 'notifications.view',
@@ -92,6 +94,8 @@ export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.CERTIFICATES_RENEW, name: 'Renew ACME certificates' },
     { key: PERMISSIONS.DNS_CONNECTIONS_VIEW, name: 'View shared DNS connections' },
     { key: PERMISSIONS.DNS_CONNECTIONS_MANAGE, name: 'Manage shared DNS connections' },
+    { key: PERMISSIONS.BACKUPS_VIEW, name: 'View managed backups' },
+    { key: PERMISSIONS.BACKUPS_MANAGE, name: 'Manage backups and backup schedule' },
     { key: PERMISSIONS.DDNS_VIEW, name: 'View DDNS configuration and status' },
     { key: PERMISSIONS.DDNS_MANAGE, name: 'Manage DDNS records and activation' },
     {

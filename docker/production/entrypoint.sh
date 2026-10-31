@@ -33,12 +33,16 @@ shutdown_children() {
     local deadline consumer_deadline pid index
 
     trap - EXIT INT TERM
+    if [[ -n ${backup_recovery_job:-} ]]; then
+        backup_write_result "$backup_recovery_job" recovery_failed \
+            || log 'could not persist the backup recovery failure'
+    fi
     deadline=$((SECONDS + 25))
     consumer_deadline=$((deadline - 2))
     # Only the supervisor receives Tini's signal. Keep state services and the
     # CrowdSec supervisor alive while web/controller consumers drain.
     for index in "${!child_pids[@]}"; do
-        case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+        case ${child_names[$index]} in web|controller|backup-export) ;; *) continue ;; esac
         pid=${child_pids[$index]}
         if kill -0 "$pid" 2>/dev/null; then
             kill -TERM "$pid" 2>/dev/null || true
@@ -48,7 +52,7 @@ shutdown_children() {
     while ((SECONDS < consumer_deadline)); do
         local running=false
         for index in "${!child_pids[@]}"; do
-            case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+            case ${child_names[$index]} in web|controller|backup-export) ;; *) continue ;; esac
             pid=${child_pids[$index]}
             if kill -0 "$pid" 2>/dev/null; then
                 running=true
@@ -60,12 +64,12 @@ shutdown_children() {
     done
 
     for index in "${!child_pids[@]}"; do
-        case ${child_names[$index]} in web|controller) ;; *) continue ;; esac
+        case ${child_names[$index]} in web|controller|backup-export) ;; *) continue ;; esac
         pid=${child_pids[$index]}
         kill -KILL "$pid" 2>/dev/null || true
     done
     for index in "${!child_pids[@]}"; do
-        case ${child_names[$index]} in web|controller) continue ;; esac
+        case ${child_names[$index]} in web|controller|backup-export) continue ;; esac
         kill -TERM "${child_pids[$index]}" 2>/dev/null || true
     done
     while ((SECONDS < deadline)); do
@@ -88,6 +92,8 @@ shutdown_children() {
 
 on_shutdown_signal() {
     log 'shutdown signal received'
+    # An external stop interrupts maintenance; the agent reconciles it at boot.
+    backup_recovery_job=''
     exit 0
 }
 
@@ -113,7 +119,7 @@ assert_children_running() {
     local index
     for index in "${!child_pids[@]}"; do
         if ! kill -0 "${child_pids[$index]}" 2>/dev/null; then
-            fatal "${child_names[$index]} stopped while the appliance was starting"
+            fatal "${child_names[$index]} stopped unexpectedly"
         fi
     done
 }
@@ -360,15 +366,19 @@ start_web() {
     start_child web run_web
 }
 
+wait_for_web_readiness() {
+    wait_for_command 'web readiness' timeout --signal=TERM --kill-after=1s 5s \
+        bun --no-env-file "$app_directory/docker/web/healthcheck.ts"
+}
+
 monitor_children() {
-    local status
-    if wait -n "${child_pids[@]}"; then
-        status=0
-    else
-        status=$?
-    fi
-    log "a supervised child exited unexpectedly (status $status)"
-    exit 1
+    while :; do
+        assert_children_running
+        if [[ -e $backup_control_directory/request.json || -L $backup_control_directory/request.json ]]; then
+            perform_managed_backup
+        fi
+        sleep 0.2
+    done
 }
 
 initialize_restore_target() {
@@ -379,6 +389,9 @@ initialize_restore_target() {
     initialize_postgres_data_directory
     start_postgres
 }
+
+# Fixed image-owned lifecycle code; no request selects executable code or paths.
+source /usr/local/lib/rentnerproxy-backups.sh
 
 trap shutdown_children EXIT
 trap on_shutdown_signal INT TERM
@@ -391,6 +404,7 @@ fi
 require_public_origin
 initialize_layout
 initialize_secrets
+start_backup_agent
 start_crowdsec_supervisor
 start_controller
 # Supported persisted proxy snapshots do not depend on PostgreSQL or Valkey.
@@ -400,4 +414,7 @@ start_postgres
 start_valkey
 run_migrations
 start_web
+# A persisted schedule may already be queued. Let web finish installing its
+# shutdown handlers before the maintenance loop is allowed to signal it.
+wait_for_web_readiness
 monitor_children

@@ -8,6 +8,7 @@ use axum::{
 use serde::Serialize;
 
 mod access_logs;
+pub(super) mod backups;
 mod certificates;
 mod challenges;
 mod crowdsec;

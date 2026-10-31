@@ -3601,7 +3601,8 @@
             "dns_connections": "DNS-verbindingen",
             "ddns": "Dynamische DNS",
             "notifications": "Meldingen",
-            "docker_discovery": "Docker-detectie"
+            "docker_discovery": "Docker-detectie",
+            "backups": "Back-ups"
         },
         "app": {
             "access": "Toegang tot de applicatie"
@@ -3694,6 +3695,10 @@
         "docker_discovery": {
             "view": "Docker-verbinding en kandidaten bekijken",
             "manage": "Verbinding voor Docker-detectie beheren"
+        },
+        "backups": {
+            "view": "Beheerde back-ups bekijken",
+            "manage": "Back-ups en planningen beheren"
         }
     },
     "systemRoles": {

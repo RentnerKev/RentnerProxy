@@ -41,9 +41,20 @@ export const metadataSchema = z.strictObject({
     version: z.literal(CURRENT_COMPATIBILITY_PROFILE.backup.acceptedVersions),
     crowdSecState: artifact.extend({ archive: z.literal('crowdsec-state.tar') }),
     deployment: deploymentSchema,
-    source: z.strictObject({
-        imageId: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
-        revision: z.string().max(128).nullable(),
-        version: z.string().max(128).nullable(),
-    }),
+    source: z.union([
+        z.strictObject({
+            imageId: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+            revision: z.string().max(128).nullable(),
+            version: z.string().max(128).nullable(),
+        }),
+        z.strictObject({
+            imageId: z.null(),
+            revision: z
+                .string()
+                .regex(/^[a-f0-9]{40}$/u)
+                .nullable(),
+            version: z.string().min(1).max(128),
+            buildSha256: digest,
+        }),
+    ]),
 })

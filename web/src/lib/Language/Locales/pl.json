@@ -3650,7 +3650,8 @@
             "dns_connections": "Połączenia DNS",
             "ddns": "Dynamiczny DNS",
             "notifications": "Powiadomienia",
-            "docker_discovery": "Wykrywanie Dockera"
+            "docker_discovery": "Wykrywanie Dockera",
+            "backups": "Kopie zapasowe"
         },
         "app": {
             "access": "Dostęp do aplikacji"
@@ -3743,6 +3744,10 @@
         "docker_discovery": {
             "view": "Wyświetlanie połączenia i kandydatów Dockera",
             "manage": "Zarządzanie połączeniem wykrywania Dockera"
+        },
+        "backups": {
+            "view": "Wyświetlanie zarządzanych kopii zapasowych",
+            "manage": "Zarządzanie kopiami zapasowymi i harmonogramami"
         }
     },
     "systemRoles": {

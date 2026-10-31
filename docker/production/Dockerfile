@@ -12,6 +12,9 @@ COPY . .
 ARG RENTNERPROXY_BUILD_VERSION
 RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web \
     && bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
+    && bun build docker/production/backups/agent.ts --target=bun --outfile=/build/backup-agent.js \
+    && bun build docker/production/backups/export.ts --target=bun --outfile=/build/backup-export.js \
+    && bun build docker/production/backups/build-identity.ts --target=bun --outfile=/build/backup-build-identity.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
 FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS web-runtime
@@ -25,6 +28,8 @@ RUN bun install --frozen-lockfile --production \
 COPY --from=web-build /app/web/dist ./web/dist
 COPY --from=web-build /build/migrations ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
+COPY --from=web-build /build/backup-agent.js ./backup-agent.js
+COPY --from=web-build /build/backup-export.js ./backup-export.js
 COPY --from=web-build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstrap-secrets.ts
 COPY --from=web-build /app/docker/web/validate-backup.ts ./docker/web/validate-backup.ts
 COPY --from=web-build /app/web/src/config/compatibility.config.ts ./web/src/config/compatibility.config.ts
@@ -165,7 +170,16 @@ COPY docker/licenses/Valkey-LICENSE /usr/share/licenses/valkey/LICENSE
 COPY docker/licenses/Valkey-NOTICE /usr/share/licenses/valkey/NOTICE
 COPY --from=valkey-runtime /usr/local/bin/valkey-server /usr/local/bin/valkey-cli /opt/rentnerproxy/valkey/bin/
 COPY docker/production/entrypoint.sh /usr/local/bin/rentnerproxy-production
+COPY docker/production/backups/supervisor.sh /usr/local/lib/rentnerproxy-backups.sh
+COPY --from=web-build /build/backup-build-identity.js /tmp/backup-build-identity.js
 COPY docker/crowdsec/runtime/supervisor.sh /usr/local/bin/rentnerproxy-crowdsec-supervisor
+
+ARG RENTNERPROXY_BUILD_VERSION=development
+ARG RENTNERPROXY_BUILD_REVISION
+RUN install -d -m 0755 /usr/share/rentnerproxy \
+    && RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" RENTNERPROXY_BUILD_REVISION="$RENTNERPROXY_BUILD_REVISION" bun --no-env-file /tmp/backup-build-identity.js \
+    && rm /tmp/backup-build-identity.js \
+    && chmod 0444 /usr/local/lib/rentnerproxy-backups.sh
 
 RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && chmod 0555 /usr/local/bin/rentnerproxy-crowdsec-supervisor \

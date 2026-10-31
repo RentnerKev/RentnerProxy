@@ -30,7 +30,7 @@ test-results/
 !.env.production.example
 
 # Production backups contain database and controller state
-backups/
+/backups/
 
 # Logs
 logs/

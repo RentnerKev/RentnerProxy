@@ -76,6 +76,15 @@ const startCertificateJobsLifecycle = createServerOnlyFn(() =>
 
 if (typeof window === 'undefined') void startCertificateJobsLifecycle()
 
+const startBackupOutcomesLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { backupOutcomesWorker } =
+            await import('@/server/Admin/Backups/backup-outcomes.server.ts')
+        return backupOutcomesWorker
+    }),
+)
+if (typeof window === 'undefined') void startBackupOutcomesLifecycle()
+
 const startNotificationLifecycle = createServerOnlyFn(() =>
     startWorkerLifecycle(async () => {
         const { notificationWorker } =

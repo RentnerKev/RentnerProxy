@@ -3648,7 +3648,8 @@
             "dns_connections": "Ligações DNS",
             "ddns": "DNS dinâmico",
             "notifications": "Notificações",
-            "docker_discovery": "Descoberta do Docker"
+            "docker_discovery": "Descoberta do Docker",
+            "backups": "Cópias de segurança"
         },
         "app": {
             "access": "Acesso à aplicação"
@@ -3741,6 +3742,10 @@
         "docker_discovery": {
             "view": "Ver a ligação e os candidatos do Docker",
             "manage": "Gerir a ligação de descoberta do Docker"
+        },
+        "backups": {
+            "view": "Ver cópias de segurança geridas",
+            "manage": "Gerir cópias de segurança e agendamentos"
         }
     },
     "systemRoles": {

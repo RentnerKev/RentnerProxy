@@ -3620,7 +3620,8 @@
             "dns_connections": "DNS-Verbindungen",
             "ddns": "Dynamisches DNS",
             "notifications": "Benachrichtigungen",
-            "docker_discovery": "Docker Discovery"
+            "docker_discovery": "Docker Discovery",
+            "backups": "Backups"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -3713,6 +3714,10 @@
         "ddns": {
             "view": "DDNS-Status ansehen",
             "manage": "DDNS-Konfiguration verwalten"
+        },
+        "backups": {
+            "view": "Verwaltete Backups anzeigen",
+            "manage": "Backups und Zeitpläne verwalten"
         }
     },
     "systemRoles": {

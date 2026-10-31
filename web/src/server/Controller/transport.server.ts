@@ -27,6 +27,9 @@ export async function controllerRequest(
     path:
         | '/health'
         | '/ready'
+        | '/internal/v1/backups/status'
+        | '/internal/v1/backups/start'
+        | '/internal/v1/backups/config'
         | '/internal/v1/diagnostics/domain'
         | '/internal/v1/proxy/status'
         | '/internal/v1/proxy/version'
