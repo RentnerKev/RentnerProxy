@@ -487,11 +487,18 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             'missed schedules coalesce into one catch-up and advance the next run into the future',
         )
 
+        const webJob = z.strictObject({ id: z.uuid() }).parse(await probe(source, 'web-api'))
+        await completed(source, webJob.id)
+        await healthy(source)
+        passed(
+            'real web API enforces sessions, roles, Origin and strict inputs before durably admitting the owner backup',
+        )
+
         await command(
             [
                 'docker',
                 'cp',
-                source + ':/var/lib/rentnerproxy/backups/artifacts/' + scheduledJob.id,
+                source + ':/var/lib/rentnerproxy/backups/artifacts/' + webJob.id,
                 backupPath,
             ],
             'copy fixture backup into private temporary storage',

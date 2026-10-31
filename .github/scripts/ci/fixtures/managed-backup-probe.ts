@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Isolated appliance probes poll one bounded lifecycle transition at a time.
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 import { chmod, chown, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -10,6 +10,12 @@ import {
     managedBackupStatusSchema,
 } from '../../../../web/src/lib/Backups/validation.ts'
 import { verifyPublishedBackup } from '../../../../scripts/backup/publication.ts'
+import {
+    OPAQUE_TOKEN_BYTES,
+    OPAQUE_TOKEN_PATTERN,
+    SESSION_COOKIE_NAME,
+} from '../../../../web/src/config/auth.config.ts'
+import { sqlQuote } from './appliance-storage.ts'
 
 const statePath = '/var/lib/rentnerproxy/backups/jobs.json'
 const artifacts = '/var/lib/rentnerproxy/backups/artifacts'
@@ -19,6 +25,7 @@ const actorId = '0198d98a-0000-7000-8000-000000000001'
 const probeModes = [
     'auth',
     'web-isolation',
+    'web-api',
     'seed',
     'markers',
     'status',
@@ -115,6 +122,7 @@ async function run(mode: (typeof probeModes)[number]) {
         return { ok: true }
     }
     assert.equal(process.getuid?.(), 0)
+    if (mode === 'web-api') return await webApiProbe()
     if (mode === 'auth') {
         for (const [path, method] of [
             ['/status', 'GET'],
@@ -270,4 +278,97 @@ if (import.meta.main) {
         console.error('Managed backup fixture probe failed')
         process.exitCode = 1
     }
+}
+
+async function webRequest(
+    path: string,
+    token?: string,
+    body?: unknown,
+    origin: string | null = 'https://managed-backup.invalid',
+) {
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (token) headers.cookie = SESSION_COOKIE_NAME + '=' + token
+    if (origin !== null) headers.origin = origin
+    const response = await fetch('http://127.0.0.1:3000/api/admin/backups/' + path, {
+        method: body === undefined ? 'GET' : 'POST',
+        headers,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(10_000),
+    })
+    assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
+    return { status: response.status, body: (await response.json()) as unknown }
+}
+
+async function webApiProbe() {
+    const viewerId = randomUUID()
+    const ownerToken = randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url')
+    const viewerToken = randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url')
+    assert.match(ownerToken, OPAQUE_TOKEN_PATTERN)
+    assert.match(viewerToken, OPAQUE_TOKEN_PATTERN)
+    // Normal active users, built-in roles and fresh opaque-token sessions; no authentication bypass.
+    // Raw tokens stay in this process and never enter SQL, subprocess output, or host logs.
+    await psql(`BEGIN;
+        INSERT INTO rentnerproxy.users(id,display_name,email,status,email_verified_at)
+        VALUES (${sqlQuote(actorId)},'Managed Backup Owner','managed-backup-owner@fixture.invalid','active',now()),
+               (${sqlQuote(viewerId)},'Managed Backup Viewer','managed-backup-viewer@fixture.invalid','active',now());
+        INSERT INTO rentnerproxy.user_roles(user_id,role_id)
+        SELECT ${sqlQuote(actorId)},id FROM rentnerproxy.roles WHERE key='owner';
+        INSERT INTO rentnerproxy.user_roles(user_id,role_id)
+        SELECT ${sqlQuote(viewerId)},id FROM rentnerproxy.roles WHERE key='viewer';
+        INSERT INTO rentnerproxy.sessions(user_id,token_hash,reauthenticated_at,expires_at)
+        VALUES (${sqlQuote(actorId)},${sqlQuote(createHash('sha256').update(ownerToken).digest('hex'))},now(),now()+interval '1 hour'),
+               (${sqlQuote(viewerId)},${sqlQuote(createHash('sha256').update(viewerToken).digest('hex'))},now(),now()+interval '1 hour');
+        COMMIT;`)
+    assert.equal((await webRequest('status')).status, 401)
+    assert.equal((await webRequest('status', viewerToken)).status, 403)
+    const ownerStatus = await webRequest('status', ownerToken)
+    assert.equal(ownerStatus.status, 200)
+    const before = managedBackupStatusSchema.parse(ownerStatus.body)
+    const configuration = {
+        requestId: randomUUID(),
+        expectedRevision: before.configuration.revision,
+        enabled: false,
+        intervalHours: 1,
+        retentionCount: 1,
+    }
+    assert.equal((await webRequest('start', viewerToken, { requestId: randomUUID() })).status, 403)
+    assert.equal((await webRequest('config', viewerToken, configuration)).status, 403)
+    for (const origin of [null, 'https://forged.invalid']) {
+        assert.equal(
+            (await webRequest('start', ownerToken, { requestId: randomUUID() }, origin)).status,
+            403,
+        )
+        assert.equal((await webRequest('config', ownerToken, configuration, origin)).status, 403)
+    }
+    for (const extra of [{ actorId: viewerId }, { path: '/etc' }]) {
+        assert.equal(
+            (await webRequest('start', ownerToken, { requestId: randomUUID(), ...extra })).status,
+            400,
+        )
+        assert.equal(
+            (await webRequest('config', ownerToken, { ...configuration, ...extra })).status,
+            400,
+        )
+    }
+    const configured = await webRequest('config', ownerToken, configuration)
+    assert.equal(configured.status, 200)
+    const configuredStatus = managedBackupStatusSchema.parse(configured.body)
+    assert.equal(configuredStatus.configuration.enabled, false)
+    assert.equal(configuredStatus.configuration.retentionCount, 1)
+    const requestId = randomUUID()
+    const started = await webRequest('start', ownerToken, { requestId })
+    assert.equal(started.status, 202)
+    const job = managedBackupStatusSchema
+        .parse(started.body)
+        .jobs.find((entry) => entry.requestId === requestId)
+    assert.ok(job)
+    assert.equal(job.actorId, actorId)
+    assert.equal(job.origin, 'manual')
+    const durable = managedBackupStateSchema
+        .parse(JSON.parse(await readFile(statePath, 'utf8')))
+        .jobs.find((entry) => entry.id === job.id)
+    assert.equal(durable?.requestId, requestId)
+    assert.equal(durable?.actorId, actorId)
+    return { id: job.id }
 }
