@@ -68,6 +68,9 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
         'Signed out in this browser, but the server session could not be revoked.',
     'system.response': 'System response',
     'system.recovery': 'Safe route recovery',
+    'system.loading.eyebrow': 'Just a moment',
+    'system.loading.title': 'Nearly there.',
+    'system.loading.description': 'Loading your dashboard.',
     'system.error.eyebrow': 'Unexpected interruption',
     'system.error.title': 'Something went wrong.',
     'system.error.description':

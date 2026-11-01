@@ -20,6 +20,23 @@
         ui-sans-serif, system-ui, sans-serif;
     --font-mono: SFMono-Regular, Consolas, 'Liberation Mono', ui-monospace, monospace;
 
+    --animate-loading-packet: loading-packet 2.4s ease-in-out infinite;
+
+    @keyframes loading-packet {
+        0% {
+            opacity: 0;
+            transform: translateX(-100%);
+        }
+        20%,
+        70% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+            transform: translateX(400%);
+        }
+    }
+
     --breakpoint-shell: 56.25rem;
 
     --color-brand-300: var(--accent-300);

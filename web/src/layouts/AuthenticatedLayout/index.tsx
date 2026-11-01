@@ -11,6 +11,7 @@ import CertificateJobProgressObserver from '@/features/Admin/ProxyHostManagement
 import type { AuthenticatedRouteLayoutProps } from './Types/authenticated-route-layout.types.ts'
 import PageAlertsProvider from '@/shared/PageAlerts/PageAlertsProvider.tsx'
 import QuickActionsProvider from '@/shared/QuickActions/Components/QuickActionsProvider.tsx'
+import LoadingPage from '@/shared/SystemStatePage/LoadingPage.tsx'
 
 import useAuthenticatedLayoutLogic from './Hooks/useAuthenticatedLayoutLogic.ts'
 
@@ -18,25 +19,20 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
     const { state, handler } = useAuthenticatedLayoutLogic(user)
     return (
         <>
-            {state.isIdentityPending ? (
+            {state.isIdentityPending && !state.hasIdentityError ? <LoadingPage /> : null}
+            {state.isIdentityPending && state.hasIdentityError ? (
                 <main
-                    role={state.hasIdentityError ? 'alert' : 'status'}
+                    role="alert"
                     className="grid min-h-screen place-content-center gap-4 bg-navy-950 p-8 text-white"
                 >
-                    <p>
-                        {state.hasIdentityError
-                            ? state.identityErrorMessage
-                            : state.identityLoadingMessage}
-                    </p>
-                    {state.hasIdentityError ? (
-                        <button
-                            type="button"
-                            className="rounded-xl bg-accent px-5 py-3 font-bold text-accent-foreground"
-                            onClick={handler.handleRetryIdentity}
-                        >
-                            {state.retryLabel}
-                        </button>
-                    ) : null}
+                    <p>{state.identityErrorMessage}</p>
+                    <button
+                        type="button"
+                        className="rounded-xl bg-accent px-5 py-3 font-bold text-accent-foreground"
+                        onClick={handler.handleRetryIdentity}
+                    >
+                        {state.retryLabel}
+                    </button>
                 </main>
             ) : null}
             <Activity

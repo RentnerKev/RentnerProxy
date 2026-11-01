@@ -17,9 +17,10 @@ const { createRoot } = await import('react-dom/client')
 const { createRootRoute, createRoute, createRouter, createMemoryHistory, Outlet, RouterProvider } =
     await import('@tanstack/react-router')
 const { default: GlobalErrorPage } = await import('@/shared/SystemStatePage/GlobalErrorPage.tsx')
+const { default: LoadingPage } = await import('@/shared/SystemStatePage/LoadingPage.tsx')
 let activeRoot: Root | null = null
 
-function errorRouter(loader: () => void, language?: AppLanguage) {
+function errorRouter(loader: () => void | Promise<void>, language?: AppLanguage) {
     const root = createRootRoute({
         component: language ? () => withTestLanguage(<Outlet />, language) : Outlet,
     })
@@ -34,6 +35,8 @@ function errorRouter(loader: () => void, language?: AppLanguage) {
         routeTree: root.addChildren([page]),
         history: createMemoryHistory({ initialEntries: ['/'] }),
         defaultPendingMinMs: 0,
+        defaultPendingMs: 1,
+        defaultPendingComponent: LoadingPage,
     })
 }
 
@@ -68,6 +71,44 @@ afterEach(async () => {
 })
 
 describe('global error page', () => {
+    test('shows a public loading screen without fetching catalogs, then reveals the ready route', async () => {
+        const pending = Promise.withResolvers<void>()
+        const router = errorRouter(() => pending.promise)
+        const container = document.createElement('div')
+        document.body.append(container)
+        activeRoot = createRoot(container)
+        const loaders = AVAILABLE_LANGUAGES.map((language) =>
+            spyOn(LANGUAGE_RESOURCE_LOADERS, language),
+        )
+        let navigation: Promise<void> | undefined
+        try {
+            await act(async () => {
+                navigation = router.load()
+                activeRoot?.render(<RouterProvider router={router} />)
+            })
+            await waitFor(() => container.querySelector('output') !== null)
+            expect(container.querySelector('output')?.textContent).toBe(
+                catalogs.en.system.loading.description,
+            )
+            expect(container.querySelector('h1')?.textContent).toBe(
+                catalogs.en.system.loading.title,
+            )
+            expect(container.querySelector('[data-testid="recovered"]')).toBeNull()
+            for (const loader of loaders) expect(loader).not.toHaveBeenCalled()
+
+            await act(async () => {
+                pending.resolve()
+                await navigation
+            })
+            await waitFor(() => container.querySelector('[data-testid="recovered"]') !== null)
+            expect(container.querySelector('output')).toBeNull()
+        } finally {
+            pending.resolve()
+            await navigation
+            loaders.forEach((loader) => loader.mockRestore())
+        }
+    })
+
     test('explains a schema failure publicly in English without loading language catalogs', async () => {
         const error = createPageError(Object.assign(new Error('synthetic SQL'), { errno: '42703' }))
         const loaders = AVAILABLE_LANGUAGES.map((language) =>
