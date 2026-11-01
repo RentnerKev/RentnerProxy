@@ -269,10 +269,14 @@ export function createS3Storage(input: OffHostS3Target, dependencies: S3Dependen
                                 .finally(() => incoming.destroy())
                         },
                     )
-                    const timer = setTimeout(
-                        () => req.destroy(new StorageError('TIMEOUT', true)),
-                        15 * 60_000,
-                    )
+                    // A GET streams the whole object; progress is bounded by idle and operation deadlines.
+                    const timer =
+                        method === 'GET'
+                            ? undefined
+                            : setTimeout(
+                                  () => req.destroy(new StorageError('TIMEOUT', true)),
+                                  15 * 60_000,
+                              )
                     req.setTimeout(60_000, () => req.destroy(new StorageError('TIMEOUT', true)))
                     req.on('error', (error: NodeJS.ErrnoException) => {
                         const failure = transferError(error)
@@ -281,7 +285,7 @@ export function createS3Storage(input: OffHostS3Target, dependencies: S3Dependen
                         else reject(failure)
                     })
                     req.on('close', () => {
-                        clearTimeout(timer)
+                        if (timer !== undefined) clearTimeout(timer)
                         if (signal.aborted) response?.destroy()
                     })
                     req.end(body)

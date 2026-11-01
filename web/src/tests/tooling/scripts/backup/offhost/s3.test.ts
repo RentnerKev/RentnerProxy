@@ -1,5 +1,5 @@
 // oxlint-disable no-await-in-loop -- Validation cases and fixture cleanup run in a deterministic order.
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtemp, open, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -56,7 +56,65 @@ async function fixture(
     return { storage, directory }
 }
 
+function accelerateRequestDeadline(milliseconds: number) {
+    const timers = globalThis as unknown as {
+        setTimeout: (...args: Parameters<typeof setTimeout>) => ReturnType<typeof setTimeout>
+    }
+    const originalTimeout = timers.setTimeout
+    return spyOn(timers, 'setTimeout').mockImplementation((callback, duration, ...args) =>
+        originalTimeout(callback, duration === 15 * 60_000 ? milliseconds : duration, ...args),
+    )
+}
+
 describe('bounded scoped S3 transport', () => {
+    test('a progressing GET outlives the non-GET hard deadline', async () => {
+        const timer = accelerateRequestDeadline(1)
+        let oldDeadlineElapsed = false
+        const proofTimer = setTimeout(() => {
+            oldDeadlineElapsed = true
+        }, 15 * 60_000)
+        try {
+            const { storage, directory } = await fixture((_req, res) => {
+                res.writeHead(200, { 'content-length': '20' })
+                res.write('part')
+                let chunks = 1
+                const progress = setInterval(() => {
+                    res.write('part')
+                    if (++chunks === 5) {
+                        clearInterval(progress)
+                        res.end()
+                    }
+                }, 10)
+                res.on('close', () => clearInterval(progress))
+            })
+            const output = join(directory, 'output')
+            await storage.get('job', output)
+            expect(await readFile(output, 'utf8')).toBe('part'.repeat(5))
+            expect(oldDeadlineElapsed).toBe(true)
+            expect(
+                timer.mock.calls.filter(([, duration]) => duration === 15 * 60_000),
+            ).toHaveLength(1)
+        } finally {
+            clearTimeout(proofTimer)
+            timer.mockRestore()
+        }
+    })
+
+    test('non-GET requests retain the hard deadline and bounded retry budget', async () => {
+        const timer = accelerateRequestDeadline(10)
+        try {
+            const { storage } = await fixture((req) => {
+                req.resume()
+            })
+            await expect(storage.remove('job')).rejects.toThrow('OFFHOST_S3_TIMEOUT')
+            expect(
+                timer.mock.calls.filter(([, duration]) => duration === 15 * 60_000),
+            ).toHaveLength(3)
+        } finally {
+            timer.mockRestore()
+        }
+    })
+
     test('uploads bounded sequential multipart chunks and completes them', async () => {
         const sizes: number[] = []
         let completion = ''

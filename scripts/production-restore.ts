@@ -320,10 +320,23 @@ async function restore(): Promise<void> {
             )
         // The journal hook durably pauses root-owned off-host uploads and retention on
         // fresh and resumed restores before changing keys or restarting any writers.
-        await runCommand(
-            bootstrap('begin-production-restore'),
-            'stage production restore and pause off-host backups',
-        )
+        try {
+            await runCommand(
+                bootstrap('begin-production-restore'),
+                'stage production restore and pause off-host backups',
+            )
+        } catch (error) {
+            // runCommand exposes only its sanitized operation/cleanup message, never bootstrap stderr.
+            const failure =
+                error instanceof Error
+                    ? error.message
+                    : 'production restore operation failed: stage production restore and pause off-host backups'
+            throw new Error(
+                failure +
+                    '. Restore staging interrupted; appliance remains stopped. If the restore journal was written, rerun the same backup with --resume --confirm-replace.',
+                { cause: error },
+            )
+        }
         try {
             await runCommand(
                 bootstrap('begin-app-key-restore'),

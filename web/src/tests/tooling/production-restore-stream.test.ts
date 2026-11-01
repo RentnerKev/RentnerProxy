@@ -95,7 +95,7 @@ if (command.includes('config --format=json')) {
 } else if (command.includes('--initialize-restore-target')) {
     if (scenario === 'prepare-failure') process.exit(9)
 } else if (command.includes('begin-production-restore')) {
-    if (scenario === 'off-host-pause-failure') process.exit(9)
+    if (scenario === 'off-host-pause-failure') { console.error('do-not-leak SYNTHETIC-BOOTSTRAP-SECRET'); process.exit(9) }
 } else if (command.includes('pg_restore')) {
     const mount = args[args.indexOf('--volume') + 1]
     if (!mount.endsWith(':/backup:ro')) process.exit(81)
@@ -293,6 +293,13 @@ test.skipIf(process.platform === 'win32')(
         const result = await restore('off-host-pause-failure')
         assert.equal(result.exit, 1)
         assert.match(result.stderr, /pause off-host backups/)
+        assert.match(result.stderr, /appliance remains stopped/)
+        assert.match(
+            result.stderr,
+            /If the restore journal was written, rerun the same backup with --resume --confirm-replace/,
+        )
+        assert.equal(result.stderr.includes('SYNTHETIC-BOOTSTRAP-SECRET'), false)
+        assert.equal(result.stderr.includes('do-not-leak'), false)
         assert.ok(result.calls.some((args) => args.includes('stop')))
         assert.ok(result.calls.some((args) => args.includes('begin-production-restore')))
         assert.ok(

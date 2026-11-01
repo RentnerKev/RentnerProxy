@@ -474,8 +474,15 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         const retained = state.jobs.filter(
             (job) => job.state === 'succeeded' && (job.retained || job.id === replacementId),
         )
-        if (retained.length <= state.configuration.retentionCount) return null
-        const candidate = retained.find((job) => job.id !== replacementId)
+        // An upload outage keeps its last remote-verified local point alongside
+        // the fresh local replacement without accumulating every failed upload.
+        const pinned =
+            replacement.remote?.state === 'failed'
+                ? retained.findLast((job) => job.retained && job.remote?.state === 'succeeded')
+                : undefined
+        const keep = Math.max(state.configuration.retentionCount, pinned ? 2 : 1)
+        if (retained.length <= keep) return null
+        const candidate = retained.find((job) => job.id !== replacementId && job.id !== pinned?.id)
         return candidate ? structuredClone({ candidate, replacement }) : null
     }
 
@@ -609,7 +616,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 trim(draft)
             })
             // Commit the verified recovery point before any old artifact can be removed.
-            if (error === null && remote?.state !== 'failed') {
+            if (error === null) {
                 await prune(job.id)
                 await mutate((draft) => {
                     const replacement = draft.jobs.find((entry) => entry.id === job.id)
