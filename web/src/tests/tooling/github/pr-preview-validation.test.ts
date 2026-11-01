@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 
 import {
     PREVIEW_COMMENT_MARKER,
@@ -887,13 +890,53 @@ describe('skipped build publisher preflight', () => {
 })
 
 describe('PR preview identity', () => {
+    test('build identity CLI uses the executing attempt rather than a cached verification identity', async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-preview-identity-'))
+        try {
+            await Promise.all(
+                [1, 2].map(async (attempt) => {
+                    const output = join(directory, `attempt-${attempt}`)
+                    const child = Bun.spawn(
+                        [
+                            process.execPath,
+                            '--no-env-file',
+                            resolve(
+                                import.meta.dir,
+                                '../../../../../.github/scripts/deploy/pr-preview.ts',
+                            ),
+                            'build-identity',
+                        ],
+                        {
+                            env: {
+                                REPOSITORY: 'RentnerKev/RentnerProxy',
+                                PR_NUMBER: '42',
+                                TESTED_SHA: testedSha,
+                                GITHUB_RUN_ID: '7001',
+                                GITHUB_RUN_ATTEMPT: String(attempt),
+                                GITHUB_OUTPUT: output,
+                            },
+                            stdout: 'pipe',
+                            stderr: 'pipe',
+                        },
+                    )
+                    expect(await child.exited).toBe(0)
+                    expect(await readFile(output, 'utf8')).toBe(
+                        `immutable_tag=pr-42-${testedSha.slice(0, 12)}-7001-${attempt}\n`,
+                    )
+                }),
+            )
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    })
+
     test('generates only moving and immutable PR tags from validated metadata', () => {
-        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 2)
 
         expect(identity).toEqual({
             image: 'ghcr.io/rentnerkev/rentnerproxy',
-            immutableReference: `ghcr.io/rentnerkev/rentnerproxy:pr-42-${testedSha.slice(0, 12)}`,
-            immutableTag: `pr-42-${testedSha.slice(0, 12)}`,
+            immutableReference: `ghcr.io/rentnerkev/rentnerproxy:pr-42-${testedSha.slice(0, 12)}-7001-2`,
+            immutableTag: `pr-42-${testedSha.slice(0, 12)}-7001-2`,
             movingReference: 'ghcr.io/rentnerkev/rentnerproxy:pr-42',
             movingTag: 'pr-42',
             pullRequestNumber: 42,
@@ -906,7 +949,49 @@ describe('PR preview identity', () => {
     test('accepts only the two canonical PR preview tag shapes', () => {
         expect(assertPreviewTag('pr-1')).toBe('pr-1')
         expect(assertPreviewTag('pr-142')).toBe('pr-142')
-        expect(assertPreviewTag(`pr-142-${'a'.repeat(12)}`)).toBe(`pr-142-${'a'.repeat(12)}`)
+        expect(assertPreviewTag(`pr-142-${'a'.repeat(12)}-7001-2`)).toBe(
+            `pr-142-${'a'.repeat(12)}-7001-2`,
+        )
+    })
+
+    test('gives each rebuild and rerun its own immutable tag while keeping the PR channel', () => {
+        const first = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 1)
+        const rerun = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 2)
+        const rebuild = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7002, 1)
+        expect(new Set([first.immutableTag, rerun.immutableTag, rebuild.immutableTag]).size).toBe(3)
+        expect(rerun.movingReference).toBe(first.movingReference)
+        expect(rebuild.movingReference).toBe(first.movingReference)
+        expect(rerun.testedSha).toBe(first.testedSha)
+        for (const value of [undefined, 0, -1, '01', '1;latest', Number.MAX_SAFE_INTEGER + 1]) {
+            expect(() =>
+                createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, value, 1),
+            ).toThrow()
+            expect(() =>
+                createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, value),
+            ).toThrow()
+        }
+        const plan = {
+            image: first.image,
+            immutableReference: first.immutableReference,
+            immutableTag: first.immutableTag,
+            movingReference: first.movingReference,
+            movingTag: first.movingTag,
+        }
+        for (const [runId, attempt] of [
+            [7001, 2],
+            [7002, 1],
+        ]) {
+            expect(() =>
+                assertPreviewPublishPlan(
+                    plan,
+                    'RentnerKev/RentnerProxy',
+                    42,
+                    testedSha,
+                    runId,
+                    attempt,
+                ),
+            ).toThrow()
+        }
     })
 
     test('accepts only one canonical pull request number proof line', () => {
@@ -956,6 +1041,9 @@ describe('PR preview identity', () => {
             'pr-42-ABCDEF123456',
             'pr-42-12345678901',
             'pr-42-1234567890123',
+            'pr-42-123456789012',
+            'pr-42-123456789012-7001-0',
+            'pr-42-123456789012-0-1',
             'alpha',
             'rc',
             'pr-42\nlatest',
@@ -966,7 +1054,7 @@ describe('PR preview identity', () => {
     })
 
     test('rejects registry, repository, destination, and third-tag overrides', () => {
-        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 2)
         const plan = {
             image: identity.image,
             immutableReference: identity.immutableReference,
@@ -975,9 +1063,9 @@ describe('PR preview identity', () => {
             movingTag: identity.movingTag,
         }
 
-        expect(assertPreviewPublishPlan(plan, 'RentnerKev/RentnerProxy', 42, testedSha)).toEqual(
-            identity,
-        )
+        expect(
+            assertPreviewPublishPlan(plan, 'RentnerKev/RentnerProxy', 42, testedSha, 7001, 2),
+        ).toEqual(identity)
         for (const override of [
             { image: 'ghcr.io/attacker/rentnerproxy' },
             { image: 'registry.example/rentnerkev/rentnerproxy' },
@@ -993,6 +1081,8 @@ describe('PR preview identity', () => {
                     'RentnerKev/RentnerProxy',
                     42,
                     testedSha,
+                    7001,
+                    2,
                 ),
             ).toThrow()
         }
@@ -1002,6 +1092,8 @@ describe('PR preview identity', () => {
                 'RentnerKev/RentnerProxy',
                 42,
                 testedSha,
+                7001,
+                2,
             ),
         ).toThrow()
 
@@ -1011,7 +1103,7 @@ describe('PR preview identity', () => {
             'rentnerkev/other/rentnerproxy',
             'rentnerkev/rentnerproxy\nattacker/repository',
         ]) {
-            expect(() => createPreviewIdentity(repository, 42, testedSha)).toThrow()
+            expect(() => createPreviewIdentity(repository, 42, testedSha, 7001, 2)).toThrow()
         }
     })
 
@@ -1367,7 +1459,7 @@ describe('artifact metadata and marker comment', () => {
     })
 
     test('parses multiline API comments and selects only the latest trusted preview', () => {
-        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 2)
         const body = renderPreviewComment(identity, headSha, `sha256:${'5'.repeat(64)}`)
         const comments = [
             {
@@ -1414,7 +1506,7 @@ describe('artifact metadata and marker comment', () => {
     })
 
     test('renders reproducible commands and mandatory safety warnings', () => {
-        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha, 7001, 2)
         const body = renderPreviewComment(identity, headSha, `sha256:${'5'.repeat(64)}`)
 
         expect(body).toStartWith(PREVIEW_COMMENT_MARKER)

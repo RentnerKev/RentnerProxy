@@ -113,6 +113,25 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).not.toContain('docker run')
     })
 
+    test('derives the immutable tag in the build job so a failed-job rerun gets a new identity', async () => {
+        const build = await workflow('pr-preview-build.yml')
+        const buildJob = build.slice(build.indexOf('\n    build:'))
+        expect(buildJob).toContain('pr-preview.ts build-identity')
+        expect(buildJob).toContain('IMMUTABLE_TAG: ${{ steps.identity.outputs.immutable_tag }}')
+        expect(buildJob).not.toContain('needs.verify.outputs.immutable_tag')
+        const publisher = await workflow('pr-preview-publish.yml')
+        for (const step of [
+            'Publish immutable and moving preview tags',
+            'Revalidate PR and update marker comment',
+        ]) {
+            const start = publisher.indexOf('- name: ' + step)
+            const next = publisher.indexOf('\n            - name:', start + 1)
+            const block = publisher.slice(start, next === -1 ? undefined : next)
+            expect(block).toContain('SOURCE_RUN_ID: ${{ needs.resolve.outputs.run_id }}')
+            expect(block).toContain('SOURCE_RUN_ATTEMPT: ${{ needs.resolve.outputs.run_attempt }}')
+        }
+    })
+
     test('pins every external action to a full commit SHA', async () => {
         const references = externalActionReferences(await workflow('pr-preview-build.yml'))
 

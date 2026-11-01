@@ -110,7 +110,7 @@ jobs:
         timeout-minutes: 15
         services:
             postgres:
-                image: mirror.gcr.io/library/postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+                image: mirror.gcr.io/library/postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
                 env:
                     POSTGRES_USER: rentnerproxy
                     POSTGRES_PASSWORD: rentnerproxy
@@ -123,7 +123,7 @@ jobs:
                     --health-timeout 5s
                     --health-retries 10
             valkey:
-                image: mirror.gcr.io/valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
+                image: mirror.gcr.io/valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
                 ports:
                     - 6379:6379
                 options: >-
@@ -334,7 +334,7 @@ jobs:
                   docker run --rm --workdir /src \
                     --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
                     --env GOTOOLCHAIN=local --env CGO_ENABLED=1 \
-                    mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e \
+                    mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 \
                     /bin/sh -ec 'GODEBUG=http2client=0 go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
 
             - name: Build actual custom Caddy

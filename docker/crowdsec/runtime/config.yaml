@@ -18,7 +18,7 @@ crowdsec_service:
 cscli:
     output: json
     color: 'no'
-    hub_branch: b967aecfbcb89bdd1e6a2832ad43f97f22a39728
+    hub_branch: 22393a8bd820a3f6033b114adbefacca9cd120a2
     __hub_url_template__: https://raw.githubusercontent.com/crowdsecurity/hub/%s/%s
 db_config:
     log_level: info

@@ -20,7 +20,7 @@ jobs:
         timeout-minutes: 15
         services:
             postgres:
-                image: mirror.gcr.io/library/postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+                image: mirror.gcr.io/library/postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
                 env:
                     POSTGRES_USER: rentnerproxy
                     POSTGRES_PASSWORD: rentnerproxy
@@ -32,7 +32,7 @@ jobs:
                     --health-timeout 5s
                     --health-retries 10
             valkey:
-                image: mirror.gcr.io/valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
+                image: mirror.gcr.io/valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
                 ports: [6379:6379]
                 options: >-
                     --health-cmd "valkey-cli ping"
@@ -80,7 +80,7 @@ jobs:
                   set -euo pipefail
                   export RENTNERPROXY_TEST_CADDY_BIN="$RUNNER_TEMP/beta2-caddy"
                   printf '%s\n' "RENTNERPROXY_TEST_CADDY_BIN=$RENTNERPROXY_TEST_CADDY_BIN" >> "$GITHUB_ENV"
-                  image=mirror.gcr.io/library/caddy:2.11.7@sha256:f2a1290d0463aad60660d4ec134943f183ee2a5f6c3eb7bf32dd984f2f020772
+                  image=mirror.gcr.io/library/caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
                   container=$(docker create "$image")
                   trap 'docker rm -f "$container" >/dev/null' EXIT
                   docker cp "$container:/usr/bin/caddy" "$RENTNERPROXY_TEST_CADDY_BIN"

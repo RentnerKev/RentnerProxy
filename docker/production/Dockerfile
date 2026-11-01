@@ -40,7 +40,7 @@ COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-asset
 COPY --from=web-build /app/docker/web/serve.ts ./docker/web/serve.ts
 COPY --from=web-build /app/docker/web/healthcheck.ts ./docker/web/healthcheck.ts
 
-FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:931c2c0531a8b143e044f0f3914dfe802f15bb3d1955f0b657e9359327ac2ffc AS controller-build
+FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:09027f873d45b8ecd1dc86f1fa13b7a62b875c961f017a0e331267b350430137 AS controller-build
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
@@ -48,18 +48,18 @@ COPY core/src ./src
 ARG RENTNERPROXY_BUILD_VERSION
 RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" cargo build --locked --release
 
-FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS caddy-go-toolchain
+FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS caddy-go-toolchain
 
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # Use immutable upstream modules without changing their source.
 # Their optional AppSec and Layer 4 modules remain unconfigured.
-FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c2fc374fd352439d76e1777b28d97d9f6d9c1dd86116db9227460374d46097d5 AS caddy-build
+FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c4cd20eaa0b69112fd5d4f721ffc9671687e1d5d0b155c8620cf7546dbef94c0 AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
-ARG CADDY_CROWDSEC_BOUNCER_COMMIT=ffdcb7c6f8619effc7510bc0db0edec3609a1d28
-ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261023161224-4ad6aec1ccc6
+ARG CADDY_CROWDSEC_BOUNCER_COMMIT=4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4
+ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261029145729-f607ccea1b7d
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
@@ -72,25 +72,25 @@ RUN bun --no-env-file /tmp/download-geoip.ts
 
 # Build pristine upstream CrowdSec with the managed SQLite backend and pinned
 # security dependencies; exclude its unused legacy PostgreSQL backend.
-FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS crowdsec-build
+FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS crowdsec-build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
 RUN /bin/sh /opt/crowdsec-build/build.sh /out
 
-FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS gosu-build
+FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS gosu-build
 COPY docker/gosu/tooling/ /opt/gosu-build/
 RUN /bin/sh /opt/gosu-build/build.sh /out
 
-FROM ghcr.io/crowdsecurity/crowdsec:v1.8.1-debian@sha256:ab1bdb61a072154d478ad6c625b8e62c7f79a727b2740209d2128dd51d69d58d AS crowdsec-assets
+FROM ghcr.io/crowdsecurity/crowdsec:v1.8.2-debian@sha256:a5642c72127ee93aaac830e9f66891573fa7851b2c721987d9fef13d7d05fdfe AS crowdsec-assets
 
 COPY docker/crowdsec/hub/data.sha256 /tmp/rentnerproxy-crowdsec-hub-data.sha256
 RUN set -eux; \
     mkdir -p /etc/crowdsec /var/lib/crowdsec /opt/rentnerproxy/crowdsec-config; \
     cp -a /staging/etc/crowdsec/. /etc/crowdsec/; \
     cp -a /staging/var/lib/crowdsec/. /var/lib/crowdsec/; \
-    sed -i '/^cscli:/a\  hub_branch: b967aecfbcb89bdd1e6a2832ad43f97f22a39728' /etc/crowdsec/config.yaml; \
+    sed -i '/^cscli:/a\  hub_branch: 22393a8bd820a3f6033b114adbefacca9cd120a2' /etc/crowdsec/config.yaml; \
     sed -i '/^cscli:/a\  __hub_url_template__: https://raw.githubusercontent.com/crowdsecurity/hub/%s/%s' /etc/crowdsec/config.yaml; \
     cscli -c /etc/crowdsec/config.yaml hub update --error; \
     cscli -c /etc/crowdsec/config.yaml collections remove crowdsecurity/linux --force >/dev/null; \
@@ -104,9 +104,9 @@ RUN set -eux; \
         /etc/crowdsec/online_api_credentials.yaml; \
     cp -aL /etc/crowdsec/. /opt/rentnerproxy/crowdsec-config/
 
-FROM mirror.gcr.io/valkey/valkey:9.1.2-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd AS valkey-runtime
+FROM mirror.gcr.io/valkey/valkey:9.1.3-trixie@sha256:3add1a336a920ea54770a001ab6feb3da5fceea96a40373a3a2cd469b815f0b7 AS valkey-runtime
 
-FROM mirror.gcr.io/library/postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6 AS runtime
+FROM mirror.gcr.io/library/postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
     org.opencontainers.image.description="Modern self-hosted reverse proxy manager powered by Caddy."
@@ -187,8 +187,8 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && chmod 0555 /usr/local/bin/crowdsec /usr/local/bin/cscli \
     && chmod 0555 /usr/local/bin/bun \
     && chmod 0555 /opt/rentnerproxy/valkey/bin/valkey-server /opt/rentnerproxy/valkey/bin/valkey-cli \
-    && /opt/rentnerproxy/valkey/bin/valkey-server --version | grep -F 'v=9.1.2 ' \
-    && /opt/rentnerproxy/valkey/bin/valkey-cli --version | grep -Fx 'valkey-cli 9.1.2' \
+    && /opt/rentnerproxy/valkey/bin/valkey-server --version | grep -F 'v=9.1.3 ' \
+    && /opt/rentnerproxy/valkey/bin/valkey-cli --version | grep -Fx 'valkey-cli 9.1.3' \
     && ldd /opt/rentnerproxy/valkey/bin/valkey-server > /tmp/valkey-server-libraries \
     && ldd /opt/rentnerproxy/valkey/bin/valkey-cli > /tmp/valkey-cli-libraries \
     && ! grep -F 'not found' /tmp/valkey-server-libraries /tmp/valkey-cli-libraries \
@@ -201,7 +201,7 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
-    && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157986a2b2c2163300fdaef5ed01289f7d2' \
+    && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.2-3d369d64eb3e9ba770ed39aedc83ffd3170aef4c' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \

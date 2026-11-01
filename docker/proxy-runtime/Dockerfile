@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:931c2c0531a8b143e044f0f3914dfe802f15bb3d1955f0b657e9359327ac2ffc AS builder
+FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:09027f873d45b8ecd1dc86f1fa13b7a62b875c961f017a0e331267b350430137 AS builder
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
@@ -6,26 +6,26 @@ COPY core/src ./src
 ARG RENTNERPROXY_BUILD_VERSION
 RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" cargo build --locked --release
 
-FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS caddy-go-toolchain
+FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS caddy-go-toolchain
 
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # Use immutable upstream modules without changing their source.
 # Their optional AppSec and Layer 4 modules remain unconfigured.
-FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c2fc374fd352439d76e1777b28d97d9f6d9c1dd86116db9227460374d46097d5 AS caddy-build
+FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c4cd20eaa0b69112fd5d4f721ffc9671687e1d5d0b155c8620cf7546dbef94c0 AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
 
-ARG CADDY_CROWDSEC_BOUNCER_COMMIT=ffdcb7c6f8619effc7510bc0db0edec3609a1d28
-ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261023161224-4ad6aec1ccc6
+ARG CADDY_CROWDSEC_BOUNCER_COMMIT=4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4
+ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261029145729-f607ccea1b7d
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/rentnerproxy-caddy
 RUN /bin/sh /tmp/build-caddy.sh
 
-FROM mirror.gcr.io/library/debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+FROM mirror.gcr.io/library/debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 
 COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy
 COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy/LICENSE
