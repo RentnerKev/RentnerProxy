@@ -1,5 +1,5 @@
 // oxlint-disable no-await-in-loop -- Bounded waits observe serial React and router transitions.
-import { afterEach, beforeEach, expect, mock, spyOn, test } from 'bun:test'
+import { afterEach, beforeEach, expect, jest, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, useState } from 'react'
@@ -156,7 +156,7 @@ let container: HTMLDivElement
 const restorers: Array<() => void> = []
 
 async function waitFor(check: () => boolean) {
-    for (let attempt = 0; attempt < 100; attempt++) {
+    for (let attempt = 0; attempt < 150; attempt++) {
         if (check()) return
         await act(async () => {
             await Bun.sleep(10)
@@ -353,6 +353,46 @@ test('application identity snapshots are suspended throughout the destructive re
     await deliver({ revision: 'restored-database', userVersion: 'different' }, 'app-events')
     expect(invalidate).not.toHaveBeenCalled()
     expect(progress()?.value).toBe(42)
+})
+
+test('brief identity checks never show the loading screen and each check gets a fresh buffer', async () => {
+    await mount()
+    await deliver({ revision: 'before', userVersion: 'viewer' }, 'app-events')
+    const first = Promise.withResolvers<void>()
+    const second = Promise.withResolvers<void>()
+    const invalidate = spyOn(router, 'invalidate')
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise)
+    restorers.push(() => invalidate.mockRestore())
+    jest.useFakeTimers()
+    try {
+        await deliver({ revision: 'first', userVersion: 'viewer' }, 'app-events')
+        expect(container.querySelector('[data-route-state]')?.closest('[hidden]')).not.toBeNull()
+        await act(async () => jest.advanceTimersByTime(900))
+        expect(container.querySelector('h1')).toBeNull()
+        await act(async () => first.resolve())
+        expect(container.querySelector('[data-route-state]')?.closest('[hidden]')).toBeNull()
+
+        await deliver({ revision: 'second', userVersion: 'viewer' }, 'app-events')
+        await act(async () => jest.advanceTimersByTime(100))
+        expect(container.querySelector('h1')).toBeNull()
+        await act(async () => jest.advanceTimersByTime(899))
+        expect(container.querySelector('h1')).toBeNull()
+        await act(async () => jest.advanceTimersByTime(1))
+        expect(container.querySelector('h1')?.textContent).toBe(catalogs.en.system.loading.title)
+
+        await act(async () => second.resolve())
+        expect(container.querySelector('h1')).toBeNull()
+        expect(container.querySelector('[data-route-state]')?.closest('[hidden]')).toBeNull()
+        await act(async () => jest.advanceTimersByTime(2_000))
+        expect(container.querySelector('h1')).toBeNull()
+    } finally {
+        await act(async () => {
+            first.resolve()
+            second.resolve()
+        })
+        jest.useRealTimers()
+    }
 })
 
 test.each(['pending', 'failed'] as const)(

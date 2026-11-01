@@ -11,7 +11,7 @@ import CertificateJobProgressObserver from '@/features/Admin/ProxyHostManagement
 import type { AuthenticatedRouteLayoutProps } from './Types/authenticated-route-layout.types.ts'
 import PageAlertsProvider from '@/shared/PageAlerts/PageAlertsProvider.tsx'
 import QuickActionsProvider from '@/shared/QuickActions/Components/QuickActionsProvider.tsx'
-import LoadingPage from '@/shared/SystemStatePage/LoadingPage.tsx'
+import DelayedLoadingPage from '@/shared/SystemStatePage/DelayedLoadingPage.tsx'
 
 import useAuthenticatedLayoutLogic from './Hooks/useAuthenticatedLayoutLogic.ts'
 import RestoreProgress from './Components/RestoreProgress.tsx'
@@ -28,7 +28,7 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
                 />
             ) : null}
             {state.isIdentityPending && !state.restoreMaintenance && !state.hasIdentityError ? (
-                <LoadingPage />
+                <DelayedLoadingPage />
             ) : null}
             {state.isIdentityPending && !state.restoreMaintenance && state.hasIdentityError ? (
                 <main
