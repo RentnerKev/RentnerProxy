@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, spyOn, test } from 'bun:test'
+import { afterEach, describe, expect, jest, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import type { AnyRouter } from '@tanstack/react-router'
+import type { AnyRouter, RouteComponent } from '@tanstack/react-router'
 import type { Root } from 'react-dom/client'
 
 import { AVAILABLE_LANGUAGES } from '@/config/language.config.ts'
@@ -12,15 +12,20 @@ import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const { act } = await import('react')
+const { act, lazy } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createRootRoute, createRoute, createRouter, createMemoryHistory, Outlet, RouterProvider } =
     await import('@tanstack/react-router')
 const { default: GlobalErrorPage } = await import('@/shared/SystemStatePage/GlobalErrorPage.tsx')
-const { default: LoadingPage } = await import('@/shared/SystemStatePage/LoadingPage.tsx')
+const { default: DelayedLoadingPage } =
+    await import('@/shared/SystemStatePage/DelayedLoadingPage.tsx')
 let activeRoot: Root | null = null
 
-function errorRouter(loader: () => void | Promise<void>, language?: AppLanguage) {
+function errorRouter(
+    loader: () => void | Promise<void>,
+    language?: AppLanguage,
+    component: RouteComponent = () => <p data-testid="recovered">Recovered test page</p>,
+) {
     const root = createRootRoute({
         component: language ? () => withTestLanguage(<Outlet />, language) : Outlet,
     })
@@ -28,7 +33,7 @@ function errorRouter(loader: () => void | Promise<void>, language?: AppLanguage)
         getParentRoute: () => root,
         path: '/',
         loader,
-        component: () => <p data-testid="recovered">Recovered test page</p>,
+        component,
         errorComponent: GlobalErrorPage,
     })
     return createRouter({
@@ -36,7 +41,7 @@ function errorRouter(loader: () => void | Promise<void>, language?: AppLanguage)
         history: createMemoryHistory({ initialEntries: ['/'] }),
         defaultPendingMinMs: 0,
         defaultPendingMs: 1,
-        defaultPendingComponent: LoadingPage,
+        defaultPendingComponent: DelayedLoadingPage,
     })
 }
 
@@ -71,6 +76,45 @@ afterEach(async () => {
 })
 
 describe('global error page', () => {
+    test.each(['loader', 'component'] as const)(
+        'does not flash the loading screen while a %s is briefly pending',
+        async (kind) => {
+            const pending = Promise.withResolvers<void>()
+            const component = lazy(async () => {
+                await pending.promise
+                return { default: () => <p data-testid="recovered">Recovered test page</p> }
+            })
+            const router =
+                kind === 'loader'
+                    ? errorRouter(() => pending.promise)
+                    : errorRouter(() => {}, undefined, component)
+            const container = document.createElement('div')
+            document.body.append(container)
+            activeRoot = createRoot(container)
+            let navigation: Promise<void> | undefined
+            jest.useFakeTimers()
+            try {
+                await act(async () => {
+                    navigation = router.load()
+                    activeRoot?.render(<RouterProvider router={router} />)
+                })
+                await act(async () => jest.advanceTimersByTime(250))
+                expect(container.querySelector('output')).toBeNull()
+                await act(async () => {
+                    pending.resolve()
+                    await navigation
+                })
+                await act(async () => jest.advanceTimersByTime(2_000))
+                expect(container.querySelector('[data-testid="recovered"]')).not.toBeNull()
+                expect(container.querySelector('output')).toBeNull()
+            } finally {
+                pending.resolve()
+                await navigation
+                jest.useRealTimers()
+            }
+        },
+    )
+
     test('shows a public loading screen without fetching catalogs, then reveals the ready route', async () => {
         const pending = Promise.withResolvers<void>()
         const router = errorRouter(() => pending.promise)

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, jest, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toast } from '@rentnerkev/toasts'
 import { act, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -17,6 +18,7 @@ import {
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { ManagedBackupMaintenance } from '@/lib/Backups/Types/backups.types.ts'
+import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -24,7 +26,20 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 // Keep the actual layout, restore hooks, identity sync and socket transport; isolate unrelated UI/services.
 mock.module('@/layouts/AuthenticatedLayout/Components/ApplicationShell/index.tsx', () => ({
-    default: ({ children }: { children: ReactNode }) => <>{children}</>,
+    default: ({
+        children,
+        themeControl,
+        themeMode,
+    }: {
+        children: ReactNode
+        themeControl: ReactNode
+        themeMode: UserThemeMode
+    }) => (
+        <div data-application-shell data-theme={themeMode}>
+            {themeControl}
+            {children}
+        </div>
+    ),
 }))
 mock.module(
     '@/features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver.tsx',
@@ -37,7 +52,8 @@ mock.module('@/shared/PageAlerts/PageAlertsProvider.tsx', () => ({
     default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
 mock.module('@/features/UserSettings/middleware.ts', () => ({
-    updateCurrentUserThemeModeHandler: async () => {
+    updateCurrentUserThemeModeHandler: async ({ data }: { data: { themeMode: UserThemeMode } }) => {
+        if (themeUpdatesAllowed) return { success: true, themeMode: data.themeMode }
         throw new Error('Unexpected preference mutation')
     },
     updateCurrentUserNavigationGroupHandler: async () => {
@@ -50,6 +66,8 @@ mock.module('@/features/Auth/middleware.ts', () => ({
     },
 }))
 const { default: AuthenticatedLayout } = await import('@/layouts/AuthenticatedLayout/index.tsx')
+let themeUpdatesAllowed = false
+let identityLoad: Promise<void> | undefined
 
 class FakeSocket extends EventTarget {
     static instances: FakeSocket[] = []
@@ -129,7 +147,10 @@ function makeRouter() {
     const authenticated = createRoute({
         getParentRoute: () => rootRoute,
         id: '_authenticated',
-        beforeLoad: () => ({ user, sessionId: 'stable-session' }),
+        beforeLoad: () =>
+            identityLoad
+                ? identityLoad.then(() => ({ user, sessionId: 'stable-session' }))
+                : { user, sessionId: 'stable-session' },
         component: () => <AuthenticatedLayout user={user} />,
     })
     const route = createRoute({
@@ -194,6 +215,8 @@ function progress() {
 }
 
 beforeEach(() => {
+    themeUpdatesAllowed = false
+    identityLoad = undefined
     window.location.href = 'http://localhost/proxy-hosts?filter=kept&page=3#details'
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
     globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket
@@ -394,6 +417,55 @@ test('brief identity checks never show the loading screen and each check gets a 
         jest.useRealTimers()
     }
 })
+
+test.each(['theme', 'application'] as const)(
+    '%s updates keep the mounted page visible during a slow refresh',
+    async (kind) => {
+        await mount()
+        const success = spyOn(toast, 'success').mockReturnValue('theme-feedback-fixture')
+        restorers.push(() => success.mockRestore())
+        const identityVersion = 'a'.repeat(64)
+        await deliver({ revision: 'before', userVersion: 'dark', identityVersion }, 'app-events')
+        const routeState = container.querySelector<HTMLElement>('[data-route-state]')!
+        const draft = routeState.querySelector('input')!
+        draft.value = 'keep this draft'
+        themeUpdatesAllowed = true
+        const pending = Promise.withResolvers<void>()
+        identityLoad = pending.promise
+        const expectedTheme = kind === 'theme' ? 'light' : 'dark'
+        jest.useFakeTimers()
+        try {
+            if (kind === 'theme') {
+                await act(async () =>
+                    container.querySelector<HTMLButtonElement>('[role="switch"]')!.click(),
+                )
+            }
+            expect(
+                container.querySelector('[data-application-shell]')?.getAttribute('data-theme'),
+            ).toBe(expectedTheme)
+            await deliver(
+                { revision: 'changed', userVersion: expectedTheme, identityVersion },
+                'app-events',
+            )
+            await act(async () => jest.advanceTimersByTime(1_500))
+            expect(routeState.closest('[hidden]')).toBeNull()
+            expect(container.querySelector('h1')).toBeNull()
+            expect(container.querySelector('[data-route-state]')).toBe(routeState)
+            expect(draft.value).toBe('keep this draft')
+            await act(async () => pending.resolve())
+            await act(async () => jest.advanceTimersByTime(2_000))
+            expect(container.querySelector('[data-route-state]')).toBe(routeState)
+            expect(routeState.closest('[hidden]')).toBeNull()
+            expect(container.querySelector('h1')).toBeNull()
+            expect(
+                container.querySelector('[data-application-shell]')?.getAttribute('data-theme'),
+            ).toBe(expectedTheme)
+        } finally {
+            await act(async () => pending.resolve())
+            jest.useRealTimers()
+        }
+    },
+)
 
 test.each(['pending', 'failed'] as const)(
     'restore takes precedence over a %s identity check and its loading or error screen',

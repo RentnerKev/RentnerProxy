@@ -23,6 +23,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         let authorizationError
         let reads = 0
         let permissionChecks = 0
+        let currentUser = { id: 'current-user', roles: ['owner'], permissions: ['app.access'], themeMode: 'dark' }
         mock.module('./server/env.server.ts', () => ({ getPublicOrigin: () => 'https://proxy.example' }))
         mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'revision', publishApplicationChange: () => undefined }))
         mock.module('./server/Admin/Backups/backups.service.ts', () => ({ getBackupsStatusService: async () => { throw new Error('Unexpected full backup read') } }))
@@ -44,7 +45,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
             requirePermissionService: async () => {
                 permissionChecks++
                 if (!authorized) throw authorizationError ?? new AuthDomainError('permission_denied', 'Denied')
-                return { id: 'current-user', permissions: ['app.access'] }
+                return currentUser
             },
         }))
         mock.module('./server/Foundation/health.service.ts', () => ({ checkFoundationHealthService: async () => { reads++; return { database: { state: 'connected' } } } }))
@@ -118,6 +119,10 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         const cacheControl = response.headers.get('cache-control')
         statuses.push(response.status)
         const application = await (await read('app-events')).json()
+        currentUser = { ...currentUser, themeMode: 'light' }
+        const themeApplication = await (await read('app-events')).json()
+        currentUser = { ...currentUser, permissions: ['app.access', 'proxy_hosts.view'] }
+        const permissionApplication = await (await read('app-events')).json()
         const dnsResponse = await read('dns-connections')
         const ddnsResponse = await read('ddns')
         const discoveryResponse = await read('docker-discovery')
@@ -149,7 +154,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         }
         authorizationError = new Error('internal failure')
         statuses.push((await read('foundation')).status)
-        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, digestReads, runtimeReads, proxy, redirect, policy, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control'), crowdSecConfiguration, crowdSecDashboard, crowdSecQuery, crowdSecPermissions, crowdSecConfigurationCache: crowdSecConfigurationResponse.headers.get('cache-control'), crowdSecDashboardCache: crowdSecDashboardResponse.headers.get('cache-control'), forwardAuth, forwardAuthPermissions, forwardAuthCache: forwardAuthResponse.headers.get('cache-control') }))
+        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, digestReads, runtimeReads, proxy, redirect, policy, cacheControl, application, themeApplication, permissionApplication, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control'), crowdSecConfiguration, crowdSecDashboard, crowdSecQuery, crowdSecPermissions, crowdSecConfigurationCache: crowdSecConfigurationResponse.headers.get('cache-control'), crowdSecDashboardCache: crowdSecDashboardResponse.headers.get('cache-control'), forwardAuth, forwardAuthPermissions, forwardAuthCache: forwardAuthResponse.headers.get('cache-control') }))
     `
     const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const result = JSON.parse(stdout)
@@ -159,12 +164,22 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     ])
     expect(result.rejectedReads).toBe(0)
     expect(result.reads).toBe(6)
-    expect(result.permissionChecks).toBe(26)
+    expect(result.permissionChecks).toBe(28)
     expect(result.digestReads).toBe(3)
     expect(result.runtimeReads).toBe(3)
     expect(result.cacheControl).toBe('private, no-store')
-    expect(Object.keys(result.application).toSorted()).toEqual(['revision', 'userVersion'])
+    expect(Object.keys(result.application).toSorted()).toEqual([
+        'identityVersion',
+        'revision',
+        'userVersion',
+    ])
     expect(result.application.userVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(result.application.identityVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(result.themeApplication.identityVersion).toBe(result.application.identityVersion)
+    expect(result.themeApplication.userVersion).not.toBe(result.application.userVersion)
+    expect(result.permissionApplication.identityVersion).not.toBe(
+        result.application.identityVersion,
+    )
     for (const snapshot of [
         result.dns,
         result.ddns,

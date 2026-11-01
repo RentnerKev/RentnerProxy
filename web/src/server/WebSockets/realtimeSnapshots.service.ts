@@ -10,6 +10,7 @@ import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { checkFoundationHealthService } from '@/server/Foundation/health.service.ts'
 import { getPublicOrigin } from '@/server/env.server.ts'
 import { getApplicationRevision } from './applicationChanges.ts'
+import principalVersion from '@/lib/Auth/principalVersion.ts'
 import { getCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
@@ -76,6 +77,7 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 data = {
                     revision: getApplicationRevision(),
                     userVersion: revisionOf(user),
+                    identityVersion: revisionOf(principalVersion(user)),
                 }
                 break
             }

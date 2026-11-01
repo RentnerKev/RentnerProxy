@@ -298,6 +298,76 @@ async function mountProbe() {
     )
 }
 
+test.each(['success', 'failure', 'permissions'] as const)(
+    'refreshes an unchanged identity in the background and handles %s safely',
+    async (result) => {
+        const pending = Promise.withResolvers<void>()
+        invalidateSpy = spyOn(router, 'invalidate').mockImplementation(() => pending.promise)
+        await mountProbe()
+        const identityVersion = 'a'.repeat(64)
+        await act(async () =>
+            FakeSocket.instances[0]!.deliver({
+                revision: 'before',
+                userVersion: 'dark',
+                identityVersion,
+            }),
+        )
+        const draft = container.querySelector<HTMLInputElement>('input')!
+        draft.value = 'unfinished draft'
+        await act(async () =>
+            container.querySelector<HTMLButtonElement>('[data-stage-mfa]')!.click(),
+        )
+        queryClient.setQueryData(['background-cache'], 'private cached value')
+
+        try {
+            await act(async () =>
+                FakeSocket.instances[0]!.deliver({
+                    revision: 'changed',
+                    userVersion: 'light',
+                    identityVersion,
+                }),
+            )
+            expect(invalidateSpy).toHaveBeenCalledTimes(1)
+            expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+            expect(container.querySelector('output')).toBeNull()
+            expect(document.querySelector('[data-private-portal]')?.textContent).toBe(
+                'private-mfa-secret',
+            )
+
+            if (result === 'permissions') {
+                await act(async () =>
+                    FakeSocket.instances[0]!.deliver({
+                        revision: 'permissions',
+                        userVersion: 'new-role',
+                        identityVersion: 'b'.repeat(64),
+                    }),
+                )
+                expectProtectedHidden()
+                confirmedContext = { ...confirmedContext, user: { ...user, permissions: [] } }
+            }
+            await act(async () => {
+                if (result === 'failure') pending.reject(new Error('Synthetic refresh failure'))
+                else pending.resolve()
+            })
+            await flush()
+            if (result === 'success') {
+                expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+                expect(container.querySelector('input')).toBe(draft)
+                expect(draft.value).toBe('unfinished draft')
+                expect(container.querySelector('[data-mfa]')?.textContent).toBe(
+                    'private-mfa-secret',
+                )
+                expect(queryClient.getQueryData(['background-cache'])).toBe('private cached value')
+            } else {
+                expectProtectedHidden()
+                expect(container.querySelector('button')?.textContent).toBe('Retry identity')
+            }
+        } finally {
+            pending.resolve()
+        }
+    },
+)
+
 async function resumeTab() {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
     await act(async () => document.dispatchEvent(new Event('visibilitychange')))

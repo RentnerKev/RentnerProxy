@@ -13,13 +13,10 @@ import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import principalVersion from '@/lib/Auth/principalVersion.ts'
 
 const snapshotsByClient = new WeakMap<QueryClient, ApplicationLiveSnapshot>()
 const identityScopesByClient = new WeakMap<QueryClient, string>()
-
-function principalVersion(user: AuthenticatedUser): string {
-    return JSON.stringify([user.id, user.roles.toSorted(), user.permissions.toSorted()])
-}
 
 function confirmedIdentityScope(router: ReturnType<typeof useRouter>): string | null {
     const state = router.state
@@ -51,7 +48,13 @@ const ownWebSocketQueryPrefixes = [
 function isApplicationLiveSnapshot(value: unknown): value is ApplicationLiveSnapshot {
     if (typeof value !== 'object' || value === null) return false
     const snapshot = value as Partial<ApplicationLiveSnapshot>
-    return typeof snapshot.revision === 'string' && typeof snapshot.userVersion === 'string'
+    return (
+        typeof snapshot.revision === 'string' &&
+        typeof snapshot.userVersion === 'string' &&
+        (snapshot.identityVersion === undefined ||
+            (typeof snapshot.identityVersion === 'string' &&
+                /^[a-f0-9]{64}$/u.test(snapshot.identityVersion)))
+    )
 }
 
 function hasPrefix(queryKey: ReadonlyArray<unknown>, prefix: ReadonlyArray<unknown>): boolean {
@@ -82,11 +85,13 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const wasSuspended = useRef(suspended)
 
     const revalidateIdentity = useCallback(
-        (initial = false) => {
+        (initial = false, background = false) => {
             if (!initial) initialVerificationPending.current = false
             const generation = ++syncGeneration.current
-            identityPending.current = true
-            setIsIdentityPending(true)
+            if (!background) {
+                identityPending.current = true
+                setIsIdentityPending(true)
+            }
             setHasIdentityError(false)
             void (async () => {
                 try {
@@ -109,6 +114,8 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     const previousScope = identityScopesByClient.get(queryClient)
                     const changed = scope === null || previousScope !== scope
                     if (changed) {
+                        identityPending.current = true
+                        setIsIdentityPending(true)
                         void queryClient.cancelQueries()
                         queryClient.clear()
                     }
@@ -124,7 +131,11 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     identityScopesByClient.set(queryClient, scope)
                     initialVerificationPending.current = false
                 } catch {
-                    if (generation === syncGeneration.current) setHasIdentityError(true)
+                    if (generation === syncGeneration.current) {
+                        identityPending.current = true
+                        setIsIdentityPending(true)
+                        setHasIdentityError(true)
+                    }
                     return
                 }
                 if (generation !== syncGeneration.current) return
@@ -171,8 +182,14 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 return
             }
             snapshotsByClient.set(queryClient, snapshot)
-            if (previous) revalidateIdentity()
-            else void refreshApplicationQueries(queryClient).catch(() => undefined)
+            if (previous) {
+                // Preference/data updates keep the page mounted only when the server confirms
+                // an unchanged principal. Older snapshots retain blocking identity validation.
+                const background =
+                    previous.identityVersion !== undefined &&
+                    previous.identityVersion === snapshot.identityVersion
+                revalidateIdentity(false, background)
+            } else void refreshApplicationQueries(queryClient).catch(() => undefined)
         },
         [queryClient, revalidateIdentity],
     )

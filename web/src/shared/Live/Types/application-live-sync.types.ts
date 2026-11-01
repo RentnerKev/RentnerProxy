@@ -3,6 +3,7 @@ import type { LiveStatus } from '@/lib/Live/Types/realtime-events-client.types.t
 export interface ApplicationLiveSnapshot {
     readonly revision: string
     readonly userVersion: string
+    readonly identityVersion?: string
 }
 
 export interface ApplicationLiveSyncResult {
