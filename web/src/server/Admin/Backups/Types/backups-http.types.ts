@@ -8,7 +8,7 @@ export interface BackupsHttpDependencies {
         Partial<
             Pick<
                 ReturnType<typeof createBackupAdminService>,
-                'deleteBackupService' | 'restoreBackupService'
+                'deleteBackupService' | 'restoreBackupService' | 'updateOffHostConfigurationService'
             >
         >
     readonly origin: () => string | null

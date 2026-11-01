@@ -838,6 +838,38 @@
                     "restarting": "A reiniciar e verificar os serviços",
                     "complete": "Recuperação confirmada"
                 }
+            },
+            "offHost": {
+                "title": "Cópias externas encriptadas",
+                "description": "Cada nova cópia é encriptada com uma chave de recuperação independente e enviada para armazenamento compatível com S3. As cópias locais continuam disponíveis se o envio falhar.",
+                "configured": "Destino configurado",
+                "unconfigured": "Destino não configurado",
+                "copies": "Cópias externas: {{count}}",
+                "keyId": "ID da chave de recuperação",
+                "enabled": "Enviar novas cópias",
+                "endpoint": "Endpoint S3 HTTPS",
+                "region": "Região",
+                "bucket": "Bucket",
+                "prefix": "Prefixo dos objetos",
+                "accessKeyId": "ID da chave de acesso",
+                "secretAccessKey": "Chave de acesso secreta",
+                "secretsHelp": "Deixe as credenciais vazias para manter os valores guardados. As credenciais e chaves de recuperação guardadas nunca são apresentadas.",
+                "keyHelp": "Guarde o kit de recuperação fora deste dispositivo. Sem a chave, as cópias externas não podem ser recuperadas. As novas chaves aplicam-se aos envios futuros; mantenha as anteriores para as cópias antigas.",
+                "generate": "Gerar nova chave de recuperação",
+                "download": "Transferir kit de recuperação",
+                "saved": "Guardei o kit de recuperação fora deste dispositivo.",
+                "save": "Guardar definições externas",
+                "keyUnavailable": "Este navegador não conseguiu gerar uma chave de recuperação segura.",
+                "recoveryTitle": "Recuperar noutro servidor",
+                "recoveryHelp": "Use a versão original num servidor de recuperação isolado. Crie target.json com endpoint, region, bucket, prefix, accessKeyId e secretAccessKey. Use a chave relativa exata do objeto no histórico e o kit de recuperação correspondente. Defina o prefixo de armazenamento apenas em target.json; não o adicione à chave do objeto. Em Unix, proteja ambos os ficheiros secretos com chmod 600 target.json recovery-key.json. O comando transfere, autentica e desencripta a cópia.",
+                "restoreHelp": "Verifique a cópia extraída antes do restauro. Este comando substitui os dados de destino e reinicia os serviços.",
+                "remote": {
+                    "uploading": "A enviar cópia encriptada",
+                    "succeeded": "Cópia externa verificada",
+                    "failed": "Falha no envio externo",
+                    "none": "Sem cópia externa",
+                    "failureHelp": "A cópia local continua disponível. Verifique o destino antes de criar outra cópia."
+                }
             }
         },
         "migration": {

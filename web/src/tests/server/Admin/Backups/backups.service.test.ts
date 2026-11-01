@@ -4,6 +4,7 @@ import { BackupDomainError } from '@/server/Admin/Backups/backup.errors.ts'
 import { createBackupAdminService } from '@/server/Admin/Backups/backups.service.ts'
 import type { BackupAdminDependencies } from '@/server/Admin/Backups/Types/backups-service.types.ts'
 import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
+import type { OffHostConfigurationUpdate } from '@/lib/Backups/Types/off-host.types.ts'
 import type {
     ManagedBackupStatus,
     ManagedBackupStart,
@@ -37,7 +38,9 @@ function fixture(
 ) {
     const steps: string[] = []
     const audits: AuditEventInput[] = []
-    const controllerInputs: (ManagedBackupStart | ManagedBackupConfigurationUpdate)[] = []
+    const controllerInputs: (
+        ManagedBackupStart | ManagedBackupConfigurationUpdate | OffHostConfigurationUpdate
+    )[] = []
     const failure = new Error(failAt)
     const step = (name: string) => {
         steps.push(name)
@@ -77,6 +80,11 @@ function fixture(
             }
         },
         controller: {
+            configureOffHost: async (input) => {
+                controllerInputs.push(input)
+                step('controller')
+                return status
+            },
             status: async () => {
                 step('status')
                 return status
@@ -102,6 +110,44 @@ function fixture(
         failure,
     }
 }
+
+test('off-host configuration authorizes and reauthorizes the actor and audits without secrets', async () => {
+    const input = {
+        requestId,
+        expectedRevision: 0,
+        enabled: true,
+        endpoint: 'https://storage.example.test',
+        region: 'eu-central-1',
+        bucket: 'backups',
+        prefix: 'proxy',
+        accessKeyId: 'SYNTHETICACCESS',
+        secretAccessKey: 'synthetic-storage-secret',
+        recoveryKey: Buffer.alloc(32, 3).toString('base64'),
+        recoveryKeySaved: true,
+    }
+    const allowed = fixture()
+    await allowed.service.updateOffHostConfigurationService(input)
+    expect(allowed.controllerInputs).toEqual([{ ...input, actorId }])
+    expect(allowed.steps).toContain(PERMISSIONS.BACKUPS_MANAGE)
+    expect(allowed.steps.indexOf('reauthorize')).toBeLessThan(allowed.steps.indexOf('controller'))
+    const audit = JSON.stringify(allowed.audits)
+    expect(audit).not.toContain(input.secretAccessKey)
+    expect(audit).not.toContain(input.recoveryKey)
+    await Promise.all(
+        (['authorize', 'limit', 'reauthorize'] as const).map(async (failAt) => {
+            const denied = fixture(failAt)
+            await expect(denied.service.updateOffHostConfigurationService(input)).rejects.toBe(
+                denied.failure,
+            )
+            expect(denied.controllerInputs).toHaveLength(0)
+        }),
+    )
+    const forged = fixture()
+    await expect(
+        forged.service.updateOffHostConfigurationService({ ...input, actorId }),
+    ).rejects.toMatchObject({ code: 'invalid_input' })
+    expect(forged.controllerInputs).toHaveLength(0)
+})
 
 test('read authorization uses backups.view and cannot query controller when denied', async () => {
     const allowed = fixture()

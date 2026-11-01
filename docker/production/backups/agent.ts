@@ -11,6 +11,8 @@ import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/bac
 import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
 import { createBackupDownload } from './download.ts'
 import { writeMaintenanceProgress } from './restore.ts'
+import { createOffHostBackupService, cleanupOffHostTemporaryFiles } from './off-host.ts'
+import { offHostConfigurationUpdateSchema } from '../../../web/src/lib/Backups/offHostValidation.ts'
 import {
     managedBackupArtifactSchema,
     managedBackupAuditAcknowledgementSchema,
@@ -285,7 +287,14 @@ export async function removeRetainedBackup(
     await io.remove(receipt)
     await io.sync(root)
 }
-export function createBackupAgentHandler(engine: Engine) {
+export function createBackupAgentHandler(
+    engine: Engine,
+    offHost?: Awaited<ReturnType<typeof createOffHostBackupService>>,
+) {
+    const status = async () => ({
+        ...(await engine.status()),
+        ...(offHost ? { offHost: offHost.status() } : {}),
+    })
     const download = createBackupDownload(
         () => engine.status(),
         undefined,
@@ -302,7 +311,7 @@ export function createBackupAgentHandler(engine: Engine) {
         }
         if (request.method === 'GET' && path === '/status') {
             try {
-                return Response.json(await engine.status())
+                return Response.json(await status())
             } catch {
                 return Response.json({ error: 'unavailable' }, { status: 503 })
             }
@@ -330,11 +339,13 @@ export function createBackupAgentHandler(engine: Engine) {
                     : managedBackupRestoreSchema
                 : request.method === 'POST' && path === '/start'
                   ? managedBackupStartSchema
-                  : request.method === 'PUT' && path === '/config'
-                    ? managedBackupConfigurationUpdateSchema
-                    : request.method === 'POST' && path === '/audit/ack'
-                      ? managedBackupAuditAcknowledgementSchema
-                      : null
+                  : request.method === 'PUT' && path === '/off-host' && offHost
+                    ? offHostConfigurationUpdateSchema
+                    : request.method === 'PUT' && path === '/config'
+                      ? managedBackupConfigurationUpdateSchema
+                      : request.method === 'POST' && path === '/audit/ack'
+                        ? managedBackupAuditAcknowledgementSchema
+                        : null
         if (schema === null) return Response.json({ error: 'not_found' }, { status: 404 })
         let input: unknown
         try {
@@ -350,7 +361,8 @@ export function createBackupAgentHandler(engine: Engine) {
                             const result = await reader.read()
                             if (result.done) break
                             size += result.value.byteLength
-                            if (size > 2048) throw new Error('invalid input')
+                            if (size > (path === '/off-host' ? 8192 : 2048))
+                                throw new Error('invalid input')
                             chunks.push(result.value)
                         }
                     })(),
@@ -377,8 +389,13 @@ export function createBackupAgentHandler(engine: Engine) {
                 )
             else if (path === '/start') await engine.start(input)
             else if (path === '/audit/ack') await engine.acknowledgeAudit(input)
-            else await engine.updateConfiguration(input)
-            return Response.json(await engine.status())
+            else if (path === '/off-host' && offHost) {
+                const configuration = offHostConfigurationUpdateSchema.parse(input)
+                await engine.configureOffHost(async () => {
+                    await offHost.configure(configuration)
+                })
+            } else await engine.updateConfiguration(input)
+            return Response.json(await status())
         } catch (error) {
             if (
                 error instanceof ManagedBackupError &&
@@ -399,7 +416,7 @@ export function createBackupAgentServer(
 ) {
     const options = {
         unix: socket,
-        maxRequestBodySize: 2048,
+        maxRequestBodySize: 8192,
         fetch: handler,
     }
     // Bun 1.4.4 honors this Unix listener option although its types forbid it.
@@ -475,6 +492,7 @@ export async function startBackupAgent() {
     if (process.getuid?.() !== 0) throw new Error('backup agent requires root')
     await privateDirectory(backupRoot)
     await privateDirectory(artifactsRoot)
+    await cleanupOffHostTemporaryFiles()
     const control = await lstat(controlRoot)
     if (
         !control.isDirectory() ||
@@ -487,6 +505,7 @@ export async function startBackupAgent() {
     const source = managedBackupSourceSchema.parse(await readPrivateJson(sourceFile, 4096))
     const stop = new AbortController()
     let fatal = false
+    const offHost = await createOffHostBackupService()
     const engine = await createManagedBackupEngine({
         read: () => loadManagedBackupState(),
         write: async (state) => {
@@ -501,6 +520,11 @@ export async function startBackupAgent() {
         now: Date.now,
         id: randomUUID,
         source: () => structuredClone(source),
+        replicate: (job) => offHost.upload(job, engine.retentionCount, stop.signal),
+        offHostAudit: {
+            pending: offHost.pendingConfigurationAudit,
+            acknowledge: offHost.acknowledgeConfigurationAudit,
+        },
         execute: async (job) => {
             if (JSON.stringify(job.source) !== JSON.stringify(source))
                 throw new ManagedBackupError('execution_failed')
@@ -575,6 +599,7 @@ export async function startBackupAgent() {
             }
         },
         restore: async (_job, operation, progress) => {
+            await offHost.pause()
             await writeMaintenanceProgress(operation)
             try {
                 await lstat(activeFile)
@@ -647,7 +672,7 @@ export async function startBackupAgent() {
     await writeMaintenanceProgress((await engine.status()).maintenance ?? null)
     await reconcileCompletedWork('startup')
     const socket = join(controlRoot, 'agent.sock')
-    const server = createBackupAgentServer(socket, createBackupAgentHandler(engine))
+    const server = createBackupAgentServer(socket, createBackupAgentHandler(engine, offHost))
     try {
         await chmod(socket, 0o660)
         await chown(socket, 0, 10001)

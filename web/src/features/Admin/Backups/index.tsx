@@ -6,6 +6,7 @@ import ContentState from '@/shared/Management/ContentState.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import BackupHistory from './Components/BackupHistory/index.tsx'
+import OffHostBackup from './Components/OffHostBackup.tsx'
 import BackupSchedule from './Components/BackupSchedule.tsx'
 import BackupStateBadge from './Components/BackupStateBadge.tsx'
 import useBackupsLogic from './Hooks/useBackupsLogic.ts'
@@ -120,6 +121,14 @@ export default function BackupsPage(props: BackupsPageProps) {
                                     {t('admin.backups.viewOnly')}
                                 </p>
                             )}
+                            {state.canManage && state.status.offHost ? (
+                                <OffHostBackup
+                                    key={state.status.storeId + '-off-host'}
+                                    configuration={state.status.offHost}
+                                    locked={state.locked}
+                                    onSave={handler.handleSaveOffHost}
+                                />
+                            ) : null}
                             <BackupHistory
                                 jobs={state.jobs}
                                 canDownload={state.canManage && !state.locked}

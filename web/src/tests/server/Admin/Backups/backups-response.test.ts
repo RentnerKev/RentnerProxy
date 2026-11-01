@@ -43,11 +43,50 @@ function harness(error?: Error, configuredOrigin: string | null = origin) {
                 updateBackupConfigurationService: (input) => invoke('config', input),
                 deleteBackupService: (input) => invoke('delete', input),
                 restoreBackupService: (input) => invoke('restore', input),
+                updateOffHostConfigurationService: (input) => invoke('off-host', input),
             },
         }),
     }
 }
 const get = (suffix = '') => new Request(origin + '/api/admin/backups/status' + suffix)
+
+test('off-host HTTP configuration rejects cross-origin, actor impersonation and excess bodies without leaking secrets', async () => {
+    const input = {
+        requestId,
+        expectedRevision: 0,
+        enabled: false,
+        endpoint: '',
+        region: '',
+        bucket: '',
+        prefix: '',
+    }
+    const f = harness()
+    const response = await f.handlers.configureOffHost(post('off-host', JSON.stringify(input)))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(f.calls).toEqual([{ operation: 'off-host', input }])
+    expect(
+        (
+            await f.handlers.configureOffHost(
+                post('off-host', JSON.stringify(input), { origin: 'https://other.test' }),
+            )
+        ).status,
+    ).toBe(403)
+    expect(
+        (
+            await f.handlers.configureOffHost(
+                post('off-host', JSON.stringify({ ...input, actorId: requestId })),
+            )
+        ).status,
+    ).toBe(400)
+    expect((await f.handlers.configureOffHost(post('off-host', ' '.repeat(8193)))).status).toBe(400)
+    expect(f.calls).toHaveLength(1)
+    const failed = await harness(
+        new Error('synthetic-secret-access-key'),
+    ).handlers.configureOffHost(post('off-host', JSON.stringify(input)))
+    expect(failed.status).toBe(503)
+    expect(await failed.json()).toEqual({ error: 'unavailable' })
+})
 function post(
     operation = 'start',
     body: BodyInit = JSON.stringify({ requestId }),

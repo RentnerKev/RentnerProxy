@@ -838,6 +838,38 @@
                     "restarting": "Riavvio e verifica dei servizi",
                     "complete": "Recupero confermato"
                 }
+            },
+            "offHost": {
+                "title": "Backup esterni cifrati",
+                "description": "Ogni nuovo backup viene cifrato con una chiave di ripristino indipendente e caricato su uno spazio compatibile con S3. I backup locali restano disponibili se il caricamento fallisce.",
+                "configured": "Destinazione configurata",
+                "unconfigured": "Destinazione non configurata",
+                "copies": "Copie esterne: {{count}}",
+                "keyId": "ID della chiave di ripristino",
+                "enabled": "Carica nuovi backup",
+                "endpoint": "Endpoint S3 HTTPS",
+                "region": "Regione",
+                "bucket": "Bucket",
+                "prefix": "Prefisso oggetti",
+                "accessKeyId": "ID chiave di accesso",
+                "secretAccessKey": "Chiave di accesso segreta",
+                "secretsHelp": "Lascia vuote le credenziali per mantenere quelle salvate. Le credenziali e le chiavi di ripristino memorizzate non vengono mai mostrate.",
+                "keyHelp": "Conserva il kit di ripristino fuori da questo dispositivo. Senza la chiave le copie esterne non sono recuperabili. Le nuove chiavi valgono per i caricamenti futuri; conserva quelle precedenti per le vecchie copie.",
+                "generate": "Genera nuova chiave di ripristino",
+                "download": "Scarica kit di ripristino",
+                "saved": "Ho salvato il kit di ripristino fuori da questo dispositivo.",
+                "save": "Salva impostazioni esterne",
+                "keyUnavailable": "Questo browser non ha potuto generare una chiave di ripristino sicura.",
+                "recoveryTitle": "Ripristina su un altro server",
+                "recoveryHelp": "Usa la versione originale su un server di ripristino isolato. Crea target.json con endpoint, region, bucket, prefix, accessKeyId e secretAccessKey. Usa la chiave relativa esatta dell’oggetto nella cronologia e il relativo kit di ripristino. Imposta il prefisso di archiviazione solo in target.json; non aggiungerlo alla chiave dell’oggetto. Su Unix proteggi entrambi i file segreti con chmod 600 target.json recovery-key.json. Il comando scarica, autentica e decifra il backup.",
+                "restoreHelp": "Controlla il backup estratto prima del ripristino. Questo comando sostituisce i dati di destinazione e riavvia i servizi.",
+                "remote": {
+                    "uploading": "Caricamento copia cifrata",
+                    "succeeded": "Copia esterna verificata",
+                    "failed": "Caricamento esterno fallito",
+                    "none": "Nessuna copia esterna",
+                    "failureHelp": "Il backup locale resta disponibile. Controlla la destinazione prima di creare un altro backup."
+                }
             }
         },
         "migration": {

@@ -64,6 +64,184 @@ function gate() {
     return { promise, release: resolve }
 }
 
+function remoteReceipt(jobId: string) {
+    return {
+        state: 'succeeded' as const,
+        targetId: actorId,
+        keyId: digest,
+        objectKey: actorId + '/' + jobId + '.rpbk',
+        sha256: digest,
+        bytes: 123,
+        verifiedAt: 0,
+    }
+}
+
+describe('managed off-host backup replication', () => {
+    test('replication failure without a remote-verified local point applies ordinary local retention', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const first = await engine.start(f.request())
+        await engine.tick()
+        f.dependencies.replicate = async () => {
+            throw new Error('private provider credentials')
+        }
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        const status = await engine.status()
+        expect(status.jobs.find((job) => job.id === first.id)?.retained).toBe(false)
+        expect(status.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+            state: 'succeeded',
+            error: null,
+            retained: true,
+            remote: { state: 'failed', error: 'upload_failed' },
+        })
+        expect(f.removed).toEqual([first.id])
+        expect(JSON.stringify(status)).not.toContain('private provider credentials')
+    })
+
+    test.each([1, 3, 50])(
+        'repeated remote failures retain the newest remote-verified local point within retention %s',
+        async (retentionCount) => {
+            const f = fixture()
+            f.dependencies.replicate = async (job) => remoteReceipt(job.id)
+            const engine = await createManagedBackupEngine(f.dependencies)
+            await engine.updateConfiguration({ ...f.config(), retentionCount: 3 })
+            const verifiedIds: string[] = []
+            for (let index = 0; index < 3; index++) {
+                verifiedIds.push((await engine.start(f.request())).id)
+                await engine.tick()
+            }
+            const pinnedId = verifiedIds.at(-1)!
+            await engine.updateConfiguration({ ...f.config(1), retentionCount })
+            f.dependencies.replicate = async () => {
+                throw new Error('private provider credentials')
+            }
+            for (let index = 0; index < 60; index++) {
+                const replacement = await engine.start(f.request())
+                await engine.tick()
+                const status = await engine.status()
+                const retained = status.jobs.filter((job) => job.retained)
+                expect(retained.length).toBeLessThanOrEqual(Math.max(retentionCount, 2))
+                expect(retained.some((job) => job.id === pinnedId)).toBe(true)
+                expect(retained.find((job) => job.id === replacement.id)).toMatchObject({
+                    state: 'succeeded',
+                    remote: { state: 'failed', error: 'upload_failed' },
+                })
+                expect(JSON.stringify(status)).not.toContain('private provider credentials')
+            }
+            const retained = (await engine.status()).jobs.filter((job) => job.retained)
+            expect(retained).toHaveLength(Math.max(retentionCount, 2))
+            expect(f.removed).not.toContain(pinnedId)
+            expect(f.removed).toEqual(expect.arrayContaining(verifiedIds.slice(0, -1)))
+        },
+    )
+
+    test.each(['recovered', 'disabled'] as const)(
+        'remote replication %s releases the previous local pin and resumes ordinary retention',
+        async (mode) => {
+            const f = fixture()
+            f.dependencies.replicate = async (job) => remoteReceipt(job.id)
+            const engine = await createManagedBackupEngine(f.dependencies)
+            await engine.updateConfiguration(f.config())
+            const pinned = await engine.start(f.request())
+            await engine.tick()
+            f.dependencies.replicate = async () => {
+                throw new Error('provider outage')
+            }
+            const failedUpload = await engine.start(f.request())
+            await engine.tick()
+            expect((await engine.status()).jobs.filter((job) => job.retained)).toHaveLength(2)
+            f.dependencies.replicate = async (job) =>
+                mode === 'recovered' ? remoteReceipt(job.id) : null
+            const replacement = await engine.start(f.request())
+            await engine.tick()
+            expect(
+                (await engine.status()).jobs.filter((job) => job.retained).map((job) => job.id),
+            ).toEqual([replacement.id])
+            expect(f.removed).toEqual([pinned.id, failedUpload.id])
+        },
+    )
+
+    test('failed replication never authorizes pruning when the local replacement recheck fails', async () => {
+        const f = fixture()
+        f.dependencies.replicate = async (job) => remoteReceipt(job.id)
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration({ ...f.config(), retentionCount: 2 })
+        const older = await engine.start(f.request())
+        await engine.tick()
+        const pinned = await engine.start(f.request())
+        await engine.tick()
+        await engine.updateConfiguration(f.config(1))
+        f.dependencies.replicate = async () => {
+            throw new Error('provider outage')
+        }
+        let verifications = 0
+        f.dependencies.verify = async () => ++verifications === 1
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        expect(f.removed).toEqual([])
+        expect(
+            (await engine.status()).jobs.filter((job) => job.retained).map((job) => job.id),
+        ).toEqual([older.id, pinned.id, replacement.id])
+        expect(verifications).toBe(2)
+    })
+
+    test('publishes the verified remote receipt and then permits ordinary local retention', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const first = await engine.start(f.request())
+        await engine.tick()
+        const targetId = f.id()
+        f.dependencies.replicate = async (job, retention) => {
+            expect(retention).toBe(1)
+            expect(job.artifact).not.toBeNull()
+            expect(
+                (await engine.status()).jobs.find((entry) => entry.id === job.id)?.remote,
+            ).toEqual({ state: 'uploading' })
+            expect(f.removed).toEqual([])
+            return {
+                state: 'succeeded',
+                targetId,
+                keyId: digest,
+                objectKey: targetId + '/' + job.id + '.rpbk',
+                sha256: digest,
+                bytes: 123,
+                verifiedAt: 0,
+            }
+        }
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        const status = await engine.status()
+        expect(status.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+            state: 'succeeded',
+            retained: true,
+            remote: { state: 'succeeded', targetId, sha256: digest, bytes: 123 },
+        })
+        expect(status.jobs.find((job) => job.id === first.id)?.retained).toBe(false)
+        expect(f.removed).toEqual([first.id])
+    })
+
+    test('restart marks an in-flight remote upload interrupted without deleting a local artifact', async () => {
+        const f = fixture()
+        let engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        const persisted = f.read().jobs.find((entry) => entry.id === job.id)!
+        persisted.state = 'running'
+        persisted.startedAt = 0
+        persisted.artifact = { id: job.id, metadataSha256: digest, bytes: 100 }
+        persisted.remote = { state: 'uploading' }
+        engine = await createManagedBackupEngine(f.dependencies)
+        expect((await engine.status()).jobs.find((entry) => entry.id === job.id)).toMatchObject({
+            state: 'interrupted',
+            artifact: { id: job.id },
+            remote: { state: 'failed', error: 'interrupted' },
+        })
+        expect(f.removed).toEqual([])
+    })
+})
+
 describe('managed backup maintenance', () => {
     test('restore preserves every inventory entry and never invokes retention or delete', async () => {
         const f = fixture()

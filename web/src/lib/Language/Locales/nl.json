@@ -817,6 +817,38 @@
                     "restarting": "Diensten herstarten en controleren",
                     "complete": "Herstel bevestigd"
                 }
+            },
+            "offHost": {
+                "title": "Versleutelde externe back-ups",
+                "description": "Elke nieuwe back-up wordt met een onafhankelijke herstelsleutel versleuteld en naar S3-compatibele opslag geüpload. Lokale back-ups blijven beschikbaar als een upload mislukt.",
+                "configured": "Doel ingesteld",
+                "unconfigured": "Doel niet ingesteld",
+                "copies": "Externe kopieën: {{count}}",
+                "keyId": "Herstelsleutel-ID",
+                "enabled": "Nieuwe back-ups uploaden",
+                "endpoint": "HTTPS-S3-eindpunt",
+                "region": "Regio",
+                "bucket": "Bucket",
+                "prefix": "Objectvoorvoegsel",
+                "accessKeyId": "Toegangssleutel-ID",
+                "secretAccessKey": "Geheime toegangssleutel",
+                "secretsHelp": "Laat de inloggegevens leeg om de opgeslagen waarden te behouden. Opgeslagen inloggegevens en herstelsleutels worden nooit getoond.",
+                "keyHelp": "Bewaar het herstelpakket veilig buiten dit apparaat. Zonder sleutel zijn externe kopieën niet te herstellen. Nieuwe sleutels gelden voor toekomstige uploads; bewaar eerdere sleutels voor oudere kopieën.",
+                "generate": "Nieuwe herstelsleutel maken",
+                "download": "Herstelpakket downloaden",
+                "saved": "Ik heb het herstelpakket buiten dit apparaat opgeslagen.",
+                "save": "Externe instellingen opslaan",
+                "keyUnavailable": "Deze browser kon geen veilige herstelsleutel maken.",
+                "recoveryTitle": "Herstellen op een andere host",
+                "recoveryHelp": "Gebruik de oorspronkelijke versie op een geïsoleerde herstelhost. Maak target.json met endpoint, region, bucket, prefix, accessKeyId en secretAccessKey. Gebruik de exacte relatieve objectsleutel uit de geschiedenis en het bijbehorende herstelpakket. Zet het opslagvoorvoegsel alleen in target.json; voeg het niet toe aan de objectsleutel. Bescherm op Unix beide geheime bestanden met chmod 600 target.json recovery-key.json. De opdracht downloadt, verifieert en ontsleutelt de back-up.",
+                "restoreHelp": "Controleer de uitgepakte back-up vóór herstel. Deze opdracht vervangt de doelgegevens en herstart de diensten.",
+                "remote": {
+                    "uploading": "Versleutelde kopie uploaden",
+                    "succeeded": "Externe kopie geverifieerd",
+                    "failed": "Externe upload mislukt",
+                    "none": "Geen externe kopie",
+                    "failureHelp": "De lokale back-up blijft beschikbaar. Controleer het doel voordat je een nieuwe back-up maakt."
+                }
             }
         },
         "migration": {

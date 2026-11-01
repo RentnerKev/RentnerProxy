@@ -87,6 +87,27 @@ export default function useBackupHistoryLogic(props: BackupHistoryProps): Backup
                     ),
             },
             {
+                id: 'offHost',
+                header: t('admin.backups.offHost.title'),
+                enableColumnFilter: false,
+                enableSorting: false,
+                cell: ({ row }) =>
+                    createElement(
+                        'div',
+                        { className: 'grid max-w-72 gap-1 text-xs' },
+                        t(`admin.backups.offHost.remote.${row.original.remote?.state ?? 'none'}`),
+                        row.original.remote?.state === 'succeeded'
+                            ? createElement(
+                                  'span',
+                                  { className: 'break-all font-mono' },
+                                  row.original.remote.objectKey,
+                              )
+                            : row.original.remote?.state === 'failed'
+                              ? t('admin.backups.offHost.remote.failureHelp')
+                              : null,
+                    ),
+            },
+            {
                 id: 'source',
                 accessorFn: (job) => job.source.version,
                 header: t('admin.backups.history.columns.source'),

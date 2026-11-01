@@ -9,6 +9,7 @@ import {
     managedBackupRestoreSchema,
 } from '../../web/src/lib/Backups/validation.ts'
 import { BACKUP_AUDIT_POLICY } from '../../web/src/config/backups.config.ts'
+import { offHostConfigurationAuditSchema } from '../../web/src/lib/Backups/offHostValidation.ts'
 import type {
     ManagedBackupAuditEvent,
     ManagedBackupJob,
@@ -78,6 +79,12 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
     let chain = Promise.resolve()
     let executing = false
     let downloadActive = false
+    let offHostConfigurationActive = false
+    let offHostAuditBlocked = false
+    let offHostRecovery: Promise<void> | null = null
+    let managedAuditUncertain = false
+    const offHostBusy = () =>
+        offHostConfigurationActive || offHostAuditBlocked || offHostRecovery !== null
 
     const maintenanceActive = () =>
         state.maintenance?.state === 'queued' || state.maintenance?.state === 'running'
@@ -98,13 +105,33 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         })
     }
 
-    function mutate<T>(operation: (draft: ManagedBackupState) => T | Promise<T>): Promise<T> {
+    async function reloadManagedJournal() {
+        const durable = await dependencies.read()
+        if (durable === null) throw new ManagedBackupError('recovery_failed')
+        state = managedBackupStateSchema.parse(durable)
+        persisted = true
+        managedAuditUncertain = false
+    }
+
+    function mutate<T>(
+        operation: (draft: ManagedBackupState) => T | Promise<T>,
+        recoverAuditWrite = false,
+    ): Promise<T> {
         const result = chain.then(async () => {
+            if (managedAuditUncertain) await reloadManagedJournal()
             const draft = structuredClone(state)
             const value = await operation(draft)
             managedBackupStateSchema.parse(draft)
             if (!persisted || JSON.stringify(draft) !== JSON.stringify(state)) {
-                await dependencies.write(structuredClone(draft))
+                try {
+                    await dependencies.write(structuredClone(draft))
+                } catch (error) {
+                    if (recoverAuditWrite) {
+                        managedAuditUncertain = true
+                        await reloadManagedJournal().catch(() => {})
+                    }
+                    throw error
+                }
                 persisted = true
             }
             state = draft
@@ -115,6 +142,50 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             () => {},
         )
         return result
+    }
+
+    function reconcileOffHostAudit(): Promise<void> {
+        if (!dependencies.offHostAudit) return Promise.resolve()
+        if (offHostRecovery) return offHostRecovery
+        offHostAuditBlocked = true
+        const source = dependencies.offHostAudit
+        const recovery = (async () => {
+            const pending = await source.pending()
+            if (pending) {
+                const receipt = offHostConfigurationAuditSchema.parse(pending)
+                await mutate((draft) => {
+                    const previous = draft.offHostConfigurationAudits?.find(
+                        (entry) => entry.requestId === receipt.requestId,
+                    )
+                    if (previous) {
+                        if (
+                            previous.actorId !== receipt.actorId ||
+                            previous.fingerprint !== receipt.fingerprint
+                        )
+                            throw new ManagedBackupError('revision_conflict')
+                        return
+                    }
+                    audit(draft, 'off_host_configuration_updated', null, receipt.actorId)
+                    draft.offHostConfigurationAudits = [
+                        ...(draft.offHostConfigurationAudits ?? []),
+                        receipt,
+                    ].slice(-100)
+                }, true)
+                // Both event and deduplication receipt are durable before source ACK.
+                await source.acknowledge(receipt)
+            }
+            offHostAuditBlocked = false
+        })()
+        offHostRecovery = recovery
+        void recovery.then(
+            () => {
+                offHostRecovery = null
+            },
+            () => {
+                offHostRecovery = null
+            },
+        )
+        return recovery
     }
 
     // A published archive does not prove that lifecycle recovery completed before a crash.
@@ -147,6 +218,8 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             }
         }
         for (const job of draft.jobs.filter((entry) => entry.state === 'running')) {
+            if (job.remote?.state === 'uploading')
+                job.remote = { state: 'failed', error: 'interrupted' }
             job.state = 'interrupted'
             job.error = 'interrupted'
             job.finishedAt = dependencies.now()
@@ -155,6 +228,9 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             audit(draft, 'interrupted', job)
         }
     })
+    // Queue pressure or an unavailable journal must not hide status/audit ACK.
+    // Keep backup mutations fenced until this durable source outbox is drained.
+    await reconcileOffHostAudit().catch(() => {})
 
     async function admit(
         draft: ManagedBackupState,
@@ -163,7 +239,13 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         scheduledFor: number | null,
     ) {
         // Retention still owns completion capacity after the success record is committed.
-        if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+        if (
+            offHostBusy() ||
+            executing ||
+            downloadActive ||
+            maintenanceActive() ||
+            draft.jobs.some(active)
+        )
             throw new ManagedBackupError('busy')
         if (!hasAuditRoom(draft, BACKUP_AUDIT_POLICY.jobEvents))
             throw new ManagedBackupError('capacity')
@@ -204,7 +286,10 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         const request = managedBackupStartSchema.parse(input)
         // Reject work requested during retention before it can wait behind a
         // later state write and become an unintended post-maintenance admission.
-        if (executing && !state.jobs.some((job) => job.requestId === request.requestId))
+        if (
+            (offHostBusy() || executing) &&
+            !state.jobs.some((job) => job.requestId === request.requestId)
+        )
             throw new ManagedBackupError('busy')
         return mutate(async (draft) => {
             const previous = draft.jobs.find((job) => job.requestId === request.requestId)
@@ -224,7 +309,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         const actorName =
             operation === 'restore' ? managedBackupRestoreSchema.parse(input).actorName : null
         if (
-            (executing || downloadActive) &&
+            (offHostBusy() || executing || downloadActive) &&
             !state.maintenanceRequests?.some((entry) => entry.requestId === request.requestId)
         )
             throw new ManagedBackupError('busy')
@@ -243,7 +328,13 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                     throw new ManagedBackupError('revision_conflict')
                 return previous
             }
-            if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+            if (
+                offHostBusy() ||
+                executing ||
+                downloadActive ||
+                maintenanceActive() ||
+                draft.jobs.some(active)
+            )
                 throw new ManagedBackupError('busy')
             const job = draft.jobs.find((entry) => entry.id === id)
             if (
@@ -288,7 +379,13 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
 
     async function runMaintenance(): Promise<boolean> {
         const operation = await mutate((draft) => {
-            if (executing || downloadActive || draft.maintenance?.state !== 'queued') return null
+            if (
+                offHostBusy() ||
+                executing ||
+                downloadActive ||
+                draft.maintenance?.state !== 'queued'
+            )
+                return null
             draft.maintenance.state = 'running'
             draft.maintenance.startedAt = dependencies.now()
             draft.maintenance.phase = 'validating'
@@ -381,7 +478,13 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
 
     async function acquireDownload() {
         await mutate((draft) => {
-            if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+            if (
+                offHostBusy() ||
+                executing ||
+                downloadActive ||
+                maintenanceActive() ||
+                draft.jobs.some(active)
+            )
                 throw new ManagedBackupError('busy')
             downloadActive = true
         })
@@ -405,6 +508,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                     throw new ManagedBackupError('revision_conflict')
                 return previous.configuration
             }
+            if (offHostBusy()) throw new ManagedBackupError('busy')
             // Reserve all lifecycle and worst-case pruning events for accepted work.
             const reserved =
                 executing || draft.jobs.some(active)
@@ -441,7 +545,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
 
     async function acknowledgeAudit(input: unknown) {
         const acknowledgement = managedBackupAuditAcknowledgementSchema.parse(input)
-        return mutate((draft) => {
+        await mutate((draft) => {
             const last = draft.auditEvents.at(-1)?.sequence ?? draft.auditAcknowledged ?? 0
             if (acknowledgement.storeId !== draft.storeId || acknowledgement.sequence > last)
                 throw new ManagedBackupError('revision_conflict')
@@ -453,6 +557,38 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 (event) => event.sequence > acknowledgement.sequence,
             )
         })
+        if (offHostAuditBlocked && !offHostConfigurationActive && !offHostRecovery)
+            await reconcileOffHostAudit().catch(() => {})
+    }
+
+    async function configureOffHost(configure: () => Promise<void>) {
+        if (
+            offHostConfigurationActive ||
+            offHostRecovery ||
+            executing ||
+            downloadActive ||
+            maintenanceActive() ||
+            state.jobs.some(active)
+        )
+            throw new ManagedBackupError('busy')
+        if (!dependencies.offHostAudit) throw new ManagedBackupError('recovery_failed')
+        offHostConfigurationActive = true
+        try {
+            await reconcileOffHostAudit()
+            await mutate((draft) => {
+                if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+                    throw new ManagedBackupError('busy')
+                if (!hasAuditRoom(draft, 1)) throw new ManagedBackupError('capacity')
+            })
+            try {
+                await configure()
+            } finally {
+                // A target write may have committed even when its fsync threw.
+                await reconcileOffHostAudit()
+            }
+        } finally {
+            offHostConfigurationActive = false
+        }
     }
 
     function planPruning(replacementId: string) {
@@ -462,8 +598,15 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         const retained = state.jobs.filter(
             (job) => job.state === 'succeeded' && (job.retained || job.id === replacementId),
         )
-        if (retained.length <= state.configuration.retentionCount) return null
-        const candidate = retained.find((job) => job.id !== replacementId)
+        // An upload outage keeps its last remote-verified local point alongside
+        // the fresh local replacement without accumulating every failed upload.
+        const pinned =
+            replacement.remote?.state === 'failed'
+                ? retained.findLast((job) => job.retained && job.remote?.state === 'succeeded')
+                : undefined
+        const keep = Math.max(state.configuration.retentionCount, pinned ? 2 : 1)
+        if (retained.length <= keep) return null
+        const candidate = retained.find((job) => job.id !== replacementId && job.id !== pinned?.id)
         return candidate ? structuredClone({ candidate, replacement }) : null
     }
 
@@ -517,10 +660,14 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
     /* eslint-enable no-await-in-loop */
 
     async function tick() {
+        if (offHostAuditBlocked && !offHostConfigurationActive && !offHostRecovery)
+            await reconcileOffHostAudit().catch(() => {})
+        if (offHostBusy()) return
         if (await runMaintenance()) return
         const job = await mutate(async (draft) => {
             if (
                 executing ||
+                offHostBusy() ||
                 downloadActive ||
                 maintenanceActive() ||
                 draft.jobs.some((entry) => entry.state === 'running')
@@ -549,12 +696,28 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         executing = true
         try {
             let artifact: ManagedBackupJob['artifact'] = null
+            let remote: ManagedBackupJob['remote'] = null
             let error: ManagedBackupJob['error'] = null
             try {
                 artifact = managedBackupArtifactSchema.parse(
                     await dependencies.execute(structuredClone(job)),
                 )
                 if (!(await dependencies.verify({ ...job, artifact }))) error = 'artifact_invalid'
+                if (error === null && dependencies.replicate) {
+                    await mutate((draft) => {
+                        const current = draft.jobs.find((entry) => entry.id === job.id)
+                        if (!current) throw new ManagedBackupError('capacity')
+                        current.remote = { state: 'uploading' }
+                    })
+                    try {
+                        remote = await dependencies.replicate(
+                            { ...job, artifact },
+                            state.configuration.retentionCount,
+                        )
+                    } catch {
+                        remote = { state: 'failed', error: 'upload_failed' }
+                    }
+                }
             } catch (cause) {
                 error =
                     cause instanceof ManagedBackupError &&
@@ -566,6 +729,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 const completed = draft.jobs.find((entry) => entry.id === job.id)
                 if (!completed) throw new ManagedBackupError('capacity')
                 completed.artifact = artifact
+                completed.remote = remote
                 completed.state = error === null ? 'succeeded' : 'failed'
                 completed.error = error
                 completed.finishedAt = dependencies.now()
@@ -604,5 +768,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         acknowledgeAudit,
         requestMaintenance,
         acquireDownload,
+        configureOffHost,
+        retentionCount: () => state.configuration.retentionCount,
     }
 }

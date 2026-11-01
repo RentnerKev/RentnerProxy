@@ -54,7 +54,7 @@ describe('production smokes workflow security and toolchain', () => {
 
         expect(source).toMatch(/^permissions:\r?\n    contents: read\s*$/mu)
         expect(source).not.toMatch(/\bwrite(?:-all)?\b/u)
-        expect(source).not.toContain('secrets.')
+        expect(source).not.toMatch(/\$\{\{[^}]*\bsecrets(?:\s*\[|\.)/u)
         expect(source).not.toMatch(/\b(?:docker|buildx)\s+(?:login|push)\b/u)
         expect(source).not.toContain('--push')
         expect(source).not.toContain('actions/cache')

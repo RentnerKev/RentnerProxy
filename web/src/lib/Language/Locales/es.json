@@ -838,6 +838,38 @@
                     "restarting": "Reiniciando y comprobando los servicios",
                     "complete": "Recuperación confirmada"
                 }
+            },
+            "offHost": {
+                "title": "Copias externas cifradas",
+                "description": "Cada nueva copia se cifra con una clave de recuperación independiente y se carga en almacenamiento compatible con S3. Las copias locales siguen disponibles si falla la carga.",
+                "configured": "Destino configurado",
+                "unconfigured": "Destino sin configurar",
+                "copies": "Copias externas: {{count}}",
+                "keyId": "ID de la clave de recuperación",
+                "enabled": "Cargar nuevas copias",
+                "endpoint": "Punto de conexión S3 HTTPS",
+                "region": "Región",
+                "bucket": "Bucket",
+                "prefix": "Prefijo del objeto",
+                "accessKeyId": "ID de clave de acceso",
+                "secretAccessKey": "Clave de acceso secreta",
+                "secretsHelp": "Deja las credenciales vacías para conservar las guardadas. Las credenciales y claves de recuperación almacenadas nunca se muestran.",
+                "keyHelp": "Guarda el kit de recuperación fuera de este dispositivo. Sin la clave no podrás recuperar las copias externas. Las claves nuevas se aplican a futuras cargas; conserva las anteriores para las copias antiguas.",
+                "generate": "Generar nueva clave de recuperación",
+                "download": "Descargar kit de recuperación",
+                "saved": "He guardado el kit de recuperación fuera de este dispositivo.",
+                "save": "Guardar configuración externa",
+                "keyUnavailable": "Este navegador no pudo generar una clave de recuperación segura.",
+                "recoveryTitle": "Recuperar en otro servidor",
+                "recoveryHelp": "Usa la versión original en un servidor de recuperación aislado. Crea target.json con endpoint, region, bucket, prefix, accessKeyId y secretAccessKey. Usa la clave relativa exacta del objeto del historial y su kit de recuperación correspondiente. Indica el prefijo de almacenamiento solo en target.json; no lo añadas a la clave del objeto. En Unix protege ambos archivos secretos con chmod 600 target.json recovery-key.json. El comando descarga, autentica y descifra la copia.",
+                "restoreHelp": "Revisa la copia extraída antes de restaurarla. Este comando reemplaza los datos de destino y reinicia los servicios.",
+                "remote": {
+                    "uploading": "Cargando copia cifrada",
+                    "succeeded": "Copia externa verificada",
+                    "failed": "Error de carga externa",
+                    "none": "Sin copia externa",
+                    "failureHelp": "La copia local sigue disponible. Revisa el destino antes de crear otra copia."
+                }
             }
         },
         "migration": {

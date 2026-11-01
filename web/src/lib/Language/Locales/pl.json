@@ -840,6 +840,38 @@
                     "restarting": "Ponowne uruchamianie i sprawdzanie usług",
                     "complete": "Odzyskiwanie potwierdzone"
                 }
+            },
+            "offHost": {
+                "title": "Szyfrowane kopie poza hostem",
+                "description": "Każda nowa kopia jest szyfrowana niezależnym kluczem odzyskiwania i przesyłana do magazynu zgodnego z S3. Kopie lokalne pozostają dostępne po błędzie przesyłania.",
+                "configured": "Cel skonfigurowany",
+                "unconfigured": "Cel nieskonfigurowany",
+                "copies": "Kopie zdalne: {{count}}",
+                "keyId": "Identyfikator klucza odzyskiwania",
+                "enabled": "Przesyłaj nowe kopie",
+                "endpoint": "Punkt końcowy S3 HTTPS",
+                "region": "Region",
+                "bucket": "Bucket",
+                "prefix": "Prefiks obiektów",
+                "accessKeyId": "Identyfikator klucza dostępu",
+                "secretAccessKey": "Tajny klucz dostępu",
+                "secretsHelp": "Pozostaw dane dostępowe puste, aby zachować zapisane wartości. Zapisane dane dostępowe i klucze odzyskiwania nigdy nie są wyświetlane.",
+                "keyHelp": "Przechowuj zestaw odzyskiwania poza tym urządzeniem. Bez klucza nie można odzyskać kopii zdalnych. Nowe klucze dotyczą przyszłych przesłań; zachowaj poprzednie klucze dla starszych kopii.",
+                "generate": "Wygeneruj nowy klucz odzyskiwania",
+                "download": "Pobierz zestaw odzyskiwania",
+                "saved": "Zapisano zestaw odzyskiwania poza tym urządzeniem.",
+                "save": "Zapisz ustawienia zdalne",
+                "keyUnavailable": "Ta przeglądarka nie mogła wygenerować bezpiecznego klucza odzyskiwania.",
+                "recoveryTitle": "Odzyskaj na innym hoście",
+                "recoveryHelp": "Użyj wersji źródłowej na odizolowanym hoście odzyskiwania. Utwórz target.json z polami endpoint, region, bucket, prefix, accessKeyId i secretAccessKey. Użyj dokładnego względnego klucza obiektu z historii i odpowiedniego zestawu odzyskiwania. Prefiks magazynu ustaw tylko w target.json; nie dodawaj go do klucza obiektu. W systemie Unix zabezpiecz oba tajne pliki poleceniem chmod 600 target.json recovery-key.json. Polecenie pobiera, uwierzytelnia i odszyfrowuje kopię.",
+                "restoreHelp": "Sprawdź rozpakowaną kopię przed przywróceniem. Polecenie zastępuje dane docelowe i ponownie uruchamia usługi.",
+                "remote": {
+                    "uploading": "Przesyłanie zaszyfrowanej kopii",
+                    "succeeded": "Kopia zdalna zweryfikowana",
+                    "failed": "Błąd przesyłania zdalnego",
+                    "none": "Brak kopii zdalnej",
+                    "failureHelp": "Kopia lokalna pozostaje dostępna. Sprawdź cel przed utworzeniem kolejnej kopii."
+                }
             }
         },
         "migration": {

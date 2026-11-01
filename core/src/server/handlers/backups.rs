@@ -40,6 +40,68 @@ struct Config {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OffHostConfig {
+    request_id: String,
+    actor_id: String,
+    expected_revision: u64,
+    enabled: bool,
+    endpoint: String,
+    region: String,
+    bucket: String,
+    prefix: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secret_access_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_key_saved: Option<bool>,
+}
+
+pub(in crate::server) async fn off_host_config(
+    uri: Uri,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    let request = body
+        .ok()
+        .filter(|value| value.len() <= 8192)
+        .and_then(|value| serde_json::from_slice::<OffHostConfig>(&value).ok());
+    let bounded = |value: &str, maximum: usize| {
+        value.len() <= maximum && !value.chars().any(char::is_control)
+    };
+    let Some(request) = request.filter(|request| {
+        uri.query().is_none()
+            && canonical_uuid(&request.request_id)
+            && canonical_uuid(&request.actor_id)
+            && request.expected_revision <= 9_007_199_254_740_991
+            && bounded(&request.endpoint, 512)
+            && bounded(&request.region, 64)
+            && bounded(&request.bucket, 63)
+            && bounded(&request.prefix, 256)
+            && request
+                .access_key_id
+                .as_deref()
+                .is_none_or(|value| bounded(value, 256))
+            && request
+                .secret_access_key
+                .as_deref()
+                .is_none_or(|value| bounded(value, 512))
+            && request
+                .recovery_key
+                .as_deref()
+                .is_none_or(|value| bounded(value, 44))
+    }) else {
+        return error(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match serde_json::to_vec(&request) {
+        Ok(body) => forward("PUT", "/off-host", body).await,
+        Err(_) => unavailable(),
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AuditAcknowledgement {
     store_id: String,
     sequence: u64,

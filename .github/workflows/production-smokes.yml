@@ -41,8 +41,15 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
-            - name: Root-owned backup download boundaries
-              run: sudo "$(command -v bun)" --no-env-file test --isolate ./web/src/tests/tooling/docker/production/backup-download.test.ts
+            - name: Root-owned backup boundaries and off-host recovery
+              run: |
+                  mkdir -p tmp
+                  sudo "$(command -v bun)" --no-env-file test --isolate \
+                  ./web/src/tests/tooling/docker/production/backup-download.test.ts \
+                  ./web/src/tests/tooling/docker/production/off-host.test.ts \
+                  ./web/src/tests/tooling/docker/web/bootstrap-secrets.test.ts \
+                  ./web/src/tests/tooling/scripts/backup/offhost/envelope.test.ts \
+                  ./web/src/tests/tooling/recover-offhost-backup.test.ts
 
             - name: Docker discovery socket proxy restrictions
               run: bun --no-env-file --no-orphans scripts/smoke/docker-discovery.ts

@@ -17,6 +17,11 @@ import type { BackupAdminDependencies } from './Types/backups-service.types.ts'
 import { BackupDomainError } from './backup.errors.ts'
 import { getLocalBackupDemoStatus, deleteLocalBackupDemoService } from './backups-demo.server.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
+import { offHostConfigurationUpdateSchema } from '@/lib/Backups/offHostValidation.ts'
+
+export const updateOffHostConfigurationSchema = offHostConfigurationUpdateSchema.omit({
+    actorId: true,
+})
 
 export const requestBackupSchema = managedBackupStartSchema.omit({ actorId: true })
 export const updateBackupConfigurationSchema = managedBackupConfigurationUpdateSchema.omit({
@@ -114,6 +119,34 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
         })
     }
     return {
+        async updateOffHostConfigurationService(input: unknown) {
+            const actor = await dependencies.authorize(PERMISSIONS.BACKUPS_MANAGE)
+            const parsed = updateOffHostConfigurationSchema.safeParse(input)
+            if (!parsed.success) throw new BackupDomainError('invalid_input')
+            await dependencies.limit(actor.id)
+            if (await dependencies.localDemo?.()) throw new BackupDomainError('appliance_required')
+            const result = await dependencies.transaction(async (transaction) => {
+                await transaction.authorize(actor.id, PERMISSIONS.BACKUPS_MANAGE)
+                if (!dependencies.controller.configureOffHost)
+                    throw new BackupDomainError('unavailable')
+                const status = await dependencies.controller.configureOffHost({
+                    ...parsed.data,
+                    actorId: actor.id,
+                })
+                await transaction.audit({
+                    actorUserId: actor.id,
+                    actorKind: 'user',
+                    action: 'update',
+                    resource: 'security-settings',
+                    targetId: parsed.data.requestId,
+                    result: 'success',
+                    metadata: {},
+                })
+                return status
+            })
+            publishApplicationChange()
+            return result
+        },
         async getBackupsStatusService() {
             await dependencies.authorize(PERMISSIONS.BACKUPS_VIEW)
             return (await dependencies.localDemo?.()) ?? dependencies.controller.status()
@@ -130,6 +163,7 @@ export const {
     updateBackupConfigurationService,
     deleteBackupService,
     restoreBackupService,
+    updateOffHostConfigurationService,
 } = createBackupAdminService({
     localDemo: getLocalBackupDemoStatus,
     demoDelete: deleteLocalBackupDemoService,

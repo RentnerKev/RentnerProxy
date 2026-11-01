@@ -33,6 +33,7 @@ export async function controllerRequest(
         | `/internal/v1/backups/${string}/restore`
         | '/internal/v1/backups/start'
         | '/internal/v1/backups/config'
+        | '/internal/v1/backups/off-host'
         | '/internal/v1/backups/audit/ack'
         | '/internal/v1/diagnostics/domain'
         | '/internal/v1/proxy/status'
