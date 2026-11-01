@@ -132,7 +132,7 @@ export function normalizeWorkflowPath(value: unknown): string {
 export function assertPreviewTag(value: unknown): string {
     const tag = stringValue(value, 'Preview tag')
     if (
-        !/^(?:pr-[1-9][0-9]*|pr-[1-9][0-9]*-[0-9a-f]{12})$/u.test(tag) ||
+        !/^(?:pr-[1-9][0-9]*|pr-[1-9][0-9]*-[0-9a-f]{12}-[1-9][0-9]*-[1-9][0-9]*)$/u.test(tag) ||
         tag === 'latest' ||
         tag === 'dev' ||
         /^v?[0-9]+\.[0-9]+\.[0-9]+(?:-|$)/u.test(tag)
@@ -146,13 +146,19 @@ export function createPreviewIdentity(
     repositoryValue: unknown,
     pullRequestNumberValue: unknown,
     testedShaValue: unknown,
+    buildRunIdValue: unknown,
+    buildRunAttemptValue: unknown,
 ): PreviewIdentity {
     const repository = normalizeRepository(repositoryValue)
     const pullRequestNumber = parsePositiveInteger(pullRequestNumberValue, 'Pull request number')
     const testedSha = validateFullSha(testedShaValue, 'Tested SHA')
+    const buildRunId = parsePositiveInteger(buildRunIdValue, 'Build run ID')
+    const buildRunAttempt = parsePositiveInteger(buildRunAttemptValue, 'Build run attempt')
     const shortTestedSha = testedSha.slice(0, PREVIEW_SHORT_SHA_LENGTH)
     const movingTag = assertPreviewTag(`pr-${pullRequestNumber}`)
-    const immutableTag = assertPreviewTag(`pr-${pullRequestNumber}-${shortTestedSha}`)
+    const immutableTag = assertPreviewTag(
+        `pr-${pullRequestNumber}-${shortTestedSha}-${buildRunId}-${buildRunAttempt}`,
+    )
     const image = `ghcr.io/${repository}`
 
     return {
@@ -181,6 +187,8 @@ export function assertPreviewPublishPlan(
     repositoryValue: unknown,
     pullRequestNumberValue: unknown,
     testedShaValue: unknown,
+    buildRunIdValue: unknown,
+    buildRunAttemptValue: unknown,
 ): PreviewIdentity {
     const plan = asRecord(value, 'Preview publish plan')
     const actualKeys = Object.keys(plan).toSorted()
@@ -188,7 +196,13 @@ export function assertPreviewPublishPlan(
         throw new Error('Preview publish plan fields are invalid.')
     }
 
-    const identity = createPreviewIdentity(repositoryValue, pullRequestNumberValue, testedShaValue)
+    const identity = createPreviewIdentity(
+        repositoryValue,
+        pullRequestNumberValue,
+        testedShaValue,
+        buildRunIdValue,
+        buildRunAttemptValue,
+    )
     const expected: Readonly<Record<(typeof previewPublishPlanKeys)[number], string>> = {
         image: identity.image,
         immutableReference: identity.immutableReference,

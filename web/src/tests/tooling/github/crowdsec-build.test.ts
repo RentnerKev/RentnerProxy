@@ -7,11 +7,11 @@ import { join, resolve } from 'node:path'
 const buildRoot = resolve(import.meta.dir, '../../../../../docker/crowdsec/tooling/engine-build')
 const gitBash = 'C:/Program Files/Git/bin/bash.exe'
 const shell = process.platform === 'win32' && existsSync(gitBash) ? gitBash : Bun.which('bash')
-const validBuildinfo = `crowdsec: go1.27.2
+const validBuildinfo = `crowdsec: go1.27.3
 \tpath\tgithub.com/crowdsecurity/crowdsec/cmd/crowdsec
-\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:grpc
+\tdep\tgoogle.golang.org/grpc\tv1.85.0\th1:grpc
 \tdep\tgolang.org/x/crypto\tv0.58.0\th1:crypto
-\tdep\tgolang.org/x/net\tv0.61.0\th1:net
+\tdep\tgolang.org/x/net\tv0.62.0\th1:net
 \tdep\tgolang.org/x/time\tv0.16.0
 \t=>\tgithub.com/crowdsecurity/time\tv0.13.0-crowdsec.20250912\th1:time
 \tdep\tgithub.com/corazawaf/coraza/v3\tv3.8.1
@@ -44,9 +44,9 @@ async function runShell(script: string, ...args: string[]) {
 describe('pinned pristine CrowdSec appliance rebuild', () => {
     test('binds immutable official source, authenticated frozen locks and native upstream build', async () => {
         const script = await readFile(join(buildRoot, 'build.sh'), 'utf8')
-        expect(script).toContain('source_commit=909b5157986a2b2c2163300fdaef5ed01289f7d2')
+        expect(script).toContain('source_commit=3d369d64eb3e9ba770ed39aedc83ffd3170aef4c')
         expect(script).toContain(
-            'source_sha256=6a9219a2a2706e35b723750d581c697db54d32d1b3995216cc2838329e15f7dc',
+            'source_sha256=e44843e4addce3c8e9fa61a0ac40c9ff42d97290802605b61b8c363934a28392',
         )
         expect(script).toContain('re2_version=2023-03-01')
         expect(script).toContain(
@@ -60,12 +60,12 @@ describe('pinned pristine CrowdSec appliance rebuild', () => {
             'export GOSUMDB=sum.golang.org',
             'export GOFLAGS=-mod=readonly',
             'export CGO_ENABLED=1',
-            'test "$(go env GOVERSION)" = go1.27.2',
+            'test "$(go env GOVERSION)" = go1.27.3',
             'pkg-config --exists re2',
             'test "$(pkg-config --variable=libdir re2)" = /usr/local/lib',
             'test "$(pkg-config --variable=includedir re2)" = /usr/local/include',
             'go mod verify',
-            'make build BUILD_VERSION=v1.8.1',
+            'make build BUILD_VERSION=v1.8.2',
             'BUILD_PROFILE=default EXCLUDE=db_postgres PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1',
             'make -C "$work_root/re2" install',
             'ldd "$binary_path"',
@@ -93,19 +93,19 @@ describe('pinned pristine CrowdSec appliance rebuild', () => {
         const mod = await readFile(join(buildRoot, 'go.mod'), 'utf8')
         const sums = await readFile(join(buildRoot, 'go.sum'), 'utf8')
         for (const [module, version] of [
-            ['google.golang.org/grpc', 'v1.84.0'],
+            ['google.golang.org/grpc', 'v1.85.0'],
             ['golang.org/x/crypto', 'v0.58.0'],
-            ['golang.org/x/net', 'v0.61.0'],
+            ['golang.org/x/net', 'v0.62.0'],
         ]) {
             expect(mod).toContain(`${module} ${version}`)
             for (const suffix of ['', '/go.mod'])
                 expect(sums).toContain(`${module} ${version}${suffix} h1:`)
         }
-        expect(mod).toContain('go 1.27.2')
+        expect(mod).toContain('go 1.27.3')
         expect(mod).toContain('module rentnerproxy.local/crowdsec-dependencies')
         const workspace = await readFile(join(buildRoot, 'go.work.template'), 'utf8')
         const workspaceSums = await readFile(join(buildRoot, 'go.work.sum'), 'utf8')
-        expect(workspace).toContain('go 1.27.2')
+        expect(workspace).toContain('go 1.27.3')
         expect(workspace).toContain('./source')
         expect(workspace).toContain('./pins')
         expect(workspace).not.toMatch(/\/work\/|[A-Z]:\\/)
@@ -134,10 +134,10 @@ describe('pinned pristine CrowdSec appliance rebuild', () => {
         try {
             const variants = [
                 [validBuildinfo, true],
-                [validBuildinfo.replace('go1.27.2', 'go1.27.1'), false],
-                [validBuildinfo.replace('v1.84.0', 'v1.83.0'), false],
+                [validBuildinfo.replace('go1.27.3', 'go1.27.1'), false],
+                [validBuildinfo.replace('v1.85.0', 'v1.83.0'), false],
                 [validBuildinfo.replace('v0.58.0', 'v0.55.0'), false],
-                [validBuildinfo.replace('v0.61.0', 'v0.58.0'), false],
+                [validBuildinfo.replace('v0.62.0', 'v0.58.0'), false],
                 [
                     validBuildinfo.replace('v3.8.0-crowdsec.20261002', 'v3.7.0-crowdsec.20260730'),
                     false,

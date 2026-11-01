@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-test "$(go env GOVERSION)" = go1.27.2
+test "$(go env GOVERSION)" = go1.27.3
 cd /opt/rentnerproxy-responsecache
 GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" go mod download
 go mod verify
@@ -11,8 +11,8 @@ GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" xcaddy build "${CADDY_VERSION:?Cadd
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
         --with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache \
         --replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module} \
-        --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1 \
-        --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
+        --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.2 \
+        --replace golang.org/x/net=golang.org/x/net@v0.62.0 \
         --replace golang.org/x/crypto=golang.org/x/crypto@v0.58.0 \
         --replace golang.org/x/sys=golang.org/x/sys@v0.49.0 \
         --replace golang.org/x/term=golang.org/x/term@v0.47.0 \

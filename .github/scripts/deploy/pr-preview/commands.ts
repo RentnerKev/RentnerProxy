@@ -41,6 +41,8 @@ async function commandGate(): Promise<void> {
         expected.baseRepository,
         expected.number,
         expected.testedSha,
+        environmentPositiveInteger('GITHUB_RUN_ID'),
+        environmentPositiveInteger('GITHUB_RUN_ATTEMPT'),
     )
     const initialEvaluation = evaluatePullRequest(pullRequest, expected)
     if (initialEvaluation.state === 'closed' || initialEvaluation.state === 'stale') {
@@ -110,7 +112,13 @@ async function commandResolve(): Promise<void> {
     }
     const { pullRequest, expected } = await resolvePreviewSource(api, triggerRun, proof, metadata)
     const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
-    const identity = createPreviewIdentity(repository, expected.number, expected.testedSha)
+    const identity = createPreviewIdentity(
+        repository,
+        expected.number,
+        expected.testedSha,
+        workflowRun.id,
+        workflowRun.runAttempt,
+    )
     if (pullRequestEvaluation.state === 'closed' || pullRequestEvaluation.state === 'stale') {
         console.log(pullRequestEvaluation.reason)
         await writeOutputs({
@@ -166,6 +174,8 @@ async function commandRevalidate(): Promise<void> {
         expected.baseRepository,
         expected.number,
         expected.testedSha,
+        environmentPositiveInteger('SOURCE_RUN_ID'),
+        environmentPositiveInteger('SOURCE_RUN_ATTEMPT'),
     )
     const api = new GitHubApi(expected.baseRepository, environment('GITHUB_TOKEN'))
     await verifyGate(api, expected, false)
@@ -187,6 +197,8 @@ async function commandComment(): Promise<void> {
         expected.baseRepository,
         expected.number,
         expected.testedSha,
+        environmentPositiveInteger('SOURCE_RUN_ID'),
+        environmentPositiveInteger('SOURCE_RUN_ATTEMPT'),
     )
     const body = renderPreviewComment(identity, expected.headSha, environment('IMAGE_DIGEST'))
     await upsertPreviewComment(api, expected.number, body)
@@ -194,6 +206,17 @@ async function commandComment(): Promise<void> {
 
 export async function runCommand(): Promise<void> {
     switch (process.argv[2]) {
+        case 'build-identity': {
+            const identity = createPreviewIdentity(
+                environment('REPOSITORY'),
+                environmentPositiveInteger('PR_NUMBER'),
+                environment('TESTED_SHA'),
+                environmentPositiveInteger('GITHUB_RUN_ID'),
+                environmentPositiveInteger('GITHUB_RUN_ATTEMPT'),
+            )
+            await writeOutputs({ immutable_tag: identity.immutableTag })
+            return
+        }
         case 'trigger-preflight':
             await commandTriggerPreflight()
             return

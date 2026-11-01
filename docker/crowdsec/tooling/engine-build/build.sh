@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-# Pristine upstream v1.8.1 with reviewed workspace pins and its SQLite appliance backend.
+# Pristine upstream v1.8.2 with reviewed workspace pins and its SQLite appliance backend.
 script_root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-source_commit=909b5157986a2b2c2163300fdaef5ed01289f7d2
-source_sha256=6a9219a2a2706e35b723750d581c697db54d32d1b3995216cc2838329e15f7dc
+source_commit=3d369d64eb3e9ba770ed39aedc83ffd3170aef4c
+source_sha256=e44843e4addce3c8e9fa61a0ac40c9ff42d97290802605b61b8c363934a28392
 re2_version=2023-03-01
 re2_sha256=7a9a4824958586980926a300b4717202485c4b4115ac031822e29aa4ef207e48
 output_root=${1:?Usage: build.sh ABSOLUTE_OUTPUT_DIRECTORY}
@@ -15,7 +15,7 @@ export GOPROXY=https://proxy.golang.org
 export GOSUMDB=sum.golang.org
 export GOFLAGS=-mod=readonly
 export CGO_ENABLED=1
-test "$(go env GOVERSION)" = go1.27.2
+test "$(go env GOVERSION)" = go1.27.3
 test "$(go env GOOS)" = linux
 
 work_root=$(mktemp -d)
@@ -53,8 +53,8 @@ go mod verify
 sha256sum --check --strict "$work_root/source-files.sha256" > /dev/null
 /bin/sh "$script_root/verify-packages.sh" "$work_root/packages.txt"
 # Both managed configurations use SQLite; upstream supports excluding just PostgreSQL.
-make build BUILD_VERSION=v1.8.1 BUILD_TAG="$source_commit" \
-    BUILD_TIMESTAMP=2026-09-03_09:08:00 DOCKER_BUILD=1 \
+make build BUILD_VERSION=v1.8.2 BUILD_TAG="$source_commit" \
+    BUILD_TIMESTAMP=2026-10-26_14:16:43 DOCKER_BUILD=1 \
     BUILD_PROFILE=default EXCLUDE=db_postgres PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1
 (cd "$work_root" && sha256sum --check --strict "$work_root/locks.sha256")
 sha256sum --check --strict "$work_root/source-files.sha256" > /dev/null

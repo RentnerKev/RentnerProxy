@@ -6,12 +6,12 @@ buildinfo=${1:?Usage: verify-buildinfo.sh BUILDINFO_FILE}
 # Only our own cache module may resolve to local source; foreign modules stay upstream.
 awk '
     BEGIN {
-        expected["golang.org/x/net"] = "v0.61.0"
-        expected["github.com/crowdsecurity/crowdsec"] = "v1.8.1"
-        expected["github.com/hslatman/caddy-crowdsec-bouncer"] = "v0.14.2-0.20260909201224-ffdcb7c6f861"
-        expected["github.com/mholt/caddy-l4"] = "v0.1.3-0.20261023161224-4ad6aec1ccc6"
+        expected["golang.org/x/net"] = "v0.62.0"
+        expected["github.com/crowdsecurity/crowdsec"] = "v1.8.2"
+        expected["github.com/hslatman/caddy-crowdsec-bouncer"] = "v0.14.2-0.20261030164527-4a6ce1d3094d"
+        expected["github.com/mholt/caddy-l4"] = "v0.1.3-0.20261029145729-f607ccea1b7d"
     }
-    NR == 1 { compiler = ($0 ~ /^.*: go1[.]27[.]2$/) }
+    NR == 1 { compiler = ($0 ~ /^.*: go1[.]27[.]3$/) }
     $1 == "dep" {
         module = $2
         if (module in expected) { count[module]++; version[module] = $3 }

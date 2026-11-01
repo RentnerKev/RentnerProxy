@@ -211,6 +211,8 @@ jobs:
                   PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
                   REPOSITORY: ${{ needs.resolve.outputs.repository }}
                   SOURCE_IMAGE_DIGEST: ${{ steps.artifact.outputs.source_digest }}
+                  SOURCE_RUN_ATTEMPT: ${{ needs.resolve.outputs.run_attempt }}
+                  SOURCE_RUN_ID: ${{ needs.resolve.outputs.run_id }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
               shell: bash
               run: bash trusted/.github/scripts/deploy/publish-preview-image.sh
@@ -283,6 +285,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+                  SOURCE_RUN_ATTEMPT: ${{ needs.resolve.outputs.run_attempt }}
+                  SOURCE_RUN_ID: ${{ needs.resolve.outputs.run_id }}
                   PR_BASE_REF: ${{ needs.resolve.outputs.base_ref }}
                   PR_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
                   PR_HEAD_REPOSITORY: ${{ needs.resolve.outputs.head_repository }}
