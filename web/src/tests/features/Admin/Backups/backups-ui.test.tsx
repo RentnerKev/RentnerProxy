@@ -3,17 +3,20 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import type { ManagedBackupJob, ManagedBackupStatus } from '@/lib/Backups/Types/backups.types.ts'
 import type { BackupsPageProps } from '@/features/Admin/Backups/Types/backups-ui.types.ts'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
 import { backupSearchSchema } from '@/features/Admin/Backups/validation.ts'
 import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered)
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const { default: BackupsPage } = await import('@/features/Admin/Backups/index.tsx')
 
 class FakeSocket extends EventTarget {
@@ -111,6 +114,7 @@ let status: ManagedBackupStatus
 let statusError: number | null
 let startError: number | null
 let startErrorCode: 'unavailable' | 'appliance_required'
+let startReplyWait: Promise<void> | null
 let admitBeforeStartFailure: boolean
 let configurationError: number | null
 let startRequests: Array<{ requestId: string }>
@@ -148,7 +152,11 @@ async function renderPage(overrides: Partial<BackupsPageProps> = {}) {
         root?.render(
             withTestLanguage(
                 <QueryClientProvider client={queryClient}>
-                    <BackupsPage {...props} />
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
+                        <div data-testid="backup-page">
+                            <BackupsPage {...props} />
+                        </div>
+                    </ToastProvider>
                 </QueryClientProvider>,
             ),
         ),
@@ -200,6 +208,7 @@ beforeEach(() => {
     statusError = null
     startError = null
     startErrorCode = 'unavailable'
+    startReplyWait = null
     admitBeforeStartFailure = false
     configurationError = null
     startRequests = []
@@ -246,6 +255,7 @@ beforeEach(() => {
                         durationMs: null,
                     })
                     if (startError) {
+                        if (startReplyWait) await startReplyWait
                         statusError = 503
                         return Response.json({ error: startErrorCode }, { status: startError })
                     }
@@ -274,7 +284,10 @@ beforeEach(() => {
     restoreFetch = () => fetchSpy.mockRestore()
 })
 afterEach(async () => {
-    await act(async () => root?.unmount())
+    await act(async () => {
+        toast.dismissAll()
+        root?.unmount()
+    })
     root = null
     queryClient?.clear()
     document.body.innerHTML = ''
@@ -348,6 +361,18 @@ describe('managed backup UI', () => {
         expect(actionRequests[0]?.body.jobId).toBe(uuid(2))
         expect(document.body.textContent).not.toContain(uuid(2))
         expect(document.body.textContent).toContain(completed.id)
+        await waitFor(
+            () =>
+                document
+                    .querySelector('.rentnerproxy-toast-success')
+                    ?.textContent?.includes('Backup deleted.') === true,
+        )
+        expect(document.querySelector('[data-testid="backup-page"]')?.textContent).not.toContain(
+            'Backup deleted.',
+        )
+        await statusChanged()
+        await statusChanged()
+        expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
     })
     test('restore requires destructive confirmation and surfaces real endpoint failures', async () => {
         actionError = true
@@ -369,6 +394,12 @@ describe('managed backup UI', () => {
         expect(actionRequests[0]?.body.metadataSha256).toBe(completed.artifact?.metadataSha256)
         expect(document.body.textContent).not.toContain('Restore request recorded')
         expect(document.body.textContent).toContain(
+            catalogs.en.admin.backups.errors.artifact_invalid,
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            catalogs.en.admin.backups.errors.artifact_invalid,
+        )
+        expect(document.querySelector('[data-testid="backup-page"]')?.textContent).not.toContain(
             catalogs.en.admin.backups.errors.artifact_invalid,
         )
         expect(document.body.textContent).toContain(completed.id)
@@ -458,11 +489,44 @@ describe('managed backup UI', () => {
         await click(button('Start backup maintenance'))
         await waitFor(() => document.body.textContent?.includes('Retry backup request') === true)
         expect(document.body.textContent).toContain('reuses its identity')
+        expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(1)
         startError = null
         await click(button('Retry backup request'))
         await click(button('Start backup maintenance'))
         await waitFor(() => startRequests.length === 2)
         expect(startRequests[1]?.requestId).toBe(startRequests[0]?.requestId)
+        await waitFor(
+            () =>
+                document
+                    .querySelector('.rentnerproxy-toast-info')
+                    ?.textContent?.includes('Backup request recorded') === true,
+        )
+        expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
+        expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(0)
+    })
+    test('a late failed HTTP response cannot replace a confirmed socket admission with a warning toast', async () => {
+        admitBeforeStartFailure = true
+        startError = 503
+        let release!: () => void
+        startReplyWait = new Promise((resolve) => {
+            release = resolve
+        })
+        await renderPage()
+        await click(button('Create backup'))
+        await click(button('Start backup maintenance'))
+        await waitFor(() => startRequests.length === 1)
+        await statusChanged()
+        await waitFor(
+            () =>
+                document
+                    .querySelector('.rentnerproxy-toast-info')
+                    ?.textContent?.includes('Backup request recorded') === true,
+        )
+        await act(async () => release())
+        await waitFor(() => !document.querySelector('[role="dialog"]'))
+        expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
+        expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(0)
+        expect(document.body.textContent).not.toContain('Retry backup request')
     })
     test('realtime reconciles a recorded request whose response was lost during maintenance', async () => {
         admitBeforeStartFailure = true
@@ -512,7 +576,30 @@ describe('managed backup UI', () => {
         })
         await act(async () => release())
         await waitFor(() => document.body.textContent?.includes('retention saved') === true)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'retention saved',
+        )
+        expect(document.querySelector('[data-testid="backup-page"]')?.textContent).not.toContain(
+            'retention saved',
+        )
         expect(button('Save backup settings').disabled).toBeTrue()
+    })
+    test('a failed schedule save shows an error toast and preserves editable values', async () => {
+        configurationError = 409
+        await renderPage()
+        await input('intervalHours', '48')
+        await submit()
+        await waitFor(
+            () =>
+                document
+                    .querySelector('.rentnerproxy-toast-error')
+                    ?.textContent?.includes(catalogs.en.admin.backups.errors.revision_conflict) ===
+                true,
+        )
+        expect(document.querySelector('[data-testid="backup-page"]')?.textContent).not.toContain(
+            catalogs.en.admin.backups.errors.revision_conflict,
+        )
+        expect(document.querySelector<HTMLInputElement>('[name="intervalHours"]')?.value).toBe('48')
     })
     test('keeps dirty edits when another operator changes the schedule, then explicitly reloads', async () => {
         await renderPage()
@@ -578,9 +665,14 @@ describe('managed backup UI', () => {
     })
     test('shows a safe download failure and validates redirect search values', async () => {
         await renderPage({ downloadError: 'not_found' })
-        expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
             'no longer available',
         )
+        expect(document.querySelector('[data-testid="backup-page"]')?.textContent).not.toContain(
+            'no longer available',
+        )
+        await renderPage({ downloadError: 'not_found' })
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
         expect(backupSearchSchema.parse({ downloadError: '<script>private</script>' })).toEqual({
             downloadError: undefined,
         })

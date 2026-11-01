@@ -25,7 +25,6 @@ export interface BackupsLogicResult {
         readonly pending: boolean
         readonly confirmOpen: boolean
         readonly uncertain: boolean
-        readonly notice: string
         readonly status: ManagedBackupStatus | null
         readonly jobs: readonly ManagedBackupJob[]
         readonly active: ManagedBackupJob | undefined
@@ -59,7 +58,6 @@ export interface BackupScheduleLogicResult {
         readonly locked: boolean
         readonly canSave: boolean
         readonly valid: boolean
-        readonly notice: string
     }
     readonly handler: {
         readonly handleSubmit: (event: FormEvent<HTMLFormElement>) => void

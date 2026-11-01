@@ -68,19 +68,6 @@ export default function BackupsPage(props: BackupsPageProps) {
                             </p>
                         </div>
                     ) : null}
-                    {props.downloadError ? (
-                        <p
-                            role="alert"
-                            className="rounded-xl bg-danger-bg p-4 text-sm text-danger-text"
-                        >
-                            {t(`admin.backups.downloadErrors.${props.downloadError}`)}
-                        </p>
-                    ) : null}
-                    {state.notice ? (
-                        <output className="rounded-xl border border-border bg-surface p-4 text-sm text-ink-soft">
-                            {state.notice}
-                        </output>
-                    ) : null}
                     {state.status ? (
                         <>
                             <dl className="grid gap-4 md:grid-cols-3" aria-live="polite">

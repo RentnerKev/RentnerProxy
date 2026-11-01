@@ -72,9 +72,6 @@ export default function BackupSchedule(props: BackupScheduleProps) {
                         {t('admin.backups.errors.invalid_input')}
                     </p>
                 ) : null}
-                {state.notice ? (
-                    <output className="text-sm text-ink-soft">{state.notice}</output>
-                ) : null}
                 <div className="flex flex-wrap gap-3">
                     <button
                         type="submit"

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast, type ToastType } from '@rentnerkev/toasts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
@@ -32,12 +33,24 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
     const [accessRevoked, setAccessRevoked] = useState(false)
     const [pending, setPending] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
-    const [notice, setNotice] = useState('')
     const [uncertain, setUncertain] = useState(false)
     const busy = useRef(false)
     const startRequest = useRef<string | null>(null)
     const mutationAbort = useRef<AbortController | null>(null)
     const liveGeneration = useRef(0)
+    const downloadNotice = useRef<string | null>(null)
+    const notifyAction = useCallback(
+        (type: ToastType, key: string, requestId: string) => {
+            const content = t(key)
+            const title = t(`toast.titles.${type}`)
+            const id = toast[type](content, {
+                title,
+                dedupeKey: `backups:${props.userId}:${requestId}`,
+            })
+            toast.update(id, { content, title, type })
+        },
+        [props.userId, t],
+    )
     const artifactRequest = useRef<{
         operation: 'delete' | 'restore'
         jobId: string
@@ -88,7 +101,7 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         }
     }, [canManage, forbidden])
 
-    // oxlint-disable react/set-state-in-effect -- Authorization failures must erase cached administrative data and stop polling.
+    // oxlint-disable react/set-state-in-effect -- Authorization failures must erase cached administrative data and stop live updates.
     useEffect(() => {
         if (!canView || privateError(query.error)) {
             setAccessRevoked(true)
@@ -100,12 +113,13 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         }
     }, [canView, query.error, queryClient, queryKey])
     useEffect(() => {
-        if (status?.jobs.some((job) => job.requestId === startRequest.current)) {
+        const requestId = startRequest.current
+        if (requestId && status?.jobs.some((job) => job.requestId === requestId)) {
             startRequest.current = null
             setUncertain(false)
-            setNotice(t('admin.backups.messages.accepted'))
+            notifyAction('info', 'admin.backups.messages.accepted', requestId)
         }
-    }, [status, t])
+    }, [status, notifyAction])
     useEffect(() => {
         const request = artifactRequest.current
         if (!request || !status) return
@@ -114,10 +128,24 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
             !status.jobs.some((job) => job.id === request.jobId)
         ) {
             artifactRequest.current = null
-            setNotice(t('admin.backups.messages.deleted'))
+            notifyAction('success', 'admin.backups.messages.deleted', request.requestId)
         }
-    }, [status, t])
+    }, [status, notifyAction])
     // oxlint-enable react/set-state-in-effect
+
+    useEffect(() => {
+        if (!props.downloadError) {
+            downloadNotice.current = null
+            return
+        }
+        if (forbidden || downloadNotice.current === props.downloadError) return
+        downloadNotice.current = props.downloadError
+        notifyAction(
+            'error',
+            `admin.backups.downloadErrors.${props.downloadError}`,
+            `download:${props.downloadError}`,
+        )
+    }, [props.downloadError, forbidden, notifyAction])
 
     async function acceptStatus(saved: ManagedBackupStatus, signal: AbortSignal) {
         await queryClient.cancelQueries({ queryKey })
@@ -142,22 +170,28 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         const action = new AbortController()
         mutationAbort.current = action
         startRequest.current ??= crypto.randomUUID()
+        const requestId = startRequest.current
         try {
             await queryClient.cancelQueries({ queryKey })
-            const saved = await requestBackup({ requestId: startRequest.current }, action.signal)
-            startRequest.current = null
+            const saved = await requestBackup({ requestId }, action.signal)
             setUncertain(false)
-            setNotice(t('admin.backups.messages.accepted'))
             await acceptStatus(saved, action.signal)
+            if (startRequest.current === requestId) {
+                startRequest.current = null
+                notifyAction('info', 'admin.backups.messages.accepted', requestId)
+            }
         } catch (error) {
             if (action.signal.aborted) return
+            if (!privateError(error) && startRequest.current !== requestId) return
             revoke(error)
             const code = error instanceof BackupClientError ? error.code : 'unavailable'
             const unknown = ['unavailable', 'invalid_response', 'aborted'].includes(code)
             if (!unknown) startRequest.current = null
             setUncertain(unknown)
-            setNotice(
-                t(unknown ? 'admin.backups.messages.uncertain' : `admin.backups.errors.${code}`),
+            notifyAction(
+                unknown ? 'warning' : 'error',
+                unknown ? 'admin.backups.messages.uncertain' : `admin.backups.errors.${code}`,
+                requestId,
             )
         } finally {
             mutationAbort.current = null
@@ -206,10 +240,11 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
             artifactRequest.current.operation !== operation
         )
             artifactRequest.current = { jobId, operation, requestId: crypto.randomUUID() }
+        const requestId = artifactRequest.current.requestId
         try {
             const input = {
                 jobId,
-                requestId: artifactRequest.current.requestId,
+                requestId,
                 metadataSha256: job.artifact?.metadataSha256 ?? null,
             }
             const saved = await (operation === 'delete' ? deleteBackup : restoreBackup)(
@@ -217,27 +252,31 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
                 action.signal,
             )
             await acceptStatus(saved, action.signal)
-            setNotice(
-                t(
+            if (artifactRequest.current?.requestId === requestId) {
+                const deleted =
+                    operation === 'delete' && !saved.jobs.some((entry) => entry.id === jobId)
+                if (deleted) artifactRequest.current = null
+                notifyAction(
+                    deleted ? 'success' : 'info',
                     operation === 'restore'
                         ? 'admin.backups.messages.restoreAccepted'
-                        : saved.jobs.some((entry) => entry.id === jobId)
-                          ? 'admin.backups.messages.actionAccepted'
-                          : 'admin.backups.messages.deleted',
-                ),
-            )
+                        : deleted
+                          ? 'admin.backups.messages.deleted'
+                          : 'admin.backups.messages.actionAccepted',
+                    requestId,
+                )
+            }
         } catch (error) {
             if (action.signal.aborted) return
+            if (!privateError(error) && artifactRequest.current?.requestId !== requestId) return
             revoke(error)
             const code = error instanceof BackupClientError ? error.code : 'unavailable'
             const unknown = ['unavailable', 'invalid_response', 'aborted'].includes(code)
             if (!unknown) artifactRequest.current = null
-            setNotice(
-                t(
-                    unknown
-                        ? 'admin.backups.messages.actionUncertain'
-                        : `admin.backups.errors.${code}`,
-                ),
+            notifyAction(
+                unknown ? 'warning' : 'error',
+                unknown ? 'admin.backups.messages.actionUncertain' : `admin.backups.errors.${code}`,
+                requestId,
             )
             throw error
         } finally {
@@ -257,7 +296,6 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
             pending,
             confirmOpen,
             uncertain,
-            notice,
             status,
             jobs: status?.jobs ?? [],
             active,
