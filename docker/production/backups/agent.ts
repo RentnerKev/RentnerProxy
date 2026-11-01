@@ -284,14 +284,10 @@ export async function removeRetainedBackup(
 }
 export function createBackupAgentHandler(engine: Engine) {
     const download = createBackupDownload(() => engine.status())
-    return async (
-        request: Request,
-        server?: { timeout: (request: Request, seconds: number) => void },
-    ): Promise<Response> => {
+    return async (request: Request): Promise<Response> => {
         const path = new URL(request.url).pathname
         const downloadPath = /^\/artifacts\/([^/]+)\/download$/u.exec(path)
         if (request.method === 'GET' && downloadPath && new URL(request.url).search === '') {
-            server?.timeout(request, 0)
             return download(request, downloadPath[1]!)
         }
         if (request.method === 'GET' && path === '/status') {
@@ -359,6 +355,21 @@ export function createBackupAgentHandler(engine: Engine) {
             return Response.json({ error: 'unavailable' }, { status: 503 })
         }
     }
+}
+
+export function createBackupAgentServer(
+    socket: string,
+    handler: ReturnType<typeof createBackupAgentHandler>,
+) {
+    const options = {
+        unix: socket,
+        maxRequestBodySize: 2048,
+        fetch: handler,
+    }
+    // Bun 1.4.4 honors this Unix listener option although its types forbid it.
+    // The timeout override on an individual request is ineffective for Unix sockets.
+    Object.assign(options, { idleTimeout: 0 })
+    return Bun.serve(options)
 }
 
 export async function reconcileBackupControl(
@@ -488,11 +499,7 @@ export async function startBackupAgent() {
     }
     await reconcileCompletedWork('startup')
     const socket = join(controlRoot, 'agent.sock')
-    const server = Bun.serve({
-        unix: socket,
-        maxRequestBodySize: 2048,
-        fetch: createBackupAgentHandler(engine),
-    })
+    const server = createBackupAgentServer(socket, createBackupAgentHandler(engine))
     try {
         await chmod(socket, 0o660)
         await chown(socket, 0, 10001)
