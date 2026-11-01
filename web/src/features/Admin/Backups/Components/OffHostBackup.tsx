@@ -56,6 +56,7 @@ export default function OffHostBackup(props: OffHostBackupProps) {
                             key={name}
                             name={name}
                             label={t(`admin.backups.offHost.${name}`)}
+                            placeholder={t(`admin.backups.offHost.${name}Placeholder`)}
                             value={state[name]}
                             onValueChange={(value) => handler.handleTextChange(name, value)}
                             disabled={state.locked}
@@ -78,6 +79,11 @@ export default function OffHostBackup(props: OffHostBackupProps) {
                             key={name}
                             name={name}
                             label={t(`admin.backups.offHost.${name}`)}
+                            placeholder={t(
+                                props.configuration.configured
+                                    ? 'admin.backups.offHost.storedCredentialPlaceholder'
+                                    : `admin.backups.offHost.${name}Placeholder`,
+                            )}
                             value={state[name]}
                             onValueChange={(value) => handler.handleTextChange(name, value)}
                             disabled={state.locked}
