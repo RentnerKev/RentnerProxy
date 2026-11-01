@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import { readFileRange, writeFileChunk } from '../../../scripts/backup/artifact-file.ts'
 import { verifyPublishedBackup } from '../../../scripts/backup/publication.ts'
+import { BACKUP_DOWNLOAD_TIMEOUTS } from '../../../web/src/config/backup-download.config.ts'
+import { createBackupDownloadTimeout } from '../../../web/src/lib/Http/backupDownloadTimeout.ts'
 import type { ManagedBackupStatus } from '../../../web/src/lib/Backups/Types/backups.types.ts'
 import { artifactsRoot, backupRoot } from './storage.ts'
 
@@ -66,6 +68,7 @@ export function createBackupDownload(
     status: () => Promise<ManagedBackupStatus>,
     root = artifactsRoot,
     temporaryRoot = backupRoot,
+    timings = BACKUP_DOWNLOAD_TIMEOUTS,
 ) {
     let active = false
     return async (request: Request, id: string): Promise<Response> => {
@@ -84,14 +87,14 @@ export function createBackupDownload(
         const abort = () => stop.abort()
         request.signal.addEventListener('abort', abort, { once: true })
         if (request.signal.aborted) abort()
-        const timer = setTimeout(abort, 300_000)
+        const timeout = createBackupDownloadTimeout(abort, timings)
         const files: FileHandle[] = []
         let archive: FileHandle | undefined
         let released = false
         const release = async () => {
             if (released) return
             released = true
-            clearTimeout(timer)
+            timeout.clear()
             request.signal.removeEventListener('abort', abort)
             await Promise.all(files.map((file) => file.close().catch(() => {})))
             await archive?.close().catch(() => {})
@@ -100,6 +103,7 @@ export function createBackupDownload(
         try {
             stop.signal.throwIfAborted()
             const job = (await status()).jobs.find((entry) => entry.id === id)
+            timeout.progress()
             if (!job || !job.retained) {
                 await release()
                 return failure('not_found', 404)
@@ -111,9 +115,11 @@ export function createBackupDownload(
             )
             files.push(directory)
             if (!owned(await directory.stat(), true)) throw new InvalidDownload()
+            timeout.progress()
             const anchored = '/proc/self/fd/' + directory.fd
             let entries = 0
             for await (const entry of await opendir(anchored)) {
+                timeout.progress()
                 if (++entries > names.length || !names.some((name) => name === entry.name))
                     throw new InvalidDownload()
             }
@@ -127,12 +133,14 @@ export function createBackupDownload(
                 files.push(file)
                 const info = await file.stat()
                 if (!owned(info)) throw new InvalidDownload()
+                timeout.progress()
                 inputs.push({ name, file, info })
             }
             let verified: Awaited<ReturnType<typeof verifyPublishedBackup>>
             try {
-                verified = await verifyPublishedBackup(anchored, stop.signal)
+                verified = await verifyPublishedBackup(anchored, stop.signal, timeout.progress)
             } catch (error) {
+                if (stop.signal.aborted) throw error
                 if (error instanceof Error && 'code' in error) throw error
                 throw new InvalidDownload()
             }
@@ -146,6 +154,7 @@ export function createBackupDownload(
             const temporary = join(temporaryRoot, '.download-' + randomUUID())
             archive = await open(temporary, 'wx+', 0o600)
             await unlink(temporary)
+            timeout.progress()
             const expected = [
                 { bytes: inputs[0]!.info.size, sha256: verified.metadataSha256 },
                 verified.metadata.applicationEncryptionKey,
@@ -157,6 +166,7 @@ export function createBackupDownload(
                 const artifact = expected[index]!
                 if (input.info.size !== artifact.bytes) throw new InvalidDownload()
                 await writeFileChunk(archive, backupTarHeader(input.name, artifact.bytes))
+                timeout.progress()
                 const hash = createHash('sha256')
                 for (let offset = 0; offset < artifact.bytes; offset += 65_536) {
                     stop.signal.throwIfAborted()
@@ -165,8 +175,10 @@ export function createBackupDownload(
                         offset,
                         Math.min(65_536, artifact.bytes - offset),
                     )
+                    timeout.progress()
                     hash.update(chunk)
                     await writeFileChunk(archive, chunk)
+                    timeout.progress()
                 }
                 if (
                     hash.digest('hex') !== artifact.sha256 ||
@@ -179,6 +191,7 @@ export function createBackupDownload(
             stop.signal.throwIfAborted()
             const length = (await archive.stat()).size
             await Promise.all(files.splice(0).map((file) => file.close()))
+            timeout.streaming()
             let offset = 0
             let controller: ReadableStreamDefaultController<Uint8Array> | undefined
             const abortStream = () => {
@@ -204,6 +217,7 @@ export function createBackupDownload(
                             Math.min(65_536, length - offset),
                         )
                         offset += chunk.length
+                        timeout.progress()
                         value.enqueue(chunk)
                         if (offset === length) {
                             value.close()

@@ -9,6 +9,7 @@ import {
     createBackupDownload,
 } from '../../../../../../docker/production/backups/download.ts'
 import { verifyPublishedBackup } from '../../../../../../scripts/backup/publication.ts'
+import { BACKUP_DOWNLOAD_TIMEOUTS } from '@/config/backup-download.config.ts'
 import type { ManagedBackupJob, ManagedBackupStatus } from '@/lib/Backups/Types/backups.types.ts'
 
 const id = '00000000-0000-4000-8000-000000000001'
@@ -39,6 +40,8 @@ async function fixture(
         job: ManagedBackupJob
         download: ReturnType<typeof createBackupDownload>
     }) => Promise<void>,
+    timings = BACKUP_DOWNLOAD_TIMEOUTS,
+    dumpSize = 0,
 ) {
     const root = await mkdtemp(join(tmpdir(), 'rentnerproxy-download-fixture-'))
     const directory = join(root, id)
@@ -46,7 +49,7 @@ async function fixture(
         await chmod(root, 0o700)
         await mkdir(directory, { mode: 0o700 })
         const key = Buffer.from('A'.repeat(43) + '=\n')
-        const dump = Buffer.from('synthetic postgres dump')
+        const dump = dumpSize ? Buffer.alloc(dumpSize, 42) : Buffer.from('synthetic postgres dump')
         const archive = stateArchive()
         const metadata = {
             format: 'rentnerproxy-production-backup',
@@ -119,12 +122,58 @@ async function fixture(
             root,
             directory,
             job,
-            download: createBackupDownload(async () => structuredClone(status), root, root),
+            download: createBackupDownload(
+                async () => structuredClone(status),
+                root,
+                root,
+                timings,
+            ),
         })
     } finally {
         await rm(root, { recursive: true, force: true })
     }
 }
+
+test.skipIf(!linuxRoot)(
+    'unconsumed root snapshot expires at idle and releases its admission slot',
+    () =>
+        fixture(
+            async ({ download }) => {
+                const response = await download(new Request('http://localhost'), id)
+                expect(response.status).toBe(200)
+                await Bun.sleep(250)
+                await expect(response.arrayBuffer()).rejects.toThrow('cancelled')
+                const next = await download(new Request('http://localhost'), id)
+                expect(next.status).toBe(200)
+                await next.body!.cancel()
+            },
+            { preparationMs: 2000, idleMs: 150, connectionMs: 5 },
+            512 * 1024,
+        ),
+)
+
+test.skipIf(!linuxRoot)(
+    'root body can exceed the complete preparation budget while the consumer makes progress',
+    () =>
+        fixture(
+            async ({ download }) => {
+                const response = await download(new Request('http://localhost'), id)
+                expect(response.status).toBe(200)
+                const reader = response.body!.getReader()
+                let bytes = 0
+                while (true) {
+                    const result = await reader.read()
+                    if (result.done) break
+                    bytes += result.value.length
+                    await Bun.sleep(60)
+                }
+                reader.releaseLock()
+                expect(bytes).toBe(Number(response.headers.get('x-rentnerproxy-backup-bytes')))
+            },
+            { preparationMs: 300, idleMs: 150, connectionMs: 5 },
+            512 * 1024,
+        ),
+)
 
 test('tar headers are standard regular USTAR with fixed safe names and private mode', () => {
     const header = backupTarHeader('metadata.json', 123)

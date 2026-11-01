@@ -2,21 +2,36 @@ use axum::{extract::Path, http::Uri, response::Response};
 
 use super::{canonical_uuid, error, unavailable};
 
+#[cfg(any(unix, test))]
+#[derive(Clone, Copy)]
+struct DownloadTimeouts {
+    connection: std::time::Duration,
+    preparation: std::time::Duration,
+    idle: std::time::Duration,
+}
+
+#[cfg(any(unix, test))]
+const TIMEOUTS: DownloadTimeouts = DownloadTimeouts {
+    connection: std::time::Duration::from_secs(5),
+    preparation: std::time::Duration::from_secs(4 * 60 * 60),
+    idle: std::time::Duration::from_secs(5 * 60),
+};
+
 pub(in crate::server) async fn download(Path(id): Path<String>, uri: Uri) -> Response {
     if !canonical_uuid(&id) || uri.query().is_some() {
         return error(axum::http::StatusCode::NOT_FOUND, "not_found");
     }
     #[cfg(unix)]
     {
-        let result = tokio::time::timeout(std::time::Duration::from_secs(300), async {
-            let stream = tokio::net::UnixStream::connect(super::AGENT_SOCKET)
-                .await
-                .map_err(|_| ())?;
-            exchange(stream, &id).await
-        })
+        let result = tokio::time::timeout(
+            TIMEOUTS.connection,
+            tokio::net::UnixStream::connect(super::AGENT_SOCKET),
+        )
         .await;
         match result {
-            Ok(Ok(response)) => response,
+            Ok(Ok(stream)) => exchange(stream, &id)
+                .await
+                .unwrap_or_else(|_| unavailable()),
             _ => unavailable(),
         }
     }
@@ -29,15 +44,42 @@ async fn exchange<S>(stream: S, id: &str) -> Result<Response, ()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
+    exchange_with_timeouts(stream, id, TIMEOUTS).await
+}
+
+#[cfg(any(unix, test))]
+async fn exchange_with_timeouts<S>(
+    stream: S,
+    id: &str,
+    timeouts: DownloadTimeouts,
+) -> Result<Response, ()>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
     use axum::{body::Body, http::StatusCode};
     use http_body_util::Empty;
     use hyper_util::rt::TokioIo;
 
-    let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
-        .await
-        .map_err(|_| ())?;
+    let (mut sender, connection) = tokio::time::timeout(
+        timeouts.connection,
+        hyper::client::conn::http1::handshake(TokioIo::new(stream)),
+    )
+    .await
+    .map_err(|_| ())?
+    .map_err(|_| ())?;
+    let (deadline, mut deadline_changed) = tokio::sync::watch::channel(
+        tokio::time::Instant::now() + timeouts.preparation + timeouts.connection,
+    );
     let connection = super::ConnectionTask(tokio::spawn(async move {
-        let _ = connection.await;
+        tokio::pin!(connection);
+        loop {
+            let expires = *deadline_changed.borrow_and_update();
+            tokio::select! {
+                _ = &mut connection => return,
+                _ = tokio::time::sleep_until(expires) => return,
+                changed = deadline_changed.changed() => if changed.is_err() { return },
+            }
+        }
     }));
     let request = hyper::Request::builder()
         .uri(format!("/artifacts/{id}/download"))
@@ -45,7 +87,13 @@ where
         .header("Connection", "close")
         .body(Empty::<axum::body::Bytes>::new())
         .map_err(|_| ())?;
-    let response = sender.send_request(request).await.map_err(|_| ())?;
+    let response = tokio::time::timeout(
+        timeouts.preparation + timeouts.connection,
+        sender.send_request(request),
+    )
+    .await
+    .map_err(|_| ())?
+    .map_err(|_| ())?;
     if response.status() != StatusCode::OK {
         return Ok(match response.status() {
             StatusCode::NOT_FOUND => error(StatusCode::NOT_FOUND, "not_found"),
@@ -87,10 +135,12 @@ where
     {
         return Err(());
     }
+    deadline.send_replace(tokio::time::Instant::now() + timeouts.idle);
     let body = DownloadBody {
         body: response.into_body(),
         _connection: connection,
-        deadline: Box::pin(tokio::time::sleep(std::time::Duration::from_secs(300))),
+        deadline,
+        idle: timeouts.idle,
         remaining: length,
     };
     Response::builder()
@@ -111,7 +161,8 @@ where
 struct DownloadBody {
     body: hyper::body::Incoming,
     _connection: super::ConnectionTask,
-    deadline: std::pin::Pin<Box<tokio::time::Sleep>>,
+    deadline: tokio::sync::watch::Sender<tokio::time::Instant>,
+    idle: std::time::Duration,
     remaining: u64,
 }
 
@@ -124,9 +175,9 @@ impl hyper::body::Body for DownloadBody {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<hyper::body::Frame<Self::Data>, Self::Error>>> {
-        use std::{future::Future, io, pin::Pin, task::Poll};
+        use std::{io, pin::Pin, task::Poll};
         let this = self.get_mut();
-        if this.deadline.as_mut().poll(cx).is_ready() {
+        if tokio::time::Instant::now() >= *this.deadline.borrow() {
             this._connection.0.abort();
             return Poll::Ready(Some(Err(io::Error::other("backup download timed out"))));
         }
@@ -137,6 +188,10 @@ impl hyper::body::Body for DownloadBody {
                         return Poll::Ready(Some(Err(io::Error::other("invalid backup length"))));
                     };
                     this.remaining = remaining;
+                    if !data.is_empty() {
+                        this.deadline
+                            .send_replace(tokio::time::Instant::now() + this.idle);
+                    }
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
@@ -162,6 +217,96 @@ impl hyper::body::Body for DownloadBody {
 mod tests {
     use super::*;
     use axum::{body::to_bytes, http::StatusCode};
+
+    #[tokio::test]
+    async fn active_body_outlives_preparation_and_idle_budgets_with_regular_progress() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (client, mut server) = tokio::io::duplex(4096);
+        let task = tokio::spawn(async move {
+            let mut request = [0; 4096];
+            server.read(&mut request).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            server.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\nContent-Length: 6144\r\n\r\n").await.unwrap();
+            for _ in 0..6 {
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                server.write_all(&[42; 1024]).await.unwrap();
+            }
+        });
+        let response = exchange_with_timeouts(
+            client,
+            "00000000-0000-4000-8000-000000000001",
+            DownloadTimeouts {
+                connection: std::time::Duration::from_millis(100),
+                preparation: std::time::Duration::from_millis(100),
+                idle: std::time::Duration::from_millis(100),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            to_bytes(response.into_body(), 6144).await.unwrap(),
+            vec![42; 6144]
+        );
+        task.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn unpolled_body_closes_agent_connection_at_idle_without_waiting_for_consumer() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (client, mut server) = tokio::io::duplex(4096);
+        let task = tokio::spawn(async move {
+            let mut request = [0; 4096];
+            server.read(&mut request).await.unwrap();
+            server.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\nContent-Length: 1048576\r\n\r\n").await.unwrap();
+            server.write_all(&[42; 1024]).await.unwrap();
+            tokio::time::timeout(
+                std::time::Duration::from_millis(500),
+                server.read(&mut request),
+            )
+            .await
+            .unwrap()
+            .unwrap()
+        });
+        let response = exchange_with_timeouts(
+            client,
+            "00000000-0000-4000-8000-000000000001",
+            DownloadTimeouts {
+                connection: std::time::Duration::from_millis(100),
+                preparation: std::time::Duration::from_millis(100),
+                idle: std::time::Duration::from_millis(50),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(task.await.unwrap(), 0);
+        drop(response);
+    }
+
+    #[tokio::test]
+    async fn silent_preparation_is_bounded_even_if_socket_stays_connected() {
+        use tokio::io::AsyncReadExt;
+        let (client, mut server) = tokio::io::duplex(4096);
+        let task = tokio::spawn(async move {
+            let mut request = [0; 4096];
+            server.read(&mut request).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        });
+        assert!(
+            exchange_with_timeouts(
+                client,
+                "00000000-0000-4000-8000-000000000001",
+                DownloadTimeouts {
+                    connection: std::time::Duration::from_millis(10),
+                    preparation: std::time::Duration::from_millis(30),
+                    idle: std::time::Duration::from_millis(100),
+                }
+            )
+            .await
+            .is_err()
+        );
+        task.abort();
+    }
 
     async fn agent_response(head: &str, bytes: &[u8]) -> Response {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};

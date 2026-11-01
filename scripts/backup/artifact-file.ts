@@ -92,6 +92,7 @@ export async function snapshotBackupArtifactFile(
 export async function parseApplicationEncryptionKeyFile(
     file: FileHandle,
     signal?: AbortSignal,
+    progress?: () => void,
 ): Promise<Buffer> {
     signal?.throwIfAborted()
     const decoder = new StringDecoder('utf8')
@@ -112,6 +113,7 @@ export async function parseApplicationEncryptionKeyFile(
     for (let offset = 0; offset < size; offset += 65_536) {
         signal?.throwIfAborted()
         consume(decoder.write(await readFileRange(file, offset, Math.min(65_536, size - offset))))
+        progress?.()
     }
     consume(decoder.end())
     const key = Buffer.from(value, 'base64')

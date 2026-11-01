@@ -101,6 +101,94 @@ test('real Bun streaming responses retain verified size when transport omits Con
     }
 })
 
+test('silent preparation has its own allowance and active HTTP transfer outlives that entire budget', async () => {
+    const server = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        async fetch() {
+            await Bun.sleep(200)
+            let chunks = 0
+            return new Response(
+                new ReadableStream<Uint8Array>({
+                    async pull(controller) {
+                        await Bun.sleep(60)
+                        controller.enqueue(new Uint8Array(256).fill(42))
+                        if (++chunks === 8) controller.close()
+                    },
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-tar',
+                        'X-Rentnerproxy-Backup-Bytes': '2048',
+                    },
+                },
+            )
+        },
+    })
+    try {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:' + server.port
+        const response = await downloadBackupController(id, new AbortController().signal, {
+            preparationMs: 300,
+            idleMs: 150,
+            connectionMs: 5,
+        })
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array(2048).fill(42))
+    } finally {
+        await server.stop(true)
+    }
+}, 3000)
+
+test('unconsumed stalled web body expires and releases a pending upstream reader despite hanging cancel', async () => {
+    let cancelled = false
+    const upstream = new ReadableStream<Uint8Array>({
+        cancel() {
+            cancelled = true
+            return new Promise<void>(() => {})
+        },
+    })
+    fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(upstream, {
+            headers: { 'Content-Type': 'application/x-tar', 'X-Rentnerproxy-Backup-Bytes': '2048' },
+        }),
+    )
+    const response = await downloadBackupController(id, new AbortController().signal, {
+        preparationMs: 1000,
+        idleMs: 30,
+        connectionMs: 1,
+    })
+    await Bun.sleep(60)
+    await expect(response.arrayBuffer()).rejects.toThrow('unavailable')
+    expect(cancelled).toBe(true)
+    expect(upstream.locked).toBe(false)
+}, 1000)
+
+test('silent header stall still exhausts its bounded preparation allowance', async () => {
+    let unblock: (() => void) | undefined
+    const server = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        async fetch() {
+            await new Promise<void>((resolve) => {
+                unblock = resolve
+            })
+            return new Response(null)
+        },
+    })
+    try {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:' + server.port
+        await expect(
+            downloadBackupController(id, new AbortController().signal, {
+                preparationMs: 30,
+                idleMs: 100,
+                connectionMs: 1,
+            }),
+        ).rejects.toThrow('unavailable')
+    } finally {
+        unblock?.()
+        await server.stop(true)
+    }
+}, 1000)
+
 test.each([
     { 'content-length': '2048', 'x-rentnerproxy-backup-bytes': '1024' },
     { 'x-rentnerproxy-backup-bytes': '0' },

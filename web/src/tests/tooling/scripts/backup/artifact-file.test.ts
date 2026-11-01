@@ -32,6 +32,37 @@ import {
 const cwd = resolve(import.meta.dir, '../../../../../..')
 const digest = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
 
+test('key and archive validation report completed bounded reads to preparation watchdogs', () =>
+    fixture(async (directory) => {
+        const path = join(directory, 'progress-key')
+        await writeFile(path, ' '.repeat(2 * 65_536) + 'A'.repeat(43) + '=\n')
+        const key = await open(path, 'r')
+        try {
+            let reads = 0
+            await parseApplicationEncryptionKeyFile(key, undefined, () => {
+                reads++
+            })
+            assert.equal(reads, 3)
+        } finally {
+            await key.close()
+        }
+        const archive = await sparseArchive(
+            join(directory, 'progress-archive'),
+            'opaque-state',
+            4 * 1024 ** 3,
+        )
+        try {
+            let reads = 0
+            const entries = await validateStateArchiveFile(archive, 'controller', undefined, () => {
+                reads++
+            })
+            assert.equal(entries[0]!.size, 4 * 1024 ** 3)
+            assert.ok(reads >= 3, 'archive header and trailer reads must report progress')
+        } finally {
+            await archive.close()
+        }
+    }))
+
 test('key and archive file parsers stop cancelled verification before touching a file', async () => {
     const stop = new AbortController()
     stop.abort(new Error('cancelled fixture'))

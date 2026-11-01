@@ -34,12 +34,17 @@ export async function syncBackupDirectory(path: string): Promise<void> {
     }
 }
 
-export async function verifyPublishedBackup(directory: string, signal?: AbortSignal) {
+export async function verifyPublishedBackup(
+    directory: string,
+    signal?: AbortSignal,
+    progress?: () => void,
+) {
     signal?.throwIfAborted()
     const metadataFile = await regularFile(join(directory, 'metadata.json'), 65_536)
     let bytes: Buffer
     try {
         bytes = await metadataFile.readFile()
+        progress?.()
     } finally {
         await metadataFile.close()
     }
@@ -63,14 +68,16 @@ export async function verifyPublishedBackup(directory: string, signal?: AbortSig
                 hash.update(
                     await readFileRange(file, offset, Math.min(65_536, expected.bytes - offset)),
                 )
+                progress?.()
             }
             if (hash.digest('hex') !== expected.sha256)
                 throw new Error('backup artifact checksum mismatch')
-            if (name === 'app-encryption-key') await parseApplicationEncryptionKeyFile(file, signal)
+            if (name === 'app-encryption-key')
+                await parseApplicationEncryptionKeyFile(file, signal, progress)
             if (name === 'controller-state.tar')
-                await validateStateArchiveFile(file, 'controller', signal)
+                await validateStateArchiveFile(file, 'controller', signal, progress)
             if (name === 'crowdsec-state.tar')
-                await validateStateArchiveFile(file, 'crowdsec', signal)
+                await validateStateArchiveFile(file, 'crowdsec', signal, progress)
             totalBytes += expected.bytes
         } finally {
             await file.close()

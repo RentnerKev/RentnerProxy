@@ -85,14 +85,28 @@ test('mutations require a matching admission receipt or an advanced configuratio
         method: 'POST',
         body: JSON.stringify({ requestId: id }),
     })
-    await expect(
-        saveBackupConfiguration({
-            requestId: id,
-            expectedRevision: 0,
-            enabled: true,
-            intervalHours: 12,
-            retentionCount: 7,
-        }),
-    ).rejects.toMatchObject({ code: 'invalid_response' })
+    const configuration = {
+        requestId: id,
+        expectedRevision: 0,
+        enabled: true,
+        intervalHours: 12,
+        retentionCount: 7,
+    }
+    fetchSpy.mockResolvedValue(Response.json(status))
+    await expect(saveBackupConfiguration(configuration)).rejects.toMatchObject({
+        code: 'invalid_response',
+    })
     expect(fetchSpy).toHaveBeenCalledTimes(2)
+    const saved = {
+        ...status,
+        configuration: {
+            ...status.configuration,
+            revision: 1,
+            enabled: configuration.enabled,
+            intervalHours: configuration.intervalHours,
+            retentionCount: configuration.retentionCount,
+        },
+    }
+    fetchSpy.mockResolvedValue(Response.json(saved))
+    expect(await saveBackupConfiguration(configuration)).toEqual(saved)
 })

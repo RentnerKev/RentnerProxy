@@ -118,7 +118,11 @@ test('publishes and verifies canonical artifacts with managed build metadata', (
         const { staging, canonical, metadata } = await staged(directory)
         await publishProductionBackup(staging, canonical, metadata)
         await assert.rejects(stat(staging), /ENOENT/)
-        const verified = await verifyPublishedBackup(canonical)
+        let progress = 0
+        const verified = await verifyPublishedBackup(canonical, undefined, () => {
+            progress++
+        })
+        assert.ok(progress > 5, 'verification must report metadata, payload and parser I/O')
         assert.deepEqual(verified.metadata, metadata)
         const bytes = await readFile(join(canonical, 'metadata.json'))
         assert.equal(verified.metadataSha256, digest(bytes))

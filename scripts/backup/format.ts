@@ -223,6 +223,7 @@ export async function validateStateArchiveFile(
     file: FileHandle,
     kind: 'controller' | 'crowdsec',
     signal?: AbortSignal,
+    progress?: () => void,
 ): Promise<StateArchiveFileEntry[]> {
     signal?.throwIfAborted()
     const info = await file.stat()
@@ -234,6 +235,7 @@ export async function validateStateArchiveFile(
         const { offset, size } = next.value
         // oxlint-disable-next-line no-await-in-loop -- Each header determines the next offset.
         next = index.next(await readFileRange(file, offset, size))
+        progress?.()
     }
     return next.value
 }

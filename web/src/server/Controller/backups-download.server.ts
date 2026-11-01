@@ -1,12 +1,18 @@
 import '@tanstack/react-start/server-only'
 import { z } from 'zod'
+import { BACKUP_DOWNLOAD_TIMEOUTS } from '@/config/backup-download.config.ts'
+import { createBackupDownloadTimeout } from '@/lib/Http/backupDownloadTimeout.ts'
 import {
     getControllerBaseUrl,
     getControllerToken,
     isLoopbackControllerUrl,
 } from '@/server/env.server.ts'
 
-export async function downloadBackupController(id: string, signal: AbortSignal): Promise<Response> {
+export async function downloadBackupController(
+    id: string,
+    signal: AbortSignal,
+    timings = BACKUP_DOWNLOAD_TIMEOUTS,
+): Promise<Response> {
     if (id !== id.toLowerCase() || !z.uuid().safeParse(id).success)
         throw new Error('invalid backup id')
     const baseUrl = getControllerBaseUrl()
@@ -21,9 +27,16 @@ export async function downloadBackupController(id: string, signal: AbortSignal):
     const abort = () => stop.abort()
     signal.addEventListener('abort', abort, { once: true })
     if (signal.aborted) abort()
-    const timeout = setTimeout(abort, 300_000)
+    const timeout = createBackupDownloadTimeout(
+        abort,
+        {
+            ...timings,
+            preparationMs: timings.preparationMs + 3 * timings.connectionMs,
+        },
+        false,
+    )
     const cleanup = () => {
-        clearTimeout(timeout)
+        timeout.clear()
         signal.removeEventListener('abort', abort)
     }
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
@@ -72,6 +85,7 @@ export async function downloadBackupController(id: string, signal: AbortSignal):
             throw new Error('invalid backup response')
         }
         reader = response.body.getReader()
+        timeout.streaming()
         let remaining = length
         const body = new ReadableStream<Uint8Array>({
             start(controller) {
@@ -103,6 +117,7 @@ export async function downloadBackupController(id: string, signal: AbortSignal):
                     }
                     remaining -= result.value.length
                     if (remaining < 0) throw new Error('invalid backup response size')
+                    if (result.value.length > 0) timeout.progress()
                     controller.enqueue(result.value)
                     if (remaining === 0) {
                         controller.close()
