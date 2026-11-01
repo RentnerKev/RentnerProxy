@@ -224,7 +224,7 @@ mod tests {
         let (client, mut server) = tokio::io::duplex(4096);
         let task = tokio::spawn(async move {
             let mut request = [0; 4096];
-            server.read(&mut request).await.unwrap();
+            assert!(server.read(&mut request).await.unwrap() > 0);
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             server.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\nContent-Length: 6144\r\n\r\n").await.unwrap();
             for _ in 0..6 {
@@ -256,7 +256,7 @@ mod tests {
         let (client, mut server) = tokio::io::duplex(4096);
         let task = tokio::spawn(async move {
             let mut request = [0; 4096];
-            server.read(&mut request).await.unwrap();
+            assert!(server.read(&mut request).await.unwrap() > 0);
             server.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\nContent-Length: 1048576\r\n\r\n").await.unwrap();
             server.write_all(&[42; 1024]).await.unwrap();
             tokio::time::timeout(
@@ -289,7 +289,7 @@ mod tests {
         let (client, mut server) = tokio::io::duplex(4096);
         let task = tokio::spawn(async move {
             let mut request = [0; 4096];
-            server.read(&mut request).await.unwrap();
+            assert!(server.read(&mut request).await.unwrap() > 0);
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         });
         assert!(
