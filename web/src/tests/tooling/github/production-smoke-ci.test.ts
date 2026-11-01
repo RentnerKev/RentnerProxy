@@ -14,6 +14,26 @@ test('managed backup completion must match the observed checks before CI reports
     expect(progress.result(0).passed).toBe(true)
     expect(progress.result(1).passed).toBe(false)
 })
+
+test('managed backup diagnostics forward only fixed phases and bounded response facts', () => {
+    const progress = smokeProgress('backups')
+    for (const line of [
+        'Managed backup fixture failed during download-response',
+        'Managed backup download response: status=503 tar=false private=true attachment=false',
+        'Managed backup controller response: status=503 tar=false',
+    ])
+        expect(progress.consume(line)).toBe(line)
+    expect(progress.consume('Managed backup fixture failed during private-token')).toBeUndefined()
+    expect(
+        progress.consume('Managed backup agent response: status=200 tar=true secret=private'),
+    ).toBeUndefined()
+    expect(
+        progress.consume(
+            'Managed backup download response: status=503 tar=false private=true attachment=false /private/path',
+        ),
+    ).toBeUndefined()
+    expect(progress.result(1).diagnostic).not.toContain('private-token')
+})
 import {
     SMOKE_RUN_LABEL,
     restoreSmokeDiagnostic,

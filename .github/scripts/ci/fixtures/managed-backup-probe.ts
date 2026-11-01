@@ -433,6 +433,31 @@ async function verifyWebBackupDownload(ownerToken: string, viewerToken: string, 
     console.error(
         `Managed backup download response: status=${response.status} tar=${response.headers.get('content-type') === 'application/x-tar'} private=${response.headers.get('cache-control') === 'private, no-store'} attachment=${response.headers.get('content-disposition') === `attachment; filename="rentnerproxy-backup-${id}.tar"`}`,
     )
+    if (response.status !== 200) {
+        const controller = await fetch(
+            'http://127.0.0.1:8081/internal/v1/backups/' + id + '/download',
+            {
+                headers: {
+                    authorization:
+                        'Bearer ' +
+                        (await readFile('/run/rentnerproxy/controller-token/value', 'utf8')).trim(),
+                },
+                signal: AbortSignal.timeout(30_000),
+            },
+        )
+        console.error(
+            `Managed backup controller response: status=${controller.status} tar=${controller.headers.get('content-type') === 'application/x-tar'}`,
+        )
+        await controller.body?.cancel()
+        const agent = await fetch('http://localhost/artifacts/' + id + '/download', {
+            unix: '/run/rentnerproxy/backups/agent.sock',
+            signal: AbortSignal.timeout(30_000),
+        })
+        console.error(
+            `Managed backup agent response: status=${agent.status} tar=${agent.headers.get('content-type') === 'application/x-tar'}`,
+        )
+        await agent.body?.cancel()
+    }
     assert.equal(response.status, 200)
     assert.equal(response.headers.get('content-type'), 'application/x-tar')
     assert.equal(response.headers.get('cache-control'), 'private, no-store')
@@ -441,12 +466,24 @@ async function verifyWebBackupDownload(ownerToken: string, viewerToken: string, 
         response.headers.get('content-disposition'),
         `attachment; filename="rentnerproxy-backup-${id}.tar"`,
     )
+    const sizeHeader =
+        response.headers.get('x-rentnerproxy-backup-bytes') ??
+        response.headers.get('content-length')
+    assert.ok(sizeHeader && /^\d+$/u.test(sizeHeader))
+    const archiveBytes = Number(sizeHeader)
+    assert.ok(
+        Number.isSafeInteger(archiveBytes) &&
+            archiveBytes >= 1024 &&
+            archiveBytes <= 32 * 1024 ** 3 + 65_536,
+    )
+    if (response.headers.has('content-length'))
+        assert.equal(Number(response.headers.get('content-length')), archiveBytes)
     failurePhase = 'download-archive'
     const archive = '/tmp/managed-backup-download.tar'
     const directory = '/tmp/managed-backup-downloaded'
     await writeFile(archive, new Uint8Array(), { flag: 'wx', mode: 0o600 })
     await Bun.write(archive, response)
-    assert.equal((await stat(archive)).size, Number(response.headers.get('content-length')))
+    assert.equal((await stat(archive)).size, archiveBytes)
     const listing = Bun.spawn(['tar', '--list', '--file', archive], {
         stdout: 'pipe',
         stderr: 'pipe',

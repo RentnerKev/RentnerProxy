@@ -161,6 +161,13 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                     Buffer.from(result.stderr).toString('utf8'),
                 )?.[0]
             if (downloadStatus) console.error(downloadStatus)
+            for (const layer of ['controller', 'agent']) {
+                const layerStatus = new RegExp(
+                    'Managed backup ' + layer + ' response: status=\\d{3} tar=(?:true|false)',
+                    'u',
+                ).exec(Buffer.from(result.stderr).toString('utf8'))?.[0]
+                if (layerStatus) console.error(layerStatus)
+            }
             throw new Error('Managed backup smoke operation failed: ' + operation)
         }
         return Buffer.from(result.stdout).toString('utf8').trim()

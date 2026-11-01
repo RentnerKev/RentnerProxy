@@ -66,6 +66,8 @@ export function createBackupDownloadHttpHandler(
             )
             const length = response.headers.get('content-length')
             if (length) headers.set('Content-Length', length)
+            const verifiedLength = response.headers.get('x-rentnerproxy-backup-bytes')
+            if (verifiedLength) headers.set('X-Rentnerproxy-Backup-Bytes', verifiedLength)
             return new Response(response.body, { headers })
         } catch (error) {
             if (request.signal.aborted) return new Response(null, { status: 499, headers })

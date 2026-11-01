@@ -53,13 +53,32 @@ where
             _ => unavailable(),
         });
     }
-    let length = response
-        .headers()
-        .get("content-length")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| (1024..=32 * 1024 * 1024 * 1024 + 65536).contains(value))
-        .ok_or(())?;
+    let size = |name: &str| {
+        response
+            .headers()
+            .get(name)
+            .map(|value| {
+                value
+                    .to_str()
+                    .ok()
+                    .filter(|value| {
+                        !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
+                    })
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .filter(|value| (1024..=32 * 1024 * 1024 * 1024 + 65536).contains(value))
+                    .ok_or(())
+            })
+            .transpose()
+    };
+    let content_length = size("content-length")?;
+    let verified_length = size("x-rentnerproxy-backup-bytes")?;
+    if content_length
+        .zip(verified_length)
+        .is_some_and(|(content, verified)| content != verified)
+    {
+        return Err(());
+    }
+    let length = verified_length.or(content_length).ok_or(())?;
     if response
         .headers()
         .get("content-type")
@@ -79,6 +98,7 @@ where
         .header("X-Content-Type-Options", "nosniff")
         .header("Content-Type", "application/x-tar")
         .header("Content-Length", length)
+        .header("X-Rentnerproxy-Backup-Bytes", length)
         .header(
             "Content-Disposition",
             format!("attachment; filename=\"rentnerproxy-backup-{id}.tar\""),
@@ -217,5 +237,33 @@ mod tests {
         )
         .await;
         assert!(to_bytes(response.into_body(), 4096).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn chunked_agent_stream_uses_verified_size_and_rejects_conflicting_headers() {
+        let payload = vec![42; 2048];
+        let mut chunks = b"800\r\n".to_vec();
+        chunks.extend_from_slice(&payload);
+        chunks.extend_from_slice(b"\r\n0\r\n\r\n");
+        let response = agent_response(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\nTransfer-Encoding: chunked\r\nX-Rentnerproxy-Backup-Bytes: 2048\r\n\r\n",
+            &chunks,
+        ).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()["x-rentnerproxy-backup-bytes"], "2048");
+        assert_eq!(to_bytes(response.into_body(), 2048).await.unwrap(), payload);
+        for headers in [
+            "Content-Length: 2048\r\nX-Rentnerproxy-Backup-Bytes: 1024\r\n",
+            "X-Rentnerproxy-Backup-Bytes: 0\r\n",
+            "X-Rentnerproxy-Backup-Bytes: 34359938368\r\n",
+            "X-Rentnerproxy-Backup-Bytes: +2048\r\n",
+        ] {
+            let response = agent_response(
+                &format!("HTTP/1.1 200 OK\r\nContent-Type: application/x-tar\r\n{headers}\r\n"),
+                &payload,
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        }
     }
 }

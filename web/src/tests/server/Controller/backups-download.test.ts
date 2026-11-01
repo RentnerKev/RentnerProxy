@@ -59,6 +59,64 @@ test('remote plaintext and invalid identifiers never dispatch privileged credent
     expect(fetch).not.toHaveBeenCalled()
 })
 
+test('real Bun streaming responses retain verified size when transport omits Content-Length', async () => {
+    const payloadSize = 131_072
+    const server = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        fetch(request) {
+            expect(new URL(request.url).pathname).toBe('/internal/v1/backups/' + id + '/download')
+            expect(request.headers.get('authorization')).toBe(
+                'Bearer synthetic-backup-download-controller-token',
+            )
+            let offset = 0
+            return new Response(
+                new ReadableStream<Uint8Array>({
+                    pull(controller) {
+                        const size = Math.min(65_536, payloadSize - offset)
+                        controller.enqueue(new Uint8Array(size).fill(42))
+                        offset += size
+                        if (offset === payloadSize) controller.close()
+                    },
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-tar',
+                        'Content-Length': String(payloadSize),
+                        'X-Rentnerproxy-Backup-Bytes': String(payloadSize),
+                    },
+                },
+            )
+        },
+    })
+    try {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:' + server.port
+        const response = await downloadBackupController(id, new AbortController().signal)
+        expect(response.headers.get('x-rentnerproxy-backup-bytes')).toBe(String(payloadSize))
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+            new Uint8Array(payloadSize).fill(42),
+        )
+    } finally {
+        await server.stop(true)
+    }
+})
+
+test.each([
+    { 'content-length': '2048', 'x-rentnerproxy-backup-bytes': '1024' },
+    { 'x-rentnerproxy-backup-bytes': '0' },
+    { 'x-rentnerproxy-backup-bytes': '34359938368' },
+    { 'x-rentnerproxy-backup-bytes': '+2048' },
+])('rejects invalid or inconsistent verified size headers', async (headers) => {
+    fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(new Uint8Array(2048), {
+            headers: { 'content-type': 'application/x-tar', ...headers },
+        }),
+    )
+    await expect(downloadBackupController(id, new AbortController().signal)).rejects.toThrow(
+        'unavailable',
+    )
+})
+
 test.each([404, 409, 500])('status %s exposes only safe error codes', async (status) => {
     fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
         new Response('/private/internal', { status }),

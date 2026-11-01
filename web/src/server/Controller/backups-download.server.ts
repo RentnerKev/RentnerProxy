@@ -55,14 +55,18 @@ export async function downloadBackupController(id: string, signal: AbortSignal):
                 { status: response.status === 404 ? 404 : response.status === 409 ? 409 : 503 },
             )
         }
-        const rawLength = response.headers.get('content-length')
+        const contentLength = response.headers.get('content-length')
+        const verifiedLength = response.headers.get('x-rentnerproxy-backup-bytes')
+        const rawLength = verifiedLength ?? contentLength
         const length = rawLength && /^\d+$/u.test(rawLength) ? Number(rawLength) : NaN
         if (
             !response.body ||
             response.headers.get('content-type') !== 'application/x-tar' ||
             !Number.isSafeInteger(length) ||
             length < 1024 ||
-            length > 32 * 1024 ** 3 + 65_536
+            length > 32 * 1024 ** 3 + 65_536 ||
+            (contentLength !== null &&
+                (!/^\d+$/u.test(contentLength) || Number(contentLength) !== length))
         ) {
             void response.body?.cancel().catch(() => {})
             throw new Error('invalid backup response')
@@ -122,6 +126,7 @@ export async function downloadBackupController(id: string, signal: AbortSignal):
             headers: {
                 'Content-Type': 'application/x-tar',
                 'Content-Length': String(length),
+                'X-Rentnerproxy-Backup-Bytes': String(length),
             },
         })
     } catch {

@@ -2,7 +2,8 @@
 import { expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { chmod, link, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
     backupTarHeader,
     createBackupDownload,
@@ -39,9 +40,7 @@ async function fixture(
         download: ReturnType<typeof createBackupDownload>
     }) => Promise<void>,
 ) {
-    const temporaryRoot = resolve(import.meta.dir, '../../../../../../tmp')
-    await mkdir(temporaryRoot, { recursive: true })
-    const root = await mkdtemp(join(temporaryRoot, 'download-fixture-'))
+    const root = await mkdtemp(join(tmpdir(), 'rentnerproxy-download-fixture-'))
     const directory = join(root, id)
     try {
         await chmod(root, 0o700)

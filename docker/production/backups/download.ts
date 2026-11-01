@@ -218,6 +218,7 @@ export function createBackupDownload(
             })
             headers.set('Content-Type', 'application/x-tar')
             headers.set('Content-Length', String(length))
+            headers.set('X-Rentnerproxy-Backup-Bytes', String(length))
             headers.set(
                 'Content-Disposition',
                 `attachment; filename="rentnerproxy-backup-${id}.tar"`,
