@@ -23,7 +23,6 @@ export default function useAuthenticatedLayoutLogic(
         state: {
             isIdentityPending: live.isIdentityPending,
             identityGeneration: live.identityGeneration,
-            identityLoadingMessage: t('common.loading'),
             hasIdentityError: live.hasIdentityError,
             identityErrorMessage: t('system.error.causes.serviceUnavailable.description'),
             retryLabel: t('common.retry'),
