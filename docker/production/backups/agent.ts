@@ -10,6 +10,7 @@ import {
 import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/backup/publication.ts'
 import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
 import { createBackupDownload } from './download.ts'
+import { writeMaintenanceProgress } from './restore.ts'
 import {
     managedBackupArtifactSchema,
     managedBackupAuditAcknowledgementSchema,
@@ -17,6 +18,8 @@ import {
     managedBackupConfigurationUpdateSchema,
     managedBackupSourceSchema,
     managedBackupStartSchema,
+    managedBackupDeleteSchema,
+    managedBackupRestoreSchema,
 } from '../../../web/src/lib/Backups/validation.ts'
 import type {
     ManagedBackupArtifact,
@@ -49,7 +52,7 @@ const artifactNames = [
 const requestFile = join(controlRoot, 'request.json')
 const resultFile = join(controlRoot, 'result.json')
 const activeFile = join(controlRoot, 'active.json')
-const identitySchema = z.strictObject({ id: z.uuid() })
+const identitySchema = z.strictObject({ id: z.uuid(), kind: z.literal('restore').optional() })
 
 function missing(error: unknown) {
     return error instanceof Error && 'code' in error && error.code === 'ENOENT'
@@ -283,10 +286,17 @@ export async function removeRetainedBackup(
     await io.sync(root)
 }
 export function createBackupAgentHandler(engine: Engine) {
-    const download = createBackupDownload(() => engine.status())
+    const download = createBackupDownload(
+        () => engine.status(),
+        undefined,
+        undefined,
+        undefined,
+        () => engine.acquireDownload(),
+    )
     return async (request: Request): Promise<Response> => {
         const path = new URL(request.url).pathname
         const downloadPath = /^\/artifacts\/([^/]+)\/download$/u.exec(path)
+        const operationPath = /^\/artifacts\/([^/]+)\/(delete|restore)$/u.exec(path)
         if (request.method === 'GET' && downloadPath && new URL(request.url).search === '') {
             return download(request, downloadPath[1]!)
         }
@@ -297,14 +307,34 @@ export function createBackupAgentHandler(engine: Engine) {
                 return Response.json({ error: 'unavailable' }, { status: 503 })
             }
         }
+        if (
+            request.method === 'GET' &&
+            path === '/maintenance' &&
+            new URL(request.url).search === ''
+        ) {
+            try {
+                return Response.json({ maintenance: (await engine.status()).maintenance ?? null })
+            } catch {
+                return Response.json({ error: 'unavailable' }, { status: 503 })
+            }
+        }
+        if (
+            operationPath &&
+            (!canonicalUuid(operationPath[1]!) || new URL(request.url).search !== '')
+        )
+            return Response.json({ error: 'invalid_input' }, { status: 400 })
         const schema =
-            request.method === 'POST' && path === '/start'
-                ? managedBackupStartSchema
-                : request.method === 'PUT' && path === '/config'
-                  ? managedBackupConfigurationUpdateSchema
-                  : request.method === 'POST' && path === '/audit/ack'
-                    ? managedBackupAuditAcknowledgementSchema
-                    : null
+            request.method === 'POST' && operationPath
+                ? operationPath[2] === 'delete'
+                    ? managedBackupDeleteSchema
+                    : managedBackupRestoreSchema
+                : request.method === 'POST' && path === '/start'
+                  ? managedBackupStartSchema
+                  : request.method === 'PUT' && path === '/config'
+                    ? managedBackupConfigurationUpdateSchema
+                    : request.method === 'POST' && path === '/audit/ack'
+                      ? managedBackupAuditAcknowledgementSchema
+                      : null
         if (schema === null) return Response.json({ error: 'not_found' }, { status: 404 })
         let input: unknown
         try {
@@ -339,14 +369,20 @@ export function createBackupAgentHandler(engine: Engine) {
             return Response.json({ error: 'invalid_input' }, { status: 400 })
         }
         try {
-            if (path === '/start') await engine.start(input)
+            if (operationPath)
+                await engine.requestMaintenance(
+                    operationPath[1]!,
+                    input,
+                    operationPath[2] as 'delete' | 'restore',
+                )
+            else if (path === '/start') await engine.start(input)
             else if (path === '/audit/ack') await engine.acknowledgeAudit(input)
             else await engine.updateConfiguration(input)
             return Response.json(await engine.status())
         } catch (error) {
             if (
                 error instanceof ManagedBackupError &&
-                ['busy', 'revision_conflict', 'capacity'].includes(error.code)
+                ['busy', 'revision_conflict', 'capacity', 'artifact_invalid'].includes(error.code)
             )
                 return Response.json(
                     { error: error.code === 'busy' ? 'busy' : 'conflict' },
@@ -379,12 +415,34 @@ export async function reconcileBackupControl(
         read: (path: string) => Promise<unknown | null>
         remove: (path: string) => Promise<void>
     },
+    maintenance?:
+        | import('../../../web/src/lib/Backups/Types/backups.types.ts').ManagedBackupMaintenance
+        | null,
 ) {
     for (const path of [activeFile, requestFile]) {
         const value = await io.read(path)
         if (value === null) continue
         const identity = identitySchema.parse(value)
         const job = jobs.find((entry) => entry.id === identity.id)
+        if (identity.kind === 'restore') {
+            if (
+                !maintenance ||
+                maintenance.id !== identity.id ||
+                maintenance.state === 'queued' ||
+                maintenance.state === 'running'
+            )
+                throw new Error('restore lifecycle incomplete')
+            if (path === activeFile) {
+                const result = await io.read(resultFile)
+                if (result !== null) {
+                    if (resultSchema.parse(result).id !== identity.id)
+                        throw new Error('restore lifecycle mismatch')
+                    await io.remove(resultFile)
+                }
+            }
+            await io.remove(path)
+            continue
+        }
         if (!job || job.state === 'queued' || job.state === 'running')
             throw new Error('backup lifecycle incomplete')
         if (path === activeFile) {
@@ -431,7 +489,15 @@ export async function startBackupAgent() {
     let fatal = false
     const engine = await createManagedBackupEngine({
         read: () => loadManagedBackupState(),
-        write: (state) => writePrivateJson(stateFile, state),
+        write: async (state) => {
+            await writePrivateJson(stateFile, state)
+            try {
+                await writeMaintenanceProgress(state.maintenance ?? null)
+            } catch (error) {
+                fatal = true
+                throw error
+            }
+        },
         now: Date.now,
         id: randomUUID,
         source: () => structuredClone(source),
@@ -483,10 +549,89 @@ export async function startBackupAgent() {
             }
         },
         remove: (job) => removeRetainedBackup(job),
+        removed: async (job) => {
+            try {
+                await lstat(join(artifactsRoot, job.id))
+                return false
+            } catch (error) {
+                if (missing(error)) return true
+                throw error
+            }
+        },
+        recoverRestore: async (operation) => {
+            try {
+                const active = identitySchema.parse(await readPrivateJson(activeFile, 4096))
+                const result = resultSchema.parse(await readPrivateJson(resultFile, 4096))
+                return (
+                    active.kind === 'restore' &&
+                    active.id === operation.id &&
+                    result.id === operation.id &&
+                    result.success &&
+                    result.error === undefined
+                )
+            } catch (error) {
+                if (missing(error)) return false
+                throw error
+            }
+        },
+        restore: async (_job, operation, progress) => {
+            await writeMaintenanceProgress(operation)
+            try {
+                await lstat(activeFile)
+                throw new ManagedBackupError('recovery_failed')
+            } catch (error) {
+                if (!missing(error)) throw error
+            }
+            await rm(resultFile, { force: true })
+            const phasePath = join(controlRoot, 'restore-progress.json')
+            await rm(phasePath, { force: true })
+            await writePrivateJson(requestFile, { id: operation.id, kind: 'restore' })
+            const deadline = performance.now() + 1_200_000
+            let last = -1
+            while (!stop.signal.aborted && performance.now() < deadline) {
+                try {
+                    const update = z
+                        .strictObject({
+                            id: z.uuid(),
+                            phase: z.enum([
+                                'validating',
+                                'quiescing',
+                                'database',
+                                'controller',
+                                'crowdsec',
+                                'secrets',
+                                'restarting',
+                            ]),
+                            progressPercent: z.number().int().min(0).max(99),
+                        })
+                        .parse(await readPrivateJson(phasePath, 4096))
+                    if (update.id !== operation.id) throw new ManagedBackupError('recovery_failed')
+                    if (update.progressPercent > last) {
+                        await progress(update.phase, update.progressPercent)
+                        last = update.progressPercent
+                    }
+                } catch (error) {
+                    if (!missing(error)) throw error
+                }
+                try {
+                    const result = resultSchema.parse(await readPrivateJson(resultFile, 4096))
+                    if (result.id !== operation.id) throw new ManagedBackupError('recovery_failed')
+                    if (!result.success)
+                        throw new ManagedBackupError(result.error ?? 'execution_failed')
+                    return
+                } catch (error) {
+                    if (!missing(error)) throw error
+                }
+                await Bun.sleep(100)
+            }
+            fatal = true
+            throw new ManagedBackupError('recovery_failed')
+        },
     })
     async function reconcileCompletedWork(phase: 'startup' | 'runtime') {
-        await reconcileCompletedBackups((await engine.status()).jobs, phase, {
-            read: async (path) => {
+        const status = await engine.status()
+        const io = {
+            read: async (path: string) => {
                 try {
                     return await readPrivateJson(path, 4096)
                 } catch (error) {
@@ -494,9 +639,12 @@ export async function startBackupAgent() {
                     throw error
                 }
             },
-            remove: (path) => rm(path),
-        })
+            remove: (path: string) => rm(path),
+        }
+        await reconcileBackupControl(status.jobs, phase, io, status.maintenance)
+        await reconcileBackupArtifacts(status.jobs)
     }
+    await writeMaintenanceProgress((await engine.status()).maintenance ?? null)
     await reconcileCompletedWork('startup')
     const socket = join(controlRoot, 'agent.sock')
     const server = createBackupAgentServer(socket, createBackupAgentHandler(engine))

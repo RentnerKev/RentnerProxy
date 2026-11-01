@@ -1,4 +1,4 @@
-import { Archive, RefreshCw } from 'lucide-react'
+import { Archive } from 'lucide-react'
 import { formatBackupDate } from '@/lib/Backups/presentation.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -23,15 +23,6 @@ export default function BackupsPage(props: BackupsPageProps) {
                 action={
                     !state.forbidden ? (
                         <div className="flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                className={buttonClassName('secondary')}
-                                onClick={handler.handleRefresh}
-                                disabled={state.refreshing || state.pending}
-                            >
-                                <RefreshCw aria-hidden="true" className="size-4" />
-                                {t('admin.backups.refresh')}
-                            </button>
                             {state.canManage ? (
                                 <button
                                     type="button"
@@ -76,19 +67,6 @@ export default function BackupsPage(props: BackupsPageProps) {
                                 {t('admin.backups.unavailableDescription')}
                             </p>
                         </div>
-                    ) : null}
-                    {props.downloadError ? (
-                        <p
-                            role="alert"
-                            className="rounded-xl bg-danger-bg p-4 text-sm text-danger-text"
-                        >
-                            {t(`admin.backups.downloadErrors.${props.downloadError}`)}
-                        </p>
-                    ) : null}
-                    {state.notice ? (
-                        <output className="rounded-xl border border-border bg-surface p-4 text-sm text-ink-soft">
-                            {state.notice}
-                        </output>
                     ) : null}
                     {state.status ? (
                         <>
@@ -145,6 +123,10 @@ export default function BackupsPage(props: BackupsPageProps) {
                             <BackupHistory
                                 jobs={state.jobs}
                                 canDownload={state.canManage && !state.locked}
+                                canManage={state.canManage}
+                                locked={state.locked || !!state.active}
+                                onRestore={handler.handleRestore}
+                                onDelete={handler.handleDelete}
                             />
                             <details className="rounded-2xl border border-border bg-surface p-6 shadow-surface">
                                 <summary className="cursor-pointer font-extrabold text-ink">

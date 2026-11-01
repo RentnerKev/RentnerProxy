@@ -45,6 +45,7 @@ const ownWebSocketQueryPrefixes = [
     crowdSecQueryKeys.configuration,
     crowdSecQueryKeys.dashboard,
     crowdSecQueryKeys.forwardAuthSummary,
+    ['backups'],
 ] as ReadonlyArray<ReadonlyArray<unknown>>
 
 function isApplicationLiveSnapshot(value: unknown): value is ApplicationLiveSnapshot {
@@ -68,7 +69,7 @@ async function refreshApplicationQueries(queryClient: QueryClient): Promise<void
     })
 }
 
-export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
+export default function useApplicationLiveSync(suspended = false): ApplicationLiveSyncResult {
     const queryClient = useQueryClient()
     const router = useRouter()
     const syncGeneration = useRef(0)
@@ -78,6 +79,7 @@ export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
     const [identityGeneration, setIdentityGeneration] = useState(0)
     const [hasIdentityError, setHasIdentityError] = useState(false)
     const [liveGeneration, setLiveGeneration] = useState(0)
+    const wasSuspended = useRef(suspended)
 
     const revalidateIdentity = useCallback(
         (initial = false) => {
@@ -150,6 +152,12 @@ export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
         }
     }, [revalidateIdentity, router])
 
+    useEffect(() => {
+        if (suspended) syncGeneration.current += 1
+        else if (wasSuspended.current) queueMicrotask(() => revalidateIdentity())
+        wasSuspended.current = suspended
+    }, [suspended, revalidateIdentity])
+
     const handleSnapshot = useCallback(
         (snapshot: ApplicationLiveSnapshot) => {
             if (!isApplicationLiveSnapshot(snapshot)) return
@@ -172,7 +180,7 @@ export default function useApplicationLiveSync(): ApplicationLiveSyncResult {
     const status = useLiveQuery<ApplicationLiveSnapshot>({
         topic: 'app-events',
         query: {},
-        enabled: !isIdentityPending,
+        enabled: !isIdentityPending && !suspended,
         onData: handleSnapshot,
         onUnauthorized: () => revalidateIdentity(),
         onResume: () => revalidateIdentity(),

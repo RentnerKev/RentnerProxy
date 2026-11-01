@@ -141,13 +141,24 @@ export function validateNotificationBackupSecrets(key: Buffer, input: unknown): 
     }
 }
 
-async function validateDatabase(): Promise<void> {
-    const metadata: unknown = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
+export async function validateDatabase(
+    backupDirectory = '/backup',
+    port = 5432,
+    crowdSecDirectory = '/tmp/backup-crowdsec',
+    socketDirectory?: string,
+): Promise<void> {
+    const metadata: unknown = JSON.parse(
+        await readFile(join(backupDirectory, 'metadata.json'), 'utf8'),
+    )
     assertSupportedBackupVersion(metadata)
-    const key = Buffer.from((await readFile('/backup/app-encryption-key', 'utf8')).trim(), 'base64')
+    const key = Buffer.from(
+        (await readFile(join(backupDirectory, 'app-encryption-key'), 'utf8')).trim(),
+        'base64',
+    )
     const sql = new SQL({
         hostname: '127.0.0.1',
-        port: 5432,
+        ...(socketDirectory === undefined ? {} : { path: socketDirectory }),
+        port,
         password: '',
         tls: false,
         connectionTimeout: 10,
@@ -220,20 +231,20 @@ async function validateDatabase(): Promise<void> {
                 )
             }
         }
-        await mkdir('/tmp/backup-crowdsec', { mode: 0o700 })
+        await mkdir(crowdSecDirectory, { mode: 0o700 })
         const child = Bun.spawn(
             [
                 'tar',
                 '--extract',
                 '--no-same-owner',
                 '--no-same-permissions',
-                '--file=/backup/crowdsec-state.tar',
-                '--directory=/tmp/backup-crowdsec',
+                '--file=' + join(backupDirectory, 'crowdsec-state.tar'),
+                '--directory=' + crowdSecDirectory,
             ],
             { stdout: 'ignore', stderr: 'ignore' },
         )
         if ((await child.exited) !== 0) throw new Error('invalid CrowdSec archive')
-        const dbPath = '/tmp/backup-crowdsec/data/crowdsec.db'
+        const dbPath = join(crowdSecDirectory, 'data/crowdsec.db')
         const dbExists = await stat(dbPath).catch(() => null)
         if (!dbExists && requiresCrowdSecDatabase)
             throw new Error('managed CrowdSec database is missing')
@@ -250,7 +261,7 @@ async function validateDatabase(): Promise<void> {
             }
             const credentials: unknown = Bun.YAML.parse(
                 await readFile(
-                    '/tmp/backup-crowdsec/credentials/local_api_credentials.yaml',
+                    join(crowdSecDirectory, 'credentials/local_api_credentials.yaml'),
                     'utf8',
                 ),
             )
@@ -265,7 +276,7 @@ async function validateDatabase(): Promise<void> {
             )
                 throw new Error('invalid CrowdSec local credentials')
             const bouncerKey = (
-                await readFile('/tmp/backup-crowdsec/bouncer/caddy-bouncer-key', 'utf8')
+                await readFile(join(crowdSecDirectory, 'bouncer/caddy-bouncer-key'), 'utf8')
             ).trim()
             if (!/^[a-f0-9]{64}$/u.test(bouncerKey)) throw new Error('invalid CrowdSec bouncer key')
         }

@@ -8,6 +8,44 @@ export const managedBackupAuditAcknowledgementSchema = z.strictObject({
     sequence: timestamp,
 })
 export const managedBackupStartSchema = z.strictObject({ requestId: z.uuid(), actorId: z.uuid() })
+export const managedBackupDeleteSchema = managedBackupStartSchema.extend({
+    metadataSha256: digest.nullable(),
+})
+export const managedBackupRestoreSchema = managedBackupDeleteSchema.extend({
+    metadataSha256: digest,
+    actorName: z.string().trim().min(1).max(160),
+})
+export const managedBackupMaintenanceSchema = z.strictObject({
+    id: z.uuid(),
+    requestId: z.uuid(),
+    actorId: z.uuid(),
+    actorName: z.string().min(1).max(160).nullable(),
+    artifactId: z.uuid(),
+    metadataSha256: digest.nullable(),
+    operation: z.enum(['restore', 'delete']),
+    state: z.enum(['queued', 'running', 'succeeded', 'failed', 'interrupted']),
+    phase: z.enum([
+        'queued',
+        'validating',
+        'quiescing',
+        'database',
+        'controller',
+        'crowdsec',
+        'secrets',
+        'restarting',
+        'complete',
+    ]),
+    progressPercent: z.number().int().min(0).max(100),
+    requestedAt: timestamp,
+    startedAt: timestamp.nullable(),
+    finishedAt: timestamp.nullable(),
+    error: z
+        .enum(['execution_failed', 'recovery_failed', 'artifact_invalid', 'interrupted'])
+        .nullable(),
+})
+export const backupRestoreSnapshotSchema = z.strictObject({
+    maintenance: managedBackupMaintenanceSchema.nullable(),
+})
 export const managedBackupConfigurationUpdateSchema = managedBackupStartSchema.extend({
     expectedRevision: z.number().int().nonnegative().safe(),
     enabled: z.boolean(),
@@ -63,6 +101,14 @@ export const managedBackupAuditEventSchema = z.strictObject({
         'failed',
         'interrupted',
         'pruned',
+        'delete_requested',
+        'deleted',
+        'delete_failed',
+        'restore_requested',
+        'restore_started',
+        'restore_succeeded',
+        'restore_failed',
+        'restore_interrupted',
     ]),
     jobId: z.uuid().nullable(),
     actorId: z.uuid().nullable(),
@@ -73,6 +119,7 @@ export const managedBackupStatusSchema = z.strictObject({
     configuration: managedBackupConfigurationSchema,
     jobs: z.array(managedBackupJobSchema).max(100),
     auditEvents: z.array(managedBackupAuditEventSchema).max(BACKUP_AUDIT_POLICY.capacity),
+    maintenance: managedBackupMaintenanceSchema.nullable().optional(),
 })
 export const managedBackupStateSchema = managedBackupStatusSchema
     .extend({
@@ -87,6 +134,7 @@ export const managedBackupStateSchema = managedBackupStatusSchema
                 }),
             )
             .max(100),
+        maintenanceRequests: z.array(managedBackupMaintenanceSchema).max(100).optional(),
     })
     .superRefine((state, context) => {
         let previous = state.auditAcknowledged ?? (state.auditEvents[0]?.sequence ?? 1) - 1

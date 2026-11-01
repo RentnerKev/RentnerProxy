@@ -5,6 +5,8 @@ import {
     managedBackupSourceSchema,
     managedBackupStartSchema,
     managedBackupStateSchema,
+    managedBackupDeleteSchema,
+    managedBackupRestoreSchema,
 } from '../../web/src/lib/Backups/validation.ts'
 import { BACKUP_AUDIT_POLICY } from '../../web/src/config/backups.config.ts'
 import type {
@@ -12,6 +14,7 @@ import type {
     ManagedBackupJob,
     ManagedBackupState,
     ManagedBackupStatus,
+    ManagedBackupMaintenance,
 } from '../../web/src/lib/Backups/Types/backups.types.ts'
 import type {
     ManagedBackupDependencies,
@@ -74,6 +77,10 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
     let persisted = loaded !== null
     let chain = Promise.resolve()
     let executing = false
+    let downloadActive = false
+
+    const maintenanceActive = () =>
+        state.maintenance?.state === 'queued' || state.maintenance?.state === 'running'
 
     function audit(
         draft: ManagedBackupState,
@@ -111,7 +118,34 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
     }
 
     // A published archive does not prove that lifecycle recovery completed before a crash.
-    await mutate((draft) => {
+    await mutate(async (draft) => {
+        const operation = draft.maintenance
+        if (operation?.state === 'running') {
+            if (operation.operation === 'delete') {
+                operation.state = 'queued'
+                operation.phase = 'queued'
+            } else {
+                const completed =
+                    (await dependencies.recoverRestore?.(structuredClone(operation))) ?? false
+                operation.state = completed ? 'succeeded' : 'interrupted'
+                operation.error = completed ? null : 'interrupted'
+                operation.finishedAt = dependencies.now()
+                if (completed) {
+                    operation.phase = 'complete'
+                    operation.progressPercent = 100
+                }
+                audit(
+                    draft,
+                    completed ? 'restore_succeeded' : 'restore_interrupted',
+                    draft.jobs.find((job) => job.id === operation.artifactId) ?? null,
+                    operation.actorId,
+                )
+                const receipt = draft.maintenanceRequests?.find(
+                    (entry) => entry.id === operation.id,
+                )
+                if (receipt) Object.assign(receipt, operation)
+            }
+        }
         for (const job of draft.jobs.filter((entry) => entry.state === 'running')) {
             job.state = 'interrupted'
             job.error = 'interrupted'
@@ -129,7 +163,8 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         scheduledFor: number | null,
     ) {
         // Retention still owns completion capacity after the success record is committed.
-        if (executing || draft.jobs.some(active)) throw new ManagedBackupError('busy')
+        if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+            throw new ManagedBackupError('busy')
         if (!hasAuditRoom(draft, BACKUP_AUDIT_POLICY.jobEvents))
             throw new ManagedBackupError('capacity')
         trim(draft, 99)
@@ -161,6 +196,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             jobs: state.jobs,
             storeId: state.storeId,
             auditEvents: state.auditEvents,
+            maintenance: state.maintenance ?? null,
         })
     }
 
@@ -181,6 +217,183 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         })
     }
 
+    async function requestMaintenance(id: string, input: unknown, operation: 'delete' | 'restore') {
+        const request = (
+            operation === 'restore' ? managedBackupRestoreSchema : managedBackupDeleteSchema
+        ).parse(input)
+        const actorName =
+            operation === 'restore' ? managedBackupRestoreSchema.parse(input).actorName : null
+        if (
+            (executing || downloadActive) &&
+            !state.maintenanceRequests?.some((entry) => entry.requestId === request.requestId)
+        )
+            throw new ManagedBackupError('busy')
+        return mutate(async (draft) => {
+            const previous = draft.maintenanceRequests?.find(
+                (entry) => entry.requestId === request.requestId,
+            )
+            if (previous) {
+                if (
+                    previous.artifactId !== id ||
+                    previous.actorId !== request.actorId ||
+                    previous.metadataSha256 !== request.metadataSha256 ||
+                    previous.operation !== operation ||
+                    previous.actorName !== actorName
+                )
+                    throw new ManagedBackupError('revision_conflict')
+                return previous
+            }
+            if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+                throw new ManagedBackupError('busy')
+            const job = draft.jobs.find((entry) => entry.id === id)
+            if (
+                !job ||
+                active(job) ||
+                (job.artifact?.metadataSha256 ?? null) !== request.metadataSha256 ||
+                (operation === 'restore' &&
+                    (job.state !== 'succeeded' || !job.retained || job.artifact?.id !== id))
+            )
+                throw new ManagedBackupError('artifact_invalid')
+            if (!hasAuditRoom(draft, 4)) throw new ManagedBackupError('capacity')
+            const receipt: ManagedBackupMaintenance = {
+                id: dependencies.id(),
+                requestId: request.requestId,
+                actorId: request.actorId,
+                actorName,
+                artifactId: id,
+                metadataSha256: request.metadataSha256,
+                operation,
+                state: 'queued',
+                phase: 'queued',
+                progressPercent: 0,
+                requestedAt: dependencies.now(),
+                startedAt: null,
+                finishedAt: null,
+                error: null,
+            }
+            draft.maintenance = receipt
+            draft.maintenanceRequests = [
+                ...(draft.maintenanceRequests ?? []),
+                structuredClone(receipt),
+            ].slice(-100)
+            audit(
+                draft,
+                operation === 'restore' ? 'restore_requested' : 'delete_requested',
+                job,
+                request.actorId,
+            )
+            return receipt
+        })
+    }
+
+    async function runMaintenance(): Promise<boolean> {
+        const operation = await mutate((draft) => {
+            if (executing || downloadActive || draft.maintenance?.state !== 'queued') return null
+            draft.maintenance.state = 'running'
+            draft.maintenance.startedAt = dependencies.now()
+            draft.maintenance.phase = 'validating'
+            const job = draft.jobs.find((entry) => entry.id === draft.maintenance!.artifactId)
+            if (!job) throw new ManagedBackupError('artifact_invalid')
+            if (draft.maintenance.operation === 'restore')
+                audit(draft, 'restore_started', job, draft.maintenance.actorId)
+            return { operation: draft.maintenance, job }
+        })
+        if (!operation) return false
+        executing = true
+        let error: ManagedBackupMaintenance['error'] = null
+        try {
+            if (
+                (operation.operation.operation === 'restore' || operation.job.retained) &&
+                !(await dependencies.verify(operation.job)) &&
+                !(
+                    operation.operation.operation === 'delete' &&
+                    (await dependencies.removed?.(operation.job))
+                )
+            )
+                throw new ManagedBackupError('artifact_invalid')
+            if (operation.operation.operation === 'delete') {
+                if (operation.job.retained) await dependencies.remove(operation.job)
+            } else {
+                if (!dependencies.restore) throw new ManagedBackupError('execution_failed')
+                await dependencies.restore(
+                    operation.job,
+                    operation.operation,
+                    async (phase, percent) => {
+                        await mutate((draft) => {
+                            const current = draft.maintenance
+                            if (
+                                !current ||
+                                current.id !== operation.operation.id ||
+                                current.state !== 'running'
+                            )
+                                throw new ManagedBackupError('recovery_failed')
+                            if (percent < current.progressPercent || percent >= 100)
+                                throw new ManagedBackupError('recovery_failed')
+                            current.phase = phase
+                            current.progressPercent = percent
+                        })
+                    },
+                )
+            }
+        } catch (cause) {
+            error =
+                cause instanceof ManagedBackupError &&
+                ['artifact_invalid', 'recovery_failed'].includes(cause.code)
+                    ? (cause.code as 'artifact_invalid' | 'recovery_failed')
+                    : 'execution_failed'
+        }
+        try {
+            await mutate((draft) => {
+                const current = draft.maintenance
+                if (!current || current.id !== operation.operation.id)
+                    throw new ManagedBackupError('recovery_failed')
+                current.state = error === null ? 'succeeded' : 'failed'
+                current.error = error
+                current.finishedAt = dependencies.now()
+                if (error === null) {
+                    current.phase = 'complete'
+                    current.progressPercent = 100
+                }
+                const job = draft.jobs.find((entry) => entry.id === current.artifactId)
+                if (error === null && current.operation === 'delete' && job) job.retained = false
+                audit(
+                    draft,
+                    current.operation === 'delete'
+                        ? error === null
+                            ? 'deleted'
+                            : 'delete_failed'
+                        : error === null
+                          ? 'restore_succeeded'
+                          : 'restore_failed',
+                    job ?? null,
+                    current.actorId,
+                )
+                if (error === null && current.operation === 'delete')
+                    draft.jobs = draft.jobs.filter((entry) => entry.id !== current.artifactId)
+                const receipt = draft.maintenanceRequests?.find((entry) => entry.id === current.id)
+                if (receipt) Object.assign(receipt, current)
+            })
+        } finally {
+            executing = false
+        }
+        return true
+    }
+
+    async function acquireDownload() {
+        await mutate((draft) => {
+            if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+                throw new ManagedBackupError('busy')
+            downloadActive = true
+        })
+        let released = false
+        return () => {
+            if (!released) {
+                released = true
+                downloadActive = false
+            }
+        }
+    }
+
     async function updateConfiguration(input: unknown) {
         const request = managedBackupConfigurationUpdateSchema.parse(input)
         return mutate((draft) => {
@@ -194,7 +407,11 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             }
             // Reserve all lifecycle and worst-case pruning events for accepted work.
             const reserved =
-                executing || draft.jobs.some(active) ? BACKUP_AUDIT_POLICY.jobEvents - 1 : 0
+                executing || draft.jobs.some(active)
+                    ? BACKUP_AUDIT_POLICY.jobEvents - 1
+                    : maintenanceActive()
+                      ? 4
+                      : 0
             if (!hasAuditRoom(draft, 1 + reserved)) throw new ManagedBackupError('capacity')
             const config = draft.configuration
             if (request.expectedRevision !== config.revision)
@@ -300,8 +517,15 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
     /* eslint-enable no-await-in-loop */
 
     async function tick() {
+        if (await runMaintenance()) return
         const job = await mutate(async (draft) => {
-            if (executing || draft.jobs.some((entry) => entry.state === 'running')) return null
+            if (
+                executing ||
+                downloadActive ||
+                maintenanceActive() ||
+                draft.jobs.some((entry) => entry.state === 'running')
+            )
+                return null
             let queued = draft.jobs.find((entry) => entry.state === 'queued')
             const config = draft.configuration
             const now = dependencies.now()
@@ -372,5 +596,13 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         }
     }
 
-    return { status, start, updateConfiguration, tick, acknowledgeAudit }
+    return {
+        status,
+        start,
+        updateConfiguration,
+        tick,
+        acknowledgeAudit,
+        requestMaintenance,
+        acquireDownload,
+    }
 }

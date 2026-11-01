@@ -3,6 +3,7 @@ import type {
     ManagedBackupJob,
     ManagedBackupSource,
     ManagedBackupState,
+    ManagedBackupMaintenance,
 } from '../../../web/src/lib/Backups/Types/backups.types.ts'
 
 export interface ManagedBackupDependencies {
@@ -14,6 +15,13 @@ export interface ManagedBackupDependencies {
     execute: (job: ManagedBackupJob) => Promise<ManagedBackupArtifact>
     verify: (job: ManagedBackupJob) => Promise<boolean>
     remove: (job: ManagedBackupJob) => Promise<void>
+    removed?: (job: ManagedBackupJob) => Promise<boolean>
+    recoverRestore?: (operation: ManagedBackupMaintenance) => Promise<boolean>
+    restore?: (
+        job: ManagedBackupJob,
+        operation: ManagedBackupMaintenance,
+        progress: (phase: ManagedBackupMaintenance['phase'], percent: number) => Promise<void>,
+    ) => Promise<void>
 }
 export type ManagedBackupErrorCode =
     | 'busy'

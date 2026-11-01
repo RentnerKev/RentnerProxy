@@ -760,18 +760,26 @@
                     "source": "Versione di origine",
                     "duration": "Durata",
                     "size": "Dimensione",
-                    "download": "File di ripristino"
+                    "download": "File di ripristino",
+                    "actions": "Azioni"
                 },
                 "download": "Scarica backup",
                 "downloadLabel": "Scarica backup {{id}}",
                 "expired": "Non più conservato",
                 "notReady": "Non pronto",
-                "missingArtifact": "Nessun file verificato"
+                "missingArtifact": "Nessun file verificato",
+                "actionsLabel": "Azioni per il backup {{id}}",
+                "restore": "Ripristina backup",
+                "delete": "Elimina backup"
             },
             "messages": {
                 "accepted": "Richiesta di backup registrata. L’appliance potrebbe disconnettersi brevemente durante la manutenzione; questa pagina si aggiornerà automaticamente.",
-                "uncertain": "Non è stato possibile confermare l’esito della richiesta. Aggiorna prima la cronologia. Riprovando questa richiesta viene riutilizzato lo stesso identificativo e non viene avviato un secondo backup.",
-                "saved": "Pianificazione e conservazione dei backup salvate."
+                "uncertain": "Non è stato possibile confermare l’esito della richiesta. Attendi l’aggiornamento in tempo reale della cronologia. Riprovando questa richiesta viene riutilizzato lo stesso identificativo e non viene avviato un secondo backup.",
+                "saved": "Pianificazione e conservazione dei backup salvate.",
+                "restoreAccepted": "Richiesta di ripristino registrata. Segui le fasi confermate durante il recupero dell’appliance.",
+                "deleted": "Backup eliminato.",
+                "actionUncertain": "Non è stato possibile confermare l’operazione. Attendi lo stato attuale dell’appliance prima di riprovare.",
+                "actionAccepted": "Richiesta di eliminazione registrata. In attesa della conferma del completamento."
             },
             "errors": {
                 "authentication_required": "La sessione è scaduta. Accedi di nuovo.",
@@ -787,7 +795,9 @@
                 "execution_failed": "Creazione del backup non riuscita. Controlla lo stato e l’archiviazione dell’appliance, quindi riprova.",
                 "interrupted": "Il backup è stato interrotto. Non è un punto di ripristino confermato; crea un nuovo backup.",
                 "artifact_invalid": "Il file di backup non ha superato la verifica e non può essere usato come punto di ripristino.",
-                "recovery_failed": "L’appliance non ha potuto confermare il ripristino dei servizi dopo la manutenzione per il backup. Controllane lo stato prima di riprovare."
+                "appliance_required": "Questa è una cronologia dimostrativa locale. Creare o ripristinare backup reali e salvare le pianificazioni richiede il servizio di backup dell’appliance Linux.",
+                "recovery_failed": "L’appliance non ha potuto confermare il ripristino dei servizi dopo la manutenzione per il backup. Controllane lo stato prima di riprovare.",
+                "not_found": "Questo backup non esiste più. Scegli un’altra voce dalla cronologia attuale."
             },
             "downloadErrors": {
                 "not_found": "Questo backup non è più disponibile. Aggiorna la cronologia e scegli un punto di ripristino conservato.",
@@ -802,7 +812,32 @@
                 "secret": "Un backup completo contiene il database, i certificati, le chiavi private e la chiave di cifratura dell’applicazione. Mantieni privati i download e proteggili con un’archiviazione cifrata.",
                 "offHost": "I backup locali condividono il volume dati dell’appliance. Scarica una copia su un dispositivo separato per evitare che un guasto dell’host o del volume distrugga tutti i punti di ripristino.",
                 "extract": "Estrai il TAR scaricato in una directory vuota e privata e conserva tutti e cinque i file insieme senza modificarli.",
-                "restore": "Usa la CLI restore:production della versione di origine con la directory estratta come --input. Il ripristino sostituisce i dati della destinazione e riavvia i suoi servizi; verifica prima il ripristino su una destinazione isolata. Il processo di ripristino esistente tramite CLI rimane obbligatorio."
+                "restore": "Usa Ripristina backup nel menu della riga per ripristinare un backup conservato e verificato su questa appliance. Per un’altra destinazione, usa la CLI restore:production della versione di origine con la cartella estratta come --input. Il ripristino sostituisce i dati della destinazione e riavvia i servizi; verificalo prima su una destinazione isolata."
+            },
+            "restoreConfirmTitle": "Ripristinare questo backup?",
+            "restoreConfirmDescription": "Il backup {{id}} sostituirà i dati attuali dell’appliance. I servizi verranno sospesi e tutti gli utenti connessi vedranno l’avanzamento del ripristino. I file di backup creati dopo questo punto di recupero verranno conservati. Continua solo se vuoi sostituire i dati attuali.",
+            "deleteConfirmTitle": "Eliminare questo backup?",
+            "deleteConfirmDescription": "Eliminare il backup {{id}} e gli eventuali file archiviati? Il punto di recupero o la voce della cronologia verrà rimosso definitivamente. L’operazione non può essere annullata.",
+            "restoreScreen": {
+                "returnToPage": "Torna alla pagina precedente",
+                "title": "Ripristino dell’appliance",
+                "description": "{{user}} sta ripristinando il backup {{backup}}. L’operazione riguarda tutti gli utenti connessi a questa appliance.",
+                "progress": "{{percent}}% — fasi di ripristino completate",
+                "complete": "Ripristino e riavvio dei servizi confermati. Ritorno automatico alla pagina precedente.",
+                "failed": "Il ripristino è fallito o non è stato possibile confermare il recupero dei servizi. Controlla lo stato dell’appliance prima di continuare.",
+                "connectionLost": "La connessione all’appliance è stata interrotta. In attesa di uno stato di ripristino confermato; il completamento non è ancora confermato.",
+                "actorUnknown": "Un amministratore",
+                "phases": {
+                    "queued": "Ripristino in coda",
+                    "validating": "Verifica del backup",
+                    "quiescing": "Sospensione dei servizi",
+                    "database": "Ripristino del database",
+                    "controller": "Ripristino dei dati del controller",
+                    "crowdsec": "Ripristino dei dati CrowdSec",
+                    "secrets": "Ripristino dei segreti dell’applicazione",
+                    "restarting": "Riavvio e verifica dei servizi",
+                    "complete": "Recupero confermato"
+                }
             }
         },
         "migration": {

@@ -4,6 +4,8 @@ import {
     getBackupsStatus,
     requestBackup,
     saveBackupConfiguration,
+    deleteBackup,
+    restoreBackup,
 } from '@/lib/Backups/backupClient.ts'
 import { BACKUP_UI_POLICY } from '@/config/backups.config.ts'
 
@@ -75,6 +77,29 @@ test('invalid identifiers and already-aborted reads never dispatch a request', a
     controller.abort()
     await expect(getBackupsStatus(controller.signal)).rejects.toMatchObject({ code: 'aborted' })
     expect(fetchSpy).not.toHaveBeenCalled()
+})
+
+test('restore rejects an absent artifact digest and an unrelated admission receipt', async () => {
+    const fetchSpy = respond(Response.json(status))
+    const input = { jobId: id, requestId: id, metadataSha256: null }
+    await expect(restoreBackup(input)).rejects.toMatchObject({ code: 'invalid_input' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+    await expect(restoreBackup({ ...input, metadataSha256: 'c'.repeat(64) })).rejects.toMatchObject(
+        { code: 'invalid_response' },
+    )
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/admin/backups/restore')
+    fetchSpy.mockResolvedValue(Response.json({ error: 'artifact_invalid' }, { status: 409 }))
+    await expect(restoreBackup({ ...input, metadataSha256: 'c'.repeat(64) })).rejects.toMatchObject(
+        { code: 'artifact_invalid' },
+    )
+})
+
+test('deletion accepts a confirmed absent history entry without requiring a nonexistent archive', async () => {
+    const fetchSpy = respond(Response.json(status))
+    const input = { jobId: id, requestId: id, metadataSha256: null }
+    expect(await deleteBackup(input)).toEqual(status)
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/admin/backups/delete')
+    expect(JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body))).toEqual(input)
 })
 test('mutations require a matching admission receipt or an advanced configuration revision', async () => {
     const fetchSpy = respond(Response.json(status))

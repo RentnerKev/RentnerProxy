@@ -9,6 +9,10 @@ import {
     updateBackupConfigurationService,
     requestBackupSchema,
     updateBackupConfigurationSchema,
+    deleteBackupService,
+    restoreBackupService,
+    deleteBackupSchema,
+    restoreBackupSchema,
 } from './backups.service.ts'
 import { BackupDomainError } from './backup.errors.ts'
 import type { BackupsHttpDependencies } from './Types/backups-http.types.ts'
@@ -39,7 +43,13 @@ function failure(error: unknown, headers: Headers): Response {
             { error: error.code },
             {
                 status:
-                    error.code === 'invalid_input' ? 400 : error.code === 'unavailable' ? 503 : 409,
+                    error.code === 'invalid_input'
+                        ? 400
+                        : error.code === 'unavailable'
+                          ? 503
+                          : error.code === 'not_found'
+                            ? 404
+                            : 409,
                 headers,
             },
         )
@@ -53,13 +63,15 @@ export function createBackupsHttpHandlers(
             getBackupsStatusService,
             requestBackupService,
             updateBackupConfigurationService,
+            deleteBackupService,
+            restoreBackupService,
         },
         origin: getPublicOrigin,
     },
 ) {
     async function respond(
         request: Request,
-        operation: 'status' | 'start' | 'config',
+        operation: 'status' | 'start' | 'config' | 'delete' | 'restore',
     ): Promise<Response> {
         const headers = new Headers({
             'Cache-Control': 'private, no-store',
@@ -95,15 +107,27 @@ export function createBackupsHttpHandlers(
             } catch {
                 throw new BackupDomainError('invalid_input')
             }
-            const parsed = (
-                operation === 'start' ? requestBackupSchema : updateBackupConfigurationSchema
-            ).safeParse(raw)
+            const schemas = {
+                start: requestBackupSchema,
+                config: updateBackupConfigurationSchema,
+                delete: deleteBackupSchema,
+                restore: restoreBackupSchema,
+            }
+            const parsed = schemas[operation].safeParse(raw)
             if (!parsed.success) throw new BackupDomainError('invalid_input')
-            const value =
-                operation === 'start'
-                    ? await dependencies.service.requestBackupService(parsed.data)
-                    : await dependencies.service.updateBackupConfigurationService(parsed.data)
-            return Response.json(value, { status: operation === 'start' ? 202 : 200, headers })
+            const delegates = {
+                start: dependencies.service.requestBackupService,
+                config: dependencies.service.updateBackupConfigurationService,
+                delete: dependencies.service.deleteBackupService,
+                restore: dependencies.service.restoreBackupService,
+            }
+            const delegate = delegates[operation]
+            if (!delegate) throw new BackupDomainError('unavailable')
+            const value = await delegate(parsed.data)
+            return Response.json(value, {
+                status: operation === 'start' || operation === 'restore' ? 202 : 200,
+                headers,
+            })
         } catch (error) {
             if (request.signal.aborted) return new Response(null, { status: 499, headers })
             return failure(error, headers)
@@ -113,6 +137,8 @@ export function createBackupsHttpHandlers(
         status: (request: Request) => respond(request, 'status'),
         start: (request: Request) => respond(request, 'start'),
         configure: (request: Request) => respond(request, 'config'),
+        delete: (request: Request) => respond(request, 'delete'),
+        restore: (request: Request) => respond(request, 'restore'),
     }
 }
 export const backupsHttpHandlers = createBackupsHttpHandlers()

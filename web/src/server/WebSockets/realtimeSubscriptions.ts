@@ -47,6 +47,13 @@ export function createSubscriptionManager(options: SubscriptionManagerOptions) {
                 }
                 return
             }
+            if (
+                result.data &&
+                typeof result.data === 'object' &&
+                'maintenanceSuspended' in result.data &&
+                result.data.maintenanceSuspended === true
+            )
+                return
 
             let comparison: string
             let message: string

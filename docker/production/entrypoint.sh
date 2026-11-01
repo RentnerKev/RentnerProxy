@@ -375,7 +375,11 @@ monitor_children() {
     while :; do
         assert_children_running
         if [[ -e $backup_control_directory/request.json || -L $backup_control_directory/request.json ]]; then
-            perform_managed_backup
+            case $(bun --no-env-file "$backup_exporter" --request-kind) in
+                backup) perform_managed_backup ;;
+                restore) perform_managed_restore ;;
+                *) fatal 'invalid maintenance operation' ;;
+            esac
         fi
         sleep 0.2
     done

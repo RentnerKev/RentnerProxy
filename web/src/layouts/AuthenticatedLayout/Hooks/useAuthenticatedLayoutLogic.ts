@@ -8,11 +8,13 @@ import { useEffect } from 'react'
 import useControlLocalization from '@/layouts/RootLayout/Hooks/useControlLocalization.ts'
 import type { AuthenticatedLayoutLogicResult } from '../Types/authenticated-layout-logic.types.ts'
 import useNavigationGroupPreferences from './useNavigationGroupPreferences.ts'
+import useRestoreProgress from './useRestoreProgress.ts'
 
 export default function useAuthenticatedLayoutLogic(
     user: AuthenticatedUser,
 ): AuthenticatedLayoutLogicResult {
-    const live = useApplicationLiveSync()
+    const restore = useRestoreProgress()
+    const live = useApplicationLiveSync(restore.active)
     useEffect(() => () => toast.dismissAll(), [])
     const logout = useLogout()
     const theme = useThemeMode(user.themeMode)
@@ -21,6 +23,8 @@ export default function useAuthenticatedLayoutLogic(
 
     return {
         state: {
+            restoreMaintenance: restore.maintenance,
+            restoreDisconnected: restore.status !== 'connected',
             isIdentityPending: live.isIdentityPending,
             identityGeneration: live.identityGeneration,
             hasIdentityError: live.hasIdentityError,
@@ -42,6 +46,7 @@ export default function useAuthenticatedLayoutLogic(
             },
         },
         handler: {
+            handleDismissRestore: restore.canDismiss ? restore.dismiss : undefined,
             handleRetryIdentity: live.retryIdentity,
             handleLogout: logout.handler.handleLogout,
             handleToggleTheme: theme.handler.handleToggle,

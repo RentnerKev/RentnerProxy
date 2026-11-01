@@ -69,6 +69,7 @@ export function createBackupDownload(
     root = artifactsRoot,
     temporaryRoot = backupRoot,
     timings = BACKUP_DOWNLOAD_TIMEOUTS,
+    admission?: () => Promise<() => void>,
 ) {
     let active = false
     return async (request: Request, id: string): Promise<Response> => {
@@ -91,6 +92,7 @@ export function createBackupDownload(
         const files: FileHandle[] = []
         let archive: FileHandle | undefined
         let released = false
+        let releaseAdmission: (() => void) | undefined
         const release = async () => {
             if (released) return
             released = true
@@ -99,8 +101,15 @@ export function createBackupDownload(
             await Promise.all(files.map((file) => file.close().catch(() => {})))
             await archive?.close().catch(() => {})
             active = false
+            releaseAdmission?.()
         }
         try {
+            try {
+                releaseAdmission = await admission?.()
+            } catch {
+                await release()
+                return failure('conflict', 409)
+            }
             stop.signal.throwIfAborted()
             const job = (await status()).jobs.find((entry) => entry.id === id)
             timeout.progress()

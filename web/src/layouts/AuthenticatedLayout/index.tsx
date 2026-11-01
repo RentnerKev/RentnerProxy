@@ -14,13 +14,23 @@ import QuickActionsProvider from '@/shared/QuickActions/Components/QuickActionsP
 import LoadingPage from '@/shared/SystemStatePage/LoadingPage.tsx'
 
 import useAuthenticatedLayoutLogic from './Hooks/useAuthenticatedLayoutLogic.ts'
+import RestoreProgress from './Components/RestoreProgress.tsx'
 
 export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutProps) {
     const { state, handler } = useAuthenticatedLayoutLogic(user)
     return (
         <>
-            {state.isIdentityPending && !state.hasIdentityError ? <LoadingPage /> : null}
-            {state.isIdentityPending && state.hasIdentityError ? (
+            {state.restoreMaintenance ? (
+                <RestoreProgress
+                    maintenance={state.restoreMaintenance}
+                    disconnected={state.restoreDisconnected}
+                    onDismiss={handler.handleDismissRestore}
+                />
+            ) : null}
+            {state.isIdentityPending && !state.restoreMaintenance && !state.hasIdentityError ? (
+                <LoadingPage />
+            ) : null}
+            {state.isIdentityPending && !state.restoreMaintenance && state.hasIdentityError ? (
                 <main
                     role="alert"
                     className="grid min-h-screen place-content-center gap-4 bg-navy-950 p-8 text-white"
@@ -39,7 +49,10 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
                 mode={state.isIdentityPending ? 'hidden' : 'visible'}
                 key={state.identityGeneration}
             >
-                <div hidden={state.isIdentityPending} inert={state.isIdentityPending}>
+                <div
+                    hidden={state.isIdentityPending || !!state.restoreMaintenance}
+                    inert={state.isIdentityPending || !!state.restoreMaintenance}
+                >
                     <PageAlertsProvider key={user.id}>
                         <CertificateJobProgressObserver permissions={user.permissions} />
                         <InputProvider locale={state.language} messages={state.inputMessages}>

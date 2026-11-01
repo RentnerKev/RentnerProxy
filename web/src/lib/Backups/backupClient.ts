@@ -5,15 +5,22 @@ import {
     managedBackupConfigurationUpdateSchema,
     managedBackupStartSchema,
     managedBackupStatusSchema,
+    managedBackupDeleteSchema,
+    managedBackupRestoreSchema,
 } from './validation.ts'
 import type {
     BackupClientErrorCode,
     BackupConfigurationInput,
     BackupStartInput,
+    BackupActionInput,
 } from './Types/backups-client.types.ts'
 
 const startInput = managedBackupStartSchema.omit({ actorId: true })
 const configurationInput = managedBackupConfigurationUpdateSchema.omit({ actorId: true })
+const deleteInput = managedBackupDeleteSchema.omit({ actorId: true }).extend({ jobId: z.uuid() })
+const restoreInput = managedBackupRestoreSchema
+    .omit({ actorId: true, actorName: true })
+    .extend({ jobId: z.uuid() })
 const failureSchema = z.strictObject({
     error: z.enum([
         'authentication_required',
@@ -24,6 +31,9 @@ const failureSchema = z.strictObject({
         'capacity',
         'rate_limited',
         'unavailable',
+        'not_found',
+        'artifact_invalid',
+        'appliance_required',
     ]),
 })
 
@@ -34,9 +44,9 @@ export class BackupClientError extends Error {
 }
 
 async function request(
-    operation: 'status' | 'start' | 'config',
+    operation: 'status' | 'start' | 'config' | 'delete' | 'restore',
     signal?: AbortSignal,
-    input?: BackupStartInput | BackupConfigurationInput,
+    input?: BackupStartInput | BackupConfigurationInput | BackupActionInput,
 ) {
     const deadline = AbortSignal.timeout(BACKUP_UI_POLICY.requestTimeoutMs)
     const combined = signal ? AbortSignal.any([signal, deadline]) : deadline
@@ -89,6 +99,27 @@ async function request(
             throw new BackupClientError('invalid_response')
         throw new BackupClientError('unavailable')
     }
+}
+
+export async function deleteBackup(input: BackupActionInput, signal?: AbortSignal) {
+    const parsed = deleteInput.safeParse(input)
+    if (!parsed.success) throw new BackupClientError('invalid_input')
+    const status = await request('delete', signal, parsed.data)
+    if (
+        status.jobs.some((job) => job.id === parsed.data.jobId) &&
+        status.maintenance?.requestId !== parsed.data.requestId
+    )
+        throw new BackupClientError('invalid_response')
+    return status
+}
+
+export async function restoreBackup(input: BackupActionInput, signal?: AbortSignal) {
+    const parsed = restoreInput.safeParse(input)
+    if (!parsed.success) throw new BackupClientError('invalid_input')
+    const status = await request('restore', signal, parsed.data)
+    if (status.maintenance?.requestId !== parsed.data.requestId)
+        throw new BackupClientError('invalid_response')
+    return status
 }
 
 export const getBackupsStatus = (signal?: AbortSignal) => request('status', signal)

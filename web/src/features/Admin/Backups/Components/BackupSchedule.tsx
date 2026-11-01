@@ -62,7 +62,6 @@ export default function BackupSchedule(props: BackupScheduleProps) {
                         required
                     />
                 </div>
-                <p className="text-sm leading-relaxed text-ink-soft">{t('admin.backups.impact')}</p>
                 {state.conflict ? (
                     <p role="alert" className="text-sm text-warning-text">
                         {t('admin.backups.schedule.conflict')}
@@ -72,9 +71,6 @@ export default function BackupSchedule(props: BackupScheduleProps) {
                     <p role="alert" className="text-sm text-danger-text">
                         {t('admin.backups.errors.invalid_input')}
                     </p>
-                ) : null}
-                {state.notice ? (
-                    <output className="text-sm text-ink-soft">{state.notice}</output>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
                     <button

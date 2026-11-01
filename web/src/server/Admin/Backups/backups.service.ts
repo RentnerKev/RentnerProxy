@@ -1,7 +1,10 @@
 import '@tanstack/react-start/server-only'
+import { z } from 'zod'
 import {
     managedBackupStartSchema,
     managedBackupConfigurationUpdateSchema,
+    managedBackupDeleteSchema,
+    managedBackupRestoreSchema,
 } from '@/lib/Backups/validation.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
@@ -12,13 +15,70 @@ import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { backupsController } from '@/server/Controller/backups.server.ts'
 import type { BackupAdminDependencies } from './Types/backups-service.types.ts'
 import { BackupDomainError } from './backup.errors.ts'
+import { getLocalBackupDemoStatus, deleteLocalBackupDemoService } from './backups-demo.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 
 export const requestBackupSchema = managedBackupStartSchema.omit({ actorId: true })
 export const updateBackupConfigurationSchema = managedBackupConfigurationUpdateSchema.omit({
     actorId: true,
 })
+export const deleteBackupSchema = managedBackupDeleteSchema
+    .omit({ actorId: true })
+    .extend({ jobId: z.uuid() })
+export const restoreBackupSchema = managedBackupRestoreSchema
+    .omit({ actorId: true, actorName: true })
+    .extend({ jobId: z.uuid() })
 
 export function createBackupAdminService(dependencies: BackupAdminDependencies) {
+    async function artifactAction(input: unknown, operation: 'delete' | 'restore') {
+        const actor = await dependencies.authorize(PERMISSIONS.BACKUPS_MANAGE)
+        const parsed = (
+            operation === 'delete' ? deleteBackupSchema : restoreBackupSchema
+        ).safeParse(input)
+        if (!parsed.success) throw new BackupDomainError('invalid_input')
+        await dependencies.limit(actor.id)
+        const { jobId, ...request } = parsed.data
+        if (await dependencies.localDemo?.()) {
+            if (operation === 'restore') throw new BackupDomainError('appliance_required')
+            if (!dependencies.demoDelete) throw new BackupDomainError('unavailable')
+            const result = await dependencies.demoDelete({ ...parsed.data, actorId: actor.id })
+            publishApplicationChange()
+            return result
+        }
+        const result = await dependencies.transaction(async (transaction) => {
+            await transaction.authorize(actor.id, PERMISSIONS.BACKUPS_MANAGE)
+            let status
+            if (operation === 'delete') {
+                if (!dependencies.controller.delete) throw new BackupDomainError('unavailable')
+                status = await dependencies.controller.delete(jobId, {
+                    ...request,
+                    actorId: actor.id,
+                })
+            } else {
+                if (!dependencies.controller.restore) throw new BackupDomainError('unavailable')
+                status = await dependencies.controller.restore(
+                    jobId,
+                    managedBackupRestoreSchema.parse({
+                        ...request,
+                        actorId: actor.id,
+                        actorName: (actor.displayName?.trim() || actor.id).slice(0, 160),
+                    }),
+                )
+            }
+            await transaction.audit({
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: operation === 'delete' ? 'delete' : 'request',
+                resource: 'config-export',
+                targetId: jobId,
+                result: 'success',
+                metadata: { operationId: parsed.data.requestId },
+            })
+            return status
+        })
+        publishApplicationChange()
+        return result
+    }
     async function mutate(input: unknown, configuration: boolean) {
         const actor = await dependencies.authorize(PERMISSIONS.BACKUPS_MANAGE)
         const parsed = (
@@ -26,6 +86,7 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
         ).safeParse(input)
         if (!parsed.success) throw new BackupDomainError('invalid_input')
         await dependencies.limit(actor.id)
+        if (await dependencies.localDemo?.()) throw new BackupDomainError('appliance_required')
         return dependencies.transaction(async (transaction) => {
             await transaction.authorize(actor.id, PERMISSIONS.BACKUPS_MANAGE)
             const result = await (configuration
@@ -55,30 +116,39 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
     return {
         async getBackupsStatusService() {
             await dependencies.authorize(PERMISSIONS.BACKUPS_VIEW)
-            return dependencies.controller.status()
+            return (await dependencies.localDemo?.()) ?? dependencies.controller.status()
         },
         requestBackupService: (input: unknown) => mutate(input, false),
         updateBackupConfigurationService: (input: unknown) => mutate(input, true),
+        deleteBackupService: (input: unknown) => artifactAction(input, 'delete'),
+        restoreBackupService: (input: unknown) => artifactAction(input, 'restore'),
     }
 }
-export const { getBackupsStatusService, requestBackupService, updateBackupConfigurationService } =
-    createBackupAdminService({
-        authorize: requirePermissionService,
-        controller: backupsController,
-        limit: async (actorId) => {
-            await consumeRateLimit({
-                scope: 'backup-mutation',
-                limit: 10,
-                windowMs: 60_000,
-                identifier: actorId,
-            })
-        },
-        transaction: (run) =>
-            getAuthDatabase().transaction((transaction) =>
-                run({
-                    authorize: (actorId, permission) =>
-                        requirePermissionInTransaction(transaction, actorId, permission),
-                    audit: (event) => appendAuditEventInTransactionService(transaction, event),
-                }),
-            ),
-    })
+export const {
+    getBackupsStatusService,
+    requestBackupService,
+    updateBackupConfigurationService,
+    deleteBackupService,
+    restoreBackupService,
+} = createBackupAdminService({
+    localDemo: getLocalBackupDemoStatus,
+    demoDelete: deleteLocalBackupDemoService,
+    authorize: requirePermissionService,
+    controller: backupsController,
+    limit: async (actorId) => {
+        await consumeRateLimit({
+            scope: 'backup-mutation',
+            limit: 10,
+            windowMs: 60_000,
+            identifier: actorId,
+        })
+    },
+    transaction: (run) =>
+        getAuthDatabase().transaction((transaction) =>
+            run({
+                authorize: (actorId, permission) =>
+                    requirePermissionInTransaction(transaction, actorId, permission),
+                audit: (event) => appendAuditEventInTransactionService(transaction, event),
+            }),
+        ),
+})

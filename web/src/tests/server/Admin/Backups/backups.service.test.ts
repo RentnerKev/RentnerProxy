@@ -112,6 +112,112 @@ test('read authorization uses backups.view and cannot query controller when deni
     expect(denied.steps).toEqual(['authorize'])
 })
 
+test('seeded local backup history is read after authorization and never invokes real backup operations', async () => {
+    const f = fixture()
+    const demo = { ...status, storeId: actorId }
+    const service = createBackupAdminService({ ...f.dependencies, localDemo: async () => demo })
+    expect(await service.getBackupsStatusService()).toEqual(demo)
+    expect(f.steps).not.toContain('status')
+    await expect(service.requestBackupService({ requestId })).rejects.toMatchObject({
+        code: 'appliance_required',
+    })
+    await expect(
+        service.updateBackupConfigurationService(configurationInput),
+    ).rejects.toMatchObject({ code: 'appliance_required' })
+    expect(f.controllerInputs).toHaveLength(0)
+    expect(f.audits).toHaveLength(0)
+    const denied = fixture('authorize')
+    const deniedService = createBackupAdminService({
+        ...denied.dependencies,
+        localDemo: async () => {
+            throw new Error('Unauthorized demo history access')
+        },
+    })
+    await expect(deniedService.getBackupsStatusService()).rejects.toBe(denied.failure)
+})
+
+test('absent local demo data preserves the real controller status', async () => {
+    const f = fixture()
+    const service = createBackupAdminService({ ...f.dependencies, localDemo: async () => null })
+    expect(await service.getBackupsStatusService()).toEqual(status)
+    expect(f.steps).toContain('status')
+})
+
+test.each(['delete', 'restore'] as const)(
+    '%s authorizes the current actor and binds the exact artifact digest',
+    async (operation) => {
+        const f = fixture()
+        const calls: { id: string; input: unknown }[] = []
+        const service = createBackupAdminService({
+            ...f.dependencies,
+            authorize: async (permission) => {
+                expect(permission).toBe(PERMISSIONS.BACKUPS_MANAGE)
+                return { id: actorId, displayName: 'Kevin' }
+            },
+            controller: {
+                ...f.dependencies.controller,
+                delete: async (id, input) => {
+                    calls.push({ id, input })
+                    return status
+                },
+                restore: async (id, input) => {
+                    calls.push({ id, input })
+                    return status
+                },
+            },
+        })
+        const input = { jobId: actorId, requestId, metadataSha256: 'c'.repeat(64) }
+        await (operation === 'delete' ? service.deleteBackupService : service.restoreBackupService)(
+            input,
+        )
+        expect(calls).toEqual([
+            {
+                id: actorId,
+                input: {
+                    requestId,
+                    metadataSha256: input.metadataSha256,
+                    actorId,
+                    ...(operation === 'restore' ? { actorName: 'Kevin' } : {}),
+                },
+            },
+        ])
+        expect(f.steps).toContain('reauthorize')
+        expect(f.audits[0]).toMatchObject({
+            actorUserId: actorId,
+            targetId: actorId,
+            result: 'success',
+        })
+        calls.length = 0
+        await expect(
+            (operation === 'delete' ? service.deleteBackupService : service.restoreBackupService)({
+                ...input,
+                actorId: requestId,
+            }),
+        ).rejects.toMatchObject({ code: 'invalid_input' })
+        expect(calls).toHaveLength(0)
+    },
+)
+
+test('artifact operations cannot reach the controller after transactional authorization is revoked', async () => {
+    const f = fixture('reauthorize')
+    let dispatched = false
+    const service = createBackupAdminService({
+        ...f.dependencies,
+        controller: {
+            ...f.dependencies.controller,
+            delete: async () => {
+                dispatched = true
+                return status
+            },
+        },
+    })
+    await expect(
+        service.deleteBackupService({ jobId: actorId, requestId, metadataSha256: null }),
+    ).rejects.toBe(f.failure)
+    expect(dispatched).toBeFalse()
+    expect(f.audits).toHaveLength(0)
+})
+
 test('manual backup applies manage authorization, rate limit and transactional reauthorization before audit and actor injection', async () => {
     const f = fixture()
     expect(await f.service.requestBackupService({ requestId })).toEqual(status)

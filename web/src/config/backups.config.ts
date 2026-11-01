@@ -9,3 +9,5 @@ export const BACKUP_UI_POLICY = {
     requestTimeoutMs: 20_000,
     responseLimitBytes: 512 * 1_024,
 } as const
+
+export const BACKUPS_LOCAL_DEMO_KEY = 'backups_local_demo_v1'

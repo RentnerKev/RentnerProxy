@@ -725,7 +725,10 @@
                 "failed": "Failed",
                 "interrupted": "Interrupted"
             },
-            "origins": { "manual": "Manual", "schedule": "Scheduled" },
+            "origins": {
+                "manual": "Manual",
+                "schedule": "Scheduled"
+            },
             "schedule": {
                 "title": "Schedule and retention",
                 "description": "Intervals are measured from the stored schedule. Enabling a schedule or changing its interval plans the next backup from now.",
@@ -755,18 +758,26 @@
                     "source": "Source release",
                     "duration": "Duration",
                     "size": "Size",
-                    "download": "Recovery artifact"
+                    "download": "Recovery artifact",
+                    "actions": "Actions"
                 },
                 "download": "Download backup",
                 "downloadLabel": "Download backup {{id}}",
                 "expired": "No longer retained",
                 "notReady": "Not ready",
-                "missingArtifact": "No verified artifact"
+                "missingArtifact": "No verified artifact",
+                "actionsLabel": "Actions for backup {{id}}",
+                "restore": "Restore backup",
+                "delete": "Delete backup"
             },
             "messages": {
                 "accepted": "Backup request recorded. The appliance may briefly disconnect during maintenance; this page will refresh automatically.",
-                "uncertain": "The request result could not be confirmed. Refresh the history first. Retrying this request reuses its identity and does not start a second backup.",
-                "saved": "Backup schedule and retention saved."
+                "uncertain": "The request result could not be confirmed. Wait for the live history update. Retrying this request reuses its identity and does not start a second backup.",
+                "saved": "Backup schedule and retention saved.",
+                "restoreAccepted": "Restore request recorded. Follow the confirmed restore stages while the appliance recovers.",
+                "deleted": "Backup deleted.",
+                "actionUncertain": "The operation could not be confirmed. Wait for the current appliance status before trying again.",
+                "actionAccepted": "Delete request recorded. Waiting for confirmed completion."
             },
             "errors": {
                 "authentication_required": "Your session expired. Sign in again.",
@@ -782,7 +793,9 @@
                 "execution_failed": "Backup creation failed. Check appliance health and storage, then retry.",
                 "interrupted": "The backup was interrupted. It is not a confirmed recovery point; create a new backup.",
                 "artifact_invalid": "The backup artifact failed verification and cannot be used as a recovery point.",
-                "recovery_failed": "The appliance could not confirm service recovery after backup maintenance. Check its health before retrying."
+                "appliance_required": "This is local demo history. Creating or restoring real backups and saving schedules requires the Linux appliance backup service.",
+                "recovery_failed": "The appliance could not confirm service recovery after backup maintenance. Check its health before retrying.",
+                "not_found": "This backup no longer exists. Choose another entry from the current history."
             },
             "downloadErrors": {
                 "not_found": "This backup is no longer available. Refresh the history and choose a retained recovery point.",
@@ -797,7 +810,32 @@
                 "secret": "A complete backup contains the database, certificates, private keys and application encryption key. Keep downloads private and protect them with encrypted storage.",
                 "offHost": "Local backups share the appliance's data volume. Download a copy to a separate device so a failed host or volume does not destroy every recovery point.",
                 "extract": "Extract the downloaded TAR into an empty, private directory and keep all five files together without editing them.",
-                "restore": "Use the source release's restore:production CLI with the extracted directory as --input. Restore replaces the target's data and restarts its services; verify recovery on an isolated target first. The existing CLI restore process remains required."
+                "restore": "Use Restore backup in the row menu to restore a retained, verified backup on this appliance. To recover on a separate target, use the source release’s restore:production CLI with the extracted directory as --input. Restore replaces target data and restarts services; verify recovery on an isolated target first."
+            },
+            "restoreConfirmTitle": "Restore this backup?",
+            "restoreConfirmDescription": "Backup {{id}} will replace the current appliance data. Services will pause, and all connected users will see restore progress. Backup files created after this recovery point remain available. Continue only if you want to replace the current data.",
+            "deleteConfirmTitle": "Delete this backup?",
+            "deleteConfirmDescription": "Delete backup {{id}} and its stored files, if any? This removes the recovery point or history entry permanently and cannot be undone.",
+            "restoreScreen": {
+                "returnToPage": "Return to previous page",
+                "title": "Restoring the appliance",
+                "description": "{{user}} is restoring backup {{backup}}. This affects everyone connected to this appliance.",
+                "progress": "{{percent}}% — completed restore checkpoints",
+                "complete": "Restore and service recovery confirmed. Returning automatically to your previous page.",
+                "failed": "Restore failed or service recovery could not be confirmed. Check appliance health before taking further action.",
+                "connectionLost": "The appliance connection was interrupted. Waiting for confirmed restore status; completion has not yet been confirmed.",
+                "actorUnknown": "An administrator",
+                "phases": {
+                    "queued": "Restore queued",
+                    "validating": "Checking the backup",
+                    "quiescing": "Pausing services",
+                    "database": "Restoring the database",
+                    "controller": "Restoring controller data",
+                    "crowdsec": "Restoring CrowdSec data",
+                    "secrets": "Restoring application secrets",
+                    "restarting": "Restarting and checking services",
+                    "complete": "Recovery confirmed"
+                }
             }
         },
         "migration": {

@@ -21,19 +21,18 @@ export interface BackupsLogicResult {
         readonly forbidden: boolean
         readonly isLoading: boolean
         readonly isError: boolean
-        readonly refreshing: boolean
         readonly locked: boolean
         readonly pending: boolean
         readonly confirmOpen: boolean
         readonly uncertain: boolean
-        readonly notice: string
         readonly status: ManagedBackupStatus | null
         readonly jobs: readonly ManagedBackupJob[]
         readonly active: ManagedBackupJob | undefined
         readonly lastSuccess: ManagedBackupJob | undefined
     }
     readonly handler: {
-        readonly handleRefresh: () => void
+        readonly handleRestore: (jobId: string) => Promise<void>
+        readonly handleDelete: (jobId: string) => Promise<void>
         readonly handleStart: () => void
         readonly handleConfirmOpenChange: (open: boolean) => void
         readonly handleConfirmStart: () => Promise<void>
@@ -59,7 +58,6 @@ export interface BackupScheduleLogicResult {
         readonly locked: boolean
         readonly canSave: boolean
         readonly valid: boolean
-        readonly notice: string
     }
     readonly handler: {
         readonly handleSubmit: (event: FormEvent<HTMLFormElement>) => void

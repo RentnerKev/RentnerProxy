@@ -74,7 +74,9 @@ async function readBackupFile(path: string, maximumBytes: number): Promise<Buffe
     }
 }
 
-function postgresRestoreCommand(validateOnly: boolean): string {
+export function postgresRestoreCommand(validateOnly: boolean, backupDirectory = '/backup'): string {
+    if (!/^\/[A-Za-z0-9_./-]+$/u.test(backupDirectory))
+        throw new Error('invalid backup snapshot path')
     return [
         'restore_phase=archive',
         'restore_directory=$(mktemp -d /tmp/rentnerproxy-restore.XXXXXX)',
@@ -85,7 +87,9 @@ function postgresRestoreCommand(validateOnly: boolean): string {
         'chown postgres:postgres "$rendered_sql_path" "$restore_sql_path"',
         'chmod 0600 "$rendered_sql_path" "$restore_sql_path"',
         'restore_phase=render',
-        'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" < /backup/postgres.dump',
+        'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" < ' +
+            backupDirectory +
+            '/postgres.dump',
         'restore_phase=assemble',
         '{ printf "%s\\n" "DROP SCHEMA IF EXISTS rentnerproxy CASCADE;" "DROP SCHEMA IF EXISTS drizzle CASCADE;"; cat "$rendered_sql_path"; } > "$restore_sql_path"',
         ...(validateOnly

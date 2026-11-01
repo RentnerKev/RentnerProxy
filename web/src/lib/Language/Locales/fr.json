@@ -760,18 +760,26 @@
                     "source": "Version source",
                     "duration": "Durée",
                     "size": "Taille",
-                    "download": "Fichier de récupération"
+                    "download": "Fichier de récupération",
+                    "actions": "Actions"
                 },
                 "download": "Télécharger la sauvegarde",
                 "downloadLabel": "Télécharger la sauvegarde {{id}}",
                 "expired": "N’est plus conservée",
                 "notReady": "Pas encore prête",
-                "missingArtifact": "Aucun fichier vérifié"
+                "missingArtifact": "Aucun fichier vérifié",
+                "actionsLabel": "Actions pour la sauvegarde {{id}}",
+                "restore": "Restaurer la sauvegarde",
+                "delete": "Supprimer la sauvegarde"
             },
             "messages": {
                 "accepted": "Demande de sauvegarde enregistrée. L’appliance peut se déconnecter brièvement pendant la maintenance ; cette page s’actualisera automatiquement.",
-                "uncertain": "Le résultat de la demande n’a pas pu être confirmé. Actualisez d’abord l’historique. Une nouvelle tentative réutilise l’identifiant de cette demande et ne lance pas de deuxième sauvegarde.",
-                "saved": "Planification et conservation des sauvegardes enregistrées."
+                "uncertain": "Le résultat de la demande n’a pas pu être confirmé. Attendez la mise à jour de l’historique en direct. Une nouvelle tentative réutilise l’identifiant de cette demande et ne lance pas de deuxième sauvegarde.",
+                "saved": "Planification et conservation des sauvegardes enregistrées.",
+                "restoreAccepted": "Demande de restauration enregistrée. Suis les étapes confirmées pendant la récupération de l’appliance.",
+                "deleted": "Sauvegarde supprimée.",
+                "actionUncertain": "L’opération n’a pas pu être confirmée. Attends l’état actuel de l’appliance avant de réessayer.",
+                "actionAccepted": "Demande de suppression enregistrée. En attente de la confirmation de fin."
             },
             "errors": {
                 "authentication_required": "Votre session a expiré. Reconnectez-vous.",
@@ -787,7 +795,9 @@
                 "execution_failed": "La création de la sauvegarde a échoué. Vérifiez l’état et le stockage de l’appliance, puis réessayez.",
                 "interrupted": "La sauvegarde a été interrompue. Ce n’est pas un point de récupération confirmé ; créez une nouvelle sauvegarde.",
                 "artifact_invalid": "Le fichier de sauvegarde n’a pas réussi la vérification et ne peut pas servir de point de récupération.",
-                "recovery_failed": "L’appliance n’a pas pu confirmer le rétablissement des services après la maintenance de sauvegarde. Vérifiez son état avant de réessayer."
+                "appliance_required": "Cet historique contient des données de démonstration locales. Créer ou restaurer de vraies sauvegardes et enregistrer les planifications nécessite le service de sauvegarde de l’appliance Linux.",
+                "recovery_failed": "L’appliance n’a pas pu confirmer le rétablissement des services après la maintenance de sauvegarde. Vérifiez son état avant de réessayer.",
+                "not_found": "Cette sauvegarde n’existe plus. Choisis une autre entrée dans l’historique actuel."
             },
             "downloadErrors": {
                 "not_found": "Cette sauvegarde n’est plus disponible. Actualisez l’historique et choisissez un point de récupération conservé.",
@@ -802,7 +812,32 @@
                 "secret": "Une sauvegarde complète contient la base de données, les certificats, les clés privées et la clé de chiffrement de l’application. Gardez les téléchargements privés et protégez-les avec un stockage chiffré.",
                 "offHost": "Les sauvegardes locales partagent le volume de données de l’appliance. Téléchargez une copie sur un appareil distinct afin qu’une panne de l’hôte ou du volume ne détruise pas tous les points de récupération.",
                 "extract": "Extrayez le TAR téléchargé dans un répertoire vide et privé, puis conservez les cinq fichiers ensemble sans les modifier.",
-                "restore": "Utilisez la CLI restore:production de la version source avec le répertoire extrait comme --input. La restauration remplace les données de la cible et redémarre ses services ; vérifiez d’abord la récupération sur une cible isolée. Le processus existant de restauration en CLI reste obligatoire."
+                "restore": "Utilise Restaurer la sauvegarde dans le menu de la ligne pour restaurer une sauvegarde conservée et vérifiée sur cette appliance. Pour une autre cible, utilise la CLI restore:production de la version source avec le dossier extrait comme --input. La restauration remplace les données de la cible et redémarre les services ; vérifie-la d’abord sur une cible isolée."
+            },
+            "restoreConfirmTitle": "Restaurer cette sauvegarde ?",
+            "restoreConfirmDescription": "La sauvegarde {{id}} remplacera les données actuelles de l’appliance. Les services seront suspendus et tous les utilisateurs connectés verront la progression de la restauration. Les fichiers de sauvegarde créés après ce point de récupération seront conservés. Continue uniquement si tu souhaites remplacer les données actuelles.",
+            "deleteConfirmTitle": "Supprimer cette sauvegarde ?",
+            "deleteConfirmDescription": "Supprimer la sauvegarde {{id}} et ses fichiers stockés, le cas échéant ? Le point de récupération ou l’entrée de l’historique sera supprimé définitivement. Cette action est irréversible.",
+            "restoreScreen": {
+                "returnToPage": "Revenir à la page précédente",
+                "title": "Restauration de l’appliance",
+                "description": "{{user}} restaure la sauvegarde {{backup}}. Tous les utilisateurs connectés à cette appliance sont concernés.",
+                "progress": "{{percent}} % — étapes de restauration terminées",
+                "complete": "Restauration et reprise des services confirmées. Retour automatique à la page précédente.",
+                "failed": "La restauration a échoué ou la reprise des services n’a pas pu être confirmée. Vérifie l’état de l’appliance avant de continuer.",
+                "connectionLost": "La connexion à l’appliance a été interrompue. En attente d’un état de restauration confirmé ; la fin n’est pas encore confirmée.",
+                "actorUnknown": "Un administrateur",
+                "phases": {
+                    "queued": "Restauration en attente",
+                    "validating": "Vérification de la sauvegarde",
+                    "quiescing": "Suspension des services",
+                    "database": "Restauration de la base de données",
+                    "controller": "Restauration des données du contrôleur",
+                    "crowdsec": "Restauration des données CrowdSec",
+                    "secrets": "Restauration des secrets de l’application",
+                    "restarting": "Redémarrage et vérification des services",
+                    "complete": "Reprise confirmée"
+                }
             }
         },
         "migration": {

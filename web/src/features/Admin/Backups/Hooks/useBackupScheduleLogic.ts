@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
+import { toast } from '@rentnerkev/toasts'
 import type { ManagedBackupConfiguration } from '@/lib/Backups/Types/backups.types.ts'
 import { BackupClientError } from '@/lib/Backups/backupClient.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -18,7 +19,6 @@ export default function useBackupScheduleLogic(
     const { t } = useTranslationStore()
     const id = useId()
     const [base, setBase] = useState(props.configuration)
-    const [notice, setNotice] = useState('')
     const [pending, setPending] = useState(false)
     const busy = useRef(false)
     const receipt = useRef<{ fingerprint: string; requestId: string } | null>(null)
@@ -29,7 +29,10 @@ export default function useBackupScheduleLogic(
                 return
             const parsed = backupScheduleFormSchema.safeParse(value)
             if (!parsed.success) {
-                setNotice(t('admin.backups.errors.invalid_input'))
+                toast.error(t('admin.backups.errors.invalid_input'), {
+                    title: t('toast.titles.error'),
+                    dedupeKey: `backup-schedule:${props.storeId}:validation`,
+                })
                 return
             }
             busy.current = true
@@ -37,19 +40,27 @@ export default function useBackupScheduleLogic(
             const fingerprint = JSON.stringify({ ...parsed.data, expectedRevision: base.revision })
             if (receipt.current?.fingerprint !== fingerprint)
                 receipt.current = { fingerprint, requestId: crypto.randomUUID() }
+            const requestId = receipt.current.requestId
             try {
                 const saved = await props.onSave({
                     ...parsed.data,
                     expectedRevision: base.revision,
-                    requestId: receipt.current.requestId,
+                    requestId,
                 })
                 receipt.current = null
                 setBase(saved.configuration)
                 form.reset(fields(saved.configuration))
-                setNotice(t('admin.backups.messages.saved'))
+                toast.success(t('admin.backups.messages.saved'), {
+                    title: t('toast.titles.success'),
+                    dedupeKey: `backup-schedule:${requestId}:saved`,
+                })
             } catch (error) {
                 const code = error instanceof BackupClientError ? error.code : 'unavailable'
-                setNotice(t(`admin.backups.errors.${code}`))
+                if (code !== 'aborted')
+                    toast.error(t(`admin.backups.errors.${code}`), {
+                        title: t('toast.titles.error'),
+                        dedupeKey: `backup-schedule:${requestId}:${code}`,
+                    })
             } finally {
                 busy.current = false
                 setPending(false)
@@ -76,7 +87,6 @@ export default function useBackupScheduleLogic(
             locked,
             canSave: dirty && valid && !locked && !conflict,
             valid,
-            notice,
         },
         handler: {
             handleSubmit: (event) => {
@@ -91,7 +101,6 @@ export default function useBackupScheduleLogic(
                 setBase(props.configuration)
                 form.reset(fields(props.configuration))
                 receipt.current = null
-                setNotice('')
             },
         },
     }

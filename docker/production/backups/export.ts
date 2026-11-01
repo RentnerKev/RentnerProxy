@@ -21,6 +21,7 @@ import {
     writePrivateJson,
 } from './storage.ts'
 import type { BackupMetadata } from '../../../scripts/backup/Types/format.types.ts'
+import { restoreManagedBackup, validateRestoreDatabase } from './restore.ts'
 
 class IncompleteBackupCleanup extends Error {}
 
@@ -164,9 +165,14 @@ if (import.meta.main) {
         if (process.getuid?.() !== 0) throw new Error('backup requires owned supervisor')
         if (args.length === 1 && args[0] === '--request-id') {
             const request = z
-                .strictObject({ id: z.uuid() })
+                .strictObject({ id: z.uuid(), kind: z.literal('restore').optional() })
                 .parse(await readPrivateJson(controlRoot + '/active.json', 1024))
             console.log(request.id)
+        } else if (args.length === 1 && args[0] === '--request-kind') {
+            const request = z
+                .strictObject({ id: z.uuid(), kind: z.literal('restore').optional() })
+                .parse(await readPrivateJson(controlRoot + '/request.json', 1024))
+            console.log(request.kind ?? 'backup')
         } else if (args.length === 3 && args[0] === '--result') {
             const id = z.uuid().parse(args[1])
             const result = z.enum(['success', 'execution_failed', 'recovery_failed']).parse(args[2])
@@ -177,6 +183,18 @@ if (import.meta.main) {
             })
         } else if (args.length === 2 && args[0] === '--run') {
             await exportManagedBackup(z.uuid().parse(args[1]), controller.signal)
+        } else if (args.length === 2 && args[0] === '--restore') {
+            await restoreManagedBackup(z.uuid().parse(args[1]), controller.signal)
+        } else if (args.length === 3 && args[0] === '--validate-restore') {
+            if (
+                !args
+                    .slice(1)
+                    .every((path) =>
+                        /^\/(?:tmp|var\/lib\/rentnerproxy\/backups)\/[A-Za-z0-9_./-]+$/u.test(path),
+                    )
+            )
+                throw new Error('invalid validation path')
+            await validateRestoreDatabase(args[1]!, args[2]!)
         } else throw new Error('invalid operation')
     } catch (error) {
         console.error('[backups] Artifact creation failed')
