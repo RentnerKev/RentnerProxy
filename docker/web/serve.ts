@@ -27,6 +27,13 @@ const server = Bun.serve({
     maxRequestBodySize: 12 * 1024 * 1024,
     websocket: live.websocket,
     fetch: async (request, bunServer) => {
+        if (
+            request.method === 'GET' &&
+            /^\/api\/admin\/backups\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/download$/u.test(
+                new URL(request.url).pathname,
+            )
+        )
+            bunServer.timeout(request, 0)
         const result = await live.handle(request, bunServer)
         if (result.handled) return result.response
         return staticAssetFetch(request, bunServer)

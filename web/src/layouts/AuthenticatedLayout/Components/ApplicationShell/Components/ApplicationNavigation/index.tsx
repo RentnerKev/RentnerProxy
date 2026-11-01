@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
     ArrowRight,
+    Archive,
     Award,
     ChevronDown,
     ClipboardList,
@@ -181,6 +182,8 @@ export default function ApplicationNavigation({
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}
                                         />
+                                    ) : item.to === '/backups' ? (
+                                        <Archive aria-hidden="true" className="size-4" />
                                     ) : item.to === '/npm-import' || item.to === '/migration' ? (
                                         <Import
                                             aria-hidden="true"

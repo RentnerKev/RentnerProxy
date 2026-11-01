@@ -35,7 +35,7 @@ const navigationGroups = [
     },
     {
         id: 'records',
-        paths: ['/audit-logs', '/proxy-access-logs', '/migration', '/npm-import'],
+        paths: ['/audit-logs', '/proxy-access-logs', '/backups', '/migration', '/npm-import'],
     },
 ] as const satisfies readonly {
     readonly id: NavigationGroupId

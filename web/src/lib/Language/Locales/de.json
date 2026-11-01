@@ -116,6 +116,7 @@
         "otpIncomplete": "Gib alle {{count}} Ziffern des Codes ein."
     },
     "shell": {
+        "backups": "Backups",
         "home": "RentnerProxy-Startseite",
         "overviewLink": "RentnerProxy-Übersicht",
         "overview": "Übersicht",
@@ -689,6 +690,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "System / Wiederherstellung",
+            "title": "Backups",
+            "description": "Erstelle vollständige Appliance-Backups, verwalte automatische Zeitpläne und lade geprüfte Wiederherstellungspunkte herunter.",
+            "refresh": "Backups aktualisieren",
+            "start": "Backup erstellen",
+            "retryStart": "Backup-Anfrage erneut senden",
+            "confirmTitle": "Vollständiges Backup erstellen?",
+            "impact": "Die Appliance stoppt kurz die Verwaltungsoberfläche, den Proxy-Verkehr und CrowdSec, um ein konsistentes Backup zu erstellen. Bestehende Verbindungen können getrennt werden. Lass diese Seite geöffnet; der Status wird aktualisiert, sobald die Dienste wieder verfügbar sind. Geplante Backups haben dieselben Auswirkungen.",
+            "confirmStart": "Backup-Wartung starten",
+            "loading": "Backup-Verlauf und Zeitplan werden geladen…",
+            "unavailable": "Backup-Status vorübergehend nicht verfügbar",
+            "unavailableDescription": "Die Appliance führt möglicherweise eine Backup-Wartung durch. Der zuletzt empfangene Verlauf wird angezeigt; Aktionen bleiben deaktiviert, bis der Status aktualisiert werden kann.",
+            "forbidden": "Backup-Zugriff nicht verfügbar",
+            "forbiddenDescription": "Deine Sitzung oder Berechtigungen haben sich geändert. Melde dich erneut an oder bitte einen Eigentümer, dir Zugriff auf Backups zu gewähren.",
+            "lastSuccess": "Letztes erfolgreiches Backup",
+            "none": "Noch kein erfolgreiches Backup",
+            "active": "Aktuelles Backup",
+            "activeNone": "Kein Backup läuft",
+            "nextRun": "Nächstes geplantes Backup",
+            "disabled": "Automatische Backups sind deaktiviert",
+            "unknown": "Nicht verfügbar",
+            "viewOnly": "Du kannst den Backup-Verlauf ansehen. Zum Starten von Backups, Ändern von Zeitplänen und Herunterladen vollständiger Backups benötigst du die Berechtigung zur Backup-Verwaltung.",
+            "states": {
+                "queued": "In Warteschlange",
+                "running": "Läuft",
+                "succeeded": "Abgeschlossen",
+                "failed": "Fehlgeschlagen",
+                "interrupted": "Unterbrochen"
+            },
+            "origins": {
+                "manual": "Manuell",
+                "schedule": "Geplant"
+            },
+            "schedule": {
+                "title": "Zeitplan und Aufbewahrung",
+                "description": "Die Intervalle werden anhand des gespeicherten Zeitplans berechnet. Wenn du einen Zeitplan aktivierst oder sein Intervall änderst, wird das nächste Backup ab jetzt geplant.",
+                "enabled": "Automatische Backups aktivieren",
+                "interval": "Intervall in Stunden",
+                "intervalHelp": "Ganze Stunden von 1 bis 8.760. Berücksichtige ein für deine Dienste geeignetes Wartungsfenster.",
+                "retention": "Aufzubewahrende Wiederherstellungspunkte",
+                "retentionHelp": "Bewahre 1 bis 50 abgeschlossene Backups lokal auf. Ältere Kopien werden erst nach einem neuen, erfolgreich geprüften Backup entfernt; fehlgeschlagene Aufträge löschen niemals die letzte intakte Kopie.",
+                "save": "Backup-Einstellungen speichern",
+                "reset": "Aktuelle Einstellungen laden",
+                "conflict": "Die Backup-Einstellungen wurden an anderer Stelle geändert. Deine Änderungen wurden beibehalten. Lade vor dem erneuten Speichern die aktuellen Einstellungen."
+            },
+            "history": {
+                "title": "Backup-Verlauf",
+                "description": "Die letzten 100 Aufträge zeigen Status, Quellversion und Verfügbarkeit der Backup-Dateien. Nur aufbewahrte, abgeschlossene und geprüfte Backups können heruntergeladen werden.",
+                "searchLabel": "Backup-Verlauf durchsuchen",
+                "searchPlaceholder": "Status, Quellversion oder Backup-ID…",
+                "noData": "Noch keine Backups",
+                "emptyDescription": "Erstelle ein Backup oder aktiviere einen Zeitplan, um deinen ersten Wiederherstellungspunkt anzulegen.",
+                "itemLabel": "Backups",
+                "filteredEmptyTitle": "Keine passenden Backups",
+                "filteredEmptyDescription": "Ändere die Suche oder entferne die Filter, um weitere Backups anzuzeigen.",
+                "columns": {
+                    "requestedAt": "Angefordert",
+                    "origin": "Auslöser",
+                    "state": "Status",
+                    "source": "Quellversion",
+                    "duration": "Dauer",
+                    "size": "Größe",
+                    "download": "Wiederherstellungsdatei"
+                },
+                "download": "Backup herunterladen",
+                "downloadLabel": "Backup {{id}} herunterladen",
+                "expired": "Nicht mehr aufbewahrt",
+                "notReady": "Noch nicht bereit",
+                "missingArtifact": "Keine geprüfte Backup-Datei"
+            },
+            "messages": {
+                "accepted": "Backup-Anfrage erfasst. Während der Wartung kann die Verbindung zur Appliance kurz unterbrochen werden; diese Seite wird automatisch aktualisiert.",
+                "uncertain": "Das Ergebnis der Anfrage konnte nicht bestätigt werden. Aktualisiere zuerst den Verlauf. Beim erneuten Senden wird dieselbe Anfragekennung verwendet und kein zweites Backup gestartet.",
+                "saved": "Backup-Zeitplan und Aufbewahrung gespeichert."
+            },
+            "errors": {
+                "authentication_required": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
+                "permission_denied": "Du hast keine Berechtigung mehr, Backups zu verwalten.",
+                "invalid_input": "Gib ein Intervall von 1–8.760 ganzen Stunden und eine Aufbewahrungsanzahl von 1–50 ein.",
+                "busy": "Ein Backup oder dessen Wartung läuft bereits. Warte und aktualisiere den Verlauf.",
+                "revision_conflict": "Die Konfiguration wurde geändert oder diese Anfrage steht im Konflikt mit einer früheren. Lade die aktuellen Einstellungen und versuche es erneut.",
+                "capacity": "Die Backup-Kapazität ist vorübergehend nicht verfügbar. Prüfe den Appliance-Speicher und die Übermittlung der Audit-Ereignisse, bevor du es erneut versuchst.",
+                "rate_limited": "Zu viele Backup-Anfragen. Warte einen Moment und versuche es erneut.",
+                "unavailable": "Der Vorgang konnte nicht bestätigt werden. Aktualisiere die aktuellen Einstellungen, bevor du es erneut versuchst.",
+                "invalid_response": "Die Appliance hat eine unerwartete Antwort zurückgegeben. Aktualisiere vor einem erneuten Versuch.",
+                "aborted": "Der Vorgang konnte nicht bestätigt werden. Aktualisiere vor einem erneuten Versuch.",
+                "execution_failed": "Das Backup konnte nicht erstellt werden. Prüfe den Zustand und Speicher der Appliance und versuche es dann erneut.",
+                "interrupted": "Das Backup wurde unterbrochen. Es ist kein bestätigter Wiederherstellungspunkt; erstelle ein neues Backup.",
+                "artifact_invalid": "Die Backup-Datei hat die Prüfung nicht bestanden und kann nicht als Wiederherstellungspunkt verwendet werden.",
+                "recovery_failed": "Die Appliance konnte die Wiederaufnahme der Dienste nach der Backup-Wartung nicht bestätigen. Prüfe ihren Zustand, bevor du es erneut versuchst."
+            },
+            "downloadErrors": {
+                "not_found": "Dieses Backup ist nicht mehr verfügbar. Aktualisiere den Verlauf und wähle einen aufbewahrten Wiederherstellungspunkt.",
+                "conflict": "Dieses Backup konnte nicht geprüft werden oder ein anderer Download läuft. Aktualisiere und versuche erneut, ein aufbewahrtes Backup herunterzuladen.",
+                "unavailable": "Der Backup-Download ist vorübergehend nicht verfügbar. Prüfe den Zustand der Appliance und versuche es erneut.",
+                "permission_denied": "Zum Herunterladen vollständiger Backups benötigst du die Berechtigung zur Backup-Verwaltung.",
+                "authentication_required": "Deine Sitzung ist vor dem Download abgelaufen. Melde dich erneut an.",
+                "rate_limited": "Zu viele Download-Anfragen. Warte einen Moment, bevor du es erneut versuchst."
+            },
+            "recovery": {
+                "title": "Backup schützen und wiederherstellen",
+                "secret": "Ein vollständiges Backup enthält die Datenbank, Zertifikate, private Schlüssel und den Verschlüsselungsschlüssel der Anwendung. Halte Downloads privat und schütze sie durch verschlüsselte Speicherung.",
+                "offHost": "Lokale Backups liegen auf demselben Datenvolume wie die Appliance. Lade eine Kopie auf ein separates Gerät herunter, damit ein Host- oder Volume-Ausfall nicht alle Wiederherstellungspunkte zerstört.",
+                "extract": "Entpacke die heruntergeladene TAR-Datei in ein leeres, privates Verzeichnis und bewahre alle fünf Dateien unverändert zusammen auf.",
+                "restore": "Verwende die CLI restore:production der Quellversion mit dem entpackten Verzeichnis als --input. Die Wiederherstellung ersetzt die Daten des Ziels und startet dessen Dienste neu; prüfe sie zuerst auf einem isolierten Ziel. Der bestehende CLI-Wiederherstellungsprozess bleibt erforderlich."
+            }
+        },
         "migration": {
             "eyebrow": "System / Migration",
             "title": "Konfiguration übertragen",

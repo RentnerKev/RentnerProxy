@@ -45,7 +45,11 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                                     onClick={header.column.getToggleSortingHandler()}
                                                     className="inline-flex h-12 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left text-inherit outline-hidden transition-colors hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
                                                     aria-label={t('table.sortBy', {
-                                                        column: header.column.id,
+                                                        column:
+                                                            typeof header.column.columnDef
+                                                                .header === 'string'
+                                                                ? header.column.columnDef.header
+                                                                : header.column.id,
                                                     })}
                                                 >
                                                     <table.FlexRender header={header} />

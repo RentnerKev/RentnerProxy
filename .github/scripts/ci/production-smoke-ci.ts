@@ -41,6 +41,12 @@ export const smokeSuites = {
         source: '.github/scripts/ci/appliance-compose-smoke.ts',
         completion: /^Appliance Compose smoke passed: (\d+) assertions$/u,
     },
+    backups: {
+        label: 'Managed backups',
+        script: 'backups:smoke',
+        source: '.github/scripts/ci/managed-backups-smoke.ts',
+        completion: /^Managed backups integration: (\d+) checks passed\.$/u,
+    },
 } as const
 
 // Raw child output can contain assertion operands, generated credentials or PEM material.
@@ -85,6 +91,21 @@ export function smokeProgress(suite: Suite) {
     ])
     return {
         consume(line: string): string | undefined {
+            if (
+                suite === 'backups' &&
+                (/^Managed backup fixture failed during (?:setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit)$/u.test(
+                    line,
+                ) ||
+                    /^Managed backup download response: status=\d{3} tar=(?:true|false) private=(?:true|false) attachment=(?:true|false)$/u.test(
+                        line,
+                    ) ||
+                    /^Managed backup (?:controller|agent) response: status=\d{3} tar=(?:true|false)$/u.test(
+                        line,
+                    ))
+            ) {
+                diagnostic = line
+                return diagnostic
+            }
             if (isDockerBuildDiagnostic(line)) {
                 diagnostic = line
                 return diagnostic

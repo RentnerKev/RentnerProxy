@@ -1128,7 +1128,7 @@ describe('ProxyHost management table', () => {
         await chooseSelectOption('All statuses', 'Enabled')
         expect(getRows().length).toBeGreaterThan(0)
         await click(getButton('Reset filters'))
-        await click(getButton('Sort by domains'))
+        await click(getButton('Sort by Domains'))
         await chooseSelectOption('Rows per page', '10')
         await click(getButton('Go to next page'))
         expect(document.body.textContent).toContain('Page 2 of 2')
@@ -1202,7 +1202,7 @@ describe('ProxyHost management table', () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 3)
 
-        const createdSortButton = getButton('Sort by createdAt')
+        const createdSortButton = getButton('Sort by Created')
         const createdHeader = createdSortButton.closest('th')!
         expect(createdHeader.textContent).toContain('Created')
         expect(createdHeader.getAttribute('aria-sort')).toBe('descending')

@@ -149,8 +149,27 @@ export async function runManagedBackupsSmoke(): Promise<number> {
             timeoutMs,
             maximumOutputBytes: 1024 * 1024,
         })
-        if (result.failed || !result.stopped)
+        if (result.failed || !result.stopped) {
+            const phase =
+                /Managed backup fixture probe failed during (setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit)\b/u.exec(
+                    Buffer.from(result.stderr).toString('utf8'),
+                )?.[1]
+            if (phase && operation === 'fixture probe web-api')
+                console.error('Managed backup fixture failed during ' + phase)
+            const downloadStatus =
+                /Managed backup download response: status=\d{3} tar=(?:true|false) private=(?:true|false) attachment=(?:true|false)/u.exec(
+                    Buffer.from(result.stderr).toString('utf8'),
+                )?.[0]
+            if (downloadStatus) console.error(downloadStatus)
+            for (const layer of ['controller', 'agent']) {
+                const layerStatus = new RegExp(
+                    'Managed backup ' + layer + ' response: status=\\d{3} tar=(?:true|false)',
+                    'u',
+                ).exec(Buffer.from(result.stderr).toString('utf8'))?.[0]
+                if (layerStatus) console.error(layerStatus)
+            }
             throw new Error('Managed backup smoke operation failed: ' + operation)
+        }
         return Buffer.from(result.stdout).toString('utf8').trim()
     }
     async function bestEffort(args: string[]) {
@@ -564,15 +583,13 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         passed(
             'real web API enforces access and durable owner jobs with DB outcome notifications, queue policy and restart deduplication',
         )
+        passed(
+            'authenticated web download verifies the complete archive, rejects unauthorized and expired artifacts, and audits access',
+        )
 
         await command(
-            [
-                'docker',
-                'cp',
-                source + ':/var/lib/rentnerproxy/backups/artifacts/' + webJob.id,
-                backupPath,
-            ],
-            'copy fixture backup into private temporary storage',
+            ['docker', 'cp', source + ':/tmp/managed-backup-downloaded', backupPath],
+            'copy extracted authenticated download into private temporary storage',
         )
         await chmod(backupPath, 0o700)
         for (const name of [

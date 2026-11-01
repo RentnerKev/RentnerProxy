@@ -41,6 +41,9 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            - name: Root-owned backup download boundaries
+              run: sudo "$(command -v bun)" --no-env-file test --isolate ./web/src/tests/tooling/docker/production/backup-download.test.ts
+
             - name: Docker discovery socket proxy restrictions
               run: bun --no-env-file --no-orphans scripts/smoke/docker-discovery.ts
 
@@ -100,6 +103,9 @@ jobs:
 
             - name: Production appliance, backup and restore
               run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts production
+
+            - name: Managed backups, secure downloads and recovery
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts backups
 
             - name: Production appliance request draining
               run: bun --no-env-file --no-orphans .github/scripts/ci/appliance-drain-smoke.ts

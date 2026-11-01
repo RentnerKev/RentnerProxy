@@ -120,6 +120,7 @@
         "otpIncomplete": "Wprowadź wszystkie cyfry kodu. Wymagana liczba cyfr: {{count}}."
     },
     "shell": {
+        "backups": "Kopie zapasowe",
         "home": "Strona główna RentnerProxy",
         "overviewLink": "Przegląd RentnerProxy",
         "overview": "Przegląd",
@@ -693,6 +694,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "System / Odzyskiwanie",
+            "title": "Kopie zapasowe",
+            "description": "Twórz pełne kopie zapasowe urządzenia, zarządzaj automatycznymi harmonogramami i pobieraj zweryfikowane punkty przywracania.",
+            "refresh": "Odśwież kopie zapasowe",
+            "start": "Utwórz kopię zapasową",
+            "retryStart": "Ponów żądanie utworzenia kopii",
+            "confirmTitle": "Utworzyć pełną kopię zapasową?",
+            "impact": "Urządzenie na krótko zatrzymuje interfejs zarządzania, ruch proxy i CrowdSec, aby utworzyć spójną kopię zapasową. Istniejące połączenia mogą zostać zamknięte. Pozostaw tę stronę otwartą; status odświeży się po przywróceniu usług. Zaplanowane kopie mają taki sam wpływ.",
+            "confirmStart": "Rozpocznij konserwację w celu utworzenia kopii",
+            "loading": "Wczytywanie historii i harmonogramu kopii zapasowych…",
+            "unavailable": "Status kopii zapasowych jest chwilowo niedostępny",
+            "unavailableDescription": "Urządzenie może wykonywać prace związane z kopią zapasową. Wyświetlana jest ostatnio otrzymana historia; działania pozostają wyłączone do czasu odświeżenia statusu.",
+            "forbidden": "Brak dostępu do kopii zapasowych",
+            "forbiddenDescription": "Twoja sesja lub uprawnienia uległy zmianie. Zaloguj się ponownie lub poproś właściciela o przyznanie dostępu do kopii zapasowych.",
+            "lastSuccess": "Ostatnia udana kopia zapasowa",
+            "none": "Brak udanych kopii zapasowych",
+            "active": "Bieżąca kopia zapasowa",
+            "activeNone": "Żadna kopia zapasowa nie jest tworzona",
+            "nextRun": "Następna zaplanowana kopia zapasowa",
+            "disabled": "Automatyczne kopie zapasowe są wyłączone",
+            "unknown": "Niedostępne",
+            "viewOnly": "Możesz przeglądać historię kopii zapasowych. Rozpoczynanie tworzenia kopii, zmiana harmonogramów i pobieranie pełnych kopii wymagają uprawnienia do zarządzania kopiami zapasowymi.",
+            "states": {
+                "queued": "W kolejce",
+                "running": "W toku",
+                "succeeded": "Ukończona",
+                "failed": "Nieudana",
+                "interrupted": "Przerwana"
+            },
+            "origins": {
+                "manual": "Ręcznie",
+                "schedule": "Z harmonogramu"
+            },
+            "schedule": {
+                "title": "Harmonogram i przechowywanie",
+                "description": "Odstępy są obliczane na podstawie zapisanego harmonogramu. Włączenie harmonogramu lub zmiana odstępu wyznacza termin następnej kopii, licząc od teraz.",
+                "enabled": "Włącz automatyczne kopie zapasowe",
+                "interval": "Odstęp w godzinach",
+                "intervalHelp": "Pełne godziny od 1 do 8760. Wybierz okno konserwacji odpowiednie dla swoich usług.",
+                "retention": "Liczba przechowywanych punktów przywracania",
+                "retentionHelp": "Przechowuj lokalnie od 1 do 50 ukończonych kopii. Starsze kopie są usuwane dopiero po pomyślnym utworzeniu nowej, zweryfikowanej kopii; nieudane zadania nigdy nie usuwają ostatniej poprawnej kopii.",
+                "save": "Zapisz ustawienia kopii zapasowych",
+                "reset": "Wczytaj bieżące ustawienia",
+                "conflict": "Ustawienia kopii zapasowych zmieniono w innym miejscu. Twoje zmiany zostały zachowane. Wczytaj bieżące ustawienia przed ponownym zapisaniem."
+            },
+            "history": {
+                "title": "Historia kopii zapasowych",
+                "description": "Ostatnie 100 zadań zawiera status, wersję źródłową i dostępność plików. Można pobierać tylko przechowywane, ukończone i zweryfikowane kopie.",
+                "searchLabel": "Przeszukaj historię kopii zapasowych",
+                "searchPlaceholder": "Status, wersja źródłowa lub identyfikator kopii…",
+                "noData": "Brak kopii zapasowych",
+                "emptyDescription": "Utwórz kopię zapasową lub włącz harmonogram, aby zapisać pierwszy punkt przywracania.",
+                "itemLabel": "kopii zapasowych",
+                "filteredEmptyTitle": "Brak pasujących kopii zapasowych",
+                "filteredEmptyDescription": "Zmień wyszukiwanie lub wyczyść filtry, aby zobaczyć więcej kopii.",
+                "columns": {
+                    "requestedAt": "Zlecono",
+                    "origin": "Wyzwalacz",
+                    "state": "Status",
+                    "source": "Wersja źródłowa",
+                    "duration": "Czas trwania",
+                    "size": "Rozmiar",
+                    "download": "Plik przywracania"
+                },
+                "download": "Pobierz kopię zapasową",
+                "downloadLabel": "Pobierz kopię zapasową {{id}}",
+                "expired": "Nie jest już przechowywana",
+                "notReady": "Jeszcze niegotowa",
+                "missingArtifact": "Brak zweryfikowanego pliku"
+            },
+            "messages": {
+                "accepted": "Żądanie utworzenia kopii zostało zapisane. Podczas prac urządzenie może na krótko utracić połączenie; strona odświeży się automatycznie.",
+                "uncertain": "Nie udało się potwierdzić wyniku żądania. Najpierw odśwież historię. Ponowienie tego żądania używa tego samego identyfikatora i nie rozpoczyna tworzenia drugiej kopii.",
+                "saved": "Zapisano harmonogram i zasady przechowywania kopii."
+            },
+            "errors": {
+                "authentication_required": "Twoja sesja wygasła. Zaloguj się ponownie.",
+                "permission_denied": "Nie masz już uprawnienia do zarządzania kopiami zapasowymi.",
+                "invalid_input": "Podaj odstęp od 1 do 8760 pełnych godzin i liczbę przechowywanych kopii od 1 do 50.",
+                "busy": "Tworzenie kopii lub związane z nim prace już trwają. Poczekaj i odśwież historię.",
+                "revision_conflict": "Konfiguracja uległa zmianie lub żądanie jest sprzeczne z wcześniejszym. Wczytaj bieżące ustawienia i spróbuj ponownie.",
+                "capacity": "Możliwość tworzenia kopii jest chwilowo niedostępna. Przed ponowieniem sprawdź pamięć urządzenia i dostarczanie zdarzeń audytu.",
+                "rate_limited": "Zbyt wiele żądań utworzenia kopii. Poczekaj chwilę i spróbuj ponownie.",
+                "unavailable": "Nie udało się potwierdzić operacji. Przed ponowieniem odśwież bieżące ustawienia.",
+                "invalid_response": "Urządzenie zwróciło nieoczekiwaną odpowiedź. Odśwież przed ponowieniem.",
+                "aborted": "Nie udało się potwierdzić operacji. Odśwież przed ponowieniem.",
+                "execution_failed": "Nie udało się utworzyć kopii zapasowej. Sprawdź stan i pamięć urządzenia, a następnie spróbuj ponownie.",
+                "interrupted": "Tworzenie kopii zostało przerwane. Nie jest to potwierdzony punkt przywracania; utwórz nową kopię.",
+                "artifact_invalid": "Plik kopii nie przeszedł weryfikacji i nie może być użyty jako punkt przywracania.",
+                "recovery_failed": "Urządzenie nie mogło potwierdzić przywrócenia usług po pracach związanych z kopią zapasową. Przed ponowieniem sprawdź jego stan."
+            },
+            "downloadErrors": {
+                "not_found": "Ta kopia nie jest już dostępna. Odśwież historię i wybierz przechowywany punkt przywracania.",
+                "conflict": "Nie udało się zweryfikować tej kopii lub trwa inne pobieranie. Odśwież i spróbuj ponownie pobrać przechowywaną kopię.",
+                "unavailable": "Pobieranie kopii jest chwilowo niedostępne. Sprawdź stan urządzenia i spróbuj ponownie.",
+                "permission_denied": "Pobieranie pełnych kopii wymaga uprawnienia do zarządzania kopiami zapasowymi.",
+                "authentication_required": "Twoja sesja wygasła przed pobieraniem. Zaloguj się ponownie.",
+                "rate_limited": "Zbyt wiele żądań pobierania. Poczekaj chwilę przed ponowieniem."
+            },
+            "recovery": {
+                "title": "Chroń i przywracaj kopię zapasową",
+                "secret": "Pełna kopia zawiera bazę danych, certyfikaty, klucze prywatne i klucz szyfrowania aplikacji. Nie udostępniaj pobranych plików i chroń je, korzystając z szyfrowanej pamięci masowej.",
+                "offHost": "Lokalne kopie znajdują się na tym samym woluminie danych co urządzenie. Pobierz kopię na osobne urządzenie, aby awaria hosta lub woluminu nie zniszczyła wszystkich punktów przywracania.",
+                "extract": "Rozpakuj pobrany TAR do pustego, prywatnego katalogu i przechowuj wszystkie pięć plików razem bez ich edytowania.",
+                "restore": "Użyj narzędzia CLI restore:production z wersji źródłowej, podając rozpakowany katalog jako --input. Przywracanie zastępuje dane docelowe i ponownie uruchamia usługi; najpierw sprawdź odzyskiwanie na odizolowanym urządzeniu docelowym. Dotychczasowa procedura przywracania przez CLI nadal jest wymagana."
+            }
+        },
         "migration": {
             "eyebrow": "System / Migracja",
             "title": "Przenieś konfigurację",

@@ -9,7 +9,7 @@ import type { BackupMetadata } from './Types/format.types.ts'
 
 async function regularFile(path: string, maximum: number, sync = false): Promise<FileHandle> {
     const flags = sync && process.platform === 'win32' ? constants.O_RDWR : constants.O_RDONLY
-    const file = await open(path, flags | constants.O_NOFOLLOW)
+    const file = await open(path, flags | constants.O_NOFOLLOW | constants.O_NONBLOCK)
     try {
         const info = await file.stat()
         if (!info.isFile() || info.nlink !== 1 || info.size < 1 || info.size > maximum)
@@ -34,11 +34,17 @@ export async function syncBackupDirectory(path: string): Promise<void> {
     }
 }
 
-export async function verifyPublishedBackup(directory: string) {
+export async function verifyPublishedBackup(
+    directory: string,
+    signal?: AbortSignal,
+    progress?: () => void,
+) {
+    signal?.throwIfAborted()
     const metadataFile = await regularFile(join(directory, 'metadata.json'), 65_536)
     let bytes: Buffer
     try {
         bytes = await metadataFile.readFile()
+        progress?.()
     } finally {
         await metadataFile.close()
     }
@@ -51,25 +57,33 @@ export async function verifyPublishedBackup(directory: string) {
         ['crowdsec-state.tar', metadata.crowdSecState],
     ] as const
     for (const [name, expected] of artifacts) {
+        signal?.throwIfAborted()
         const file = await regularFile(join(directory, name), expected.bytes)
         try {
             if ((await file.stat()).size !== expected.bytes)
                 throw new Error('backup artifact size mismatch')
             const hash = createHash('sha256')
-            for (let offset = 0; offset < expected.bytes; offset += 65_536)
+            for (let offset = 0; offset < expected.bytes; offset += 65_536) {
+                signal?.throwIfAborted()
                 hash.update(
                     await readFileRange(file, offset, Math.min(65_536, expected.bytes - offset)),
                 )
+                progress?.()
+            }
             if (hash.digest('hex') !== expected.sha256)
                 throw new Error('backup artifact checksum mismatch')
-            if (name === 'app-encryption-key') await parseApplicationEncryptionKeyFile(file)
-            if (name === 'controller-state.tar') await validateStateArchiveFile(file, 'controller')
-            if (name === 'crowdsec-state.tar') await validateStateArchiveFile(file, 'crowdsec')
+            if (name === 'app-encryption-key')
+                await parseApplicationEncryptionKeyFile(file, signal, progress)
+            if (name === 'controller-state.tar')
+                await validateStateArchiveFile(file, 'controller', signal, progress)
+            if (name === 'crowdsec-state.tar')
+                await validateStateArchiveFile(file, 'crowdsec', signal, progress)
             totalBytes += expected.bytes
         } finally {
             await file.close()
         }
     }
+    signal?.throwIfAborted()
     return {
         metadata,
         metadataSha256: createHash('sha256').update(bytes).digest('hex'),

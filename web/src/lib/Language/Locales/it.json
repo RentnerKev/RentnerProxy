@@ -118,6 +118,7 @@
         "otpIncomplete": "Inserisci tutte le {{count}} cifre del codice."
     },
     "shell": {
+        "backups": "Backup",
         "home": "Home di RentnerProxy",
         "overviewLink": "Panoramica di RentnerProxy",
         "overview": "Panoramica",
@@ -691,6 +692,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "Sistema / Ripristino",
+            "title": "Backup",
+            "description": "Crea backup completi dell’appliance, gestisci le pianificazioni automatiche e scarica punti di ripristino verificati.",
+            "refresh": "Aggiorna backup",
+            "start": "Crea backup",
+            "retryStart": "Riprova la richiesta di backup",
+            "confirmTitle": "Creare un backup completo?",
+            "impact": "L’appliance arresta brevemente l’interfaccia di gestione, il traffico del proxy e CrowdSec per creare un backup coerente. Le connessioni esistenti potrebbero chiudersi. Tieni aperta questa pagina; lo stato si aggiornerà quando i servizi torneranno disponibili. I backup pianificati hanno lo stesso impatto.",
+            "confirmStart": "Avvia manutenzione per il backup",
+            "loading": "Caricamento della cronologia e della pianificazione dei backup…",
+            "unavailable": "Lo stato dei backup non è temporaneamente disponibile",
+            "unavailableDescription": "L’appliance potrebbe essere impegnata nella manutenzione per un backup. Viene mostrata l’ultima cronologia ricevuta; le azioni restano disabilitate finché non sarà possibile aggiornare lo stato.",
+            "forbidden": "L’accesso ai backup non è disponibile",
+            "forbiddenDescription": "La sessione o le autorizzazioni sono cambiate. Accedi di nuovo o chiedi a un proprietario di concederti l’accesso ai backup.",
+            "lastSuccess": "Ultimo backup riuscito",
+            "none": "Nessun backup riuscito finora",
+            "active": "Backup attuale",
+            "activeNone": "Nessun backup in corso",
+            "nextRun": "Prossimo backup pianificato",
+            "disabled": "I backup automatici sono disabilitati",
+            "unknown": "Non disponibile",
+            "viewOnly": "Puoi visualizzare la cronologia dei backup. Per avviare backup, modificare le pianificazioni e scaricare backup completi è necessaria l’autorizzazione alla gestione dei backup.",
+            "states": {
+                "queued": "In coda",
+                "running": "In corso",
+                "succeeded": "Completato",
+                "failed": "Non riuscito",
+                "interrupted": "Interrotto"
+            },
+            "origins": {
+                "manual": "Manuale",
+                "schedule": "Pianificato"
+            },
+            "schedule": {
+                "title": "Pianificazione e conservazione",
+                "description": "Gli intervalli vengono calcolati dalla pianificazione salvata. L’abilitazione di una pianificazione o la modifica del suo intervallo programma il prossimo backup a partire da adesso.",
+                "enabled": "Abilita backup automatici",
+                "interval": "Intervallo in ore",
+                "intervalHelp": "Ore intere da 1 a 8.760. Scegli una finestra di manutenzione adatta ai tuoi servizi.",
+                "retention": "Punti di ripristino da conservare",
+                "retentionHelp": "Conserva localmente da 1 a 50 backup completati. Le copie precedenti vengono rimosse solo dopo il completamento di un nuovo backup verificato; le operazioni non riuscite non eliminano mai l’ultima copia valida.",
+                "save": "Salva impostazioni dei backup",
+                "reset": "Carica impostazioni attuali",
+                "conflict": "Le impostazioni dei backup sono state modificate altrove. Le tue modifiche sono state conservate. Carica le impostazioni attuali prima di salvare di nuovo."
+            },
+            "history": {
+                "title": "Cronologia dei backup",
+                "description": "Le ultime 100 operazioni includono stato, versione di origine e disponibilità dei file. Si possono scaricare solo backup conservati, completati e verificati.",
+                "searchLabel": "Cerca nella cronologia dei backup",
+                "searchPlaceholder": "Stato, versione di origine o ID del backup…",
+                "noData": "Nessun backup finora",
+                "emptyDescription": "Crea un backup o abilita una pianificazione per registrare il primo punto di ripristino.",
+                "itemLabel": "backup",
+                "filteredEmptyTitle": "Nessun backup corrispondente",
+                "filteredEmptyDescription": "Modifica la ricerca o cancella i filtri per vedere altri backup.",
+                "columns": {
+                    "requestedAt": "Richiesto",
+                    "origin": "Attivazione",
+                    "state": "Stato",
+                    "source": "Versione di origine",
+                    "duration": "Durata",
+                    "size": "Dimensione",
+                    "download": "File di ripristino"
+                },
+                "download": "Scarica backup",
+                "downloadLabel": "Scarica backup {{id}}",
+                "expired": "Non più conservato",
+                "notReady": "Non pronto",
+                "missingArtifact": "Nessun file verificato"
+            },
+            "messages": {
+                "accepted": "Richiesta di backup registrata. L’appliance potrebbe disconnettersi brevemente durante la manutenzione; questa pagina si aggiornerà automaticamente.",
+                "uncertain": "Non è stato possibile confermare l’esito della richiesta. Aggiorna prima la cronologia. Riprovando questa richiesta viene riutilizzato lo stesso identificativo e non viene avviato un secondo backup.",
+                "saved": "Pianificazione e conservazione dei backup salvate."
+            },
+            "errors": {
+                "authentication_required": "La sessione è scaduta. Accedi di nuovo.",
+                "permission_denied": "Non hai più l’autorizzazione a gestire i backup.",
+                "invalid_input": "Inserisci un intervallo di 1–8.760 ore intere e un numero di backup da conservare di 1–50.",
+                "busy": "Un backup o la relativa manutenzione è già in corso. Attendi e aggiorna la cronologia.",
+                "revision_conflict": "La configurazione è cambiata o questa richiesta è in conflitto con una precedente. Carica le impostazioni attuali e riprova.",
+                "capacity": "La capacità di backup non è temporaneamente disponibile. Controlla l’archiviazione dell’appliance e l’invio degli eventi di audit prima di riprovare.",
+                "rate_limited": "Troppe richieste di backup. Attendi un momento e riprova.",
+                "unavailable": "Non è stato possibile confermare l’operazione. Aggiorna le impostazioni attuali prima di riprovare.",
+                "invalid_response": "L’appliance ha restituito una risposta imprevista. Aggiorna prima di riprovare.",
+                "aborted": "Non è stato possibile confermare l’operazione. Aggiorna prima di riprovare.",
+                "execution_failed": "Creazione del backup non riuscita. Controlla lo stato e l’archiviazione dell’appliance, quindi riprova.",
+                "interrupted": "Il backup è stato interrotto. Non è un punto di ripristino confermato; crea un nuovo backup.",
+                "artifact_invalid": "Il file di backup non ha superato la verifica e non può essere usato come punto di ripristino.",
+                "recovery_failed": "L’appliance non ha potuto confermare il ripristino dei servizi dopo la manutenzione per il backup. Controllane lo stato prima di riprovare."
+            },
+            "downloadErrors": {
+                "not_found": "Questo backup non è più disponibile. Aggiorna la cronologia e scegli un punto di ripristino conservato.",
+                "conflict": "Non è stato possibile verificare questo backup oppure è in corso un altro download. Aggiorna e riprova con un backup conservato.",
+                "unavailable": "Il download del backup non è temporaneamente disponibile. Controlla lo stato dell’appliance e riprova.",
+                "permission_denied": "Per scaricare backup completi è necessaria l’autorizzazione alla gestione dei backup.",
+                "authentication_required": "La sessione è scaduta prima del download. Accedi di nuovo.",
+                "rate_limited": "Troppe richieste di download. Attendi un momento prima di riprovare."
+            },
+            "recovery": {
+                "title": "Proteggi e ripristina il backup",
+                "secret": "Un backup completo contiene il database, i certificati, le chiavi private e la chiave di cifratura dell’applicazione. Mantieni privati i download e proteggili con un’archiviazione cifrata.",
+                "offHost": "I backup locali condividono il volume dati dell’appliance. Scarica una copia su un dispositivo separato per evitare che un guasto dell’host o del volume distrugga tutti i punti di ripristino.",
+                "extract": "Estrai il TAR scaricato in una directory vuota e privata e conserva tutti e cinque i file insieme senza modificarli.",
+                "restore": "Usa la CLI restore:production della versione di origine con la directory estratta come --input. Il ripristino sostituisce i dati della destinazione e riavvia i suoi servizi; verifica prima il ripristino su una destinazione isolata. Il processo di ripristino esistente tramite CLI rimane obbligatorio."
+            }
+        },
         "migration": {
             "eyebrow": "Sistema / Migrazione",
             "title": "Trasferisci configurazione",

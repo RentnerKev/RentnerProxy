@@ -457,7 +457,7 @@ describe('shared table preset', () => {
         await render(<TableHarness />)
         expect(getDataRows()[0]?.textContent).toContain('Zulu')
 
-        await click(getButton('Sort by name'))
+        await click(getButton('Sort by Name'))
         expect(getDataRows()[0]?.textContent).toContain('Alpha')
 
         await click(getButton('Filters'))

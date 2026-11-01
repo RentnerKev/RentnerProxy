@@ -47,7 +47,12 @@ export default function TableBody<TData extends RowData>({
                                     {row.getVisibleCells().map((cell) => (
                                         <td
                                             key={cell.id}
-                                            aria-label={t('table.cell', { column: cell.column.id })}
+                                            aria-label={t('table.cell', {
+                                                column:
+                                                    typeof cell.column.columnDef.header === 'string'
+                                                        ? cell.column.columnDef.header
+                                                        : cell.column.id,
+                                            })}
                                             className={`py-[0.85rem] align-middle text-[0.78rem] text-ink-soft ${cell.column.id === 'selection' ? 'w-px px-3 whitespace-nowrap' : 'px-4'} ${cell.column.id === 'actions' ? 'sticky right-0 bg-surface text-right' : ''}`}
                                         >
                                             <div className="min-w-0">

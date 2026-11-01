@@ -116,6 +116,7 @@
         "otpIncomplete": "Enter all {{count}} digits of the code."
     },
     "shell": {
+        "backups": "Backups",
         "home": "RentnerProxy home",
         "overviewLink": "RentnerProxy overview",
         "overview": "Overview",
@@ -689,6 +690,111 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "System / Recovery",
+            "title": "Backups",
+            "description": "Create complete appliance backups, manage automatic schedules and download verified recovery points.",
+            "refresh": "Refresh backups",
+            "start": "Create backup",
+            "retryStart": "Retry backup request",
+            "confirmTitle": "Create a complete backup?",
+            "impact": "The appliance briefly stops the management UI, proxy traffic and CrowdSec while creating a consistent backup. Existing connections may close. Keep this page open; status refreshes when the services return. Scheduled backups have the same impact.",
+            "confirmStart": "Start backup maintenance",
+            "loading": "Loading backup history and schedule…",
+            "unavailable": "Backup status is temporarily unavailable",
+            "unavailableDescription": "The appliance may be performing backup maintenance. The last received history is shown; actions stay disabled until status can be refreshed.",
+            "forbidden": "Backup access is unavailable",
+            "forbiddenDescription": "Your session or permissions changed. Sign in again or ask an owner to grant backup access.",
+            "lastSuccess": "Last successful backup",
+            "none": "No successful backup yet",
+            "active": "Current backup",
+            "activeNone": "No backup running",
+            "nextRun": "Next scheduled backup",
+            "disabled": "Automatic backups are disabled",
+            "unknown": "Not available",
+            "viewOnly": "You can view backup history. Starting backups, changing schedules and downloading complete backups require backup management permission.",
+            "states": {
+                "queued": "Queued",
+                "running": "Running",
+                "succeeded": "Completed",
+                "failed": "Failed",
+                "interrupted": "Interrupted"
+            },
+            "origins": { "manual": "Manual", "schedule": "Scheduled" },
+            "schedule": {
+                "title": "Schedule and retention",
+                "description": "Intervals are measured from the stored schedule. Enabling a schedule or changing its interval plans the next backup from now.",
+                "enabled": "Enable automatic backups",
+                "interval": "Interval in hours",
+                "intervalHelp": "Whole hours from 1 to 8,760. Choose a maintenance window appropriate for your services.",
+                "retention": "Recovery points to keep",
+                "retentionHelp": "Keep 1 to 50 completed backups locally. Older copies are removed only after a new verified backup succeeds; failed jobs never delete the last good copy.",
+                "save": "Save backup settings",
+                "reset": "Load current settings",
+                "conflict": "Backup settings changed elsewhere. Your edits have been kept. Load the current settings before saving again."
+            },
+            "history": {
+                "title": "Backup history",
+                "description": "The latest 100 jobs include status, source release and artifact availability. Only retained, completed, verified backups can be downloaded.",
+                "searchLabel": "Search backup history",
+                "searchPlaceholder": "Status, source version or backup ID…",
+                "noData": "No backups yet",
+                "emptyDescription": "Create a backup or enable a schedule to record your first recovery point.",
+                "itemLabel": "backups",
+                "filteredEmptyTitle": "No matching backups",
+                "filteredEmptyDescription": "Change the search or clear the filters to see more backups.",
+                "columns": {
+                    "requestedAt": "Requested",
+                    "origin": "Trigger",
+                    "state": "Status",
+                    "source": "Source release",
+                    "duration": "Duration",
+                    "size": "Size",
+                    "download": "Recovery artifact"
+                },
+                "download": "Download backup",
+                "downloadLabel": "Download backup {{id}}",
+                "expired": "No longer retained",
+                "notReady": "Not ready",
+                "missingArtifact": "No verified artifact"
+            },
+            "messages": {
+                "accepted": "Backup request recorded. The appliance may briefly disconnect during maintenance; this page will refresh automatically.",
+                "uncertain": "The request result could not be confirmed. Refresh the history first. Retrying this request reuses its identity and does not start a second backup.",
+                "saved": "Backup schedule and retention saved."
+            },
+            "errors": {
+                "authentication_required": "Your session expired. Sign in again.",
+                "permission_denied": "You no longer have permission to manage backups.",
+                "invalid_input": "Enter an interval of 1–8,760 whole hours and a retention count of 1–50.",
+                "busy": "A backup or its maintenance is already active. Wait and refresh the history.",
+                "revision_conflict": "The configuration changed or this request conflicts with an earlier one. Load the current settings and try again.",
+                "capacity": "Backup capacity is temporarily unavailable. Check appliance storage and audit delivery before retrying.",
+                "rate_limited": "Too many backup requests. Wait a moment and try again.",
+                "unavailable": "The operation could not be confirmed. Refresh the current settings before retrying.",
+                "invalid_response": "The appliance returned an unexpected response. Refresh before retrying.",
+                "aborted": "The operation could not be confirmed. Refresh before retrying.",
+                "execution_failed": "Backup creation failed. Check appliance health and storage, then retry.",
+                "interrupted": "The backup was interrupted. It is not a confirmed recovery point; create a new backup.",
+                "artifact_invalid": "The backup artifact failed verification and cannot be used as a recovery point.",
+                "recovery_failed": "The appliance could not confirm service recovery after backup maintenance. Check its health before retrying."
+            },
+            "downloadErrors": {
+                "not_found": "This backup is no longer available. Refresh the history and choose a retained recovery point.",
+                "conflict": "This backup could not be verified or another download is active. Refresh and try a retained backup again.",
+                "unavailable": "The backup download is temporarily unavailable. Check appliance health and try again.",
+                "permission_denied": "Downloading complete backups requires backup management permission.",
+                "authentication_required": "Your session expired before the download. Sign in again.",
+                "rate_limited": "Too many download requests. Wait a moment before retrying."
+            },
+            "recovery": {
+                "title": "Protect and restore your backup",
+                "secret": "A complete backup contains the database, certificates, private keys and application encryption key. Keep downloads private and protect them with encrypted storage.",
+                "offHost": "Local backups share the appliance's data volume. Download a copy to a separate device so a failed host or volume does not destroy every recovery point.",
+                "extract": "Extract the downloaded TAR into an empty, private directory and keep all five files together without editing them.",
+                "restore": "Use the source release's restore:production CLI with the extracted directory as --input. Restore replaces the target's data and restarts its services; verify recovery on an isolated target first. The existing CLI restore process remains required."
+            }
+        },
         "migration": {
             "eyebrow": "System / Migration",
             "title": "Transfer configuration",
