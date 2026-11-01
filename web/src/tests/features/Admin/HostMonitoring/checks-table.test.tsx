@@ -172,9 +172,9 @@ test('polling and loading older checks preserve the current page and column filt
 
 test('numeric duration sorting preserves measured zeroes and keeps missing values last', async () => {
     await render()
-    await click(byLabel('Sort by durationMs'))
-    if (byLabel('Sort by durationMs')?.closest('th')?.getAttribute('aria-sort') !== 'ascending') {
-        await click(byLabel('Sort by durationMs'))
+    await click(byLabel('Sort by Duration'))
+    if (byLabel('Sort by Duration')?.closest('th')?.getAttribute('aria-sort') !== 'ascending') {
+        await click(byLabel('Sort by Duration'))
     }
     expect(dataRows()[0]?.children[2]?.textContent).toBe('0 ms')
     await click(byLabel('Go to last page'))
