@@ -11,12 +11,16 @@ import {
 import { encryptBackup, recoveryKeyId } from '../../../scripts/backup/offhost/envelope.ts'
 import { createS3Storage, validateS3Target } from '../../../scripts/backup/offhost/s3.ts'
 import {
+    offHostConfigurationAuditSchema,
     offHostConfigurationUpdateSchema,
     offHostReceiptSchema,
     offHostStatusSchema,
 } from '../../../web/src/lib/Backups/offHostValidation.ts'
 import type { ManagedBackupJob } from '../../../web/src/lib/Backups/Types/backups.types.ts'
-import type { OffHostReceipt } from '../../../web/src/lib/Backups/Types/off-host.types.ts'
+import type {
+    OffHostConfigurationAudit,
+    OffHostReceipt,
+} from '../../../web/src/lib/Backups/Types/off-host.types.ts'
 import { artifactsRoot, backupRoot, readPrivateJson, writePrivateJson } from './storage.ts'
 import { ManagedBackupError } from '../../../scripts/backup/managed-jobs.ts'
 
@@ -25,15 +29,38 @@ const secretSchema = z.strictObject({
     secretAccessKey: z.string().min(1).max(512),
     recoveryKey: z.string(),
 })
-const stateSchema = z.strictObject({
-    version: z.literal(1),
-    configuration: offHostStatusSchema.omit({ retainedCopies: true }),
-    sealed: z.strictObject({ iv: z.string().max(32), ciphertext: z.string().max(4096) }).nullable(),
-    receipts: z.array(offHostReceiptSchema).max(100),
-    requests: z
-        .array(z.strictObject({ id: z.uuid(), fingerprint: z.string().length(64) }))
-        .max(100),
-})
+const stateSchema = z
+    .strictObject({
+        version: z.literal(1),
+        configuration: offHostStatusSchema.omit({ retainedCopies: true }),
+        sealed: z
+            .strictObject({ iv: z.string().max(32), ciphertext: z.string().max(4096) })
+            .nullable(),
+        receipts: z.array(offHostReceiptSchema).max(100),
+        requests: z
+            .array(
+                z.strictObject({
+                    id: z.uuid(),
+                    actorId: z.uuid().optional(),
+                    fingerprint: z.string().length(64),
+                }),
+            )
+            .max(100),
+        pendingAudit: offHostConfigurationAuditSchema.optional(),
+    })
+    .superRefine((state, context) => {
+        const pending = state.pendingAudit
+        if (
+            pending &&
+            !state.requests.some(
+                (request) =>
+                    request.id === pending.requestId &&
+                    request.actorId === pending.actorId &&
+                    request.fingerprint === pending.fingerprint,
+            )
+        )
+            context.addIssue({ code: 'custom', message: 'invalid off-host audit ownership' })
+    })
 type State = z.infer<typeof stateSchema>
 const aad = (targetId: string) => Buffer.from('rentnerproxy-off-host-configuration-v1:' + targetId)
 const statePath = join(backupRoot, 'off-host.json')
@@ -169,10 +196,26 @@ export async function createOffHostBackupService(
               }
             : stateSchema.parse(loaded)
 
+    let uncertain = false
+    async function reload() {
+        const durable = await dependencies.read()
+        if (durable !== null) state = stateSchema.parse(durable)
+        else if (state.configuration.revision !== 0 || state.requests.length !== 0)
+            throw new Error('off-host state unavailable')
+        uncertain = false
+    }
     async function commit(draft: State) {
         stateSchema.parse(draft)
-        await dependencies.write(draft)
-        state = structuredClone(draft)
+        try {
+            await dependencies.write(draft)
+            state = structuredClone(draft)
+        } catch (error) {
+            // A failed fsync can follow a successful rename. Recover the authority,
+            // including its atomic audit outbox, before another operation can write.
+            uncertain = true
+            await reload().catch(() => {})
+            throw error
+        }
     }
     function status() {
         return offHostStatusSchema.parse({
@@ -204,6 +247,7 @@ export async function createOffHostBackupService(
     }
     async function configure(input: unknown) {
         const request = offHostConfigurationUpdateSchema.parse(input)
+        await reload()
         const fingerprint = createHash('sha256').update(JSON.stringify(request)).digest('hex')
         const previous = state.requests.find((entry) => entry.id === request.requestId)
         if (previous) {
@@ -213,6 +257,7 @@ export async function createOffHostBackupService(
         }
         if (request.expectedRevision !== state.configuration.revision)
             throw new ManagedBackupError('revision_conflict')
+        if (state.pendingAudit) throw new ManagedBackupError('busy')
         if (request.recoveryKey && !request.recoveryKeySaved)
             throw new Error('recovery key must be saved')
         if (
@@ -224,7 +269,12 @@ export async function createOffHostBackupService(
             const disabled = structuredClone(state)
             disabled.configuration.enabled = false
             disabled.configuration.revision += 1
-            disabled.requests.push({ id: request.requestId, fingerprint })
+            disabled.pendingAudit = {
+                requestId: request.requestId,
+                actorId: request.actorId,
+                fingerprint,
+            }
+            disabled.requests.push({ id: request.requestId, actorId: request.actorId, fingerprint })
             disabled.requests = disabled.requests.slice(-100)
             await commit(disabled)
             return status()
@@ -288,7 +338,8 @@ export async function createOffHostBackupService(
             targetId,
             keyId,
         }
-        draft.requests.push({ id: request.requestId, fingerprint })
+        draft.pendingAudit = { requestId: request.requestId, actorId: request.actorId, fingerprint }
+        draft.requests.push({ id: request.requestId, actorId: request.actorId, fingerprint })
         draft.requests = draft.requests.slice(-100)
         await commit(draft)
         return status()
@@ -298,6 +349,7 @@ export async function createOffHostBackupService(
         retention: number | (() => number),
         signal?: AbortSignal,
     ): Promise<OffHostReceipt | null> {
+        if (uncertain) await reload()
         if (!state.configuration.enabled) return null
         if (!job.artifact || !state.configuration.targetId || !state.configuration.keyId)
             throw new Error('off-host backup unavailable')
@@ -398,6 +450,7 @@ export async function createOffHostBackupService(
         }
     }
     async function pause() {
+        if (uncertain) await reload()
         if (!state.configuration.enabled) return
         const draft = structuredClone(state)
         draft.configuration.enabled = false
@@ -415,6 +468,22 @@ export async function createOffHostBackupService(
     }
     return {
         status,
+        pendingConfigurationAudit: () =>
+            serialize(async () => {
+                await reload()
+                return state.pendingAudit ? structuredClone(state.pendingAudit) : null
+            }),
+        acknowledgeConfigurationAudit: (input: OffHostConfigurationAudit) =>
+            serialize(async () => {
+                const receipt = offHostConfigurationAuditSchema.parse(input)
+                await reload()
+                if (!state.pendingAudit) return
+                if (JSON.stringify(state.pendingAudit) !== JSON.stringify(receipt))
+                    throw new ManagedBackupError('revision_conflict')
+                const draft = structuredClone(state)
+                delete draft.pendingAudit
+                await commit(draft)
+            }),
         configure: (input: unknown) => serialize(() => configure(input)),
         upload: (job: ManagedBackupJob, retention: number | (() => number), signal?: AbortSignal) =>
             serialize(() => upload(job, retention, signal)),

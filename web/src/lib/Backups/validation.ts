@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { BACKUP_AUDIT_POLICY } from '../../config/backups.config.ts'
-import { offHostJobSchema, offHostStatusSchema } from './offHostValidation.ts'
+import {
+    offHostConfigurationAuditSchema,
+    offHostJobSchema,
+    offHostStatusSchema,
+} from './offHostValidation.ts'
 
 const timestamp = z.number().int().nonnegative().safe()
 const digest = z.string().regex(/^[a-f0-9]{64}$/u)
@@ -139,6 +143,7 @@ export const managedBackupStateSchema = managedBackupStatusSchema
             )
             .max(100),
         maintenanceRequests: z.array(managedBackupMaintenanceSchema).max(100).optional(),
+        offHostConfigurationAudits: z.array(offHostConfigurationAuditSchema).max(100).optional(),
     })
     .superRefine((state, context) => {
         let previous = state.auditAcknowledged ?? (state.auditEvents[0]?.sequence ?? 1) - 1

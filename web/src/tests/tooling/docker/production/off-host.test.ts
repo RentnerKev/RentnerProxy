@@ -18,7 +18,12 @@ import {
     createOffHostBackupService,
 } from '../../../../../../docker/production/backups/off-host.ts'
 import { recoveryKeyId } from '../../../../../../scripts/backup/offhost/envelope.ts'
-import type { ManagedBackupJob } from '../../../../lib/Backups/Types/backups.types.ts'
+import { createManagedBackupEngine } from '../../../../../../scripts/backup/managed-jobs.ts'
+import type { ManagedBackupDependencies } from '../../../../../../scripts/backup/Types/managed-jobs.types.ts'
+import type {
+    ManagedBackupJob,
+    ManagedBackupState,
+} from '../../../../lib/Backups/Types/backups.types.ts'
 
 type Dependencies = NonNullable<Parameters<typeof createOffHostBackupService>[0]>
 type State = Parameters<Dependencies['write']>[0]
@@ -112,12 +117,46 @@ function fixture() {
     }
 }
 
+async function configure(
+    service: Awaited<ReturnType<typeof createOffHostBackupService>>,
+    input: unknown,
+) {
+    const status = await service.configure(input)
+    const pending = await service.pendingConfigurationAudit()
+    if (pending) await service.acknowledgeConfigurationAudit(pending)
+    return status
+}
+
+function managedFixture(
+    f: ReturnType<typeof fixture>,
+    service: Awaited<ReturnType<typeof createOffHostBackupService>>,
+) {
+    let saved: ManagedBackupState | null = null
+    const dependencies: ManagedBackupDependencies = {
+        read: async () => structuredClone(saved),
+        write: async (state) => {
+            saved = structuredClone(state)
+        },
+        now: () => 1234,
+        id: f.id,
+        source: () => f.job().source,
+        execute: async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 }),
+        verify: async () => true,
+        remove: async () => {},
+        offHostAudit: {
+            pending: service.pendingConfigurationAudit,
+            acknowledge: service.acknowledgeConfigurationAudit,
+        },
+    }
+    return { dependencies, persisted: () => saved! }
+}
+
 describe('off-host backup service', () => {
     test('wraps credentials and recovery key at rest and exposes only public status', async () => {
         const f = fixture()
         const service = await createOffHostBackupService(f.dependencies)
         const configuration = f.config()
-        await service.configure(configuration)
+        await configure(service, configuration)
         const persisted = JSON.stringify(f.persisted())
         const publicStatus = JSON.stringify(service.status())
         for (const secret of [
@@ -139,9 +178,9 @@ describe('off-host backup service', () => {
         const f = fixture()
         const service = await createOffHostBackupService(f.dependencies)
         const configuration = f.config()
-        const status = await service.configure(configuration)
+        const status = await configure(service, configuration)
         const writes = f.writes()
-        expect(await service.configure(configuration)).toEqual(status)
+        expect(await configure(service, configuration)).toEqual(status)
         expect(f.writes()).toBe(writes)
         await expect(
             service.configure({ ...configuration, prefix: 'changed' }),
@@ -186,11 +225,11 @@ describe('off-host backup service', () => {
     test('rotates target and recovery-key namespaces while preserving copies belonging to older targets', async () => {
         const f = fixture()
         const service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         const first = await service.upload(f.job(), 1)
-        await service.configure({ ...f.config(1), bucket: 'other-backups' })
+        await configure(service, { ...f.config(1), bucket: 'other-backups' })
         const second = await service.upload(f.job(), 1)
-        await service.configure({
+        await configure(service, {
             ...f.config(2),
             bucket: 'other-backups',
             recoveryKey: Buffer.alloc(32, 33).toString('base64'),
@@ -208,7 +247,7 @@ describe('off-host backup service', () => {
         const f = fixture()
         let service = await createOffHostBackupService(f.dependencies)
         const original = f.config()
-        await service.configure(original)
+        await configure(service, original)
         f.dependencies.wrappingKey = async () => {
             throw new Error('lost wrapping key')
         }
@@ -225,7 +264,7 @@ describe('off-host backup service', () => {
         } = original
         expect(
             (
-                await service.configure({
+                await configure(service, {
                     ...publicConfig,
                     requestId: f.id(),
                     expectedRevision: 1,
@@ -237,7 +276,7 @@ describe('off-host backup service', () => {
         expect(f.puts).toEqual([])
         f.dependencies.wrappingKey = async () => Buffer.alloc(32, 44)
         f.dependencies.validateTarget = async (target) => target
-        await service.configure(f.config(2))
+        await configure(service, f.config(2))
         expect(await service.upload(f.job(), 1)).not.toBeNull()
     })
 
@@ -246,7 +285,7 @@ describe('off-host backup service', () => {
         async (failure) => {
             const f = fixture()
             const service = await createOffHostBackupService(f.dependencies)
-            await service.configure(f.config())
+            await configure(service, f.config())
             const original = await service.upload(f.job(), 1)
             if (failure === 'hash')
                 f.dependencies.hash = async () => ({ bytes: 123, sha256: 'b'.repeat(64) })
@@ -272,7 +311,7 @@ describe('off-host backup service', () => {
     test('readback verification precedes replacement deletion and removes exact owned receipts only', async () => {
         const f = fixture()
         const service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         const first = await service.upload(f.job(), 1)
         const originalHash = f.dependencies.hash
         f.dependencies.hash = async (...args) => {
@@ -289,7 +328,7 @@ describe('off-host backup service', () => {
     test('refuses capacity overflow without uploading or deleting and pause stops replication', async () => {
         const f = fixture()
         let service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         const receipt = await service.upload(f.job(), 100)
         f.persisted().receipts = Array.from({ length: 100 }, (_, index) => ({
             ...receipt!,
@@ -321,14 +360,14 @@ describe('off-host backup service', () => {
     test('reclaims obsolete ledger references at capacity without deleting old target objects', async () => {
         const f = fixture()
         let service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         const receipt = await service.upload(f.job(), 1)
         f.persisted().receipts = Array.from({ length: 100 }, (_, index) => ({
             ...receipt!,
             objectKey: receipt!.targetId + '/' + index + '.rpbk',
         }))
         service = await createOffHostBackupService(f.dependencies)
-        await service.configure({ ...f.config(1), bucket: 'rotated-target' })
+        await configure(service, { ...f.config(1), bucket: 'rotated-target' })
         const uploaded = await service.upload(f.job(), 1)
         expect(f.removed).toEqual([])
         expect(f.persisted().receipts).toHaveLength(100)
@@ -342,7 +381,7 @@ describe('off-host backup service', () => {
     test('capacity recovery cannot prune anything until an existing copy passes full readback verification', async () => {
         const f = fixture()
         let service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         const receipt = await service.upload(f.job(), 1)
         f.persisted().receipts = Array.from({ length: 100 }, (_, index) => ({
             ...receipt!,
@@ -359,7 +398,7 @@ describe('off-host backup service', () => {
     test('reads the latest retention policy after readback and before each deletion', async () => {
         const f = fixture()
         const service = await createOffHostBackupService(f.dependencies)
-        await service.configure(f.config())
+        await configure(service, f.config())
         await service.upload(f.job(), 100)
         await service.upload(f.job(), 100)
         let keep = 1
@@ -384,6 +423,384 @@ describe('off-host backup service', () => {
         await service.upload(f.job(), () => keep)
         expect(f.removed).toHaveLength(1)
         expect(f.persisted().receipts).toHaveLength(3)
+    })
+})
+
+describe('durable off-host configuration audit outbox', () => {
+    test('a failed target write has no audit and leaves no pending change', async () => {
+        const f = fixture()
+        const service = await createOffHostBackupService(f.dependencies)
+        const m = managedFixture(f, service)
+        const engine = await createManagedBackupEngine(m.dependencies)
+        f.dependencies.write = async () => {
+            throw new Error('target write failed')
+        }
+        await expect(
+            engine.configureOffHost(async () => {
+                await service.configure(f.config())
+            }),
+        ).rejects.toThrow('target write failed')
+        expect(service.status().revision).toBe(0)
+        expect(await service.pendingConfigurationAudit()).toBeNull()
+        expect((await engine.status()).auditEvents).toEqual([])
+        expect((await engine.start({ requestId: f.id(), actorId: f.id() })).state).toBe('queued')
+    })
+
+    test.each([true, false])(
+        'restart repairs target success followed by failed audit persistence (enabled: %s)',
+        async (enabled) => {
+            const f = fixture()
+            const service = await createOffHostBackupService(f.dependencies)
+            const m = managedFixture(f, service)
+            let engine = await createManagedBackupEngine(m.dependencies)
+            const initial = f.config()
+            await engine.configureOffHost(async () => {
+                await service.configure(initial)
+            })
+            const {
+                accessKeyId: _access,
+                secretAccessKey: _secret,
+                recoveryKey: _key,
+                recoveryKeySaved: _saved,
+                ...publicConfiguration
+            } = initial
+            const request = {
+                ...publicConfiguration,
+                requestId: f.id(),
+                expectedRevision: 1,
+                enabled,
+            }
+            const write = m.dependencies.write
+            m.dependencies.write = async () => {
+                throw new Error('audit write failed')
+            }
+            await expect(
+                engine.configureOffHost(async () => {
+                    await service.configure(request)
+                }),
+            ).rejects.toThrow('audit write failed')
+            expect(service.status()).toMatchObject({ enabled, revision: 2 })
+            const pending = await service.pendingConfigurationAudit()
+            expect(pending).toMatchObject({
+                requestId: request.requestId,
+                actorId: request.actorId,
+            })
+            expect(Object.keys(pending!).toSorted()).toEqual([
+                'actorId',
+                'fingerprint',
+                'requestId',
+            ])
+            expect((await engine.status()).auditEvents).toHaveLength(1)
+            await expect(
+                engine.start({ requestId: f.id(), actorId: f.id() }),
+            ).rejects.toMatchObject({ code: 'busy' })
+            await expect(
+                engine.updateConfiguration({
+                    requestId: f.id(),
+                    actorId: f.id(),
+                    expectedRevision: 0,
+                    enabled: false,
+                    intervalHours: 1,
+                    retentionCount: 1,
+                }),
+            ).rejects.toMatchObject({ code: 'busy' })
+            await engine.tick()
+            expect((await engine.status()).jobs).toEqual([])
+            await expect(
+                service.configure({ ...request, requestId: f.id(), expectedRevision: 2 }),
+            ).rejects.toMatchObject({ code: 'busy' })
+            for (const secret of [
+                initial.accessKeyId,
+                initial.secretAccessKey,
+                initial.recoveryKey,
+            ])
+                expect(JSON.stringify(m.persisted())).not.toContain(secret)
+            m.dependencies.write = write
+            engine = await createManagedBackupEngine(m.dependencies)
+            expect((await engine.status()).auditEvents).toHaveLength(2)
+            expect(
+                m.persisted().offHostConfigurationAudits?.map((entry) => entry.requestId),
+            ).toEqual([initial.requestId, request.requestId])
+            expect(await service.pendingConfigurationAudit()).toBeNull()
+            await engine.configureOffHost(async () => {
+                await service.configure(request)
+            })
+            expect((await engine.status()).auditEvents).toHaveLength(2)
+        },
+    )
+
+    test('a target rename followed by failed fsync reloads its authoritative configuration and outbox', async () => {
+        const f = fixture()
+        const service = await createOffHostBackupService(f.dependencies)
+        const m = managedFixture(f, service)
+        const engine = await createManagedBackupEngine(m.dependencies)
+        const write = f.dependencies.write
+        let first = true
+        f.dependencies.write = async (state) => {
+            await write(state)
+            if (first) {
+                first = false
+                throw new Error('directory fsync failed after rename')
+            }
+        }
+        const request = f.config()
+        await expect(
+            engine.configureOffHost(async () => {
+                await service.configure(request)
+            }),
+        ).rejects.toThrow('directory fsync failed after rename')
+        expect(service.status()).toMatchObject({ enabled: true, revision: 1 })
+        expect((await engine.status()).auditEvents).toMatchObject([
+            { kind: 'off_host_configuration_updated', actorId: request.actorId },
+        ])
+        expect(await service.pendingConfigurationAudit()).toBeNull()
+        await engine.configureOffHost(async () => {
+            await service.configure(request)
+        })
+        expect((await engine.status()).auditEvents).toHaveLength(1)
+    })
+
+    test('an unreadable authoritative target after a partial commit fences work until recovery can prove the change', async () => {
+        const f = fixture()
+        const service = await createOffHostBackupService(f.dependencies)
+        const m = managedFixture(f, service)
+        const engine = await createManagedBackupEngine(m.dependencies)
+        const write = f.dependencies.write
+        const read = f.dependencies.read
+        let unavailable = false
+        f.dependencies.read = async () => {
+            if (unavailable) throw new Error('target authority temporarily unreadable')
+            return read()
+        }
+        f.dependencies.write = async (state) => {
+            await write(state)
+            unavailable = true
+            throw new Error('target fsync failed after rename')
+        }
+        const request = f.config()
+        await expect(
+            engine.configureOffHost(async () => {
+                await service.configure(request)
+            }),
+        ).rejects.toThrow('target authority temporarily unreadable')
+        expect(f.persisted().configuration.revision).toBe(1)
+        expect(f.persisted().pendingAudit?.requestId).toBe(request.requestId)
+        expect((await engine.status()).auditEvents).toEqual([])
+        await expect(engine.start({ requestId: f.id(), actorId: f.id() })).rejects.toMatchObject({
+            code: 'busy',
+        })
+        unavailable = false
+        f.dependencies.write = write
+        await engine.tick()
+        expect(service.status().revision).toBe(1)
+        expect((await engine.status()).auditEvents).toHaveLength(1)
+        expect(await service.pendingConfigurationAudit()).toBeNull()
+        await engine.configureOffHost(async () => {
+            await service.configure(request)
+        })
+        expect((await engine.status()).auditEvents).toHaveLength(1)
+    })
+
+    test.each(['actor', 'payload'] as const)(
+        'a changed %s cannot reuse an audited request id or produce another audit',
+        async (changed) => {
+            const f = fixture()
+            const service = await createOffHostBackupService(f.dependencies)
+            const m = managedFixture(f, service)
+            const engine = await createManagedBackupEngine(m.dependencies)
+            const request = f.config()
+            await engine.configureOffHost(async () => {
+                await service.configure(request)
+            })
+            const forged =
+                changed === 'actor'
+                    ? { ...request, actorId: f.id() }
+                    : { ...request, prefix: 'other-target' }
+            await expect(
+                engine.configureOffHost(async () => {
+                    await service.configure(forged)
+                }),
+            ).rejects.toMatchObject({ code: 'revision_conflict' })
+            expect((await engine.status()).auditEvents).toHaveLength(1)
+            expect(m.persisted().offHostConfigurationAudits).toHaveLength(1)
+            expect(service.status().revision).toBe(1)
+            expect(await service.pendingConfigurationAudit()).toBeNull()
+        },
+    )
+
+    test.each(['before', 'after'] as const)(
+        'managed audit write failure %s rename reloads authority and never duplicates the event',
+        async (phase) => {
+            const f = fixture()
+            const service = await createOffHostBackupService(f.dependencies)
+            const m = managedFixture(f, service)
+            const engine = await createManagedBackupEngine(m.dependencies)
+            const write = m.dependencies.write
+            let first = true
+            m.dependencies.write = async (state) => {
+                if (first && state.offHostConfigurationAudits?.length) {
+                    first = false
+                    if (phase === 'after') await write(state)
+                    throw new Error('managed audit fsync failed')
+                }
+                await write(state)
+            }
+            const request = f.config()
+            await expect(
+                engine.configureOffHost(async () => {
+                    await service.configure(request)
+                }),
+            ).rejects.toThrow('managed audit fsync failed')
+            expect((await engine.status()).auditEvents).toHaveLength(phase === 'after' ? 1 : 0)
+            await engine.tick()
+            expect((await engine.status()).auditEvents).toHaveLength(1)
+            expect(await service.pendingConfigurationAudit()).toBeNull()
+            const restarted = await createManagedBackupEngine(m.dependencies)
+            expect((await restarted.status()).auditEvents).toHaveLength(1)
+        },
+    )
+
+    test.each(['before', 'after'] as const)(
+        'source ACK failure %s rename survives restart and request replay exactly once',
+        async (phase) => {
+            const f = fixture()
+            const service = await createOffHostBackupService(f.dependencies)
+            const m = managedFixture(f, service)
+            let engine = await createManagedBackupEngine(m.dependencies)
+            const write = f.dependencies.write
+            f.dependencies.write = async (state) => {
+                if (f.persisted()?.pendingAudit && !state.pendingAudit) {
+                    if (phase === 'after') await write(state)
+                    throw new Error('source ack failed')
+                }
+                await write(state)
+            }
+            const request = f.config()
+            await expect(
+                engine.configureOffHost(async () => {
+                    await service.configure(request)
+                }),
+            ).rejects.toThrow('source ack failed')
+            const recorded = await engine.status()
+            expect(recorded.auditEvents).toHaveLength(1)
+            await engine.acknowledgeAudit({
+                storeId: recorded.storeId,
+                sequence: recorded.auditEvents[0]!.sequence,
+            })
+            expect((await engine.status()).auditEvents).toEqual([])
+            f.dependencies.write = write
+            engine = await createManagedBackupEngine(m.dependencies)
+            await engine.configureOffHost(async () => {
+                await service.configure(request)
+            })
+            expect((await engine.status()).auditEvents).toEqual([])
+            expect(m.persisted().offHostConfigurationAudits).toHaveLength(1)
+            expect(await service.pendingConfigurationAudit()).toBeNull()
+        },
+    )
+
+    test.each(['actorId', 'fingerprint'] as const)(
+        'mismatched managed %s receipt cannot forge an audit or acknowledge the source',
+        async (field) => {
+            const f = fixture()
+            const service = await createOffHostBackupService(f.dependencies)
+            const m = managedFixture(f, service)
+            await createManagedBackupEngine(m.dependencies)
+            const request = f.config()
+            await service.configure(request)
+            const pending = (await service.pendingConfigurationAudit())!
+            m.persisted().offHostConfigurationAudits = [
+                { ...pending, [field]: field === 'actorId' ? f.id() : 'b'.repeat(64) },
+            ]
+            const engine = await createManagedBackupEngine(m.dependencies)
+            expect((await engine.status()).auditEvents).toEqual([])
+            expect(await service.pendingConfigurationAudit()).toEqual(pending)
+            await expect(
+                engine.start({ requestId: f.id(), actorId: f.id() }),
+            ).rejects.toMatchObject({ code: 'busy' })
+            await expect(
+                service.acknowledgeConfigurationAudit({
+                    ...pending,
+                    [field]: field === 'actorId' ? f.id() : 'b'.repeat(64),
+                }),
+            ).rejects.toMatchObject({ code: 'revision_conflict' })
+        },
+    )
+
+    test('a full audit journal keeps startup/status/ACK available and drains the pending change after capacity is freed', async () => {
+        const f = fixture()
+        const service = await createOffHostBackupService(f.dependencies)
+        const m = managedFixture(f, service)
+        await createManagedBackupEngine(m.dependencies)
+        m.persisted().auditEvents = Array.from({ length: 600 }, (_, index) => ({
+            sequence: index + 1,
+            kind: 'configuration_updated',
+            jobId: null,
+            actorId: null,
+            at: 0,
+        }))
+        let engine = await createManagedBackupEngine(m.dependencies)
+        let applied = false
+        await expect(
+            engine.configureOffHost(async () => {
+                applied = true
+            }),
+        ).rejects.toMatchObject({ code: 'capacity' })
+        expect(applied).toBe(false)
+        await service.configure(f.config())
+        engine = await createManagedBackupEngine(m.dependencies)
+        const status = await engine.status()
+        expect(status.auditEvents).toHaveLength(600)
+        expect(await service.pendingConfigurationAudit()).not.toBeNull()
+        await expect(engine.start({ requestId: f.id(), actorId: f.id() })).rejects.toMatchObject({
+            code: 'busy',
+        })
+        await engine.acknowledgeAudit({ storeId: status.storeId, sequence: 600 })
+        expect((await engine.status()).auditEvents).toMatchObject([
+            { sequence: 601, kind: 'off_host_configuration_updated' },
+        ])
+        expect(await service.pendingConfigurationAudit()).toBeNull()
+        expect((await engine.start({ requestId: f.id(), actorId: f.id() })).state).toBe('queued')
+    })
+
+    test('a slow configuration keeps status and audit ACK responsive while fencing concurrent backup mutations', async () => {
+        const f = fixture()
+        const entered = Promise.withResolvers<void>()
+        const finish = Promise.withResolvers<void>()
+        f.dependencies.validateTarget = async (target) => {
+            entered.resolve()
+            await finish.promise
+            return target
+        }
+        const service = await createOffHostBackupService(f.dependencies)
+        const m = managedFixture(f, service)
+        const engine = await createManagedBackupEngine(m.dependencies)
+        const saving = engine.configureOffHost(async () => {
+            await service.configure(f.config())
+        })
+        await entered.promise
+        const status = await engine.status()
+        expect(status.jobs).toEqual([])
+        await engine.acknowledgeAudit({ storeId: status.storeId, sequence: 0 })
+        await expect(engine.start({ requestId: f.id(), actorId: f.id() })).rejects.toMatchObject({
+            code: 'busy',
+        })
+        await expect(engine.acquireDownload()).rejects.toMatchObject({ code: 'busy' })
+        await expect(engine.configureOffHost(async () => {})).rejects.toMatchObject({
+            code: 'busy',
+        })
+        await expect(
+            engine.requestMaintenance(
+                f.id(),
+                { requestId: f.id(), actorId: f.id(), metadataSha256: null },
+                'delete',
+            ),
+        ).rejects.toMatchObject({ code: 'busy' })
+        await engine.tick()
+        finish.resolve()
+        await saving
+        expect((await engine.status()).auditEvents).toHaveLength(1)
+        expect((await engine.start({ requestId: f.id(), actorId: f.id() })).state).toBe('queued')
     })
 })
 

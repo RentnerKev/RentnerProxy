@@ -128,6 +128,36 @@ describe('production restore off-host pause hook', () => {
 const rootRuntime = process.platform !== 'win32' && process.getuid?.() === 0
 
 describe('durable root-owned off-host restore pause', () => {
+    test.skipIf(!rootRuntime)(
+        'restore pause preserves the actor-bound pending audit for later exact-once recovery',
+        async () => {
+            const directory = await fixtureDirectory()
+            await chmod(directory, 0o700)
+            const path = join(directory, 'off-host.json')
+            const state = offHostState()
+            const actorId = '00000000-0000-4000-8000-000000000003'
+            const pendingAudit = {
+                requestId: state.requests[0]!.id,
+                actorId,
+                fingerprint: state.requests[0]!.fingerprint,
+            }
+            const initial = {
+                ...state,
+                requests: [
+                    { id: pendingAudit.requestId, fingerprint: pendingAudit.fingerprint, actorId },
+                ],
+                pendingAudit,
+            }
+            await writeFile(path, JSON.stringify(initial), { mode: 0o600 })
+            await pauseOffHostBackupsAfterRestore(path)
+            expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({
+                ...initial,
+                configuration: { ...initial.configuration, enabled: false, revision: 10 },
+            })
+            expect(await readdir(directory)).toEqual(['off-host.json'])
+        },
+    )
+
     test.skipIf(!rootRuntime).each([false, true])(
         'same-key restore preserves opaque credentials and newer receipts (resume: %s)',
         async (resume) => {
@@ -175,6 +205,19 @@ describe('durable root-owned off-host restore pause', () => {
             const directory = await fixtureDirectory()
             const path = join(directory, 'off-host.json')
             const state = offHostState()
+            const actorId = '00000000-0000-4000-8000-000000000003'
+            const pendingAudit = {
+                requestId: state.requests[0]!.id,
+                actorId,
+                fingerprint: state.requests[0]!.fingerprint,
+            }
+            const pendingState = {
+                ...state,
+                requests: [
+                    { id: pendingAudit.requestId, fingerprint: pendingAudit.fingerprint, actorId },
+                ],
+                pendingAudit,
+            }
             const invalid = [
                 '',
                 '{malformed fixture',
@@ -195,6 +238,24 @@ describe('durable root-owned off-host restore pause', () => {
                 JSON.stringify({
                     ...state,
                     receipts: [{ ...state.receipts[0], objectKey: '\nunsafe' }],
+                }),
+                JSON.stringify({ ...pendingState, pendingAudit: null }),
+                JSON.stringify({
+                    ...pendingState,
+                    pendingAudit: { requestId: pendingAudit.requestId },
+                }),
+                JSON.stringify({ ...state, pendingAudit }),
+                JSON.stringify({
+                    ...pendingState,
+                    pendingAudit: { ...pendingAudit, actorId: state.configuration.targetId },
+                }),
+                JSON.stringify({
+                    ...pendingState,
+                    pendingAudit: { ...pendingAudit, fingerprint: 'd'.repeat(64) },
+                }),
+                JSON.stringify({
+                    ...pendingState,
+                    pendingAudit: { ...pendingAudit, recoveryKey: 'must-not-be-accepted' },
                 }),
             ]
             for (const bytes of invalid) {

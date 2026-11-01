@@ -391,7 +391,7 @@ export function createBackupAgentHandler(
             else if (path === '/audit/ack') await engine.acknowledgeAudit(input)
             else if (path === '/off-host' && offHost) {
                 const configuration = offHostConfigurationUpdateSchema.parse(input)
-                await engine.configureOffHost(configuration.actorId, async () => {
+                await engine.configureOffHost(async () => {
                     await offHost.configure(configuration)
                 })
             } else await engine.updateConfiguration(input)
@@ -521,6 +521,10 @@ export async function startBackupAgent() {
         id: randomUUID,
         source: () => structuredClone(source),
         replicate: (job) => offHost.upload(job, engine.retentionCount, stop.signal),
+        offHostAudit: {
+            pending: offHost.pendingConfigurationAudit,
+            acknowledge: offHost.acknowledgeConfigurationAudit,
+        },
         execute: async (job) => {
             if (JSON.stringify(job.source) !== JSON.stringify(source))
                 throw new ManagedBackupError('execution_failed')

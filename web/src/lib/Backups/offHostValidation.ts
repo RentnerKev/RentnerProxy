@@ -8,6 +8,12 @@ const text = (maximum: number) =>
         .max(maximum)
         .regex(/^\P{Cc}*$/u)
 
+export const offHostConfigurationAuditSchema = z.strictObject({
+    requestId: z.uuid(),
+    actorId: z.uuid(),
+    fingerprint: digest,
+})
+
 export const offHostConfigurationUpdateSchema = z.strictObject({
     requestId: z.uuid(),
     actorId: z.uuid(),

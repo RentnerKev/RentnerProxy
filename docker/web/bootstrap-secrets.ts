@@ -228,7 +228,10 @@ function digest(value: unknown): boolean {
 function pausedOffHostState(value: unknown) {
     if (
         !isRecord(value) ||
-        !exactKeys(value, 'configuration,receipts,requests,sealed,version') ||
+        !(
+            exactKeys(value, 'configuration,receipts,requests,sealed,version') ||
+            exactKeys(value, 'configuration,pendingAudit,receipts,requests,sealed,version')
+        ) ||
         value.version !== 1 ||
         !isRecord(value.configuration)
     )
@@ -287,13 +290,34 @@ function pausedOffHostState(value: unknown) {
         value.requests.some(
             (request: unknown) =>
                 !isRecord(request) ||
-                !exactKeys(request, 'fingerprint,id') ||
+                !(
+                    exactKeys(request, 'fingerprint,id') ||
+                    exactKeys(request, 'actorId,fingerprint,id')
+                ) ||
                 !uuid(request.id) ||
+                ('actorId' in request && !uuid(request.actorId)) ||
                 typeof request.fingerprint !== 'string' ||
                 request.fingerprint.length !== 64,
         )
     )
         throw new Error('invalid off-host requests')
+    const pending = value.pendingAudit
+    if (
+        pending !== undefined &&
+        (!isRecord(pending) ||
+            !exactKeys(pending, 'actorId,fingerprint,requestId') ||
+            !uuid(pending.requestId) ||
+            !uuid(pending.actorId) ||
+            !digest(pending.fingerprint) ||
+            !value.requests.some(
+                (request: unknown) =>
+                    isRecord(request) &&
+                    request.id === pending.requestId &&
+                    request.actorId === pending.actorId &&
+                    request.fingerprint === pending.fingerprint,
+            ))
+    )
+        throw new Error('invalid off-host audit ownership')
     return {
         ...value,
         configuration: { ...configuration, enabled: false, revision: configuration.revision + 1 },
