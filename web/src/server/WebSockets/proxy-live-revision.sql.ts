@@ -12,7 +12,7 @@ function component(source: string, projection: string): string {
 const common = [
     component(
         'rentnerproxy.proxy_hosts',
-        `id, forward_scheme, forward_host, forward_port, enabled,
+        `id, forward_scheme, forward_host, forward_port, upstream_pool, enabled,
         certificate_id, force_https, verify_upstream_tls, upstream_tls_server_name, trusted_ca_id,
         access_policy_id, extract(epoch from created_at), extract(epoch from updated_at)`,
     ),

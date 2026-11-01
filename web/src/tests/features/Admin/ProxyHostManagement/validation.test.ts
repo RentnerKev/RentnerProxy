@@ -208,3 +208,100 @@ describe('ProxyHost validation schemas', () => {
         }
     })
 })
+
+describe('upstream pools', () => {
+    const pool = {
+        policy: 'round_robin' as const,
+        members: [
+            { host: 'backend.internal', port: 8080 },
+            { host: 'second.internal', port: 8081 },
+        ],
+    }
+    test('normalizes ordered members and converts form ports', () => {
+        const parsed = createProxyHostInputSchema.parse({
+            ...validInput,
+            upstreamPool: {
+                ...pool,
+                members: [{ host: 'BACKEND.internal.', port: 8080 }, pool.members[1]],
+            },
+        })
+        expect(parsed.upstreamPool).toEqual(pool)
+        expect(
+            proxyHostFormSchema.parse({
+                ...validInput,
+                forwardPort: '8080',
+                upstreamPool: {
+                    ...pool,
+                    members: pool.members.map((member) => ({
+                        ...member,
+                        port: String(member.port),
+                    })),
+                },
+            }).upstreamPool,
+        ).toEqual(pool)
+        expect(
+            proxyHostFormSchema.safeParse({
+                ...validInput,
+                forwardPort: '8080',
+                upstreamPool: null,
+            }).success,
+        ).toBeTrue()
+    })
+    test('rejects empty, oversized, duplicate, inconsistent and unsupported pool shapes', () => {
+        for (const upstreamPool of [
+            { ...pool, members: [] },
+            {
+                ...pool,
+                members: Array.from({ length: 17 }, (_, index) => ({
+                    host: `node${index}.internal`,
+                    port: 8080,
+                })),
+            },
+            { ...pool, members: [pool.members[0], { host: 'BACKEND.internal.', port: 8080 }] },
+            { ...pool, members: pool.members.toReversed() },
+            { ...pool, policy: 'random' },
+            { ...pool, members: [{ host: 'https://backend.internal', port: 8080 }] },
+            { ...pool, members: [{ host: 'backend.internal', port: 8080, weight: 2 }] },
+            { ...pool, members: [{ host: 'backend.internal', port: '8080' }] },
+        ]) {
+            expect(
+                createProxyHostInputSchema.safeParse({ ...validInput, upstreamPool }).success,
+            ).toBeFalse()
+            expect(
+                updateProxyHostInputSchema.safeParse({
+                    ...validInput,
+                    proxyHostId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',
+                    upstreamPool,
+                }).success,
+            ).toBeFalse()
+        }
+    })
+    test('checks TLS identity for every pool member while allowing distinct DNS names', () => {
+        expect(
+            createProxyHostInputSchema.safeParse({
+                ...validInput,
+                forwardScheme: 'https',
+                upstreamPool: pool,
+            }).success,
+        ).toBeTrue()
+        const mixedPool = {
+            ...pool,
+            members: [pool.members[0], { host: '2001:db8::1', port: 443 }],
+        }
+        expect(
+            createProxyHostInputSchema.safeParse({
+                ...validInput,
+                forwardScheme: 'https',
+                upstreamPool: mixedPool,
+            }).success,
+        ).toBeFalse()
+        expect(
+            createProxyHostInputSchema.safeParse({
+                ...validInput,
+                forwardScheme: 'https',
+                upstreamPool: mixedPool,
+                upstreamTlsServerName: 'shared.internal',
+            }).success,
+        ).toBeTrue()
+    })
+})

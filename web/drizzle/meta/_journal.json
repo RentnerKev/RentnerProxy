@@ -211,6 +211,13 @@
       "when": 1793294534568,
       "tag": "0029_coderabbit_manual_dns_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793576301826,
+      "tag": "0030_upstream_pools",
+      "breakpoints": true
     }
   ]
 }

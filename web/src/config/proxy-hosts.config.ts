@@ -3,7 +3,10 @@ export const PROXY_HOST_FORWARD_SCHEMES = ['http', 'https'] as const
 export const MAX_PROXY_HOST_DOMAINS = 50
 
 export const PROXY_HOST_FORM_TABS = [
-    { id: 'general', fields: ['domains', 'forwardScheme', 'forwardHost', 'forwardPort'] },
+    {
+        id: 'general',
+        fields: ['domains', 'forwardScheme', 'forwardHost', 'forwardPort', 'upstreamPool'],
+    },
     { id: 'certificate', fields: ['certificateId', 'forceHttps'] },
     {
         id: 'access',

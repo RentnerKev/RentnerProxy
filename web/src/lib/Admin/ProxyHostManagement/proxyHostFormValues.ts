@@ -16,8 +16,17 @@ export function getProxyHostFormValues(
         responseCompression: source?.responseCompression ?? null,
         domains: mode === 'edit' && source ? [...source.domains] : [''],
         forwardScheme: source?.forwardScheme ?? 'http',
-        forwardHost: source?.forwardHost ?? '',
-        forwardPort: String(source?.forwardPort ?? 80),
+        forwardHost: source?.upstreamPool?.members[0]?.host ?? source?.forwardHost ?? '',
+        forwardPort: String(source?.upstreamPool?.members[0]?.port ?? source?.forwardPort ?? 80),
+        upstreamPool: source?.upstreamPool
+            ? {
+                  policy: source.upstreamPool.policy,
+                  members: source.upstreamPool.members.map((member) => ({
+                      host: member.host,
+                      port: String(member.port),
+                  })),
+              }
+            : null,
         enabled: source?.enabled ?? true,
         certificateId: source?.certificateId ?? null,
         forceHttps: source?.forceHttps ?? false,

@@ -1688,6 +1688,119 @@ async function runSmoke(): Promise<void> {
         await authorized(() => services.deleteProxyHostService(policyHost.id))
         passed('explicit policy removal reconciles public access before deleting the unused policy')
 
+        const poolMembers = [
+            { host: hostInput.forwardHost, port: first.port! },
+            { host: hostInput.forwardHost, port: second.port! },
+        ]
+        const poolPolicy = await authorized(() =>
+            policyServices.createAccessPolicyService({
+                name: 'Isolated upstream pool smoke policy',
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        const roundRobinInput = {
+            ...hostInput,
+            domains: ['pool-round-robin.test'],
+            upstreamPool: { policy: 'round_robin' as const, members: poolMembers },
+        }
+        const firstPoolInput = {
+            ...hostInput,
+            domains: ['pool-first.test'],
+            accessPolicyId: poolPolicy.accessPolicyId,
+            upstreamPool: { policy: 'first' as const, members: poolMembers },
+        }
+        const roundRobinHost = await authorized(() =>
+            services.createProxyHostService(roundRobinInput),
+        )
+        const firstPoolHost = await authorized(() =>
+            services.createProxyHostService(firstPoolInput),
+        )
+        const poolMessages = new Set<string>()
+        for (let request = 0; request < 8; request += 1) {
+            const response = await proxyRequest('pool-round-robin.test', '/pool/path?ordered=true')
+            assert.equal(response.status, 200)
+            const body = await response.json()
+            assert.equal(body.path, '/pool/path?ordered=true')
+            assert.equal(body.host, 'pool-round-robin.test')
+            assert.equal(body['x-forwarded-host'], 'pool-round-robin.test')
+            assert.equal(body['x-forwarded-proto'], 'http')
+            poolMessages.add(body.message)
+        }
+        assert.deepEqual([...poolMessages].toSorted(), ['upstream-one', 'upstream-two'])
+        for (let request = 0; request < 4; request += 1) {
+            const response = await proxyRequest('pool-first.test')
+            assert.equal(response.status, 200)
+            assert.equal((await response.json()).message, 'upstream-one')
+        }
+        await expectWebSocketUpgrade('pool-round-robin.test')
+        await expectWebSocketUpgrade('pool-first.test')
+        passed(
+            'ordered pools distribute round robin, prefer first, preserve headers and upgrade WebSockets',
+        )
+
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: poolPolicy.accessPolicyId,
+                name: 'Isolated upstream pool smoke policy',
+                mode: 'authenticated',
+                combination: null,
+            }),
+        )
+        await expectProxyStatus('pool-first.test', 403)
+        await expectWebSocketUpgrade('pool-first.test', undefined, 403)
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: poolPolicy.accessPolicyId,
+                name: 'Isolated upstream pool smoke policy',
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        const reorderedPool = {
+            ...firstPoolInput,
+            forwardPort: second.port!,
+            upstreamPool: { policy: 'first' as const, members: poolMembers.toReversed() },
+        }
+        const reordered = await authorized(() =>
+            services.updateProxyHostService({ ...reorderedPool, proxyHostId: firstPoolHost.id }),
+        )
+        assert.equal(reordered.runtimeStatus, 'applied')
+        for (let request = 0; request < 4; request += 1) {
+            const response = await proxyRequest('pool-first.test')
+            assert.equal(response.status, 200)
+            assert.equal((await response.json()).message, 'upstream-two')
+        }
+        await expectWebSocketUpgrade('pool-first.test')
+        const poolSnapshot = await runtime.getProxyRuntimeSnapshotService()
+        assert.equal(poolSnapshot.version, 8)
+        assert.deepEqual(
+            poolSnapshot.proxyHosts.find((host) => host.id === firstPoolHost.id)?.upstreamPool,
+            reorderedPool.upstreamPool,
+        )
+        passed(
+            'pool access policy fails closed and reordered first members take effect after reconciliation',
+        )
+
+        await command([...compose, 'restart', 'proxy-runtime'])
+        await refreshRuntimeAddresses()
+        await waitFor(async () => {
+            const status = await controller.getProxyRuntimeStatus()
+            return status?.running === true && status.activeRevision === poolSnapshot.revision
+        }, 'persisted ordered upstream pools after restart')
+        await expectProxyMessage('pool-first.test', 'upstream-two')
+        await expectWebSocketUpgrade('pool-round-robin.test')
+        const storedPool = (await authorized(() => services.getProxyHostsService())).find(
+            (host) => host.id === firstPoolHost.id,
+        )
+        assert.deepEqual(storedPool?.upstreamPool, reorderedPool.upstreamPool)
+        passed(
+            'v8 ordered pool configuration survives controller restart and durable database reads',
+        )
+        await authorized(() => services.deleteProxyHostService(roundRobinHost.id))
+        await authorized(() => services.deleteProxyHostService(firstPoolHost.id))
+        await authorized(() => policyServices.deleteAccessPolicyService(poolPolicy.accessPolicyId))
+
         assert.equal(
             (await authorized(() => services.disableProxyHostService(created.id))).runtimeStatus,
             'applied',
@@ -1707,6 +1820,8 @@ async function runSmoke(): Promise<void> {
             services.createProxyHostService({
                 ...hostInput,
                 domains: ['offline.test'],
+                forwardPort: second.port!,
+                upstreamPool: reorderedPool.upstreamPool,
             }),
         )
         assert.equal(offline.runtimeStatus, 'pending')
@@ -1715,7 +1830,13 @@ async function runSmoke(): Promise<void> {
                 (host) => host.id === offline.id,
             ),
         )
-        passed('controller down: desired state committed and pending returned')
+        assert.deepEqual(
+            (await authorized(() => services.getProxyHostsService())).find(
+                (host) => host.id === offline.id,
+            )?.upstreamPool,
+            reorderedPool.upstreamPool,
+        )
+        passed('controller down: ordered pool desired state is durable and pending is returned')
 
         await command([...compose, 'start', 'proxy-runtime'])
         await refreshRuntimeAddresses()
@@ -1729,7 +1850,13 @@ async function runSmoke(): Promise<void> {
             'automatic reconciliation after controller recovery',
             75_000,
         )
-        await expectProxyStatus('offline.test', 200)
+        await expectProxyMessage('offline.test', 'upstream-two')
+        assert.deepEqual(
+            (await runtime.getProxyRuntimeSnapshotService()).proxyHosts.find(
+                (host) => host.id === offline.id,
+            )?.upstreamPool,
+            reorderedPool.upstreamPool,
+        )
         assert.equal(
             (await authorized(() => runtime.getProxyRuntimeStatusService())).state,
             'synced',

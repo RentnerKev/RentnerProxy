@@ -52,7 +52,7 @@ impl ProxyRuntime {
         #[cfg(test)]
         self.recovery_write_fault(super::RecoveryWriteFault::BeforeSnapshotWrite)?;
         let request = ProxyConfigRequest {
-            version: 7,
+            version: crate::proxy::configuration_version(&configuration.proxy_hosts),
             revision: configuration.revision.clone(),
             proxy_hosts: configuration.proxy_hosts.clone(),
             redirect_hosts: configuration.redirect_hosts.clone(),

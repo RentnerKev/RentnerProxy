@@ -13,7 +13,15 @@ export function matchesHostSearch(
         ...host.domains,
         statusLabel,
         ...('forwardHost' in host
-            ? [host.forwardHost, host.forwardScheme, String(host.forwardPort)]
+            ? [
+                  host.forwardHost,
+                  host.forwardScheme,
+                  String(host.forwardPort),
+                  ...(host.upstreamPool?.members.flatMap((member) => [
+                      member.host,
+                      String(member.port),
+                  ]) ?? []),
+              ]
             : [host.destination, String(host.statusCode)]),
         ...additionalValues,
     ].some((value) => value.toLocaleLowerCase(locale).includes(search))

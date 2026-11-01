@@ -1,6 +1,7 @@
 mod forward_auth;
 mod revision;
 mod trusted_ca;
+mod upstream_pool;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -31,6 +32,8 @@ pub(crate) use trusted_ca::{
     MAX_TRUSTED_CA_PEM_BYTES, TrustedCaValidationRequest, validate_trusted_ca,
     validate_trusted_ca_pem,
 };
+pub(crate) use upstream_pool::configuration_version;
+use upstream_pool::has_valid_upstream_pool;
 
 pub(crate) const MAX_PROXY_HOSTS: usize = 1_000;
 const MAX_DOMAINS_PER_HOST: usize = 50;
@@ -63,7 +66,9 @@ fn validate_domains<'a>(
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if request.version != 7 || !is_revision(&request.revision) {
+    if request.version != configuration_version(&request.proxy_hosts)
+        || !is_revision(&request.revision)
+    {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
@@ -96,6 +101,7 @@ pub(crate) fn validate_proxy_config(
             || !matches!(host.forward_scheme.as_str(), "http" | "https")
             || !is_valid_forward_host(&host.forward_host)
             || host.forward_port == 0
+            || !has_valid_upstream_pool(host)
             || !has_valid_http_settings(&host.http_settings)
             || !has_valid_response_cache(host.response_cache.as_ref())
             || host.http_settings.send_timeout_seconds.is_some()
@@ -223,7 +229,12 @@ fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
         return false;
     }
     if upstream_tls.verify
-        && is_ip_address(&host.forward_host)
+        && (is_ip_address(&host.forward_host)
+            || host.upstream_pool.as_ref().is_some_and(|pool| {
+                pool.members
+                    .iter()
+                    .any(|member| is_ip_address(&member.host))
+            }))
         && upstream_tls.server_name.is_none()
     {
         return false;

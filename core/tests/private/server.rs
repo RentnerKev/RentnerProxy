@@ -96,6 +96,7 @@ fn valid_payload() -> Vec<u8> {
         upstream_tls: None,
         response_cache: None,
         access_policy: None,
+        upstream_pool: None,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
         version: 7,
@@ -158,6 +159,7 @@ fn custom_payload() -> Vec<u8> {
         upstream_tls: None,
         response_cache: None,
         access_policy: None,
+        upstream_pool: None,
     }];
     let http_settings = ProxyHttpSettings {
         browser_cache: None,

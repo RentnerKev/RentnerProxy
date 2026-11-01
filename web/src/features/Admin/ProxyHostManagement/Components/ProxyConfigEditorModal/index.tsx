@@ -106,6 +106,27 @@ function HostConfigurationOverview({
                             host.forwardHost,
                             host.forwardPort,
                         )}
+                        {host.upstreamPool ? (
+                            <div className="mt-2 grid gap-1">
+                                <span className="font-sans font-bold">
+                                    {t('admin.proxyHosts.upstreamPool.summary', {
+                                        count: host.upstreamPool.members.length,
+                                        policy: t(
+                                            `admin.proxyHosts.upstreamPool.${host.upstreamPool.policy}`,
+                                        ),
+                                    })}
+                                </span>
+                                {host.upstreamPool.members.slice(1).map((member) => (
+                                    <span key={`${member.host}:${member.port}`}>
+                                        {formatProxyHostForward(
+                                            host.forwardScheme,
+                                            member.host,
+                                            member.port,
+                                        )}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">

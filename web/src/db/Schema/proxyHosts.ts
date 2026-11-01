@@ -1,5 +1,15 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, integer, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import {
+    boolean,
+    check,
+    index,
+    integer,
+    jsonb,
+    timestamp,
+    uuid,
+    varchar,
+} from 'drizzle-orm/pg-core'
 
 import type { ProxyHostForwardScheme } from '../../config/Types/proxy-hosts-config.types.ts'
 import type { RedirectHostStatusCode } from '../../config/Types/redirect-hosts-config.types.ts'
@@ -19,6 +29,7 @@ export const proxyHosts = rentnerProxySchema.table(
             .notNull(),
         forwardHost: varchar('forward_host', { length: 253 }).notNull(),
         forwardPort: integer('forward_port').notNull(),
+        upstreamPool: jsonb('upstream_pool').$type<ProxyUpstreamPool>(),
         enabled: boolean('enabled').notNull().default(true),
         certificateId: uuid('certificate_id').references(() => certificates.id, {
             onDelete: 'restrict',
@@ -43,6 +54,22 @@ export const proxyHosts = rentnerProxySchema.table(
         check('proxy_hosts_forward_scheme_check', sql`${table.forwardScheme} in ('http', 'https')`),
         check('proxy_hosts_forward_port_check', sql`${table.forwardPort} between 1 and 65535`),
         check('proxy_hosts_forward_host_check', sql`length(btrim(${table.forwardHost})) > 0`),
+        check(
+            'proxy_hosts_upstream_pool_check',
+            sql`${table.upstreamPool} is null or coalesce((
+                jsonb_typeof(${table.upstreamPool}) = 'object'
+                and ${table.upstreamPool} ?& array['policy', 'members']
+                and (${table.upstreamPool} - 'policy' - 'members') = '{}'::jsonb
+                and jsonb_typeof(${table.upstreamPool}->'policy') = 'string'
+                and ${table.upstreamPool}->>'policy' in ('round_robin', 'first')
+                and jsonb_typeof(${table.upstreamPool}->'members') = 'array'
+                and jsonb_array_length(${table.upstreamPool}->'members') between 1 and 16
+                and not jsonb_path_exists(${table.upstreamPool}, '$.members[*] ? (@.type() != "object" || !exists(@.host) || !exists(@.port) || @.host.type() != "string" || @.host == "" || @.port.type() != "number" || @.port < 1 || @.port > 65535 || @.port.floor() != @.port)')
+                and not jsonb_path_exists(${table.upstreamPool}, '$.members[*].keyvalue() ? (@.key != "host" && @.key != "port")')
+                and ${table.upstreamPool}->'members'->0->>'host' = ${table.forwardHost}
+                and ${table.upstreamPool}->'members'->0->'port' = to_jsonb(${table.forwardPort})
+            ), false)`,
+        ),
         index('proxy_hosts_enabled_idx').on(table.enabled),
         index('proxy_hosts_certificate_id_idx').on(table.certificateId),
         index('proxy_hosts_trusted_ca_id_idx').on(table.trustedCaId),

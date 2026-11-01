@@ -1,3 +1,5 @@
+import type { ProxyUpstreamPool } from '../../../../web/src/lib/ProxyRuntime/Types/upstream-pool.types.ts'
+import type { ProxyHostAccessPolicy } from '../../../../web/src/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 export type JsonObject = Record<string, unknown>
 
 type UpstreamTls = {
@@ -13,6 +15,8 @@ export type ProxyHost = {
     readonly forwardHost: string
     readonly forwardPort: number
     readonly upstreamTls?: UpstreamTls
+    readonly accessPolicy?: ProxyHostAccessPolicy
+    readonly upstreamPool?: ProxyUpstreamPool
 }
 
 export type TrustedCa = {
@@ -22,7 +26,7 @@ export type TrustedCa = {
 }
 
 export type Snapshot = {
-    readonly version: 7
+    readonly version: 7 | 8
     readonly revision: string
     readonly proxyHosts: readonly ProxyHost[]
     readonly redirectHosts: readonly unknown[]

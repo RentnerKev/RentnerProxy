@@ -61,7 +61,7 @@ pub(crate) fn revision_for_full_configuration(
     default_site: &DefaultSite,
 ) -> String {
     hash_snapshot(&CanonicalSnapshot {
-        version: 7,
+        version: super::configuration_version(hosts),
         proxy_hosts: canonical_hosts(hosts),
         redirect_hosts: canonical_redirect_hosts(redirect_hosts),
         http_settings,

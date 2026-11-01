@@ -1779,7 +1779,11 @@
                 "port": "Wpisz liczbę całkowitą z zakresu od 1 do 65535.",
                 "upstreamTlsServerName": "Wpisz nazwę serwera DNS bez adresu URL, portu, adresu IP i nazwy wieloznacznej.",
                 "trustedCaRequiresVerification": "Własne zaufane urzędy certyfikacji wymagają weryfikacji certyfikatu serwera nadrzędnego.",
-                "upstreamTlsIpNameRequired": "Wpisz nazwę DNS z certyfikatu serwera nadrzędnego, jeśli połączenie odbywa się z adresem IP."
+                "upstreamTlsIpNameRequired": "Wpisz nazwę DNS z certyfikatu serwera nadrzędnego, jeśli połączenie odbywa się z adresem IP.",
+                "duplicateUpstream": "Każdy cel musi mieć unikalną kombinację hosta i portu.",
+                "upstreamPoolPrimary": "Główny cel musi odpowiadać pierwszemu elementowi puli.",
+                "upstreamMembersRequired": "Dodaj co najmniej jeden cel upstream.",
+                "upstreamMembersLimit": "Dodaj maksymalnie 16 celów upstream."
             },
             "config": {
                 "open": "Konfiguracja Caddy",
@@ -1960,6 +1964,25 @@
                 "ttl": "Maksymalny czas w sekundach (1–3600)",
                 "hint": "Tylko udane publiczne odpowiedzi CSS, JavaScript, obrazów i czcionek. Pliki cookie, dane logowania, parametry, strumienie i chronione hosty pomijają pamięć. Limity: 1 MiB na odpowiedź, 64 MiB łącznie i 1024 wpisy.",
                 "invalid": "Użyj 1–16 unikatowych prefiksów, np. /assets/, oraz czasu od 1 do 3600 sekund."
+            },
+            "upstreamPool": {
+                "title": "Cele upstream",
+                "policy": "Wybór celu",
+                "single": "Pojedynczy cel",
+                "round_robin": "Rotacja",
+                "first": "Główny / zapasowy (kolejność)",
+                "hint": "Cel 1 używa hosta i portu powyżej. Dodaj maksymalnie 16 celów w wybranej kolejności. Rotacja zmienia cele; tryb uporządkowany używa pierwszego dostępnego celu.",
+                "tlsHint": "Cele współdzielą protokół, weryfikację TLS i zaufane CA. Cele DNS używają własnej nazwy TLS, chyba że ją zastąpiono. Adres IP z weryfikowanym HTTPS wymaga wspólnej zastępczej nazwy DNS.",
+                "primary": "Cel 1 (host i port powyżej)",
+                "member": "Cel {{number}}",
+                "add": "Dodaj cel",
+                "remove": "Usuń",
+                "moveUp": "W górę",
+                "moveDown": "W dół",
+                "removeLabel": "Usuń cel {{number}}",
+                "moveUpLabel": "Przesuń cel {{number}} w górę",
+                "moveDownLabel": "Przesuń cel {{number}} w dół",
+                "summary": "{{count}} celów · {{policy}}"
             }
         },
         "redirectHosts": {

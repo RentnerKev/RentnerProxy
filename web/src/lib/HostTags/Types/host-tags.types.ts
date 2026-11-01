@@ -38,6 +38,7 @@ export type ProxyHostListEntry = Pick<
     | 'forwardHost'
     | 'forwardScheme'
     | 'forwardPort'
+    | 'upstreamPool'
 >
 export type RedirectHostListEntry = Pick<
     RedirectHostSummary,

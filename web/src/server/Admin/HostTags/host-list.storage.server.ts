@@ -40,6 +40,7 @@ export async function readProxyHostListBasis(
                 forwardHost: proxyHosts.forwardHost,
                 forwardScheme: proxyHosts.forwardScheme,
                 forwardPort: proxyHosts.forwardPort,
+                upstreamPool: proxyHosts.upstreamPool,
                 domain: hostDomains.domain,
             })
             .from(proxyHosts)

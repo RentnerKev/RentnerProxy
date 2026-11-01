@@ -50,6 +50,7 @@ pub(super) fn host(
         upstream_tls: None,
         response_cache: None,
         access_policy: None,
+        upstream_pool: None,
     }
 }
 
@@ -62,7 +63,7 @@ pub(super) fn request_with_settings(
     http_settings: ProxyHttpSettings,
 ) -> ProxyConfigRequest {
     ProxyConfigRequest {
-        version: 7,
+        version: crate::proxy::configuration_version(&hosts),
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         redirect_hosts: Vec::new(),

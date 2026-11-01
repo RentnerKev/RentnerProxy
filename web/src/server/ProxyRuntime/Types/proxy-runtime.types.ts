@@ -1,3 +1,4 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 import type { ProxyHostForwardScheme } from '@/config/Types/proxy-hosts-config.types.ts'
 import type { RedirectHostStatusCode } from '@/config/Types/redirect-hosts-config.types.ts'
@@ -16,6 +17,8 @@ type ProxyHostHttpSettings = Pick<
 >
 
 export interface ProxyRuntimeHost {
+    readonly upstreamPool?: ProxyUpstreamPool
+
     readonly responseCache?: ResponseCacheSettings
     readonly id: string
     readonly domains: ReadonlyArray<string>
@@ -51,7 +54,7 @@ export interface RedirectRuntimeHost {
 }
 
 export interface ProxyRuntimeSnapshot {
-    readonly version: 7
+    readonly version: 7 | 8
     readonly revision: string
     readonly proxyHosts: ReadonlyArray<ProxyRuntimeHost>
     readonly redirectHosts: ReadonlyArray<RedirectRuntimeHost>

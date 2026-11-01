@@ -409,7 +409,7 @@ export async function searchProxyHostsService(
         .where(
             parsed.data.id
                 ? eq(proxyHosts.id, parsed.data.id)
-                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or (${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}) ilike ${pattern} escape '\\'`,
+                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or (${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}) ilike ${pattern} escape '\\' or exists (select 1 from jsonb_array_elements(coalesce(${proxyHosts.upstreamPool}->'members', '[]'::jsonb)) member where (${proxyHosts.forwardScheme} || '://' || (member->>'host') || ':' || (member->>'port')) ilike ${pattern} escape '\\')`,
         )
         .orderBy(asc(proxyHosts.id))
         .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)

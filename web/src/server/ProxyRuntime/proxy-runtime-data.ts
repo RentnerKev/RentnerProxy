@@ -128,6 +128,7 @@ export async function readProxyRuntimeSnapshot(
                 forwardScheme: row.forwardScheme,
                 forwardHost: row.forwardHost,
                 forwardPort: row.forwardPort,
+                ...(row.upstreamPool ? { upstreamPool: row.upstreamPool } : {}),
                 certificateId: row.certificateId,
                 forceHttps: row.forceHttps,
                 ...(row.forwardScheme === 'https'
@@ -263,6 +264,7 @@ export async function readProxyRuntimeHost(
         forwardScheme: first.forwardScheme,
         forwardHost: first.forwardHost,
         forwardPort: first.forwardPort,
+        ...(first.upstreamPool ? { upstreamPool: first.upstreamPool } : {}),
         certificateId: first.certificateId,
         forceHttps: first.forceHttps,
         ...(first.forwardScheme === 'https'

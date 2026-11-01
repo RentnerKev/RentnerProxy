@@ -137,6 +137,8 @@ export default function useProxyHostFormModalLogic({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
             const submittedData = { ...data }
+            if (submittedData.upstreamPool === null && (isCreate || !proxyHost?.upstreamPool))
+                delete submittedData.upstreamPool
             if (!canAssignPolicies) delete submittedData.accessPolicyId
             if (!canConfigureBrowserCache) delete submittedData.browserCache
             if (!canConfigureCompression) delete submittedData.responseCompression
@@ -241,7 +243,7 @@ export default function useProxyHostFormModalLogic({
                 }
             }
             if (mode === 'edit' && proxyHost?.enabled && !value.enabled) {
-                setPendingDisableValues({ ...value, domains: [...value.domains] })
+                setPendingDisableValues(structuredClone(value))
                 return
             }
             await mutation.mutateAsync(value).catch(() => undefined)

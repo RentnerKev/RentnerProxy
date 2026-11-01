@@ -1761,7 +1761,11 @@
                 "port": "Enter a whole-number port from 1 to 65535.",
                 "upstreamTlsServerName": "Enter a DNS server name without a URL, port, IP address or wildcard.",
                 "trustedCaRequiresVerification": "Custom trusted CAs require upstream certificate verification.",
-                "upstreamTlsIpNameRequired": "Enter the DNS name on the upstream certificate when connecting to an IP address."
+                "upstreamTlsIpNameRequired": "Enter the DNS name on the upstream certificate when connecting to an IP address.",
+                "duplicateUpstream": "Each target must have a unique host and port.",
+                "upstreamPoolPrimary": "The primary target must match the first pool member.",
+                "upstreamMembersRequired": "Add at least one upstream target.",
+                "upstreamMembersLimit": "Add no more than 16 upstream targets."
             },
             "config": {
                 "open": "Caddy config",
@@ -1942,6 +1946,25 @@
                 "ttl": "Maximum lifetime in seconds (1–3600)",
                 "hint": "Off by default. Only successful public CSS, JavaScript, image and font responses in these paths can be stored. Cookies, credentials, queries, streaming responses and protected hosts always bypass the cache. Limits: 1 MiB per response, 64 MiB shared payload budget and 1024 entries.",
                 "invalid": "Use 1–16 unique path prefixes such as /assets/, and a lifetime from 1 to 3600 seconds."
+            },
+            "upstreamPool": {
+                "title": "Upstream targets",
+                "policy": "Target selection",
+                "single": "Single target",
+                "round_robin": "Round robin",
+                "first": "Primary / secondary (ordered)",
+                "hint": "Target 1 uses the host and port above. Add up to 16 targets; order is preserved. Round robin alternates targets. Ordered mode uses the first available target.",
+                "tlsHint": "All targets share the scheme, TLS verification and trusted CA. DNS targets use their own TLS name unless an override is set. Verified HTTPS with any IP target requires a DNS name override for every target.",
+                "primary": "Target 1 (host and port above)",
+                "member": "Target {{number}}",
+                "add": "Add target",
+                "remove": "Remove",
+                "moveUp": "Move up",
+                "moveDown": "Move down",
+                "removeLabel": "Remove target {{number}}",
+                "moveUpLabel": "Move target {{number}} up",
+                "moveDownLabel": "Move target {{number}} down",
+                "summary": "{{count}} targets · {{policy}}"
             }
         },
         "redirectHosts": {

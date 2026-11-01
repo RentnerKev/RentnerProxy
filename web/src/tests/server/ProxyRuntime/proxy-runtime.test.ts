@@ -611,3 +611,76 @@ describe('controller runtime client', () => {
         responseMock.mockRestore()
     })
 })
+
+describe('upstream pool snapshot contract', () => {
+    const members = [
+        { host: 'backend.internal', port: 4000 },
+        { host: 'secondary.internal', port: 4001 },
+    ]
+    test('uses v8 only for active pools and appends the canonical field after existing fields', () => {
+        const legacy = snapshot()
+        const pooled = snapshot({ upstreamPool: { policy: 'round_robin', members } })
+        expect(legacy.version).toBe(7)
+        expect(pooled.version).toBe(8)
+        expect(
+            snapshot({
+                domains: ['www.demo.test', 'demo.test'],
+                upstreamPool: { policy: 'round_robin', members },
+            }).revision,
+        ).toBe('sha256:ab553eed513e20dae33d9e0e41c2d2bf73505b6da121bc2a99ed0ee96a7b6841')
+        expect(pooled.proxyHosts[0]?.upstreamPool).toEqual({ policy: 'round_robin', members })
+        expect(Object.keys(pooled.proxyHosts[0]!).at(-1)).toBe('upstreamPool')
+        expect(
+            createProxyRuntimeSnapshot([
+                inputHost(),
+                inputHost({
+                    id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54020',
+                    enabled: false,
+                    upstreamPool: { policy: 'first', members },
+                }),
+            ]),
+        ).toEqual(legacy)
+    })
+    test('includes pool policy, order and secondary targets in the revision', () => {
+        const pooled = snapshot({ upstreamPool: { policy: 'round_robin', members } })
+        const first = snapshot({ upstreamPool: { policy: 'first', members } })
+        const changed = snapshot({
+            upstreamPool: {
+                policy: 'round_robin',
+                members: [members[0]!, { host: 'changed.internal', port: 4001 }],
+            },
+        })
+        const reversed = snapshot({
+            forwardHost: 'secondary.internal',
+            forwardPort: 4001,
+            upstreamPool: { policy: 'round_robin', members: members.toReversed() },
+        })
+        expect(
+            new Set([pooled.revision, first.revision, changed.revision, reversed.revision]).size,
+        ).toBe(4)
+        expect(() =>
+            snapshot({ upstreamPool: { policy: 'first', members: members.toReversed() } }),
+        ).toThrow()
+    })
+    test('rejects a secondary IP with verified TLS unless a shared identity is explicit', () => {
+        const upstreamPool = {
+            policy: 'first' as const,
+            members: [members[0]!, { host: '192.0.2.2', port: 443 }],
+        }
+        expect(() => snapshot({ forwardScheme: 'https', upstreamPool })).toThrow()
+        expect(
+            snapshot({
+                forwardScheme: 'https',
+                upstreamPool,
+                upstreamTls: { verify: true, serverName: 'shared.internal', trustedCaId: null },
+            }).version,
+        ).toBe(8)
+        expect(
+            snapshot({
+                forwardScheme: 'https',
+                upstreamPool,
+                upstreamTls: { verify: false, serverName: null, trustedCaId: null },
+            }).version,
+        ).toBe(8)
+    })
+})

@@ -1,3 +1,4 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 import type { BrowserCacheSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import type { ResponseCacheSettings } from '@/lib/ResponseCache/Types/response-cache.types.ts'
 import type { ProxyHostForwardScheme } from '../../../../config/Types/proxy-hosts-config.types.ts'
@@ -21,6 +22,8 @@ export interface ProxyHostAccessPolicy {
 }
 
 export interface ProxyHostSummary {
+    readonly upstreamPool?: ProxyUpstreamPool | null | undefined
+
     readonly responseCompression?: 'auto' | 'off' | null | undefined
     readonly browserCache?: BrowserCacheSettings | undefined
     readonly responseCache?: ResponseCacheSettings | null | undefined

@@ -228,6 +228,29 @@ pub(crate) struct ProxyHost {
     pub(crate) upstream_tls: Option<UpstreamTls>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) access_policy: Option<AccessPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) upstream_pool: Option<UpstreamPool>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum UpstreamSelectionPolicy {
+    RoundRobin,
+    First,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct UpstreamPool {
+    pub(crate) policy: UpstreamSelectionPolicy,
+    pub(crate) members: Vec<UpstreamMember>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct UpstreamMember {
+    pub(crate) host: String,
+    pub(crate) port: u16,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

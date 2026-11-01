@@ -1777,7 +1777,11 @@
                 "port": "Introduza um número inteiro de porta entre 1 e 65535.",
                 "upstreamTlsServerName": "Introduza um nome DNS de servidor sem URL, porta, endereço IP ou wildcard.",
                 "trustedCaRequiresVerification": "As ACs fidedignas personalizadas requerem a verificação do certificado de destino.",
-                "upstreamTlsIpNameRequired": "Introduza o nome DNS do certificado de destino ao ligar-se a um endereço IP."
+                "upstreamTlsIpNameRequired": "Introduza o nome DNS do certificado de destino ao ligar-se a um endereço IP.",
+                "duplicateUpstream": "Cada destino deve ter uma combinação única de host e porta.",
+                "upstreamPoolPrimary": "O destino primário deve corresponder ao primeiro membro do conjunto.",
+                "upstreamMembersRequired": "Adicione pelo menos um destino upstream.",
+                "upstreamMembersLimit": "Adicione no máximo 16 destinos upstream."
             },
             "config": {
                 "open": "Configuração do Caddy",
@@ -1958,6 +1962,25 @@
                 "ttl": "Duração máxima em segundos (1–3600)",
                 "hint": "Apenas respostas públicas bem-sucedidas de CSS, JavaScript, imagens e fontes. Cookies, credenciais, parâmetros, fluxos e hosts protegidos ignoram a cache. Limites: 1 MiB por resposta, 64 MiB partilhados e 1024 entradas.",
                 "invalid": "Use 1–16 prefixos únicos, como /assets/, e uma duração entre 1 e 3600 segundos."
+            },
+            "upstreamPool": {
+                "title": "Destinos upstream",
+                "policy": "Seleção de destinos",
+                "single": "Destino único",
+                "round_robin": "Round robin",
+                "first": "Primário / secundário (ordenado)",
+                "hint": "O destino 1 usa o host e a porta acima. Adicione até 16 destinos na ordem desejada. Round robin alterna destinos; o modo ordenado usa o primeiro disponível.",
+                "tlsHint": "Todos partilham protocolo, verificação TLS e CA de confiança. Cada destino DNS usa o seu nome TLS salvo substituição. Um IP com HTTPS verificado exige um nome DNS de substituição comum.",
+                "primary": "Destino 1 (host e porta acima)",
+                "member": "Destino {{number}}",
+                "add": "Adicionar destino",
+                "remove": "Remover",
+                "moveUp": "Subir",
+                "moveDown": "Descer",
+                "removeLabel": "Remover destino {{number}}",
+                "moveUpLabel": "Subir destino {{number}}",
+                "moveDownLabel": "Descer destino {{number}}",
+                "summary": "{{count}} destinos · {{policy}}"
             }
         },
         "redirectHosts": {

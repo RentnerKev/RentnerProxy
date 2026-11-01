@@ -92,6 +92,7 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostForwardCell, {
                         forwardHost: row.original.forwardHost,
+                        upstreamPool: row.original.upstreamPool,
                         forwardPort: row.original.forwardPort,
                         forwardScheme: row.original.forwardScheme,
                         verifyUpstreamTls: row.original.verifyUpstreamTls,

@@ -2,6 +2,11 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
+import {
+    proxyUpstreamPoolSchema,
+    upstreamTlsRequiresServerName,
+} from '@/lib/ProxyRuntime/upstreamPool.ts'
+import { validateUpstreamPoolPrimary } from '@/features/Admin/ProxyHostManagement/validation.ts'
 import { responseCacheSchema } from '@/lib/ResponseCache/responseCache.ts'
 import { defaultSiteSettingsSchema } from '@/lib/DefaultSite/defaultSite.ts'
 import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
@@ -165,6 +170,7 @@ const runtimeHostSchema = z
         forwardScheme: z.enum(['http', 'https']),
         forwardHost: proxyForwardHostSchema,
         forwardPort: proxyForwardPortSchema,
+        upstreamPool: proxyUpstreamPoolSchema.optional(),
         httpSettings: proxyHostHttpSettingsSchema.optional(),
         responseCache: responseCacheSchema.optional(),
         certificateId: z.uuidv7().nullish(),
@@ -177,6 +183,7 @@ const runtimeHostSchema = z
         'Force HTTPS requires a certificate.',
     )
     .superRefine((host, context) => {
+        validateUpstreamPoolPrimary(host, context)
         if (host.forwardScheme === 'http') {
             if (host.upstreamTls !== undefined)
                 context.addIssue({
@@ -194,8 +201,9 @@ const runtimeHostSchema = z
         if (
             tls.verify &&
             tls.serverName === null &&
-            (z.ipv4().safeParse(host.forwardHost).success ||
-                z.ipv6().safeParse(host.forwardHost).success)
+            upstreamTlsRequiresServerName(
+                host.upstreamPool?.members.map((member) => member.host) ?? [host.forwardHost],
+            )
         )
             context.addIssue({
                 code: 'custom',
@@ -309,6 +317,7 @@ export function createProxyRuntimeSnapshot(
                       }
                     : {},
                 normalizedAccessPolicy ? { accessPolicy: normalizedAccessPolicy } : {},
+                host.upstreamPool ? { upstreamPool: host.upstreamPool } : {},
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
@@ -375,7 +384,7 @@ export function createProxyRuntimeSnapshot(
     })
     const normalizedDefaultSite = defaultSiteSettingsSchema.parse(defaultSite)
     const snapshot = {
-        version: 7,
+        version: proxyHosts.some((host) => host.upstreamPool !== undefined) ? 8 : 7,
         proxyHosts,
         redirectHosts,
         httpSettings: normalizedSettings,

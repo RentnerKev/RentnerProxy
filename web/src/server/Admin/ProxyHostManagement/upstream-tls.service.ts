@@ -1,7 +1,7 @@
 import type { UpstreamTlsSettings, ExistingProxyHost } from './Types/upstream-tls.types.ts'
 import '@tanstack/react-start/server-only'
 
-import { isIP } from 'node:net'
+import { upstreamTlsRequiresServerName } from '@/lib/ProxyRuntime/upstreamPool.ts'
 
 import type {
     CreateProxyHostInput,
@@ -29,7 +29,13 @@ export function normalizeUpstreamTlsSettings(
             : (input.trustedCaId?.toLowerCase() ?? null)
 
     if (trustedCaId !== null && !verifyUpstreamTls) throw invalidInput()
-    if (verifyUpstreamTls && isIP(input.forwardHost) !== 0 && upstreamTlsServerName === null)
+    if (
+        verifyUpstreamTls &&
+        upstreamTlsRequiresServerName(
+            input.upstreamPool?.members.map((member) => member.host) ?? [input.forwardHost],
+        ) &&
+        upstreamTlsServerName === null
+    )
         throw invalidInput()
     return { verifyUpstreamTls, upstreamTlsServerName, trustedCaId }
 }

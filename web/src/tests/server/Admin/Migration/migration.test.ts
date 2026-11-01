@@ -543,3 +543,39 @@ describe('Zoraxy configuration ZIP', () => {
         )
     })
 })
+
+test('portable v2 round-trips ordered pools while single-target documents stay v1', async () => {
+    const id = randomUUID()
+    const host = {
+        id,
+        forwardScheme: 'http' as const,
+        forwardHost: 'backend.internal',
+        forwardPort: 8080,
+        enabled: true,
+        forceHttps: false,
+        verifyUpstreamTls: true,
+        upstreamTlsServerName: null,
+        accessPolicyId: null,
+        certificateId: null,
+        trustedCaId: null,
+    }
+    const domains = [{ domain: 'pool.example.test', proxyHostId: id, redirectHostId: null }]
+    expect(buildPortableDocument([], [host], [], domains).version).toBe(1)
+    const upstreamPool = {
+        policy: 'first' as const,
+        members: [
+            { host: host.forwardHost, port: host.forwardPort },
+            { host: 'secondary.internal', port: 8081 },
+        ],
+    }
+    const document = buildPortableDocument([], [{ ...host, upstreamPool }], [], domains)
+    expect(document.version).toBe(2)
+    const source = await readPortableSource(await fixture('pool.json', JSON.stringify(document)))
+    const plan = buildPortablePlan(source, 'd'.repeat(64), new Map())
+    expect(plan.sourceSchema).toBe('rentnerproxy-portable-v2')
+    expect(plan.items[0]?.status).toBe('ready')
+    expect(plan.items[0]?.proxyInput?.upstreamPool).toEqual(upstreamPool)
+    expect(
+        buildPortablePlan({ ...source, version: 1 }, 'd'.repeat(64), new Map()).items[0]?.status,
+    ).toBe('manual')
+})

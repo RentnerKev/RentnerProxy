@@ -6,6 +6,8 @@ import { proxyForwardHostSchema, proxyHostFormSchema } from '../../../validation
 import DomainInputs from './DomainInputs.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { ProxyHostBaseFieldsProps } from '../Types/form-sections.types.ts'
+import useUpstreamPoolFieldsLogic from '../Hooks/useUpstreamPoolFieldsLogic.ts'
+import UpstreamPoolFields from './UpstreamPoolFields.tsx'
 
 export default function ProxyHostBaseFields({
     form,
@@ -17,6 +19,7 @@ export default function ProxyHostBaseFields({
     onSchemeChange,
 }: ProxyHostBaseFieldsProps) {
     const { t } = useTranslationStore()
+    const { state, handler } = useUpstreamPoolFieldsLogic({ form })
     return (
         <>
             <DomainInputs
@@ -87,7 +90,7 @@ export default function ProxyHostBaseFields({
                                 placeholder={t('placeholders.forwardPort')}
                                 maxLength={5}
                                 onBlur={field.handleBlur}
-                                onValueChange={field.handleChange}
+                                onValueChange={handler.handlePrimaryPortChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={errorId}
                             />
@@ -126,7 +129,7 @@ export default function ProxyHostBaseFields({
                                 spellCheck={false}
                                 placeholder={t('admin.proxyHosts.form.forwardHostPlaceholder')}
                                 onBlur={field.handleBlur}
-                                onValueChange={field.handleChange}
+                                onValueChange={handler.handlePrimaryHostChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={`${hintId} ${errorId}`}
                             />
@@ -138,6 +141,13 @@ export default function ProxyHostBaseFields({
                     )
                 }}
             </form.Field>
+            <UpstreamPoolFields
+                form={form}
+                formId={formId}
+                isPending={isPending}
+                state={state}
+                handler={handler}
+            />
         </>
     )
 }

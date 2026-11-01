@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 
 import { asc } from 'drizzle-orm'
 import { z } from 'zod'
+import { proxyUpstreamPoolSchema } from '@/lib/ProxyRuntime/upstreamPool.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { accessPolicies, hostDomains, proxyHosts, redirectHosts } from '@/db/schema.ts'
@@ -35,7 +36,7 @@ const PORTABLE_SCHEMA = 'rentnerproxy-portable-v1'
 const recordSchema = z.record(z.string(), z.unknown())
 const documentSchema = z.strictObject({
     format: z.literal('rentnerproxy-portable-config'),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     exportedAt: z.iso.datetime(),
     policies: z.array(recordSchema).max(MAX_OBJECTS),
     proxyHosts: z.array(recordSchema).max(MAX_OBJECTS),
@@ -54,6 +55,7 @@ const proxySchema = z.strictObject({
     forwardScheme: z.enum(['http', 'https']),
     forwardHost: z.string(),
     forwardPort: z.number().int(),
+    upstreamPool: proxyUpstreamPoolSchema.optional(),
     enabled: z.boolean(),
     forceHttps: z.boolean(),
     verifyUpstreamTls: z.boolean(),
@@ -94,7 +96,7 @@ export function buildPortableDocument(
     }
     return {
         format: 'rentnerproxy-portable-config' as const,
-        version: 1 as const,
+        version: proxies.some((host) => host.upstreamPool != null) ? (2 as const) : (1 as const),
         exportedAt: new Date().toISOString(),
         policies: policies.map((policy) => ({
             id: policy.id,
@@ -109,6 +111,7 @@ export function buildPortableDocument(
             forwardScheme: host.forwardScheme,
             forwardHost: host.forwardHost,
             forwardPort: host.forwardPort,
+            ...(host.upstreamPool ? { upstreamPool: host.upstreamPool } : {}),
             enabled: host.enabled,
             forceHttps: host.forceHttps,
             verifyUpstreamTls: host.verifyUpstreamTls,
@@ -184,7 +187,7 @@ export async function readPortableSource(path: string): Promise<z.infer<typeof d
         !parsed ||
         typeof parsed !== 'object' ||
         (parsed as Record<string, unknown>).format !== 'rentnerproxy-portable-config' ||
-        (parsed as Record<string, unknown>).version !== 1
+        ![1, 2].includes(Number((parsed as Record<string, unknown>).version))
     ) {
         throw new PortableSourceError('unsupported_schema')
     }
@@ -264,7 +267,8 @@ export function buildPortablePlan(
         const label = Array.isArray(raw.domains)
             ? raw.domains.join(', ').slice(0, 250)
             : `Proxy #${sourceId}`
-        if (!parsed.success) return manual('proxy-host', sourceId, label, 'invalid_host_settings')
+        if (!parsed.success || (source.version === 1 && raw.upstreamPool !== undefined))
+            return manual('proxy-host', sourceId, label, 'invalid_host_settings')
         const host = parsed.data
         const accessListId = host.accessPolicyId ? policyIds.get(host.accessPolicyId) : undefined
         if (
@@ -285,6 +289,7 @@ export function buildPortablePlan(
             forwardScheme: host.forwardScheme,
             forwardHost: host.forwardHost,
             forwardPort: host.forwardPort,
+            ...(host.upstreamPool ? { upstreamPool: host.upstreamPool } : {}),
             enabled: host.enabled && reasons.length === 0,
             certificateId: null,
             forceHttps: false,
@@ -338,7 +343,7 @@ export function buildPortablePlan(
     })
     return finalizeImportPlan(
         fingerprint,
-        PORTABLE_SCHEMA,
+        source.version === 2 ? 'rentnerproxy-portable-v2' : PORTABLE_SCHEMA,
         [...policies, ...proxies, ...redirects],
         existingDomains,
     )

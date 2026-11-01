@@ -163,3 +163,28 @@ test('keeps extra protocol terms out of server search and matches normalized sha
         ).total,
     ).toBe(1)
 })
+
+test('searches every pool target host and port before pagination', () => {
+    const host: ProxyHostSummary = {
+        ...hosts[0]!,
+        upstreamPool: {
+            policy: 'round_robin',
+            members: [
+                { host: 'upstream.internal', port: 8080 },
+                { host: 'secondary.internal', port: 9443 },
+                { host: '2001:db8::9', port: 9000 },
+            ],
+        },
+    }
+    for (const search of ['SECONDARY.INTERNAL', '9443', '2001:db8::9']) {
+        expect(
+            filterHostPage(
+                [hosts[1]!, host],
+                [],
+                hostListQuerySchema.parse({ search, pageSize: 10 }),
+                labels,
+            ).hosts,
+        ).toEqual([host])
+    }
+    expect(matchesHostSearch(host, 'missing.internal', 'en', labels.enabled)).toBeFalse()
+})

@@ -56,6 +56,7 @@ export function toProxyHostSummary(
         accessPolicyId: proxyHost.accessPolicyId ?? null,
         forwardHost: proxyHost.forwardHost,
         forwardPort: proxyHost.forwardPort,
+        ...(proxyHost.upstreamPool ? { upstreamPool: proxyHost.upstreamPool } : {}),
         forwardScheme: proxyHost.forwardScheme,
         id: proxyHost.id,
         updatedAt: proxyHost.updatedAt,
@@ -191,6 +192,7 @@ export async function createProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
+            upstreamPool: parsedInput.upstreamPool ?? null,
             forwardScheme: parsedInput.forwardScheme,
         })
         .returning(proxyHostSummaryColumns)
@@ -307,7 +309,18 @@ export async function updateProxyHostInTransaction(
             ? proxyHost.certificateId
             : (parsedInput.certificateId?.toLowerCase() ?? null)
     const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
-    const upstreamTls = normalizeUpstreamTlsSettings(parsedInput, proxyHost)
+    const upstreamPool =
+        parsedInput.upstreamPool === undefined
+            ? (proxyHost.upstreamPool ?? null)
+            : parsedInput.upstreamPool
+    const firstMember = upstreamPool?.members[0]
+    if (
+        firstMember &&
+        (firstMember.host !== parsedInput.forwardHost ||
+            firstMember.port !== parsedInput.forwardPort)
+    )
+        throw invalidInput()
+    const upstreamTls = normalizeUpstreamTlsSettings({ ...parsedInput, upstreamPool }, proxyHost)
     const accessPolicyId =
         parsedInput.accessPolicyId === undefined
             ? proxyHost.accessPolicyId
@@ -351,6 +364,7 @@ export async function updateProxyHostInTransaction(
         parsedInput.forwardScheme !== proxyHost.forwardScheme ||
         parsedInput.forwardHost !== proxyHost.forwardHost ||
         parsedInput.forwardPort !== proxyHost.forwardPort ||
+        JSON.stringify(upstreamPool) !== JSON.stringify(proxyHost.upstreamPool ?? null) ||
         JSON.stringify(previousDomains.map(({ domain }) => domain).toSorted()) !==
             JSON.stringify(domains) ||
         (parsedInput.forwardScheme === 'https' &&
@@ -367,6 +381,7 @@ export async function updateProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
+            upstreamPool,
             forwardScheme: parsedInput.forwardScheme,
             updatedAt: new Date(),
         })

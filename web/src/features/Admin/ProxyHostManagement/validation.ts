@@ -1,4 +1,16 @@
 import { z } from 'zod'
+import {
+    MAX_PROXY_UPSTREAM_MEMBERS,
+    PROXY_UPSTREAM_POLICIES,
+} from '@/config/upstream-pools.config.ts'
+import {
+    proxyUpstreamMemberSchema,
+    proxyUpstreamPoolSchema,
+    upstreamTlsRequiresServerName,
+    validateUniqueUpstreamMembers,
+} from '@/lib/ProxyRuntime/upstreamPool.ts'
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
+export { proxyUpstreamPoolSchema } from '@/lib/ProxyRuntime/upstreamPool.ts'
 import { browserCacheSettingsSchema } from './config-validation.ts'
 import { responseCacheSchema } from '@/lib/ResponseCache/responseCache.ts'
 import { hostTagIdsSchema } from '@/lib/HostTags/hostTags.ts'
@@ -88,6 +100,7 @@ const proxyHostInputSchema = z.object({
     forwardScheme: z.enum(PROXY_HOST_FORWARD_SCHEMES),
     forwardHost: proxyForwardHostSchema,
     forwardPort: proxyForwardPortSchema,
+    upstreamPool: proxyUpstreamPoolSchema.nullable().optional(),
     enabled: z.boolean(),
     certificateId: z.uuid().nullable().optional(),
     forceHttps: z.boolean().optional(),
@@ -101,12 +114,15 @@ function validateUpstreamTlsInput(
     host: {
         forwardScheme: string
         forwardHost: string
+        forwardPort: number
+        upstreamPool?: ProxyUpstreamPool | null | undefined
         verifyUpstreamTls?: boolean
         upstreamTlsServerName?: string | null
         trustedCaId?: string | null
     },
     context: z.RefinementCtx,
 ): void {
+    validateUpstreamPoolPrimary(host, context)
     if (host.forwardScheme !== 'https') return
     if (host.verifyUpstreamTls === false && host.trustedCaId) {
         context.addIssue({
@@ -115,9 +131,10 @@ function validateUpstreamTlsInput(
             message: 'admin.proxyHosts.validation.trustedCaRequiresVerification',
         })
     }
-    const isIp =
-        z.ipv4().safeParse(host.forwardHost).success || z.ipv6().safeParse(host.forwardHost).success
-    if (host.verifyUpstreamTls !== false && isIp && !host.upstreamTlsServerName) {
+    const requiresName = upstreamTlsRequiresServerName(
+        host.upstreamPool?.members.map((member) => member.host) ?? [host.forwardHost],
+    )
+    if (host.verifyUpstreamTls !== false && requiresName && !host.upstreamTlsServerName) {
         context.addIssue({
             code: 'custom',
             path: ['upstreamTlsServerName'],
@@ -125,6 +142,40 @@ function validateUpstreamTlsInput(
         })
     }
 }
+
+export function validateUpstreamPoolPrimary(
+    host: {
+        forwardHost: string
+        forwardPort: number
+        upstreamPool?: ProxyUpstreamPool | null | undefined
+    },
+    context: z.RefinementCtx,
+): void {
+    const first = host.upstreamPool?.members[0]
+    if (first && (first.host !== host.forwardHost || first.port !== host.forwardPort)) {
+        context.addIssue({
+            code: 'custom',
+            path: ['upstreamPool'],
+            message: 'admin.proxyHosts.validation.upstreamPoolPrimary',
+        })
+    }
+}
+
+const formPortSchema = z
+    .string()
+    .trim()
+    .regex(/^\d{1,5}$/u, 'admin.proxyHosts.validation.port')
+    .transform(Number)
+    .pipe(proxyForwardPortSchema)
+const formUpstreamPoolSchema = z
+    .strictObject({
+        policy: z.enum(PROXY_UPSTREAM_POLICIES),
+        members: z
+            .array(proxyUpstreamMemberSchema.extend({ port: formPortSchema }))
+            .min(1, 'admin.proxyHosts.validation.upstreamMembersRequired')
+            .max(MAX_PROXY_UPSTREAM_MEMBERS, 'admin.proxyHosts.validation.upstreamMembersLimit'),
+    })
+    .superRefine(validateUniqueUpstreamMembers)
 
 const createProxyHostFieldsSchema = proxyHostInputSchema.extend({
     verifyUpstreamTls: z.boolean().default(true),
@@ -136,15 +187,13 @@ export const createProxyHostInputSchema =
 
 export const proxyHostFormSchema = createProxyHostFieldsSchema
     .extend({
-        forwardPort: z
-            .string()
-            .trim()
-            .regex(/^\d{1,5}$/u, 'admin.proxyHosts.validation.port')
-            .transform(Number)
-            .pipe(proxyForwardPortSchema),
+        forwardPort: formPortSchema,
+        upstreamPool: formUpstreamPoolSchema.nullable().optional(),
     })
     .superRefine(validateUpstreamTlsInput)
 
 export const proxyHostIdInputSchema = z.object({ proxyHostId: z.uuid() })
 
-export const updateProxyHostInputSchema = proxyHostInputSchema.extend(proxyHostIdInputSchema.shape)
+export const updateProxyHostInputSchema = proxyHostInputSchema
+    .extend(proxyHostIdInputSchema.shape)
+    .superRefine(validateUpstreamPoolPrimary)
