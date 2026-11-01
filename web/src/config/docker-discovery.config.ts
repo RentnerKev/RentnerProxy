@@ -21,7 +21,7 @@ export const DOCKER_DISCOVERY_COMPOSE_EXAMPLE = `services:
   rentnerproxy:
     networks: [default, proxy, discovery-control]
   docker-api:
-    image: mirror.gcr.io/library/haproxy:3.2.26@sha256:06843e9d60fcdae4e43ff8e001859249a5352f1b8e522058ce86e6f8cf789507
+    image: mirror.gcr.io/library/haproxy:3.4.7@sha256:64378482a9ad183747a0416fcaaae7f5f46bd7dac9ddd6805aa5db806a2a83ad
     user: "0:0"
     read_only: true
     cap_drop: [ALL]

@@ -123,7 +123,8 @@ export async function verifyApplianceStartup(context: ApplianceStartupContext) {
             '/opt/rentnerproxy/valkey/bin/valkey-server',
             '--version',
         ]),
-        /Valkey server v=9\.1\.2/u,
+        /Valkey server v=9\.1\.3/u,
+        'bundled Valkey must match the production image version',
     )
     assert.equal(await context.valkeyCommand(id, ['PING']), 'PONG')
     assert.equal(await context.valkeyCommand(id, ['CONFIG', 'GET', 'bind']), 'bind\n127.0.0.1')
@@ -224,7 +225,8 @@ export async function verifyApplianceStartup(context: ApplianceStartupContext) {
     )
     assert.match(
         await context.command(['docker', 'exec', id, '/usr/local/bin/crowdsec', '-version']),
-        /version: v1\.8\.1-909b5157/u,
+        /version: v1\.8\.2-3d369d64/u,
+        'bundled CrowdSec must match the pinned upstream source revision',
     )
     assert.equal(
         await context.command([
