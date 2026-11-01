@@ -119,11 +119,11 @@ test('seeded local backup history is read after authorization and never invokes 
     expect(await service.getBackupsStatusService()).toEqual(demo)
     expect(f.steps).not.toContain('status')
     await expect(service.requestBackupService({ requestId })).rejects.toMatchObject({
-        code: 'unavailable',
+        code: 'appliance_required',
     })
     await expect(
         service.updateBackupConfigurationService(configurationInput),
-    ).rejects.toMatchObject({ code: 'unavailable' })
+    ).rejects.toMatchObject({ code: 'appliance_required' })
     expect(f.controllerInputs).toHaveLength(0)
     expect(f.audits).toHaveLength(0)
     const denied = fixture('authorize')

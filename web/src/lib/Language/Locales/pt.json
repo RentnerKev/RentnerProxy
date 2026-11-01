@@ -790,6 +790,7 @@
                 "execution_failed": "A criação da cópia de segurança falhou. Verifique a integridade e o armazenamento do appliance e tente novamente.",
                 "interrupted": "A cópia de segurança foi interrompida. Ela não é um ponto de recuperação confirmado; crie uma nova cópia.",
                 "artifact_invalid": "O arquivo da cópia de segurança não passou na verificação e não pode ser usado como ponto de recuperação.",
+                "appliance_required": "Este é um histórico de demonstração local. Criar ou restaurar cópias reais e salvar agendamentos requer o serviço de backup da appliance Linux.",
                 "recovery_failed": "O appliance não conseguiu confirmar a recuperação dos serviços após a manutenção da cópia de segurança. Verifique sua integridade antes de tentar novamente.",
                 "not_found": "Esta cópia já não existe. Escolhe outra entrada do histórico atual."
             },

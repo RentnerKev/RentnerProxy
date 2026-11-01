@@ -110,6 +110,7 @@ const completed: ManagedBackupJob = {
 let status: ManagedBackupStatus
 let statusError: number | null
 let startError: number | null
+let startErrorCode: 'unavailable' | 'appliance_required'
 let admitBeforeStartFailure: boolean
 let configurationError: number | null
 let startRequests: Array<{ requestId: string }>
@@ -198,6 +199,7 @@ beforeEach(() => {
     }
     statusError = null
     startError = null
+    startErrorCode = 'unavailable'
     admitBeforeStartFailure = false
     configurationError = null
     startRequests = []
@@ -231,7 +233,7 @@ beforeEach(() => {
                     const request = body as { requestId: string }
                     startRequests.push(request)
                     if (startError && !admitBeforeStartFailure)
-                        return Response.json({ error: 'unavailable' }, { status: startError })
+                        return Response.json({ error: startErrorCode }, { status: startError })
                     status.jobs.push({
                         ...completed,
                         id: uuid(3),
@@ -245,7 +247,7 @@ beforeEach(() => {
                     })
                     if (startError) {
                         statusError = 503
-                        return Response.json({ error: 'unavailable' }, { status: startError })
+                        return Response.json({ error: startErrorCode }, { status: startError })
                     }
                     return Response.json(status, { status: 202 })
                 }
@@ -433,6 +435,21 @@ describe('managed backup UI', () => {
         )
         expect(button('Create backup').disabled).toBeTrue()
         expect(document.body.textContent).toContain('Queued')
+    })
+    test('a known demo rejection explains the missing appliance without claiming uncertain admission', async () => {
+        startError = 409
+        startErrorCode = 'appliance_required'
+        await renderPage()
+        await click(button('Create backup'))
+        await click(button('Start backup maintenance'))
+        await waitFor(
+            () => document.body.textContent?.includes('Linux appliance backup service') === true,
+        )
+        expect(document.body.textContent).not.toContain('request result could not be confirmed')
+        expect(document.body.textContent).not.toContain('Retry backup request')
+        expect(document.body.textContent).not.toContain('Backup request recorded')
+        expect(button('Create backup').disabled).toBeFalse()
+        expect(status.jobs).toHaveLength(1)
     })
     test('retries an uncertain admission with the same request identity', async () => {
         startError = 503

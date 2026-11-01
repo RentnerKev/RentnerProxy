@@ -790,6 +790,7 @@
                 "execution_failed": "Creazione del backup non riuscita. Controlla lo stato e l’archiviazione dell’appliance, quindi riprova.",
                 "interrupted": "Il backup è stato interrotto. Non è un punto di ripristino confermato; crea un nuovo backup.",
                 "artifact_invalid": "Il file di backup non ha superato la verifica e non può essere usato come punto di ripristino.",
+                "appliance_required": "Questa è una cronologia dimostrativa locale. Creare o ripristinare backup reali e salvare le pianificazioni richiede il servizio di backup dell’appliance Linux.",
                 "recovery_failed": "L’appliance non ha potuto confermare il ripristino dei servizi dopo la manutenzione per il backup. Controllane lo stato prima di riprovare.",
                 "not_found": "Questo backup non esiste più. Scegli un’altra voce dalla cronologia attuale."
             },

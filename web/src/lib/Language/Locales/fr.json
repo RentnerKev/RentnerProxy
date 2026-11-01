@@ -790,6 +790,7 @@
                 "execution_failed": "La création de la sauvegarde a échoué. Vérifiez l’état et le stockage de l’appliance, puis réessayez.",
                 "interrupted": "La sauvegarde a été interrompue. Ce n’est pas un point de récupération confirmé ; créez une nouvelle sauvegarde.",
                 "artifact_invalid": "Le fichier de sauvegarde n’a pas réussi la vérification et ne peut pas servir de point de récupération.",
+                "appliance_required": "Cet historique contient des données de démonstration locales. Créer ou restaurer de vraies sauvegardes et enregistrer les planifications nécessite le service de sauvegarde de l’appliance Linux.",
                 "recovery_failed": "L’appliance n’a pas pu confirmer le rétablissement des services après la maintenance de sauvegarde. Vérifiez son état avant de réessayer.",
                 "not_found": "Cette sauvegarde n’existe plus. Choisis une autre entrée dans l’historique actuel."
             },

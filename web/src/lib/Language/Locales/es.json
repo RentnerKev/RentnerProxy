@@ -790,6 +790,7 @@
                 "execution_failed": "No se pudo crear la copia de seguridad. Comprueba el estado y el almacenamiento del dispositivo y vuelve a intentarlo.",
                 "interrupted": "La copia de seguridad se interrumpió. No es un punto de recuperación confirmado; crea una copia nueva.",
                 "artifact_invalid": "El archivo de copia de seguridad no superó la verificación y no se puede usar como punto de recuperación.",
+                "appliance_required": "Este es un historial de demostración local. Crear o restaurar copias reales y guardar programaciones requiere el servicio de copias de la appliance Linux.",
                 "recovery_failed": "El dispositivo no pudo confirmar la recuperación de los servicios tras el mantenimiento de copia de seguridad. Comprueba su estado antes de reintentarlo.",
                 "not_found": "Esta copia ya no existe. Elige otra entrada del historial actual."
             },

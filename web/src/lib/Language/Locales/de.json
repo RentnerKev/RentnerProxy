@@ -788,6 +788,7 @@
                 "execution_failed": "Das Backup konnte nicht erstellt werden. Prüfe den Zustand und Speicher der Appliance und versuche es dann erneut.",
                 "interrupted": "Das Backup wurde unterbrochen. Es ist kein bestätigter Wiederherstellungspunkt; erstelle ein neues Backup.",
                 "artifact_invalid": "Die Backup-Datei hat die Prüfung nicht bestanden und kann nicht als Wiederherstellungspunkt verwendet werden.",
+                "appliance_required": "Hier wird ein lokaler Demo-Verlauf angezeigt. Echte Backups, Wiederherstellungen und Zeitplanänderungen benötigen den Backup-Dienst der Linux-Appliance.",
                 "recovery_failed": "Die Appliance konnte die Wiederaufnahme der Dienste nach der Backup-Wartung nicht bestätigen. Prüfe ihren Zustand, bevor du es erneut versuchst.",
                 "not_found": "Dieses Backup ist nicht mehr vorhanden. Wähle einen anderen Eintrag aus dem aktuellen Verlauf."
             },

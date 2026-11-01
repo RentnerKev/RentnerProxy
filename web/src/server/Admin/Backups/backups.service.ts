@@ -39,8 +39,8 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
         await dependencies.limit(actor.id)
         const { jobId, ...request } = parsed.data
         if (await dependencies.localDemo?.()) {
-            if (operation !== 'delete' || !dependencies.demoDelete)
-                throw new BackupDomainError('unavailable')
+            if (operation === 'restore') throw new BackupDomainError('appliance_required')
+            if (!dependencies.demoDelete) throw new BackupDomainError('unavailable')
             const result = await dependencies.demoDelete({ ...parsed.data, actorId: actor.id })
             publishApplicationChange()
             return result
@@ -86,7 +86,7 @@ export function createBackupAdminService(dependencies: BackupAdminDependencies) 
         ).safeParse(input)
         if (!parsed.success) throw new BackupDomainError('invalid_input')
         await dependencies.limit(actor.id)
-        if (await dependencies.localDemo?.()) throw new BackupDomainError('unavailable')
+        if (await dependencies.localDemo?.()) throw new BackupDomainError('appliance_required')
         return dependencies.transaction(async (transaction) => {
             await transaction.authorize(actor.id, PERMISSIONS.BACKUPS_MANAGE)
             const result = await (configuration

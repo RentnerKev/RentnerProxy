@@ -6,6 +6,7 @@ export const BACKUP_ERRORS = [
     'unavailable',
     'not_found',
     'artifact_invalid',
+    'appliance_required',
 ] as const
 export class BackupDomainError extends Error {
     constructor(readonly code: (typeof BACKUP_ERRORS)[number]) {

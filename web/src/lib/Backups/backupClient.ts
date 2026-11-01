@@ -33,6 +33,7 @@ const failureSchema = z.strictObject({
         'unavailable',
         'not_found',
         'artifact_invalid',
+        'appliance_required',
     ]),
 })
 

@@ -769,6 +769,7 @@
                 "execution_failed": "Het maken van de back-up is mislukt. Controleer de toestand en opslag van de appliance en probeer het daarna opnieuw.",
                 "interrupted": "De back-up is onderbroken. Dit is geen bevestigd herstelpunt; maak een nieuwe back-up.",
                 "artifact_invalid": "Het back-upbestand is niet door de controle gekomen en kan niet als herstelpunt worden gebruikt.",
+                "appliance_required": "Dit is lokale demogeschiedenis. Echte back-ups maken of herstellen en planningen opslaan vereist de back-updienst van de Linux-appliance.",
                 "recovery_failed": "De appliance kon het herstel van de diensten na het back-uponderhoud niet bevestigen. Controleer de toestand voordat je het opnieuw probeert.",
                 "not_found": "Deze back-up bestaat niet meer. Kies een andere vermelding uit de huidige geschiedenis."
             },

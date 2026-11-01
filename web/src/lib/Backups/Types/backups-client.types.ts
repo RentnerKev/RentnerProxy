@@ -20,6 +20,7 @@ export type BackupClientErrorCode =
     | 'aborted'
     | 'not_found'
     | 'artifact_invalid'
+    | 'appliance_required'
 
 export type BackupDownloadError =
     | 'not_found'

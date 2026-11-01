@@ -792,6 +792,7 @@
                 "execution_failed": "Nie udało się utworzyć kopii zapasowej. Sprawdź stan i pamięć urządzenia, a następnie spróbuj ponownie.",
                 "interrupted": "Tworzenie kopii zostało przerwane. Nie jest to potwierdzony punkt przywracania; utwórz nową kopię.",
                 "artifact_invalid": "Plik kopii nie przeszedł weryfikacji i nie może być użyty jako punkt przywracania.",
+                "appliance_required": "To lokalna historia demonstracyjna. Tworzenie i przywracanie rzeczywistych kopii oraz zapisywanie harmonogramów wymaga usługi kopii urządzenia Linux.",
                 "recovery_failed": "Urządzenie nie mogło potwierdzić przywrócenia usług po pracach związanych z kopią zapasową. Przed ponowieniem sprawdź jego stan.",
                 "not_found": "Ta kopia już nie istnieje. Wybierz inny wpis z bieżącej historii."
             },

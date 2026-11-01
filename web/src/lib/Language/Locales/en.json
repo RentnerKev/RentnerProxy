@@ -788,6 +788,7 @@
                 "execution_failed": "Backup creation failed. Check appliance health and storage, then retry.",
                 "interrupted": "The backup was interrupted. It is not a confirmed recovery point; create a new backup.",
                 "artifact_invalid": "The backup artifact failed verification and cannot be used as a recovery point.",
+                "appliance_required": "This is local demo history. Creating or restoring real backups and saving schedules requires the Linux appliance backup service.",
                 "recovery_failed": "The appliance could not confirm service recovery after backup maintenance. Check its health before retrying.",
                 "not_found": "This backup no longer exists. Choose another entry from the current history."
             },
