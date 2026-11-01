@@ -22,7 +22,7 @@ const proxy = name + '-proxy'
 const bun =
     'mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d'
 const haproxy =
-    'mirror.gcr.io/library/haproxy:3.2.26@sha256:06843e9d60fcdae4e43ff8e001859249a5352f1b8e522058ce86e6f8cf789507'
+    'mirror.gcr.io/library/haproxy:3.4.7@sha256:64378482a9ad183747a0416fcaaae7f5f46bd7dac9ddd6805aa5db806a2a83ad'
 
 async function command(args: string[], timeoutMs = 30_000) {
     const result = await runSmokeProcess(smokeDockerArguments(['docker', ...args]), {

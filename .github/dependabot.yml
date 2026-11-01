@@ -43,6 +43,28 @@ updates:
                   - 'minor'
                   - 'patch'
 
+    - package-ecosystem: 'gomod'
+      directories:
+          - '/core/caddy-modules/responsecache'
+      schedule:
+          interval: 'cron'
+          cronjob: '0 3 * * 1'
+          timezone: 'Europe/Berlin'
+      cooldown:
+          default-days: 1
+      commit-message:
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
+      groups:
+          gomod-minor-and-patch:
+              applies-to: 'version-updates'
+              patterns:
+                  - '*'
+              update-types:
+                  - 'minor'
+                  - 'patch'
+
     - package-ecosystem: 'docker'
       directories:
           - '/docker/production'

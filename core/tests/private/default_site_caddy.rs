@@ -28,12 +28,14 @@ impl SmokeWorkspace {
                 .unwrap()
                 .as_nanos()
         ));
-        let mut directory = std::fs::DirBuilder::new();
+        let directory = std::fs::DirBuilder::new();
         #[cfg(unix)]
-        {
+        let directory = {
             use std::os::unix::fs::DirBuilderExt;
+            let mut directory = directory;
             directory.mode(0o700);
-        }
+            directory
+        };
         directory.create(&root).unwrap();
         Self(root.canonicalize().unwrap())
     }

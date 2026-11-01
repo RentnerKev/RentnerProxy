@@ -33,7 +33,6 @@ jobs:
             base_sha: ${{ steps.gate.outputs.base_sha }}
             head_repository: ${{ steps.gate.outputs.head_repository }}
             head_sha: ${{ steps.gate.outputs.head_sha }}
-            immutable_tag: ${{ steps.gate.outputs.immutable_tag }}
             lifecycle: ${{ steps.gate.outputs.lifecycle }}
             pr_number: ${{ steps.gate.outputs.pr_number }}
             repository: ${{ steps.gate.outputs.repository }}
@@ -113,9 +112,22 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Resolve immutable identity for this build attempt
+              id: identity
+              env:
+                  PR_NUMBER: ${{ needs.verify.outputs.pr_number }}
+                  REPOSITORY: ${{ needs.verify.outputs.repository }}
+                  TESTED_SHA: ${{ needs.verify.outputs.tested_sha }}
+              run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts build-identity
+
             - name: Build untrusted preview image as OCI data
               env:
-                  IMMUTABLE_TAG: ${{ needs.verify.outputs.immutable_tag }}
+                  IMMUTABLE_TAG: ${{ steps.identity.outputs.immutable_tag }}
                   PR_NUMBER: ${{ needs.verify.outputs.pr_number }}
                   REPOSITORY: ${{ needs.verify.outputs.repository }}
                   TESTED_SHA: ${{ needs.verify.outputs.tested_sha }}
