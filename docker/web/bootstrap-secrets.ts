@@ -1,6 +1,7 @@
 // oxlint-disable no-await-in-loop -- Secret materialization retries a bounded compare-and-swap sequence.
 
 import { randomBytes, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
@@ -201,22 +202,202 @@ async function ensureNoProductionRestore(): Promise<void> {
         throw new Error('An interrupted production restore requires --resume with the same backup.')
 }
 
+function exactKeys(value: Record<string, unknown>, keys: string): boolean {
+    return Object.keys(value).toSorted().join(',') === keys
+}
+
+function unsignedInteger(value: unknown): value is number {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function publicText(value: unknown, maximum: number): value is string {
+    return typeof value === 'string' && value.length <= maximum && /^\P{Cc}*$/u.test(value)
+}
+
+function uuid(value: unknown): boolean {
+    return (
+        typeof value === 'string' &&
+        /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu.test(value)
+    )
+}
+
+function digest(value: unknown): boolean {
+    return typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value)
+}
+
+function pausedOffHostState(value: unknown) {
+    if (
+        !isRecord(value) ||
+        !exactKeys(value, 'configuration,receipts,requests,sealed,version') ||
+        value.version !== 1 ||
+        !isRecord(value.configuration)
+    )
+        throw new Error('invalid off-host state')
+    const configuration = value.configuration
+    if (
+        !exactKeys(
+            configuration,
+            'bucket,configured,enabled,endpoint,keyId,prefix,region,revision,targetId',
+        ) ||
+        !unsignedInteger(configuration.revision) ||
+        configuration.revision === Number.MAX_SAFE_INTEGER ||
+        typeof configuration.enabled !== 'boolean' ||
+        typeof configuration.configured !== 'boolean' ||
+        !publicText(configuration.endpoint, 512) ||
+        !publicText(configuration.region, 64) ||
+        !publicText(configuration.bucket, 63) ||
+        !publicText(configuration.prefix, 256) ||
+        (configuration.targetId !== null && !uuid(configuration.targetId)) ||
+        (configuration.keyId !== null && !digest(configuration.keyId))
+    )
+        throw new Error('invalid off-host configuration')
+    const sealed = value.sealed
+    if (
+        sealed !== null &&
+        (!isRecord(sealed) ||
+            !exactKeys(sealed, 'ciphertext,iv') ||
+            typeof sealed.iv !== 'string' ||
+            sealed.iv.length > 32 ||
+            typeof sealed.ciphertext !== 'string' ||
+            sealed.ciphertext.length > 4096)
+    )
+        throw new Error('invalid sealed off-host state')
+    if (
+        !Array.isArray(value.receipts) ||
+        value.receipts.length > 100 ||
+        value.receipts.some(
+            (receipt: unknown) =>
+                !isRecord(receipt) ||
+                !exactKeys(receipt, 'bytes,keyId,objectKey,sha256,state,targetId,verifiedAt') ||
+                receipt.state !== 'succeeded' ||
+                !uuid(receipt.targetId) ||
+                !digest(receipt.keyId) ||
+                !publicText(receipt.objectKey, 512) ||
+                receipt.objectKey.length < 1 ||
+                !digest(receipt.sha256) ||
+                !unsignedInteger(receipt.bytes) ||
+                receipt.bytes < 1 ||
+                !unsignedInteger(receipt.verifiedAt),
+        )
+    )
+        throw new Error('invalid off-host receipts')
+    if (
+        !Array.isArray(value.requests) ||
+        value.requests.length > 100 ||
+        value.requests.some(
+            (request: unknown) =>
+                !isRecord(request) ||
+                !exactKeys(request, 'fingerprint,id') ||
+                !uuid(request.id) ||
+                typeof request.fingerprint !== 'string' ||
+                request.fingerprint.length !== 64,
+        )
+    )
+        throw new Error('invalid off-host requests')
+    return {
+        ...value,
+        configuration: { ...configuration, enabled: false, revision: configuration.revision + 1 },
+    }
+}
+
+/** Pause the root-owned public configuration without opening or decrypting its sealed secrets. */
+export async function pauseOffHostBackupsAfterRestore(
+    path = '/var/lib/rentnerproxy/backups/off-host.json',
+): Promise<void> {
+    try {
+        const directory = await lstat(dirname(path)).catch((error: unknown) => {
+            if (isRecord(error) && error.code === 'ENOENT') return null
+            throw error
+        })
+        if (directory === null) return
+        if (
+            !directory.isDirectory() ||
+            directory.isSymbolicLink() ||
+            directory.uid !== 0 ||
+            (directory.mode & 0o077) !== 0
+        )
+            throw new Error('unsafe off-host directory')
+        const expected = await lstat(path).catch((error: unknown) => {
+            if (isRecord(error) && error.code === 'ENOENT') return null
+            throw error
+        })
+        if (expected === null) return
+        if (
+            !expected.isFile() ||
+            expected.isSymbolicLink() ||
+            expected.nlink !== 1 ||
+            expected.uid !== 0 ||
+            (expected.mode & 0o077) !== 0 ||
+            expected.size < 1 ||
+            expected.size > 512 * 1024
+        )
+            throw new Error('unsafe off-host state')
+        const file = await open(
+            path,
+            constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+        )
+        let bytes: Buffer | undefined
+        let value: unknown
+        try {
+            const info = await file.stat()
+            if (
+                !info.isFile() ||
+                info.uid !== 0 ||
+                info.nlink !== 1 ||
+                (info.mode & 0o077) !== 0 ||
+                info.ino !== expected.ino ||
+                info.dev !== expected.dev ||
+                info.size !== expected.size
+            )
+                throw new Error('changed off-host state')
+            bytes = Buffer.alloc(info.size)
+            let offset = 0
+            while (offset < bytes.length) {
+                const { bytesRead } = await file.read(bytes, offset, bytes.length - offset, offset)
+                if (!bytesRead) throw new Error('truncated off-host state')
+                offset += bytesRead
+            }
+            const extra = Buffer.alloc(1)
+            if (
+                (await file.read(extra, 0, 1, info.size)).bytesRead ||
+                (await file.stat()).size !== info.size
+            )
+                throw new Error('changed off-host state')
+            value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+        } finally {
+            bytes?.fill(0)
+            await file.close()
+        }
+        await writeAtomic(path, JSON.stringify(pausedOffHostState(value)), 0o600, true)
+    } catch {
+        throw new Error('Off-host backup configuration could not be paused for restore.')
+    }
+}
+
 export async function beginProductionRestore(
     backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID,
+    dependencies = {
+        readJournal: readProductionRestore,
+        writeJournal: async (journal: ProductionRestoreJournal) =>
+            writeAtomic(productionRestorePath, JSON.stringify(journal), 0o400, false, true),
+        pauseOffHost: pauseOffHostBackupsAfterRestore,
+        resume: process.env.RENTNERPROXY_RESTORE_RESUME === 'true',
+    },
 ): Promise<void> {
     if (typeof backupId !== 'string' || !/^[a-f0-9]{64}$/u.test(backupId))
         throw new Error('Invalid restore backup identity.')
-    const pending = await readProductionRestore()
+    const pending = await dependencies.readJournal()
     if (pending) {
-        if (process.env.RENTNERPROXY_RESTORE_RESUME !== 'true' || pending.backupId !== backupId) {
+        if (!dependencies.resume || pending.backupId !== backupId) {
             throw new Error('Pending production restore requires the same backup and --resume.')
         }
+        await dependencies.pauseOffHost()
         return
     }
-    if (process.env.RENTNERPROXY_RESTORE_RESUME === 'true')
-        throw new Error('No production restore is pending.')
+    if (dependencies.resume) throw new Error('No production restore is pending.')
     const journal: ProductionRestoreJournal = { backupId, version: 1 }
-    await writeAtomic(productionRestorePath, JSON.stringify(journal), 0o400, false, true)
+    await dependencies.writeJournal(journal)
+    await dependencies.pauseOffHost()
 }
 
 export async function completeProductionRestore(

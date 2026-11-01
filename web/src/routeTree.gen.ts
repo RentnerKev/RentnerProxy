@@ -48,6 +48,7 @@ import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$
 import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-logo/$accent'
 import { Route as ApiAdminBackupsConfigRouteImport } from './routes/api/admin/backups/config'
 import { Route as ApiAdminBackupsDeleteRouteImport } from './routes/api/admin/backups/delete'
+import { Route as ApiAdminBackupsOffHostRouteImport } from './routes/api/admin/backups/off-host'
 import { Route as ApiAdminBackupsRestoreRouteImport } from './routes/api/admin/backups/restore'
 import { Route as ApiAdminBackupsStartRouteImport } from './routes/api/admin/backups/start'
 import { Route as ApiAdminBackupsStatusRouteImport } from './routes/api/admin/backups/status'
@@ -256,6 +257,11 @@ const ApiAdminBackupsDeleteRoute = ApiAdminBackupsDeleteRouteImport.update({
   path: '/api/admin/backups/delete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminBackupsOffHostRoute = ApiAdminBackupsOffHostRouteImport.update({
+  id: '/api/admin/backups/off-host',
+  path: '/api/admin/backups/off-host',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminBackupsRestoreRoute = ApiAdminBackupsRestoreRouteImport.update({
   id: '/api/admin/backups/restore',
   path: '/api/admin/backups/restore',
@@ -340,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/login/': typeof PublicLoginIndexRoute
   '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
   '/api/admin/backups/delete': typeof ApiAdminBackupsDeleteRoute
+  '/api/admin/backups/off-host': typeof ApiAdminBackupsOffHostRoute
   '/api/admin/backups/restore': typeof ApiAdminBackupsRestoreRoute
   '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
   '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
@@ -386,6 +393,7 @@ export interface FileRoutesByTo {
   '/login': typeof PublicLoginIndexRoute
   '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
   '/api/admin/backups/delete': typeof ApiAdminBackupsDeleteRoute
+  '/api/admin/backups/off-host': typeof ApiAdminBackupsOffHostRoute
   '/api/admin/backups/restore': typeof ApiAdminBackupsRestoreRoute
   '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
   '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
@@ -436,6 +444,7 @@ export interface FileRoutesById {
   '/_public/login/': typeof PublicLoginIndexRoute
   '/api/admin/backups/config': typeof ApiAdminBackupsConfigRoute
   '/api/admin/backups/delete': typeof ApiAdminBackupsDeleteRoute
+  '/api/admin/backups/off-host': typeof ApiAdminBackupsOffHostRoute
   '/api/admin/backups/restore': typeof ApiAdminBackupsRestoreRoute
   '/api/admin/backups/start': typeof ApiAdminBackupsStartRoute
   '/api/admin/backups/status': typeof ApiAdminBackupsStatusRoute
@@ -485,6 +494,7 @@ export interface FileRouteTypes {
     | '/login/'
     | '/api/admin/backups/config'
     | '/api/admin/backups/delete'
+    | '/api/admin/backups/off-host'
     | '/api/admin/backups/restore'
     | '/api/admin/backups/start'
     | '/api/admin/backups/status'
@@ -531,6 +541,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/admin/backups/config'
     | '/api/admin/backups/delete'
+    | '/api/admin/backups/off-host'
     | '/api/admin/backups/restore'
     | '/api/admin/backups/start'
     | '/api/admin/backups/status'
@@ -580,6 +591,7 @@ export interface FileRouteTypes {
     | '/_public/login/'
     | '/api/admin/backups/config'
     | '/api/admin/backups/delete'
+    | '/api/admin/backups/off-host'
     | '/api/admin/backups/restore'
     | '/api/admin/backups/start'
     | '/api/admin/backups/status'
@@ -602,6 +614,7 @@ export interface RootRouteChildren {
   MediaMailLogoAccentRoute: typeof MediaMailLogoAccentRoute
   ApiAdminBackupsConfigRoute: typeof ApiAdminBackupsConfigRoute
   ApiAdminBackupsDeleteRoute: typeof ApiAdminBackupsDeleteRoute
+  ApiAdminBackupsOffHostRoute: typeof ApiAdminBackupsOffHostRoute
   ApiAdminBackupsRestoreRoute: typeof ApiAdminBackupsRestoreRoute
   ApiAdminBackupsStartRoute: typeof ApiAdminBackupsStartRoute
   ApiAdminBackupsStatusRoute: typeof ApiAdminBackupsStatusRoute
@@ -887,6 +900,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminBackupsDeleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/backups/off-host': {
+      id: '/api/admin/backups/off-host'
+      path: '/api/admin/backups/off-host'
+      fullPath: '/api/admin/backups/off-host'
+      preLoaderRoute: typeof ApiAdminBackupsOffHostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/backups/restore': {
       id: '/api/admin/backups/restore'
       path: '/api/admin/backups/restore'
@@ -1053,6 +1073,7 @@ const rootRouteChildren: RootRouteChildren = {
   MediaMailLogoAccentRoute: MediaMailLogoAccentRoute,
   ApiAdminBackupsConfigRoute: ApiAdminBackupsConfigRoute,
   ApiAdminBackupsDeleteRoute: ApiAdminBackupsDeleteRoute,
+  ApiAdminBackupsOffHostRoute: ApiAdminBackupsOffHostRoute,
   ApiAdminBackupsRestoreRoute: ApiAdminBackupsRestoreRoute,
   ApiAdminBackupsStartRoute: ApiAdminBackupsStartRoute,
   ApiAdminBackupsStatusRoute: ApiAdminBackupsStatusRoute,

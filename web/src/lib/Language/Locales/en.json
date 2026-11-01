@@ -836,6 +836,38 @@
                     "restarting": "Restarting and checking services",
                     "complete": "Recovery confirmed"
                 }
+            },
+            "offHost": {
+                "title": "Encrypted off-host backups",
+                "description": "Encrypt each new backup with an independent recovery key and upload to S3-compatible storage. Local backups remain available if uploads fail.",
+                "configured": "Target configured",
+                "unconfigured": "Target not configured",
+                "copies": "Remote copies: {{count}}",
+                "keyId": "Recovery key ID",
+                "enabled": "Upload new backups",
+                "endpoint": "HTTPS S3 endpoint",
+                "region": "Region",
+                "bucket": "Bucket",
+                "prefix": "Object prefix",
+                "accessKeyId": "Access key ID",
+                "secretAccessKey": "Secret access key",
+                "secretsHelp": "Leave credentials blank to preserve stored values. Stored credentials and recovery keys are never displayed.",
+                "keyHelp": "Store the recovery kit safely outside this appliance. Without its key, remote copies cannot be recovered. New keys apply to future uploads; keep older keys for older copies.",
+                "generate": "Generate new recovery key",
+                "download": "Download recovery kit",
+                "saved": "I have saved the recovery kit outside this appliance.",
+                "save": "Save off-host settings",
+                "keyUnavailable": "This browser could not generate a secure recovery key.",
+                "recoveryTitle": "Recover on another host",
+                "recoveryHelp": "Use the source release on an isolated recovery host. Create target.json with endpoint, region, bucket, prefix, accessKeyId and secretAccessKey. Use the exact relative object key from the history and its matching saved recovery kit. Set the storage prefix only in target.json; do not add it to the object key. On Unix, protect both secret files with chmod 600 target.json recovery-key.json. The command downloads, authenticates and decrypts the backup.",
+                "restoreHelp": "Check the extracted backup before restoring. This command replaces target data and restarts services.",
+                "remote": {
+                    "uploading": "Uploading encrypted copy",
+                    "succeeded": "Remote copy verified",
+                    "failed": "Remote upload failed",
+                    "none": "No remote copy",
+                    "failureHelp": "The local backup remains available. Check the target configuration before creating another backup."
+                }
             }
         },
         "migration": {

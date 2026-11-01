@@ -1,3 +1,7 @@
+import type {
+    OffHostConfigurationInput,
+    OffHostStatus,
+} from '@/lib/Backups/Types/off-host.types.ts'
 import type { FormEvent } from 'react'
 import type {
     ManagedBackupConfiguration,
@@ -36,6 +40,9 @@ export interface BackupsLogicResult {
         readonly handleStart: () => void
         readonly handleConfirmOpenChange: (open: boolean) => void
         readonly handleConfirmStart: () => Promise<void>
+        readonly handleSaveOffHost: (
+            input: OffHostConfigurationInput,
+        ) => Promise<ManagedBackupStatus>
         readonly handleSave: (input: BackupConfigurationInput) => Promise<ManagedBackupStatus>
     }
 }
@@ -64,6 +71,46 @@ export interface BackupScheduleLogicResult {
         readonly handleEnabledChange: (enabled: boolean) => void
         readonly handleIntervalChange: (value: string) => void
         readonly handleRetentionChange: (value: string) => void
+        readonly handleReset: () => void
+    }
+}
+
+export interface OffHostBackupProps {
+    readonly configuration: OffHostStatus
+    readonly locked: boolean
+    readonly onSave: (input: OffHostConfigurationInput) => Promise<ManagedBackupStatus>
+}
+export interface OffHostFormValues {
+    enabled: boolean
+    endpoint: string
+    region: string
+    bucket: string
+    prefix: string
+    accessKeyId: string
+    secretAccessKey: string
+    recoveryKey: string
+    recoveryKeySaved: boolean
+}
+export interface OffHostBackupLogicResult {
+    readonly state: OffHostFormValues & {
+        readonly id: string
+        readonly locked: boolean
+        readonly canSave: boolean
+        readonly conflict: boolean
+        readonly downloaded: boolean
+        readonly recoveryCommand: string
+        readonly restoreCommand: string
+    }
+    readonly handler: {
+        readonly handleSubmit: (event: FormEvent<HTMLFormElement>) => void
+        readonly handleTextChange: (
+            name: 'endpoint' | 'region' | 'bucket' | 'prefix' | 'accessKeyId' | 'secretAccessKey',
+            value: string,
+        ) => void
+        readonly handleEnabledChange: (value: boolean) => void
+        readonly handleSavedChange: (value: boolean) => void
+        readonly handleGenerate: () => void
+        readonly handleDownload: () => void
         readonly handleReset: () => void
     }
 }

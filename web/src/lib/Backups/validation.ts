@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { BACKUP_AUDIT_POLICY } from '../../config/backups.config.ts'
+import { offHostJobSchema, offHostStatusSchema } from './offHostValidation.ts'
 
 const timestamp = z.number().int().nonnegative().safe()
 const digest = z.string().regex(/^[a-f0-9]{64}$/u)
@@ -90,6 +91,7 @@ export const managedBackupJobSchema = z.strictObject({
     source: managedBackupSourceSchema,
     artifact: managedBackupArtifactSchema.nullable(),
     retained: z.boolean(),
+    remote: offHostJobSchema.nullable().optional(),
 })
 export const managedBackupAuditEventSchema = z.strictObject({
     sequence: z.number().int().nonnegative().safe(),
@@ -109,6 +111,7 @@ export const managedBackupAuditEventSchema = z.strictObject({
         'restore_succeeded',
         'restore_failed',
         'restore_interrupted',
+        'off_host_configuration_updated',
     ]),
     jobId: z.uuid().nullable(),
     actorId: z.uuid().nullable(),
@@ -120,6 +123,7 @@ export const managedBackupStatusSchema = z.strictObject({
     jobs: z.array(managedBackupJobSchema).max(100),
     auditEvents: z.array(managedBackupAuditEventSchema).max(BACKUP_AUDIT_POLICY.capacity),
     maintenance: managedBackupMaintenanceSchema.nullable().optional(),
+    offHost: offHostStatusSchema.optional(),
 })
 export const managedBackupStateSchema = managedBackupStatusSchema
     .extend({

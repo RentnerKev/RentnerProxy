@@ -836,6 +836,38 @@
                     "restarting": "Dienste werden gestartet und geprüft",
                     "complete": "Wiederaufnahme bestätigt"
                 }
+            },
+            "offHost": {
+                "title": "Verschlüsselte externe Backups",
+                "description": "Jedes neue Backup wird mit einem unabhängigen Wiederherstellungsschlüssel verschlüsselt zu S3-kompatiblem Speicher kopiert. Lokale Backups bleiben bei Uploadfehlern verfügbar.",
+                "configured": "Ziel konfiguriert",
+                "unconfigured": "Ziel nicht konfiguriert",
+                "copies": "Externe Kopien: {{count}}",
+                "keyId": "Schlüssel-ID",
+                "enabled": "Neue Backups hochladen",
+                "endpoint": "HTTPS-S3-Endpunkt",
+                "region": "Region",
+                "bucket": "Bucket",
+                "prefix": "Objektpräfix",
+                "accessKeyId": "Zugriffsschlüssel-ID",
+                "secretAccessKey": "Geheimer Zugriffsschlüssel",
+                "secretsHelp": "Leere Zugangsdatenfelder behalten die gespeicherten Werte bei. Gespeicherte Zugangsdaten und Wiederherstellungsschlüssel werden niemals angezeigt.",
+                "keyHelp": "Bewahre das Wiederherstellungspaket sicher außerhalb dieser Appliance auf. Ohne Schlüssel sind externe Kopien nicht wiederherstellbar. Ein neuer Schlüssel gilt für künftige Uploads; behalte bisherige Schlüssel für ältere Kopien.",
+                "generate": "Neuen Wiederherstellungsschlüssel erzeugen",
+                "download": "Wiederherstellungspaket herunterladen",
+                "saved": "Ich habe das Wiederherstellungspaket außerhalb dieser Appliance gespeichert.",
+                "save": "Externe Backups speichern",
+                "keyUnavailable": "In diesem Browser konnte kein sicherer Wiederherstellungsschlüssel erzeugt werden.",
+                "recoveryTitle": "Auf einem anderen Host wiederherstellen",
+                "recoveryHelp": "Nutze die Quellversion auf einem isolierten Wiederherstellungshost. Erstelle target.json mit endpoint, region, bucket, prefix, accessKeyId und secretAccessKey. Verwende den genauen relativen Objektschlüssel aus dem Verlauf und das passende gespeicherte Wiederherstellungspaket. Trage das Speicherpräfix nur in target.json ein; füge es nicht zum Objektschlüssel hinzu. Schütze unter Unix beide geheimen Dateien mit chmod 600 target.json recovery-key.json. Der Befehl lädt das Backup herunter, authentifiziert und entschlüsselt es.",
+                "restoreHelp": "Prüfe das entpackte Backup und stelle es mit dem bestehenden Produktionsbefehl wieder her. Dabei werden die Zieldaten ersetzt und Dienste neu gestartet.",
+                "remote": {
+                    "uploading": "Verschlüsselte Kopie wird hochgeladen",
+                    "succeeded": "Externe Kopie verifiziert",
+                    "failed": "Externer Upload fehlgeschlagen",
+                    "none": "Keine externe Kopie",
+                    "failureHelp": "Das lokale Backup bleibt verfügbar. Prüfe die Zielkonfiguration vor einem weiteren Backup."
+                }
             }
         },
         "migration": {

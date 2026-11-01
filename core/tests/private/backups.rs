@@ -47,6 +47,7 @@ async fn backups_always_require_configured_explicit_token() {
         ("GET", "/status"),
         ("POST", "/start"),
         ("PUT", "/config"),
+        ("PUT", "/off-host"),
         ("POST", "/audit/ack"),
         ("GET", "/00000000-0000-4000-8000-000000000001/download"),
         ("GET", "/maintenance"),
@@ -161,6 +162,53 @@ async fn invalid_backup_commands_never_reach_agent() {
             r#"{"error":"invalid_input"}"#
         );
     }
+}
+
+#[tokio::test]
+async fn off_host_commands_reject_unbounded_and_impersonated_payloads() {
+    let valid = serde_json::json!({
+        "requestId": ID, "actorId": ID, "expectedRevision": 0, "enabled": false,
+        "endpoint": "", "region": "", "bucket": "", "prefix": ""
+    });
+    for field in ["requestId", "actorId", "unknown"] {
+        let mut invalid = valid.clone();
+        invalid[field] = serde_json::json!("../invalid");
+        let response = call(
+            app(true),
+            "PUT",
+            "/internal/v1/backups/off-host",
+            invalid.to_string(),
+            true,
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+    for body in [
+        " ".repeat(8193),
+        serde_json::json!({"requestId": ID, "actorId": ID}).to_string(),
+    ] {
+        let response = call(
+            app(true),
+            "PUT",
+            "/internal/v1/backups/off-host",
+            body,
+            true,
+        )
+        .await;
+        assert!(matches!(
+            response.status(),
+            StatusCode::BAD_REQUEST | StatusCode::PAYLOAD_TOO_LARGE
+        ));
+    }
+    let response = call(
+        app(true),
+        "PUT",
+        "/internal/v1/backups/off-host?extra=1",
+        valid.to_string(),
+        true,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[test]

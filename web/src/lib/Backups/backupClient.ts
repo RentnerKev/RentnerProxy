@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { offHostConfigurationUpdateSchema } from './offHostValidation.ts'
+import type { OffHostConfigurationInput } from './Types/off-host.types.ts'
 import { BACKUP_UI_POLICY } from '@/config/backups.config.ts'
 import { readBoundedStream, ResponseBodyLimitError } from '@/lib/Http/readBoundedStream.ts'
 import {
@@ -44,9 +46,10 @@ export class BackupClientError extends Error {
 }
 
 async function request(
-    operation: 'status' | 'start' | 'config' | 'delete' | 'restore',
+    operation: 'status' | 'start' | 'config' | 'delete' | 'restore' | 'off-host',
     signal?: AbortSignal,
-    input?: BackupStartInput | BackupConfigurationInput | BackupActionInput,
+    input?:
+        BackupStartInput | BackupConfigurationInput | BackupActionInput | OffHostConfigurationInput,
 ) {
     const deadline = AbortSignal.timeout(BACKUP_UI_POLICY.requestTimeoutMs)
     const combined = signal ? AbortSignal.any([signal, deadline]) : deadline
@@ -141,6 +144,19 @@ export async function saveBackupConfiguration(
     if (!parsed.success) throw new BackupClientError('invalid_input')
     const status = await request('config', signal, parsed.data)
     if (status.configuration.revision <= parsed.data.expectedRevision)
+        throw new BackupClientError('invalid_response')
+    return status
+}
+
+export async function saveOffHostConfiguration(
+    input: OffHostConfigurationInput,
+    signal?: AbortSignal,
+) {
+    const parsed = offHostConfigurationUpdateSchema.omit({ actorId: true }).safeParse(input)
+    if (!parsed.success || new TextEncoder().encode(JSON.stringify(parsed.data)).byteLength > 8192)
+        throw new BackupClientError('invalid_input')
+    const status = await request('off-host', signal, parsed.data)
+    if (!status.offHost || status.offHost.revision <= parsed.data.expectedRevision)
         throw new BackupClientError('invalid_response')
     return status
 }

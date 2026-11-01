@@ -838,6 +838,38 @@
                     "restarting": "Redémarrage et vérification des services",
                     "complete": "Reprise confirmée"
                 }
+            },
+            "offHost": {
+                "title": "Sauvegardes externes chiffrées",
+                "description": "Chaque nouvelle sauvegarde est chiffrée avec une clé de récupération indépendante puis envoyée vers un stockage compatible S3. Les sauvegardes locales restent disponibles si le transfert échoue.",
+                "configured": "Destination configurée",
+                "unconfigured": "Destination non configurée",
+                "copies": "Copies externes : {{count}}",
+                "keyId": "Identifiant de la clé de récupération",
+                "enabled": "Envoyer les nouvelles sauvegardes",
+                "endpoint": "Point de terminaison S3 HTTPS",
+                "region": "Région",
+                "bucket": "Bucket",
+                "prefix": "Préfixe des objets",
+                "accessKeyId": "Identifiant de la clé d’accès",
+                "secretAccessKey": "Clé d’accès secrète",
+                "secretsHelp": "Laissez les identifiants vides pour conserver les valeurs enregistrées. Les identifiants et clés de récupération enregistrés ne sont jamais affichés.",
+                "keyHelp": "Conservez le kit de récupération hors de cet appareil. Sans sa clé, les copies externes sont irrécupérables. Une nouvelle clé concerne les futurs transferts ; conservez les anciennes pour les anciennes copies.",
+                "generate": "Générer une nouvelle clé de récupération",
+                "download": "Télécharger le kit de récupération",
+                "saved": "J’ai enregistré le kit de récupération hors de cet appareil.",
+                "save": "Enregistrer les paramètres externes",
+                "keyUnavailable": "Ce navigateur n’a pas pu générer de clé de récupération sécurisée.",
+                "recoveryTitle": "Récupérer sur un autre serveur",
+                "recoveryHelp": "Utilisez la version source sur un serveur de récupération isolé. Créez target.json avec endpoint, region, bucket, prefix, accessKeyId et secretAccessKey. Utilisez la clé relative exacte de l’objet dans l’historique et le kit de récupération correspondant. Indiquez le préfixe de stockage uniquement dans target.json ; ne l’ajoutez pas à la clé de l’objet. Sous Unix, protégez les deux fichiers secrets avec chmod 600 target.json recovery-key.json. La commande télécharge, authentifie et déchiffre la sauvegarde.",
+                "restoreHelp": "Vérifiez la sauvegarde extraite avant la restauration. Cette commande remplace les données cibles et redémarre les services.",
+                "remote": {
+                    "uploading": "Transfert de la copie chiffrée",
+                    "succeeded": "Copie externe vérifiée",
+                    "failed": "Échec du transfert externe",
+                    "none": "Aucune copie externe",
+                    "failureHelp": "La sauvegarde locale reste disponible. Vérifiez la destination avant de créer une autre sauvegarde."
+                }
             }
         },
         "migration": {

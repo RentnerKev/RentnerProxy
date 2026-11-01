@@ -147,6 +147,8 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
             }
         }
         for (const job of draft.jobs.filter((entry) => entry.state === 'running')) {
+            if (job.remote?.state === 'uploading')
+                job.remote = { state: 'failed', error: 'interrupted' }
             job.state = 'interrupted'
             job.error = 'interrupted'
             job.finishedAt = dependencies.now()
@@ -455,6 +457,16 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         })
     }
 
+    async function configureOffHost(actorId: string, configure: () => Promise<void>) {
+        return mutate(async (draft) => {
+            if (executing || downloadActive || maintenanceActive() || draft.jobs.some(active))
+                throw new ManagedBackupError('busy')
+            if (!hasAuditRoom(draft, 1)) throw new ManagedBackupError('capacity')
+            await configure()
+            audit(draft, 'off_host_configuration_updated', null, actorId)
+        })
+    }
+
     function planPruning(replacementId: string) {
         const replacement = state.jobs.find((job) => job.id === replacementId)
         if (!replacement || replacement.state !== 'succeeded')
@@ -549,12 +561,28 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         executing = true
         try {
             let artifact: ManagedBackupJob['artifact'] = null
+            let remote: ManagedBackupJob['remote'] = null
             let error: ManagedBackupJob['error'] = null
             try {
                 artifact = managedBackupArtifactSchema.parse(
                     await dependencies.execute(structuredClone(job)),
                 )
                 if (!(await dependencies.verify({ ...job, artifact }))) error = 'artifact_invalid'
+                if (error === null && dependencies.replicate) {
+                    await mutate((draft) => {
+                        const current = draft.jobs.find((entry) => entry.id === job.id)
+                        if (!current) throw new ManagedBackupError('capacity')
+                        current.remote = { state: 'uploading' }
+                    })
+                    try {
+                        remote = await dependencies.replicate(
+                            { ...job, artifact },
+                            state.configuration.retentionCount,
+                        )
+                    } catch {
+                        remote = { state: 'failed', error: 'upload_failed' }
+                    }
+                }
             } catch (cause) {
                 error =
                     cause instanceof ManagedBackupError &&
@@ -566,6 +594,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 const completed = draft.jobs.find((entry) => entry.id === job.id)
                 if (!completed) throw new ManagedBackupError('capacity')
                 completed.artifact = artifact
+                completed.remote = remote
                 completed.state = error === null ? 'succeeded' : 'failed'
                 completed.error = error
                 completed.finishedAt = dependencies.now()
@@ -580,7 +609,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 trim(draft)
             })
             // Commit the verified recovery point before any old artifact can be removed.
-            if (error === null) {
+            if (error === null && remote?.state !== 'failed') {
                 await prune(job.id)
                 await mutate((draft) => {
                     const replacement = draft.jobs.find((entry) => entry.id === job.id)
@@ -604,5 +633,7 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
         acknowledgeAudit,
         requestMaintenance,
         acquireDownload,
+        configureOffHost,
+        retentionCount: () => state.configuration.retentionCount,
     }
 }

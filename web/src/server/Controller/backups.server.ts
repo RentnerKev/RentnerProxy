@@ -14,6 +14,7 @@ import type {
 } from '@/lib/Backups/Types/backups.types.ts'
 import { BACKUP_ERRORS, BackupDomainError } from '@/server/Admin/Backups/backup.errors.ts'
 import { controllerRequest } from './transport.server.ts'
+import type { OffHostConfigurationUpdate } from '@/lib/Backups/Types/off-host.types.ts'
 
 const failureSchema = z.strictObject({ error: z.enum([...BACKUP_ERRORS, 'conflict']) })
 function decode(payload: unknown) {
@@ -34,6 +35,15 @@ export function createBackupsController(request = controllerRequest) {
         acceptErrorResponse: true,
     }
     return {
+        async configureOffHost(input: OffHostConfigurationUpdate) {
+            return decode(
+                await request('/internal/v1/backups/off-host', {
+                    ...options,
+                    method: 'PUT',
+                    body: JSON.stringify(input),
+                }),
+            )
+        },
         async maintenance() {
             const value = await request('/internal/v1/backups/maintenance', {
                 ...options,

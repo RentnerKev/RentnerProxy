@@ -21,5 +21,5 @@ export interface BackupAdminDependencies {
         run: (transaction: BackupMutationTransaction) => Promise<T>,
     ) => Promise<T>
     readonly controller: Pick<typeof backupsController, 'status' | 'start' | 'configure'> &
-        Partial<Pick<typeof backupsController, 'delete' | 'restore'>>
+        Partial<Pick<typeof backupsController, 'delete' | 'restore' | 'configureOffHost'>>
 }

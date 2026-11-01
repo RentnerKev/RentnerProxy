@@ -318,7 +318,12 @@ async function restore(): Promise<void> {
                 'initialize restore target',
                 180_000,
             )
-        await runCommand(bootstrap('begin-production-restore'), 'stage production restore')
+        // The journal hook durably pauses root-owned off-host uploads and retention on
+        // fresh and resumed restores before changing keys or restarting any writers.
+        await runCommand(
+            bootstrap('begin-production-restore'),
+            'stage production restore and pause off-host backups',
+        )
         try {
             await runCommand(
                 bootstrap('begin-app-key-restore'),

@@ -43,7 +43,9 @@ export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedB
                       : event.kind === 'pruned' || event.kind === 'deleted'
                         ? 'delete'
                         : 'update',
-        resource: event.kind === 'configuration_updated' ? 'security-settings' : 'config-export',
+        resource: event.kind.endsWith('configuration_updated')
+            ? 'security-settings'
+            : 'config-export',
         targetId: event.jobId,
         result:
             event.kind === 'failed' ||

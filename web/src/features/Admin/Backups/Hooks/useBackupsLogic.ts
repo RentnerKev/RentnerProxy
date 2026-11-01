@@ -7,10 +7,10 @@ import {
     getBackupsStatus,
     requestBackup,
     saveBackupConfiguration,
+    saveOffHostConfiguration,
     deleteBackup,
     restoreBackup,
 } from '@/lib/Backups/backupClient.ts'
-import type { BackupConfigurationInput } from '@/lib/Backups/Types/backups-client.types.ts'
 import type { ManagedBackupStatus } from '@/lib/Backups/Types/backups.types.ts'
 import { managedBackupStatusSchema } from '@/lib/Backups/validation.ts'
 import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
@@ -201,7 +201,9 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         }
     }
 
-    async function handleSave(input: BackupConfigurationInput) {
+    async function handleSaveConfiguration(
+        save: (signal: AbortSignal) => Promise<ManagedBackupStatus>,
+    ) {
         if (!canManage || locked || busy.current) throw new BackupClientError('permission_denied')
         busy.current = true
         setPending(true)
@@ -209,7 +211,7 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         mutationAbort.current = action
         try {
             await queryClient.cancelQueries({ queryKey })
-            const saved = await saveBackupConfiguration(input, action.signal)
+            const saved = await save(action.signal)
             await acceptStatus(saved, action.signal)
             return saved
         } catch (error) {
@@ -311,7 +313,10 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
                 if (!busy.current) setConfirmOpen(open)
             },
             handleConfirmStart,
-            handleSave,
+            handleSave: (input) =>
+                handleSaveConfiguration((signal) => saveBackupConfiguration(input, signal)),
+            handleSaveOffHost: (input) =>
+                handleSaveConfiguration((signal) => saveOffHostConfiguration(input, signal)),
         },
     }
 }

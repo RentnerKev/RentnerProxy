@@ -181,7 +181,11 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             "/internal/v1/backups/config",
             axum::routing::put(handlers::backups::config),
         )
-        .layer(axum::extract::DefaultBodyLimit::max(2_048))
+        .route(
+            "/internal/v1/backups/off-host",
+            axum::routing::put(handlers::backups::off_host_config),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(8_192))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             authorize_certificate_request,

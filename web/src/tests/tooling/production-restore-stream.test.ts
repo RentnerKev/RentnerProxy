@@ -36,6 +36,7 @@ type RestoreScenario =
     | 'resume-missing'
     | 'prepare-failure'
     | 'replacement-failure'
+    | 'off-host-pause-failure'
 
 async function restore(scenario: RestoreScenario) {
     await mkdir(join(root, 'tmp'), { recursive: true })
@@ -93,6 +94,8 @@ if (command.includes('config --format=json')) {
     if (scenario === 'wrong-backup') console.log('b'.repeat(64))
 } else if (command.includes('--initialize-restore-target')) {
     if (scenario === 'prepare-failure') process.exit(9)
+} else if (command.includes('begin-production-restore')) {
+    if (scenario === 'off-host-pause-failure') process.exit(9)
 } else if (command.includes('pg_restore')) {
     const mount = args[args.indexOf('--volume') + 1]
     if (!mount.endsWith(':/backup:ro')) process.exit(81)
@@ -280,6 +283,27 @@ test.skipIf(process.platform === 'win32').each(['prepare-failure', 'replacement-
         assert.equal(
             result.calls.some((args) => args.includes('begin-production-restore')),
             scenario === 'replacement-failure',
+        )
+    },
+)
+
+test.skipIf(process.platform === 'win32')(
+    'off-host pause failure leaves writers stopped before key/database replacement',
+    async () => {
+        const result = await restore('off-host-pause-failure')
+        assert.equal(result.exit, 1)
+        assert.match(result.stderr, /pause off-host backups/)
+        assert.ok(result.calls.some((args) => args.includes('stop')))
+        assert.ok(result.calls.some((args) => args.includes('begin-production-restore')))
+        assert.ok(
+            !result.calls.some(
+                (args) =>
+                    args.includes('begin-app-key-restore') ||
+                    args.includes('RENTNERPROXY_RESTORE_PHASE=database') ||
+                    args.includes('up') ||
+                    args.includes('start') ||
+                    args.includes('complete-production-restore'),
+            ),
         )
     },
 )

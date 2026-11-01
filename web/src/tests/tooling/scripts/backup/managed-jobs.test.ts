@@ -64,6 +64,85 @@ function gate() {
     return { promise, release: resolve }
 }
 
+describe('managed off-host backup replication', () => {
+    test('replication failure preserves local success and all retained recovery points', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const first = await engine.start(f.request())
+        await engine.tick()
+        f.dependencies.replicate = async () => {
+            throw new Error('private provider credentials')
+        }
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        const status = await engine.status()
+        expect(status.jobs.find((job) => job.id === first.id)?.retained).toBe(true)
+        expect(status.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+            state: 'succeeded',
+            error: null,
+            retained: true,
+            remote: { state: 'failed', error: 'upload_failed' },
+        })
+        expect(f.removed).toEqual([])
+        expect(JSON.stringify(status)).not.toContain('private provider credentials')
+    })
+
+    test('publishes the verified remote receipt and then permits ordinary local retention', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration(f.config())
+        const first = await engine.start(f.request())
+        await engine.tick()
+        const targetId = f.id()
+        f.dependencies.replicate = async (job, retention) => {
+            expect(retention).toBe(1)
+            expect(job.artifact).not.toBeNull()
+            expect(
+                (await engine.status()).jobs.find((entry) => entry.id === job.id)?.remote,
+            ).toEqual({ state: 'uploading' })
+            expect(f.removed).toEqual([])
+            return {
+                state: 'succeeded',
+                targetId,
+                keyId: digest,
+                objectKey: targetId + '/' + job.id + '.rpbk',
+                sha256: digest,
+                bytes: 123,
+                verifiedAt: 0,
+            }
+        }
+        const replacement = await engine.start(f.request())
+        await engine.tick()
+        const status = await engine.status()
+        expect(status.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+            state: 'succeeded',
+            retained: true,
+            remote: { state: 'succeeded', targetId, sha256: digest, bytes: 123 },
+        })
+        expect(status.jobs.find((job) => job.id === first.id)?.retained).toBe(false)
+        expect(f.removed).toEqual([first.id])
+    })
+
+    test('restart marks an in-flight remote upload interrupted without deleting a local artifact', async () => {
+        const f = fixture()
+        let engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        const persisted = f.read().jobs.find((entry) => entry.id === job.id)!
+        persisted.state = 'running'
+        persisted.startedAt = 0
+        persisted.artifact = { id: job.id, metadataSha256: digest, bytes: 100 }
+        persisted.remote = { state: 'uploading' }
+        engine = await createManagedBackupEngine(f.dependencies)
+        expect((await engine.status()).jobs.find((entry) => entry.id === job.id)).toMatchObject({
+            state: 'interrupted',
+            artifact: { id: job.id },
+            remote: { state: 'failed', error: 'interrupted' },
+        })
+        expect(f.removed).toEqual([])
+    })
+})
+
 describe('managed backup maintenance', () => {
     test('restore preserves every inventory entry and never invokes retention or delete', async () => {
         const f = fixture()

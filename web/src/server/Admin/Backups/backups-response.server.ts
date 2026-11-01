@@ -13,6 +13,8 @@ import {
     restoreBackupService,
     deleteBackupSchema,
     restoreBackupSchema,
+    updateOffHostConfigurationService,
+    updateOffHostConfigurationSchema,
 } from './backups.service.ts'
 import { BackupDomainError } from './backup.errors.ts'
 import type { BackupsHttpDependencies } from './Types/backups-http.types.ts'
@@ -65,13 +67,14 @@ export function createBackupsHttpHandlers(
             updateBackupConfigurationService,
             deleteBackupService,
             restoreBackupService,
+            updateOffHostConfigurationService,
         },
         origin: getPublicOrigin,
     },
 ) {
     async function respond(
         request: Request,
-        operation: 'status' | 'start' | 'config' | 'delete' | 'restore',
+        operation: 'status' | 'start' | 'config' | 'delete' | 'restore' | 'off-host',
     ): Promise<Response> {
         const headers = new Headers({
             'Cache-Control': 'private, no-store',
@@ -100,7 +103,11 @@ export function createBackupsHttpHandlers(
             )
                 return Response.json({ error: 'invalid_input' }, { status: 415, headers })
             if (!request.body) throw new BackupDomainError('invalid_input')
-            const bytes = await readBoundedStream(request.body, 2048, request.signal)
+            const bytes = await readBoundedStream(
+                request.body,
+                operation === 'off-host' ? 8192 : 2048,
+                request.signal,
+            )
             let raw: unknown
             try {
                 raw = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
@@ -112,6 +119,7 @@ export function createBackupsHttpHandlers(
                 config: updateBackupConfigurationSchema,
                 delete: deleteBackupSchema,
                 restore: restoreBackupSchema,
+                'off-host': updateOffHostConfigurationSchema,
             }
             const parsed = schemas[operation].safeParse(raw)
             if (!parsed.success) throw new BackupDomainError('invalid_input')
@@ -120,6 +128,7 @@ export function createBackupsHttpHandlers(
                 config: dependencies.service.updateBackupConfigurationService,
                 delete: dependencies.service.deleteBackupService,
                 restore: dependencies.service.restoreBackupService,
+                'off-host': dependencies.service.updateOffHostConfigurationService,
             }
             const delegate = delegates[operation]
             if (!delegate) throw new BackupDomainError('unavailable')
@@ -139,6 +148,7 @@ export function createBackupsHttpHandlers(
         configure: (request: Request) => respond(request, 'config'),
         delete: (request: Request) => respond(request, 'delete'),
         restore: (request: Request) => respond(request, 'restore'),
+        configureOffHost: (request: Request) => respond(request, 'off-host'),
     }
 }
 export const backupsHttpHandlers = createBackupsHttpHandlers()
