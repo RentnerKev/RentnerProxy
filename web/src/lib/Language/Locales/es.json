@@ -755,18 +755,26 @@
                     "source": "Versión de origen",
                     "duration": "Duración",
                     "size": "Tamaño",
-                    "download": "Archivo de recuperación"
+                    "download": "Archivo de recuperación",
+                    "actions": "Acciones"
                 },
                 "download": "Descargar copia de seguridad",
                 "downloadLabel": "Descargar copia de seguridad {{id}}",
                 "expired": "Ya no se conserva",
                 "notReady": "No está lista",
-                "missingArtifact": "No hay ningún archivo verificado"
+                "missingArtifact": "No hay ningún archivo verificado",
+                "actionsLabel": "Acciones de la copia {{id}}",
+                "restore": "Restaurar copia",
+                "delete": "Eliminar copia"
             },
             "messages": {
                 "accepted": "Solicitud de copia registrada. El dispositivo puede desconectarse brevemente durante el mantenimiento; esta página se actualizará automáticamente.",
-                "uncertain": "No se pudo confirmar el resultado de la solicitud. Actualiza primero el historial. Al reintentar esta solicitud se reutiliza su identificador y no se inicia una segunda copia.",
-                "saved": "Programación y retención de copias de seguridad guardadas."
+                "uncertain": "No se pudo confirmar el resultado de la solicitud. Espera la actualización del historial en directo. Al reintentar esta solicitud se reutiliza su identificador y no se inicia una segunda copia.",
+                "saved": "Programación y retención de copias de seguridad guardadas.",
+                "restoreAccepted": "Solicitud de restauración registrada. Sigue las etapas confirmadas mientras se recupera el dispositivo.",
+                "deleted": "Copia eliminada.",
+                "actionUncertain": "No se pudo confirmar la operación. Espera al estado actual del dispositivo antes de volver a intentarlo.",
+                "actionAccepted": "Solicitud de eliminación registrada. Esperando la confirmación de finalización."
             },
             "errors": {
                 "authentication_required": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
@@ -782,7 +790,8 @@
                 "execution_failed": "No se pudo crear la copia de seguridad. Comprueba el estado y el almacenamiento del dispositivo y vuelve a intentarlo.",
                 "interrupted": "La copia de seguridad se interrumpió. No es un punto de recuperación confirmado; crea una copia nueva.",
                 "artifact_invalid": "El archivo de copia de seguridad no superó la verificación y no se puede usar como punto de recuperación.",
-                "recovery_failed": "El dispositivo no pudo confirmar la recuperación de los servicios tras el mantenimiento de copia de seguridad. Comprueba su estado antes de reintentarlo."
+                "recovery_failed": "El dispositivo no pudo confirmar la recuperación de los servicios tras el mantenimiento de copia de seguridad. Comprueba su estado antes de reintentarlo.",
+                "not_found": "Esta copia ya no existe. Elige otra entrada del historial actual."
             },
             "downloadErrors": {
                 "not_found": "Esta copia de seguridad ya no está disponible. Actualiza el historial y elige un punto de recuperación conservado.",
@@ -797,7 +806,32 @@
                 "secret": "Una copia de seguridad completa contiene la base de datos, los certificados, las claves privadas y la clave de cifrado de la aplicación. Mantén las descargas en privado y protégelas mediante almacenamiento cifrado.",
                 "offHost": "Las copias locales comparten el volumen de datos del dispositivo. Descarga una copia en otro dispositivo para que un fallo del servidor o del volumen no destruya todos los puntos de recuperación.",
                 "extract": "Extrae el TAR descargado en un directorio vacío y privado y mantén los cinco archivos juntos sin editarlos.",
-                "restore": "Usa la CLI restore:production de la versión de origen con el directorio extraído como --input. La restauración reemplaza los datos del destino y reinicia sus servicios; verifica primero la recuperación en un destino aislado. Sigue siendo obligatorio el proceso de restauración existente mediante CLI."
+                "restore": "Usa Restaurar copia en el menú de la fila para restaurar una copia conservada y verificada en este dispositivo. Para recuperar en otro destino, usa la CLI restore:production de la versión de origen con el directorio extraído como --input. La restauración sustituye los datos del destino y reinicia los servicios; verifícala primero en un destino aislado."
+            },
+            "restoreConfirmTitle": "¿Restaurar esta copia?",
+            "restoreConfirmDescription": "La copia {{id}} sustituirá los datos actuales del dispositivo. Los servicios se pausarán y todos los usuarios conectados verán el progreso de la restauración. Los archivos de copia creados después de este punto de recuperación se conservarán. Continúa solo si quieres sustituir los datos actuales.",
+            "deleteConfirmTitle": "¿Eliminar esta copia?",
+            "deleteConfirmDescription": "¿Eliminar la copia {{id}} y sus archivos almacenados, si existen? El punto de recuperación o la entrada del historial se eliminará permanentemente. Esta acción no se puede deshacer.",
+            "restoreScreen": {
+                "returnToPage": "Volver a la página anterior",
+                "title": "Restaurando el dispositivo",
+                "description": "{{user}} está restaurando la copia {{backup}}. Esto afecta a todos los usuarios conectados al dispositivo.",
+                "progress": "{{percent}} % — etapas de restauración completadas",
+                "complete": "Restauración y recuperación de los servicios confirmadas. Volverás automáticamente a la página anterior.",
+                "failed": "La restauración ha fallado o no se pudo confirmar la recuperación de los servicios. Comprueba el estado del dispositivo antes de continuar.",
+                "connectionLost": "Se interrumpió la conexión con el dispositivo. Esperando un estado de restauración confirmado; la finalización aún no está confirmada.",
+                "actorUnknown": "Un administrador",
+                "phases": {
+                    "queued": "Restauración en cola",
+                    "validating": "Verificando la copia",
+                    "quiescing": "Pausando los servicios",
+                    "database": "Restaurando la base de datos",
+                    "controller": "Restaurando los datos del controlador",
+                    "crowdsec": "Restaurando los datos de CrowdSec",
+                    "secrets": "Restaurando los secretos de la aplicación",
+                    "restarting": "Reiniciando y comprobando los servicios",
+                    "complete": "Recuperación confirmada"
+                }
             }
         },
         "migration": {

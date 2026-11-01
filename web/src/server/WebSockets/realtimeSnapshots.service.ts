@@ -21,6 +21,14 @@ import {
     getCrowdSecConfigurationService,
     getCrowdSecDashboardService,
 } from '@/server/Admin/CrowdSec/crowdsec.service.ts'
+import { getBackupsStatusService } from '@/server/Admin/Backups/backups.service.ts'
+import { getLocalBackupDemoStatus } from '@/server/Admin/Backups/backups-demo.server.ts'
+import { backupsController } from '@/server/Controller/backups.server.ts'
+import {
+    getActiveRestoreMaintenance,
+    isRestoreMaintenanceFenced,
+    authorizeMaintenanceSnapshot,
+} from '@/server/Backups/restore-maintenance.server.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -37,8 +45,32 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
         const encodedQuery = url.searchParams.get('query') ?? '{}'
         if (encodedQuery.length > 4096) return new Response(null, { status: 400, headers })
         const input: unknown = JSON.parse(encodedQuery)
+        const topic = url.searchParams.get('topic')
+        const maintenance = await getActiveRestoreMaintenance()
+        if (isRestoreMaintenanceFenced()) {
+            if (!(await authorizeMaintenanceSnapshot(request)))
+                return new Response(null, { status: 503, headers })
+            return Response.json(
+                topic === 'backup-restore' ? { maintenance } : { maintenanceSuspended: true },
+                { headers },
+            )
+        }
         let data: unknown
-        switch (url.searchParams.get('topic')) {
+        switch (topic) {
+            case 'backups':
+                data = await getBackupsStatusService()
+                break
+            case 'backup-restore': {
+                await requirePermissionService(PERMISSIONS.APP_ACCESS)
+                let latest = maintenance
+                if (!latest) {
+                    const demo = await getLocalBackupDemoStatus()
+                    if (demo) latest = demo.maintenance ?? null
+                    else latest = await backupsController.maintenance().catch(() => null)
+                }
+                data = { maintenance: latest?.operation === 'restore' ? latest : null }
+                break
+            }
             case 'app-events': {
                 const user = await requirePermissionService(PERMISSIONS.APP_ACCESS)
                 data = {

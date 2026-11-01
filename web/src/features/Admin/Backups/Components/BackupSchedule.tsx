@@ -62,7 +62,6 @@ export default function BackupSchedule(props: BackupScheduleProps) {
                         required
                     />
                 </div>
-                <p className="text-sm leading-relaxed text-ink-soft">{t('admin.backups.impact')}</p>
                 {state.conflict ? (
                     <p role="alert" className="text-sm text-warning-text">
                         {t('admin.backups.schedule.conflict')}

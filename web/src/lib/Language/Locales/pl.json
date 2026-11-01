@@ -757,18 +757,26 @@
                     "source": "Wersja źródłowa",
                     "duration": "Czas trwania",
                     "size": "Rozmiar",
-                    "download": "Plik przywracania"
+                    "download": "Plik przywracania",
+                    "actions": "Działania"
                 },
                 "download": "Pobierz kopię zapasową",
                 "downloadLabel": "Pobierz kopię zapasową {{id}}",
                 "expired": "Nie jest już przechowywana",
                 "notReady": "Jeszcze niegotowa",
-                "missingArtifact": "Brak zweryfikowanego pliku"
+                "missingArtifact": "Brak zweryfikowanego pliku",
+                "actionsLabel": "Działania dla kopii {{id}}",
+                "restore": "Przywróć kopię",
+                "delete": "Usuń kopię"
             },
             "messages": {
                 "accepted": "Żądanie utworzenia kopii zostało zapisane. Podczas prac urządzenie może na krótko utracić połączenie; strona odświeży się automatycznie.",
-                "uncertain": "Nie udało się potwierdzić wyniku żądania. Najpierw odśwież historię. Ponowienie tego żądania używa tego samego identyfikatora i nie rozpoczyna tworzenia drugiej kopii.",
-                "saved": "Zapisano harmonogram i zasady przechowywania kopii."
+                "uncertain": "Nie udało się potwierdzić wyniku żądania. Poczekaj na aktualizację historii na żywo. Ponowienie tego żądania używa tego samego identyfikatora i nie rozpoczyna tworzenia drugiej kopii.",
+                "saved": "Zapisano harmonogram i zasady przechowywania kopii.",
+                "restoreAccepted": "Zarejestrowano żądanie przywrócenia. Śledź potwierdzone etapy podczas odzyskiwania urządzenia.",
+                "deleted": "Usunięto kopię.",
+                "actionUncertain": "Nie udało się potwierdzić operacji. Poczekaj na bieżący stan urządzenia przed ponowną próbą.",
+                "actionAccepted": "Zarejestrowano żądanie usunięcia. Oczekiwanie na potwierdzenie zakończenia."
             },
             "errors": {
                 "authentication_required": "Twoja sesja wygasła. Zaloguj się ponownie.",
@@ -784,7 +792,8 @@
                 "execution_failed": "Nie udało się utworzyć kopii zapasowej. Sprawdź stan i pamięć urządzenia, a następnie spróbuj ponownie.",
                 "interrupted": "Tworzenie kopii zostało przerwane. Nie jest to potwierdzony punkt przywracania; utwórz nową kopię.",
                 "artifact_invalid": "Plik kopii nie przeszedł weryfikacji i nie może być użyty jako punkt przywracania.",
-                "recovery_failed": "Urządzenie nie mogło potwierdzić przywrócenia usług po pracach związanych z kopią zapasową. Przed ponowieniem sprawdź jego stan."
+                "recovery_failed": "Urządzenie nie mogło potwierdzić przywrócenia usług po pracach związanych z kopią zapasową. Przed ponowieniem sprawdź jego stan.",
+                "not_found": "Ta kopia już nie istnieje. Wybierz inny wpis z bieżącej historii."
             },
             "downloadErrors": {
                 "not_found": "Ta kopia nie jest już dostępna. Odśwież historię i wybierz przechowywany punkt przywracania.",
@@ -799,7 +808,32 @@
                 "secret": "Pełna kopia zawiera bazę danych, certyfikaty, klucze prywatne i klucz szyfrowania aplikacji. Nie udostępniaj pobranych plików i chroń je, korzystając z szyfrowanej pamięci masowej.",
                 "offHost": "Lokalne kopie znajdują się na tym samym woluminie danych co urządzenie. Pobierz kopię na osobne urządzenie, aby awaria hosta lub woluminu nie zniszczyła wszystkich punktów przywracania.",
                 "extract": "Rozpakuj pobrany TAR do pustego, prywatnego katalogu i przechowuj wszystkie pięć plików razem bez ich edytowania.",
-                "restore": "Użyj narzędzia CLI restore:production z wersji źródłowej, podając rozpakowany katalog jako --input. Przywracanie zastępuje dane docelowe i ponownie uruchamia usługi; najpierw sprawdź odzyskiwanie na odizolowanym urządzeniu docelowym. Dotychczasowa procedura przywracania przez CLI nadal jest wymagana."
+                "restore": "Użyj Przywróć kopię w menu wiersza, aby przywrócić zachowaną i zweryfikowaną kopię na tym urządzeniu. Aby odzyskać dane na innym celu, użyj CLI restore:production wersji źródłowej z rozpakowanym katalogiem jako --input. Przywracanie zastępuje dane celu i uruchamia ponownie usługi; najpierw sprawdź odzyskiwanie na odizolowanym celu."
+            },
+            "restoreConfirmTitle": "Przywrócić tę kopię?",
+            "restoreConfirmDescription": "Kopia {{id}} zastąpi bieżące dane urządzenia. Usługi zostaną wstrzymane, a wszyscy połączeni użytkownicy zobaczą postęp przywracania. Pliki kopii utworzone po tym punkcie odzyskiwania zostaną zachowane. Kontynuuj tylko, jeśli chcesz zastąpić bieżące dane.",
+            "deleteConfirmTitle": "Usunąć tę kopię?",
+            "deleteConfirmDescription": "Usunąć kopię {{id}} oraz jej zapisane pliki, jeśli istnieją? Punkt odzyskiwania lub wpis historii zostanie trwale usunięty. Tej operacji nie można cofnąć.",
+            "restoreScreen": {
+                "returnToPage": "Wróć do poprzedniej strony",
+                "title": "Przywracanie urządzenia",
+                "description": "{{user}} przywraca kopię {{backup}}. Dotyczy to wszystkich użytkowników połączonych z tym urządzeniem.",
+                "progress": "{{percent}}% — ukończone etapy przywracania",
+                "complete": "Potwierdzono przywrócenie i wznowienie usług. Nastąpi automatyczny powrót do poprzedniej strony.",
+                "failed": "Przywracanie nie powiodło się lub nie można potwierdzić wznowienia usług. Przed dalszym działaniem sprawdź stan urządzenia.",
+                "connectionLost": "Połączenie z urządzeniem zostało przerwane. Oczekiwanie na potwierdzony stan przywracania; zakończenie nie jest jeszcze potwierdzone.",
+                "actorUnknown": "Administrator",
+                "phases": {
+                    "queued": "Przywracanie w kolejce",
+                    "validating": "Weryfikacja kopii",
+                    "quiescing": "Wstrzymywanie usług",
+                    "database": "Przywracanie bazy danych",
+                    "controller": "Przywracanie danych kontrolera",
+                    "crowdsec": "Przywracanie danych CrowdSec",
+                    "secrets": "Przywracanie sekretów aplikacji",
+                    "restarting": "Ponowne uruchamianie i sprawdzanie usług",
+                    "complete": "Odzyskiwanie potwierdzone"
+                }
             }
         },
         "migration": {

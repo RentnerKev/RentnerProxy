@@ -753,18 +753,26 @@
                     "source": "Quellversion",
                     "duration": "Dauer",
                     "size": "Größe",
-                    "download": "Wiederherstellungsdatei"
+                    "download": "Wiederherstellungsdatei",
+                    "actions": "Aktionen"
                 },
                 "download": "Backup herunterladen",
                 "downloadLabel": "Backup {{id}} herunterladen",
                 "expired": "Nicht mehr aufbewahrt",
                 "notReady": "Noch nicht bereit",
-                "missingArtifact": "Keine geprüfte Backup-Datei"
+                "missingArtifact": "Keine geprüfte Backup-Datei",
+                "actionsLabel": "Aktionen für Backup {{id}}",
+                "restore": "Backup wiederherstellen",
+                "delete": "Backup löschen"
             },
             "messages": {
                 "accepted": "Backup-Anfrage erfasst. Während der Wartung kann die Verbindung zur Appliance kurz unterbrochen werden; diese Seite wird automatisch aktualisiert.",
-                "uncertain": "Das Ergebnis der Anfrage konnte nicht bestätigt werden. Aktualisiere zuerst den Verlauf. Beim erneuten Senden wird dieselbe Anfragekennung verwendet und kein zweites Backup gestartet.",
-                "saved": "Backup-Zeitplan und Aufbewahrung gespeichert."
+                "uncertain": "Das Ergebnis der Anfrage konnte nicht bestätigt werden. Warte auf die Live-Aktualisierung des Verlaufs. Beim erneuten Senden wird dieselbe Anfragekennung verwendet und kein zweites Backup gestartet.",
+                "saved": "Backup-Zeitplan und Aufbewahrung gespeichert.",
+                "restoreAccepted": "Wiederherstellungsanfrage erfasst. Verfolge die bestätigten Schritte, während die Appliance wiederhergestellt wird.",
+                "deleted": "Backup gelöscht.",
+                "actionUncertain": "Der Vorgang konnte nicht bestätigt werden. Warte auf den aktuellen Status der Appliance, bevor du es erneut versuchst.",
+                "actionAccepted": "Löschanfrage erfasst. Der bestätigte Abschluss steht noch aus."
             },
             "errors": {
                 "authentication_required": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
@@ -780,7 +788,8 @@
                 "execution_failed": "Das Backup konnte nicht erstellt werden. Prüfe den Zustand und Speicher der Appliance und versuche es dann erneut.",
                 "interrupted": "Das Backup wurde unterbrochen. Es ist kein bestätigter Wiederherstellungspunkt; erstelle ein neues Backup.",
                 "artifact_invalid": "Die Backup-Datei hat die Prüfung nicht bestanden und kann nicht als Wiederherstellungspunkt verwendet werden.",
-                "recovery_failed": "Die Appliance konnte die Wiederaufnahme der Dienste nach der Backup-Wartung nicht bestätigen. Prüfe ihren Zustand, bevor du es erneut versuchst."
+                "recovery_failed": "Die Appliance konnte die Wiederaufnahme der Dienste nach der Backup-Wartung nicht bestätigen. Prüfe ihren Zustand, bevor du es erneut versuchst.",
+                "not_found": "Dieses Backup ist nicht mehr vorhanden. Wähle einen anderen Eintrag aus dem aktuellen Verlauf."
             },
             "downloadErrors": {
                 "not_found": "Dieses Backup ist nicht mehr verfügbar. Aktualisiere den Verlauf und wähle einen aufbewahrten Wiederherstellungspunkt.",
@@ -795,7 +804,32 @@
                 "secret": "Ein vollständiges Backup enthält die Datenbank, Zertifikate, private Schlüssel und den Verschlüsselungsschlüssel der Anwendung. Halte Downloads privat und schütze sie durch verschlüsselte Speicherung.",
                 "offHost": "Lokale Backups liegen auf demselben Datenvolume wie die Appliance. Lade eine Kopie auf ein separates Gerät herunter, damit ein Host- oder Volume-Ausfall nicht alle Wiederherstellungspunkte zerstört.",
                 "extract": "Entpacke die heruntergeladene TAR-Datei in ein leeres, privates Verzeichnis und bewahre alle fünf Dateien unverändert zusammen auf.",
-                "restore": "Verwende die CLI restore:production der Quellversion mit dem entpackten Verzeichnis als --input. Die Wiederherstellung ersetzt die Daten des Ziels und startet dessen Dienste neu; prüfe sie zuerst auf einem isolierten Ziel. Der bestehende CLI-Wiederherstellungsprozess bleibt erforderlich."
+                "restore": "Wähle im Zeilenmenü „Backup wiederherstellen“, um ein aufbewahrtes, geprüftes Backup auf dieser Appliance wiederherzustellen. Für ein separates Ziel nutze die CLI restore:production der Quellversion mit dem entpackten Verzeichnis als --input. Die Wiederherstellung ersetzt die Zieldaten und startet Dienste neu; prüfe sie zuerst auf einem isolierten Ziel."
+            },
+            "restoreConfirmTitle": "Dieses Backup wiederherstellen?",
+            "restoreConfirmDescription": "Backup {{id}} ersetzt die aktuellen Daten der Appliance. Die Dienste werden pausiert und alle verbundenen Benutzer sehen den Fortschritt der Wiederherstellung. Backup-Dateien, die nach diesem Wiederherstellungspunkt erstellt wurden, bleiben erhalten. Fahre nur fort, wenn du die aktuellen Daten ersetzen möchtest.",
+            "deleteConfirmTitle": "Dieses Backup löschen?",
+            "deleteConfirmDescription": "Backup {{id}} und gegebenenfalls seine gespeicherten Dateien löschen? Der Wiederherstellungspunkt oder Verlaufseintrag wird dauerhaft entfernt. Das lässt sich nicht rückgängig machen.",
+            "restoreScreen": {
+                "returnToPage": "Zurück zur vorherigen Seite",
+                "title": "Appliance wird wiederhergestellt",
+                "description": "{{user}} stellt Backup {{backup}} wieder her. Das betrifft alle mit dieser Appliance verbundenen Benutzer.",
+                "progress": "{{percent}} % — abgeschlossene Wiederherstellungsschritte",
+                "complete": "Wiederherstellung und Wiederaufnahme der Dienste bestätigt. Du kehrst automatisch zur vorherigen Seite zurück.",
+                "failed": "Die Wiederherstellung ist fehlgeschlagen oder die Wiederaufnahme der Dienste konnte nicht bestätigt werden. Prüfe den Zustand der Appliance, bevor du fortfährst.",
+                "connectionLost": "Die Verbindung zur Appliance wurde unterbrochen. Wir warten auf einen bestätigten Wiederherstellungsstatus; der Abschluss ist noch nicht bestätigt.",
+                "actorUnknown": "Ein Administrator",
+                "phases": {
+                    "queued": "Wiederherstellung eingeplant",
+                    "validating": "Backup wird geprüft",
+                    "quiescing": "Dienste werden pausiert",
+                    "database": "Datenbank wird wiederhergestellt",
+                    "controller": "Controller-Daten werden wiederhergestellt",
+                    "crowdsec": "CrowdSec-Daten werden wiederhergestellt",
+                    "secrets": "Anwendungsgeheimnisse werden wiederhergestellt",
+                    "restarting": "Dienste werden gestartet und geprüft",
+                    "complete": "Wiederaufnahme bestätigt"
+                }
             }
         },
         "migration": {

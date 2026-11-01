@@ -10,6 +10,9 @@ import type {
     managedBackupStartSchema,
     managedBackupStateSchema,
     managedBackupStatusSchema,
+    managedBackupDeleteSchema,
+    managedBackupRestoreSchema,
+    managedBackupMaintenanceSchema,
 } from '../validation.ts'
 
 export type ManagedBackupAuditAcknowledgement = z.infer<
@@ -26,3 +29,6 @@ export type ManagedBackupSource = z.infer<typeof managedBackupSourceSchema>
 export type ManagedBackupStart = z.infer<typeof managedBackupStartSchema>
 export type ManagedBackupState = z.infer<typeof managedBackupStateSchema>
 export type ManagedBackupStatus = z.infer<typeof managedBackupStatusSchema>
+export type ManagedBackupDelete = z.infer<typeof managedBackupDeleteSchema>
+export type ManagedBackupRestore = z.infer<typeof managedBackupRestoreSchema>
+export type ManagedBackupMaintenance = z.infer<typeof managedBackupMaintenanceSchema>

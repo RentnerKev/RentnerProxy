@@ -755,18 +755,26 @@
                     "source": "Versão de origem",
                     "duration": "Duração",
                     "size": "Tamanho",
-                    "download": "Arquivo de recuperação"
+                    "download": "Arquivo de recuperação",
+                    "actions": "Ações"
                 },
                 "download": "Baixar cópia de segurança",
                 "downloadLabel": "Baixar cópia de segurança {{id}}",
                 "expired": "Não é mais mantida",
                 "notReady": "Ainda não está pronta",
-                "missingArtifact": "Nenhum arquivo verificado"
+                "missingArtifact": "Nenhum arquivo verificado",
+                "actionsLabel": "Ações da cópia {{id}}",
+                "restore": "Restaurar cópia",
+                "delete": "Eliminar cópia"
             },
             "messages": {
                 "accepted": "Solicitação de cópia registrada. O appliance pode se desconectar brevemente durante a manutenção; esta página será atualizada automaticamente.",
-                "uncertain": "Não foi possível confirmar o resultado da solicitação. Atualize o histórico primeiro. Tentar novamente esta solicitação reutiliza seu identificador e não inicia uma segunda cópia.",
-                "saved": "Agendamento e retenção das cópias de segurança salvos."
+                "uncertain": "Não foi possível confirmar o resultado da solicitação. Aguarde a atualização do histórico em tempo real. Tentar novamente esta solicitação reutiliza seu identificador e não inicia uma segunda cópia.",
+                "saved": "Agendamento e retenção das cópias de segurança salvos.",
+                "restoreAccepted": "Pedido de restauro registado. Acompanha as etapas confirmadas durante a recuperação do equipamento.",
+                "deleted": "Cópia eliminada.",
+                "actionUncertain": "Não foi possível confirmar a operação. Aguarda o estado atual do equipamento antes de tentar novamente.",
+                "actionAccepted": "Pedido de eliminação registado. A aguardar a confirmação da conclusão."
             },
             "errors": {
                 "authentication_required": "Sua sessão expirou. Entre novamente.",
@@ -782,7 +790,8 @@
                 "execution_failed": "A criação da cópia de segurança falhou. Verifique a integridade e o armazenamento do appliance e tente novamente.",
                 "interrupted": "A cópia de segurança foi interrompida. Ela não é um ponto de recuperação confirmado; crie uma nova cópia.",
                 "artifact_invalid": "O arquivo da cópia de segurança não passou na verificação e não pode ser usado como ponto de recuperação.",
-                "recovery_failed": "O appliance não conseguiu confirmar a recuperação dos serviços após a manutenção da cópia de segurança. Verifique sua integridade antes de tentar novamente."
+                "recovery_failed": "O appliance não conseguiu confirmar a recuperação dos serviços após a manutenção da cópia de segurança. Verifique sua integridade antes de tentar novamente.",
+                "not_found": "Esta cópia já não existe. Escolhe outra entrada do histórico atual."
             },
             "downloadErrors": {
                 "not_found": "Esta cópia de segurança não está mais disponível. Atualize o histórico e escolha um ponto de recuperação mantido.",
@@ -797,7 +806,32 @@
                 "secret": "Uma cópia de segurança completa contém o banco de dados, os certificados, as chaves privadas e a chave de criptografia da aplicação. Mantenha os downloads privados e proteja-os com armazenamento criptografado.",
                 "offHost": "As cópias locais compartilham o volume de dados do appliance. Baixe uma cópia em um dispositivo separado para que uma falha do host ou do volume não destrua todos os pontos de recuperação.",
                 "extract": "Extraia o TAR baixado para um diretório vazio e privado e mantenha os cinco arquivos juntos sem editá-los.",
-                "restore": "Use a CLI restore:production da versão de origem com o diretório extraído como --input. A restauração substitui os dados do destino e reinicia seus serviços; verifique primeiro a recuperação em um destino isolado. O processo de restauração existente pela CLI continua sendo obrigatório."
+                "restore": "Usa Restaurar cópia no menu da linha para restaurar uma cópia mantida e verificada neste equipamento. Para recuperar noutro destino, usa a CLI restore:production da versão de origem com o diretório extraído como --input. O restauro substitui os dados do destino e reinicia os serviços; verifica primeiro a recuperação num destino isolado."
+            },
+            "restoreConfirmTitle": "Restaurar esta cópia?",
+            "restoreConfirmDescription": "A cópia {{id}} substituirá os dados atuais do equipamento. Os serviços serão suspensos e todos os utilizadores ligados verão o progresso do restauro. Os ficheiros de cópia criados após este ponto de recuperação serão mantidos. Continua apenas se pretendes substituir os dados atuais.",
+            "deleteConfirmTitle": "Eliminar esta cópia?",
+            "deleteConfirmDescription": "Eliminar a cópia {{id}} e os respetivos ficheiros guardados, se existirem? O ponto de recuperação ou a entrada do histórico será removido permanentemente. Esta ação não pode ser anulada.",
+            "restoreScreen": {
+                "returnToPage": "Voltar à página anterior",
+                "title": "A restaurar o equipamento",
+                "description": "{{user}} está a restaurar a cópia {{backup}}. Isto afeta todos os utilizadores ligados a este equipamento.",
+                "progress": "{{percent}}% — etapas de restauro concluídas",
+                "complete": "Restauro e recuperação dos serviços confirmados. Regresso automático à página anterior.",
+                "failed": "O restauro falhou ou não foi possível confirmar a recuperação dos serviços. Verifica o estado do equipamento antes de continuar.",
+                "connectionLost": "A ligação ao equipamento foi interrompida. A aguardar um estado de restauro confirmado; a conclusão ainda não foi confirmada.",
+                "actorUnknown": "Um administrador",
+                "phases": {
+                    "queued": "Restauro em fila",
+                    "validating": "A verificar a cópia",
+                    "quiescing": "A suspender os serviços",
+                    "database": "A restaurar a base de dados",
+                    "controller": "A restaurar os dados do controlador",
+                    "crowdsec": "A restaurar os dados do CrowdSec",
+                    "secrets": "A restaurar os segredos da aplicação",
+                    "restarting": "A reiniciar e verificar os serviços",
+                    "complete": "Recuperação confirmada"
+                }
             }
         },
         "migration": {

@@ -3,11 +3,14 @@ import { z } from 'zod'
 import {
     managedBackupAuditAcknowledgementSchema,
     managedBackupStatusSchema,
+    managedBackupMaintenanceSchema,
 } from '@/lib/Backups/validation.ts'
 import type {
     ManagedBackupStart,
     ManagedBackupAuditAcknowledgement,
     ManagedBackupConfigurationUpdate,
+    ManagedBackupDelete,
+    ManagedBackupRestore,
 } from '@/lib/Backups/Types/backups.types.ts'
 import { BACKUP_ERRORS, BackupDomainError } from '@/server/Admin/Backups/backup.errors.ts'
 import { controllerRequest } from './transport.server.ts'
@@ -31,6 +34,37 @@ export function createBackupsController(request = controllerRequest) {
         acceptErrorResponse: true,
     }
     return {
+        async maintenance() {
+            const value = await request('/internal/v1/backups/maintenance', {
+                ...options,
+                timeoutMs: 5_000,
+            })
+            const parsed = z
+                .strictObject({ maintenance: managedBackupMaintenanceSchema.nullable() })
+                .safeParse(value)
+            if (!parsed.success) throw new BackupDomainError('unavailable')
+            return parsed.data.maintenance
+        },
+        async delete(id: string, input: ManagedBackupDelete) {
+            if (!z.uuid().safeParse(id).success) throw new BackupDomainError('invalid_input')
+            return decode(
+                await request(`/internal/v1/backups/${id}/delete`, {
+                    ...options,
+                    method: 'POST',
+                    body: JSON.stringify(input),
+                }),
+            )
+        },
+        async restore(id: string, input: ManagedBackupRestore) {
+            if (!z.uuid().safeParse(id).success) throw new BackupDomainError('invalid_input')
+            return decode(
+                await request(`/internal/v1/backups/${id}/restore`, {
+                    ...options,
+                    method: 'POST',
+                    body: JSON.stringify(input),
+                }),
+            )
+        },
         async status(signal?: AbortSignal) {
             return decode(
                 await request('/internal/v1/backups/status', {

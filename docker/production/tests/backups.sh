@@ -274,7 +274,7 @@ test_startup_admission() (
     scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-backup-startup.XXXXXX")
     trap 'rm -rf -- "$scratch"' EXIT
     (
-        local backup_control_directory="$scratch" app_directory=dummy-app readiness_probes=0
+        local backup_control_directory="$scratch" app_directory=dummy-app backup_exporter=dummy-exporter readiness_probes=0
         declare -a child_pids=() child_names=()
         load_function "$entrypoint" wait_for_command
         load_function "$entrypoint" wait_for_web_readiness
@@ -301,6 +301,10 @@ test_startup_admission() (
             "$@"
         }
         bun() {
+            if [[ $* == '--no-env-file dummy-exporter --request-kind' ]]; then
+                printf 'backup\n'
+                return
+            fi
             [[ $* == '--no-env-file dummy-app/docker/web/healthcheck.ts' ]] \
                 || fail 'startup used a different readiness check'
             readiness_probes=$((readiness_probes + 1))
@@ -319,6 +323,59 @@ test_startup_admission() (
     )
     [[ -e $scratch/maintenance-started ]] || fail 'queued catch-up was not processed after readiness'
     printf 'PASS: queued catch-up waits for initial web readiness before maintenance admission\n'
+)
+
+test_restore_maintenance() (
+    local scratch scenario
+    scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-restore-maintenance.XXXXXX")
+    trap 'rm -rf -- "$scratch"' EXIT
+    for scenario in success execution_failed controller_failed web_failed; do
+        mkdir "$scratch/$scenario"
+        if (
+            local backup_control_directory="$scratch/$scenario" crowdsec_control_directory="$scratch/$scenario/crowdsec"
+            local backup_exporter=dummy-exporter backup_recovery_job=''
+            declare -a child_pids=() child_names=()
+            mkdir "$crowdsec_control_directory"
+            printf '{"id":"12345678-1234-4234-8234-123456789abc","kind":"restore"}\n' > "$backup_control_directory/request.json"
+            load_function "$backup_supervisor" perform_managed_restore
+            load_function "$entrypoint" shutdown_children
+            trap shutdown_children EXIT
+            record() { printf '%s\n' "$*" >> "$backup_control_directory/events"; }
+            bun() { [[ $3 == --request-id ]] || fail 'unexpected restore fixture command'; printf '12345678-1234-4234-8234-123456789abc\n'; }
+            backup_stop_consumer_phase() {
+                record "drain $1"
+                [[ $scenario != controller_failed || $1 != controller ]]
+            }
+            backup_assert_consumers_stopped() { [[ $1 == preserve-web ]] || fail 'restore stopped the maintenance UI'; record writer-check; }
+            backup_assert_state_children_running() { record state-check; }
+            backup_run_exporter() { [[ $2 == --restore ]] || fail 'restore invoked backup capture'; record restore; [[ $scenario != execution_failed ]]; }
+            backup_write_result() { record "result $2"; }
+            initialize_secrets() { record secrets; }
+            start_crowdsec_supervisor() { record crowdsec; }
+            start_controller() { record controller; }
+            run_migrations() { record migrations; }
+            start_web() { record web; }
+            wait_for_web_readiness() { record ready; [[ $scenario != web_failed ]] || fatal 'restored web failed readiness'; }
+            perform_managed_restore
+        ); then
+            [[ $scenario == success ]] || fail "restore failure was accepted: $scenario"
+        else
+            [[ $scenario != success ]] || fail 'valid restore fixture failed'
+        fi
+        case $scenario in
+            success)
+                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nsecrets\ncrowdsec\ncontroller\nmigrations\nweb\nready\nresult success' ]] \
+                    || fail 'restore lost writer fences, maintenance web continuity, key reload or verified success ordering'
+                ;;
+            execution_failed)
+                [[ $(cat "$scratch/$scenario/events") != *$'drain web'* ]] || fail 'failed replacement restarted consumers'
+                ;;
+        esac
+        if [[ $scenario != success ]]; then
+            [[ $(cat "$scratch/$scenario/events") != *'result success'* ]] || fail 'restore emitted false success'
+        fi
+    done
+    printf 'PASS: restore preserves maintenance web, fences all state writers, reloads keys and proves readiness before success\n'
 )
 
 test_lock_filesystem() (
@@ -383,3 +440,4 @@ test_drain
 test_export_outcome
 test_export_interruption
 test_startup_admission
+test_restore_maintenance

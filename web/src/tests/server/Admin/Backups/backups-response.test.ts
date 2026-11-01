@@ -41,6 +41,8 @@ function harness(error?: Error, configuredOrigin: string | null = origin) {
                 getBackupsStatusService: () => invoke('status'),
                 requestBackupService: (input) => invoke('start', input),
                 updateBackupConfigurationService: (input) => invoke('config', input),
+                deleteBackupService: (input) => invoke('delete', input),
+                restoreBackupService: (input) => invoke('restore', input),
             },
         }),
     }
@@ -57,6 +59,47 @@ function post(
         body,
     })
 }
+
+test('delete and restore HTTP boundaries preserve origin, digest validation and private failure semantics', async () => {
+    const f = harness()
+    const input = { jobId: requestId, requestId, metadataSha256: 'c'.repeat(64) }
+    expect(
+        (
+            await f.handlers.delete(
+                post('delete', JSON.stringify({ ...input, metadataSha256: null })),
+            )
+        ).status,
+    ).toBe(200)
+    expect((await f.handlers.restore(post('restore', JSON.stringify(input)))).status).toBe(202)
+    const before = f.calls.length
+    expect(
+        (
+            await f.handlers.restore(
+                post('restore', JSON.stringify({ ...input, metadataSha256: null })),
+            )
+        ).status,
+    ).toBe(400)
+    expect(
+        (
+            await f.handlers.restore(
+                post('restore', JSON.stringify({ ...input, actorName: 'forged' })),
+            )
+        ).status,
+    ).toBe(400)
+    expect(
+        (
+            await f.handlers.delete(
+                post('delete', JSON.stringify(input), { origin: 'https://other.test' }),
+            )
+        ).status,
+    ).toBe(403)
+    expect(f.calls).toHaveLength(before)
+    const unavailable = harness(new BackupDomainError('not_found'))
+    const response = await unavailable.handlers.delete(post('delete', JSON.stringify(input)))
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'not_found' })
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+})
 
 test('reachable backup handlers delegate fixed operations and distinguish durable admission from completion', async () => {
     const f = harness()

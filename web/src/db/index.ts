@@ -15,3 +15,7 @@ if (process.env.NODE_ENV !== 'production') {
     developmentGlobal.rentnerproxyDatabaseClient = { url: DATABASE_URL, client }
 }
 export const db = drizzle(client, { schema })
+
+export async function closeDatabaseForRestoreMaintenance(): Promise<void> {
+    await client.close()
+}

@@ -1,7 +1,12 @@
-import type { ManagedBackupConfigurationUpdate, ManagedBackupStart } from './backups.types.ts'
+import type {
+    ManagedBackupConfigurationUpdate,
+    ManagedBackupStart,
+    ManagedBackupDelete,
+} from './backups.types.ts'
 
 export type BackupStartInput = Omit<ManagedBackupStart, 'actorId'>
 export type BackupConfigurationInput = Omit<ManagedBackupConfigurationUpdate, 'actorId'>
+export type BackupActionInput = Omit<ManagedBackupDelete, 'actorId'> & { readonly jobId: string }
 export type BackupClientErrorCode =
     | 'authentication_required'
     | 'permission_denied'
@@ -13,6 +18,8 @@ export type BackupClientErrorCode =
     | 'unavailable'
     | 'invalid_response'
     | 'aborted'
+    | 'not_found'
+    | 'artifact_invalid'
 
 export type BackupDownloadError =
     | 'not_found'

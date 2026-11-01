@@ -29,7 +29,11 @@ export async function readPrivateJson(path: string, maximum = 512 * 1024): Promi
     }
 }
 
-export async function writePrivateJson(path: string, value: unknown): Promise<void> {
+export async function writePrivateJson(
+    path: string,
+    value: unknown,
+    publication?: { gid: number; mode: number },
+): Promise<void> {
     const bytes = JSON.stringify(value) + '\n'
     if (Buffer.byteLength(bytes) > 512 * 1024) throw new Error('backup state limit')
     const temporary = path + '.' + randomUUID() + '.tmp'
@@ -37,6 +41,10 @@ export async function writePrivateJson(path: string, value: unknown): Promise<vo
         const file = await open(temporary, 'wx', 0o600)
         try {
             await file.writeFile(bytes)
+            if (publication) {
+                await file.chown(0, publication.gid)
+                await file.chmod(publication.mode)
+            }
             await file.sync()
         } finally {
             await file.close()

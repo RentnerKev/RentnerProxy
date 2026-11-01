@@ -17,6 +17,8 @@ export const LIVE_TOPICS = [
     'crowdsec-configuration',
     'crowdsec-dashboard',
     'forward-auth',
+    'backups',
+    'backup-restore',
 ] as const
 
 export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
@@ -34,6 +36,8 @@ export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
     'crowdsec-configuration': 2_000,
     'crowdsec-dashboard': 2_000,
     'forward-auth': 2_000,
+    backups: 1_000,
+    'backup-restore': 500,
 }
 
 export const LIVE_MAX_CONNECTIONS = 100

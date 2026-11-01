@@ -49,6 +49,9 @@ async fn backups_always_require_configured_explicit_token() {
         ("PUT", "/config"),
         ("POST", "/audit/ack"),
         ("GET", "/00000000-0000-4000-8000-000000000001/download"),
+        ("GET", "/maintenance"),
+        ("POST", "/00000000-0000-4000-8000-000000000001/delete"),
+        ("POST", "/00000000-0000-4000-8000-000000000001/restore"),
     ] {
         for (configured, authorized) in [(false, false), (false, true), (true, false)] {
             let response = call(
@@ -61,6 +64,42 @@ async fn backups_always_require_configured_explicit_token() {
             .await;
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         }
+    }
+}
+
+#[tokio::test]
+async fn invalid_artifact_operations_never_reach_agent() {
+    for (action, body) in [
+        (
+            "delete",
+            serde_json::json!({"requestId": ID, "actorId": ID, "metadataSha256": "invalid"}),
+        ),
+        (
+            "delete",
+            serde_json::json!({"requestId": ID, "actorId": ID, "metadataSha256": null, "path": "/etc"}),
+        ),
+        (
+            "restore",
+            serde_json::json!({"requestId": ID, "actorId": ID, "metadataSha256": "a".repeat(64), "actorName": "\nKevin"}),
+        ),
+        (
+            "restore",
+            serde_json::json!({"requestId": ID, "actorId": ID, "metadataSha256": null, "actorName": "Kevin"}),
+        ),
+        (
+            "restore",
+            serde_json::json!({"requestId": ID, "actorId": ID, "metadataSha256": "a".repeat(64), "actorName": "a".repeat(161)}),
+        ),
+    ] {
+        let response = call(
+            app(true),
+            "POST",
+            &format!("/internal/v1/backups/{ID}/{action}"),
+            body.to_string(),
+            true,
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }
 

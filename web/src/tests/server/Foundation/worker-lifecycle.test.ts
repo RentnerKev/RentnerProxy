@@ -4,11 +4,16 @@ import { startWorkerLifecycle } from '@/server/Foundation/worker-lifecycle.serve
 import type { WorkerLifecycle } from '@/server/Foundation/Types/worker-lifecycle.types.ts'
 
 const existingListeners = new Set(process.listeners('rentnerproxy:shutdown'))
+const existingMaintenanceListeners = new Set(process.listeners('rentnerproxy:maintenance'))
 
 afterEach(() => {
     for (const listener of process.listeners('rentnerproxy:shutdown')) {
         if (!existingListeners.has(listener))
             process.removeListener('rentnerproxy:shutdown', listener)
+    }
+    for (const listener of process.listeners('rentnerproxy:maintenance')) {
+        if (!existingMaintenanceListeners.has(listener))
+            process.removeListener('rentnerproxy:maintenance', listener)
     }
 })
 
@@ -34,7 +39,7 @@ describe('worker lifecycle', () => {
         })
         await initializing
         await Promise.resolve()
-        expect(calls).toEqual(['start', 'stop'])
+        expect(calls).toEqual(['stop'])
         let drained = false
         const draining = Promise.all(pending).then(() => {
             drained = true

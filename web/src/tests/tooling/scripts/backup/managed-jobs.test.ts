@@ -64,6 +64,209 @@ function gate() {
     return { promise, release: resolve }
 }
 
+describe('managed backup maintenance', () => {
+    test('restore preserves every inventory entry and never invokes retention or delete', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const first = await engine.start(f.request())
+        await engine.tick()
+        await engine.start(f.request())
+        await engine.tick()
+        const before = await engine.status()
+        const request = { ...f.request(), metadataSha256: digest, actorName: 'Kevin' }
+        const admitted = await engine.requestMaintenance(first.id, request, 'restore')
+        expect(await engine.requestMaintenance(first.id, request, 'restore')).toEqual(admitted)
+        await expect(engine.start(f.request())).rejects.toMatchObject({ code: 'busy' })
+        await expect(engine.acquireDownload()).rejects.toMatchObject({ code: 'busy' })
+        f.dependencies.restore = async (job, operation, progress) => {
+            expect(job.id).toBe(first.id)
+            expect(operation.actorName).toBe('Kevin')
+            await progress('database', 30)
+            expect((await engine.status()).maintenance?.progressPercent).toBe(30)
+            await expect(
+                engine.requestMaintenance(first.id, { ...request, requestId: f.id() }, 'restore'),
+            ).rejects.toMatchObject({ code: 'busy' })
+            await progress('restarting', 90)
+        }
+        await engine.tick()
+        const after = await engine.status()
+        expect(after.jobs).toEqual(before.jobs)
+        expect(after.configuration).toEqual(before.configuration)
+        expect(f.removed).toEqual([])
+        expect(after.maintenance).toMatchObject({
+            state: 'succeeded',
+            progressPercent: 100,
+            phase: 'complete',
+            actorId,
+            artifactId: first.id,
+        })
+        expect(after.auditEvents.slice(-3).map((event) => event.kind)).toEqual([
+            'restore_requested',
+            'restore_started',
+            'restore_succeeded',
+        ])
+        await expect(
+            engine.requestMaintenance(
+                first.id,
+                { ...request, metadataSha256: 'b'.repeat(64) },
+                'restore',
+            ),
+        ).rejects.toMatchObject({ code: 'revision_conflict' })
+    })
+
+    test('delete removes only the selected verified artifact and receipt survives later operations', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const first = await engine.start(f.request())
+        await engine.tick()
+        const second = await engine.start(f.request())
+        await engine.tick()
+        const request = { ...f.request(), metadataSha256: digest }
+        await expect(
+            engine.requestMaintenance(
+                first.id,
+                { ...request, metadataSha256: 'b'.repeat(64) },
+                'delete',
+            ),
+        ).rejects.toMatchObject({ code: 'artifact_invalid' })
+        await engine.requestMaintenance(first.id, request, 'delete')
+        await engine.tick()
+        expect(f.removed).toEqual([first.id])
+        expect((await engine.status()).jobs.map((job) => job.id)).toEqual([second.id])
+        await engine.requestMaintenance(second.id, { ...request, requestId: f.id() }, 'delete')
+        await engine.tick()
+        expect((await engine.requestMaintenance(first.id, request, 'delete')).state).toBe(
+            'succeeded',
+        )
+        expect(f.removed).toEqual([first.id, second.id])
+    })
+
+    test('download admission fences maintenance, manual and scheduled backups until release', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        await engine.tick()
+        await engine.updateConfiguration(f.config())
+        const release = await engine.acquireDownload()
+        await expect(engine.start(f.request())).rejects.toMatchObject({ code: 'busy' })
+        await expect(
+            engine.requestMaintenance(job.id, { ...f.request(), metadataSha256: digest }, 'delete'),
+        ).rejects.toMatchObject({ code: 'busy' })
+        f.setNow(3_600_000)
+        await engine.tick()
+        expect((await engine.status()).jobs).toHaveLength(1)
+        release()
+        release()
+        await engine.tick()
+        expect((await engine.status()).jobs).toHaveLength(2)
+    })
+
+    test('failed history can be deleted without filesystem access and restore refuses it', async () => {
+        const f = fixture()
+        f.dependencies.execute = async () => {
+            throw new Error('synthetic failure')
+        }
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        await engine.tick()
+        await expect(
+            engine.requestMaintenance(
+                job.id,
+                { ...f.request(), metadataSha256: digest, actorName: 'Kevin' },
+                'restore',
+            ),
+        ).rejects.toMatchObject({ code: 'artifact_invalid' })
+        await engine.requestMaintenance(job.id, { ...f.request(), metadataSha256: null }, 'delete')
+        await engine.tick()
+        expect((await engine.status()).jobs).toHaveLength(0)
+        expect(f.removed).toEqual([])
+    })
+
+    test('interrupted restore is durable and never automatically re-executes on restart', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        await engine.tick()
+        await engine.requestMaintenance(
+            job.id,
+            { ...f.request(), metadataSha256: digest, actorName: 'Kevin' },
+            'restore',
+        )
+        const stopped = structuredClone(f.read())
+        stopped.maintenance!.state = 'running'
+        stopped.maintenance!.phase = 'database'
+        stopped.maintenance!.progressPercent = 30
+        f.dependencies.read = async () => stopped
+        let invoked = false
+        f.dependencies.restore = async () => {
+            invoked = true
+        }
+        const recovered = await createManagedBackupEngine(f.dependencies)
+        await recovered.tick()
+        expect(invoked).toBe(false)
+        expect((await recovered.status()).maintenance).toMatchObject({
+            state: 'interrupted',
+            error: 'interrupted',
+            progressPercent: 30,
+        })
+        expect((await recovered.status()).jobs).toEqual(stopped.jobs)
+        f.dependencies.recoverRestore = async (operation) =>
+            operation.id === stopped.maintenance!.id
+        const proved = await createManagedBackupEngine(f.dependencies)
+        expect((await proved.status()).maintenance).toMatchObject({
+            state: 'succeeded',
+            error: null,
+            phase: 'complete',
+            progressPercent: 100,
+        })
+        expect((await proved.status()).auditEvents.at(-1)?.kind).toBe('restore_succeeded')
+        expect(invoked).toBe(false)
+    })
+
+    test('delete recovery acknowledges a durably removed selected artifact without touching another point', async () => {
+        const f = fixture()
+        f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })
+        const engine = await createManagedBackupEngine(f.dependencies)
+        const job = await engine.start(f.request())
+        await engine.tick()
+        const newer = await engine.start(f.request())
+        await engine.tick()
+        let present = true
+        f.dependencies.verify = async (candidate) => candidate.id !== job.id || present
+        f.dependencies.removed = async (candidate) => candidate.id === job.id && !present
+        f.dependencies.remove = async (candidate) => {
+            expect(candidate.id).toBe(job.id)
+            if (present) f.removed.push(candidate.id)
+            present = false
+        }
+        await engine.requestMaintenance(
+            job.id,
+            { ...f.request(), metadataSha256: digest },
+            'delete',
+        )
+        const write = f.dependencies.write
+        f.dependencies.write = async (state) => {
+            if (state.maintenance?.state === 'succeeded')
+                throw new Error('synthetic completion write failure')
+            await write(state)
+        }
+        await expect(engine.tick()).rejects.toThrow('synthetic completion write failure')
+        f.dependencies.write = write
+        const recovered = await createManagedBackupEngine(f.dependencies)
+        await recovered.tick()
+        expect((await recovered.status()).jobs.map((entry) => entry.id)).toEqual([newer.id])
+        expect((await recovered.status()).maintenance?.state).toBe('succeeded')
+        expect(f.removed).toEqual([job.id])
+        expect(
+            (await recovered.status()).auditEvents.filter((event) => event.kind === 'deleted'),
+        ).toHaveLength(1)
+    })
+})
+
 async function responsive<T>(operation: Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {

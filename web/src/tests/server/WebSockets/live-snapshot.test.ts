@@ -24,7 +24,15 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         let reads = 0
         let permissionChecks = 0
         mock.module('./server/env.server.ts', () => ({ getPublicOrigin: () => 'https://proxy.example' }))
-        mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'revision' }))
+        mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'revision', publishApplicationChange: () => undefined }))
+        mock.module('./server/Admin/Backups/backups.service.ts', () => ({ getBackupsStatusService: async () => { throw new Error('Unexpected full backup read') } }))
+        mock.module('./server/Admin/Backups/backups-demo.server.ts', () => ({ getLocalBackupDemoStatus: async () => null }))
+        mock.module('./server/Controller/backups.server.ts', () => ({ backupsController: { maintenance: async () => null } }))
+        mock.module('./server/Backups/restore-maintenance.server.ts', () => ({
+            getActiveRestoreMaintenance: async () => null,
+            isRestoreMaintenanceFenced: () => false,
+            authorizeMaintenanceSnapshot: () => false,
+        }))
         let digestReads = 0
         let runtimeReads = 0
         let crowdSecQuery

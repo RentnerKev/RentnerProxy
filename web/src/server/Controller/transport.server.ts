@@ -28,6 +28,9 @@ export async function controllerRequest(
         | '/health'
         | '/ready'
         | '/internal/v1/backups/status'
+        | '/internal/v1/backups/maintenance'
+        | `/internal/v1/backups/${string}/delete`
+        | `/internal/v1/backups/${string}/restore`
         | '/internal/v1/backups/start'
         | '/internal/v1/backups/config'
         | '/internal/v1/backups/audit/ack'

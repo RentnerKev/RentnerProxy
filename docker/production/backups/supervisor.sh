@@ -62,7 +62,7 @@ backup_stop_consumer_phase() {
     local -a stopping=()
     for index in "${!child_pids[@]}"; do
         case $phase:${child_names[$index]} in
-            application:web|application:controller|crowdsec:crowdsec-supervisor) ;;
+            application:web|application:controller|controller:controller|web:web|crowdsec:crowdsec-supervisor) ;;
             *) continue ;;
         esac
         stopping+=("$index")
@@ -109,7 +109,8 @@ backup_status_has_consumer_identity() {
         if [[ $field == State: && ( $real == Z || $real == X ) ]]; then return 1; fi
         [[ $field == Uid: ]] || continue
         case " $real $effective $saved $filesystem " in
-            *' 10001 '*|*' 10002 '*|*' 10003 '*) return 0 ;;
+            *' 10001 '*|*' 10003 '*) return 0 ;;
+            *' 10002 '*) [[ ${2:-} != preserve-web ]]; return ;;
             *) return 1 ;;
         esac
     done < "$status_file"
@@ -130,7 +131,7 @@ backup_assert_consumers_stopped() {
         pid=${pid%/status}
         [[ $pid != "$valkey_pid" ]] || continue
         [[ -r $status_file ]] || continue
-        if backup_status_has_consumer_identity "$status_file" 2>/dev/null; then
+        if backup_status_has_consumer_identity "$status_file" "${1:-}" 2>/dev/null; then
             fatal 'an application or CrowdSec process survived backup quiescing'
         fi
     done
@@ -138,9 +139,10 @@ backup_assert_consumers_stopped() {
 }
 
 backup_run_exporter() {
-    local id=$1 index pid status=0
-    start_child backup-export timeout --signal=TERM --kill-after=5s 660s \
-        bun --no-env-file "$backup_exporter" --run "$id"
+    local id=$1 mode=${2:---run} index pid status=0 budget=660s
+    [[ $mode != --restore ]] || budget=1100s
+    start_child backup-export timeout --signal=TERM --kill-after=5s "$budget" \
+        bun --no-env-file "$backup_exporter" "$mode" "$id"
     # Consumer removal leaves sparse arrays; locate the new child by its role.
     for index in "${!child_pids[@]}"; do
         [[ ${child_names[$index]} == backup-export ]] && break
@@ -158,6 +160,38 @@ backup_run_exporter() {
         fatal 'backup exporter could not prove safe completion'
     fi
     return "$status"
+}
+
+perform_managed_restore() {
+    local id
+    [[ ! -e $backup_control_directory/active.json && ! -L $backup_control_directory/active.json ]] \
+        || fatal 'backup maintenance is already active'
+    mv -T -- "$backup_control_directory/request.json" "$backup_control_directory/active.json"
+    id=$(bun --no-env-file "$backup_exporter" --request-id) || fatal 'invalid restore maintenance request'
+    log "starting managed restore maintenance ($id)"
+    backup_recovery_job=$id
+    # Web drains its workers and DB pool after the root progress fence appears.
+    # It keeps serving authenticated maintenance status while state writers stop.
+    backup_stop_consumer_phase controller 23 || fatal 'controller could not quiesce safely for restore'
+    backup_stop_consumer_phase crowdsec 40 || fatal 'CrowdSec could not quiesce safely for restore'
+    backup_assert_consumers_stopped preserve-web
+    if ! backup_run_exporter "$id" --restore; then
+        backup_write_result "$id" execution_failed
+        fatal 'managed restore failed; restart or explicit recovery is required'
+    fi
+    backup_assert_state_children_running
+    # The web process caches the application key and has closed its DB pool.
+    backup_stop_consumer_phase web 23 || fatal 'maintenance web could not stop safely'
+    initialize_secrets
+    rm -f -- "$crowdsec_control_directory/status.json"
+    start_crowdsec_supervisor
+    start_controller
+    run_migrations
+    start_web
+    wait_for_web_readiness
+    backup_write_result "$id" success
+    backup_recovery_job=''
+    log "managed restore maintenance completed ($id)"
 }
 
 perform_managed_backup() {

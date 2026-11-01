@@ -29,20 +29,29 @@ export function planBackupAuditBatch(cursor: BackupAuditCursor, status: ManagedB
         actorUserId: event.actorId,
         actorKind: event.actorId === null ? 'system' : 'user',
         action:
-            event.kind === 'requested'
+            event.kind === 'requested' || event.kind.endsWith('_requested')
                 ? 'request'
-                : event.kind === 'started'
+                : event.kind === 'started' || event.kind === 'restore_started'
                   ? 'started'
-                  : event.kind === 'succeeded'
+                  : event.kind === 'succeeded' || event.kind === 'restore_succeeded'
                     ? 'save'
-                    : event.kind === 'failed' || event.kind === 'interrupted'
+                    : event.kind === 'failed' ||
+                        event.kind === 'interrupted' ||
+                        event.kind.endsWith('_failed') ||
+                        event.kind.endsWith('_interrupted')
                       ? 'failed'
-                      : event.kind === 'pruned'
+                      : event.kind === 'pruned' || event.kind === 'deleted'
                         ? 'delete'
                         : 'update',
         resource: event.kind === 'configuration_updated' ? 'security-settings' : 'config-export',
         targetId: event.jobId,
-        result: event.kind === 'failed' || event.kind === 'interrupted' ? 'failure' : 'success',
+        result:
+            event.kind === 'failed' ||
+            event.kind === 'interrupted' ||
+            event.kind.endsWith('_failed') ||
+            event.kind.endsWith('_interrupted')
+                ? 'failure'
+                : 'success',
         metadata: {
             ...(event.jobId ? { operationId: event.jobId } : {}),
             occurredAt: new Date(event.at).toISOString(),

@@ -16,6 +16,67 @@ const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: BackupsPage } = await import('@/features/Admin/Backups/index.tsx')
 
+class FakeSocket extends EventTarget {
+    static instances: FakeSocket[] = []
+    static OPEN = 1
+    static CLOSED = 3
+    readyState = FakeSocket.OPEN
+    sent: string[] = []
+
+    constructor(readonly url: URL) {
+        super()
+        FakeSocket.instances.push(this)
+    }
+
+    send(value: string) {
+        this.sent.push(value)
+    }
+    close() {
+        this.readyState = FakeSocket.CLOSED
+        this.dispatchEvent(new Event('close'))
+    }
+    deliver(payload: ManagedBackupStatus) {
+        this.dispatchEvent(
+            new MessageEvent('message', {
+                data: JSON.stringify({
+                    type: 'snapshot',
+                    topic: 'backups',
+                    query: {},
+                    payload,
+                }),
+            }),
+        )
+    }
+}
+const originalSocket = globalThis.WebSocket
+
+async function statusChanged() {
+    await act(async () => {
+        const socket = FakeSocket.instances.at(-1)
+        if (!socket) throw new Error('Missing backup realtime subscription')
+        socket.dispatchEvent(new Event('open'))
+        socket.deliver(structuredClone(status))
+    })
+}
+
+async function openActions(id = completed.id) {
+    const row = [...document.querySelectorAll('tbody tr')].find((item) =>
+        item.textContent?.includes(id),
+    )
+    const trigger = row?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')
+    if (!trigger) throw new Error('Missing backup actions: ' + id)
+    await click(trigger)
+    await waitFor(() => !!document.querySelector('[role="menu"]'))
+}
+
+function menuItem(label: string) {
+    const element = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) =>
+        item.textContent?.startsWith(label),
+    )
+    if (!element) throw new Error('Missing menu action: ' + label)
+    return element
+}
+
 const userId = '01900000-0000-7000-8000-000000000099'
 const uuid = (number: number) => `01900000-0000-7000-8000-${String(number).padStart(12, '0')}`
 const configuration = {
@@ -53,6 +114,8 @@ let admitBeforeStartFailure: boolean
 let configurationError: number | null
 let startRequests: Array<{ requestId: string }>
 let configurationRequests: Array<Record<string, unknown>>
+let actionRequests: Array<{ operation: string; body: Record<string, unknown> }>
+let actionError: boolean
 let configurationWait: Promise<void> | null
 let root: Root | null = null
 let queryClient: InstanceType<typeof QueryClient>
@@ -124,6 +187,9 @@ async function submit() {
 }
 
 beforeEach(() => {
+    globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket
+    FakeSocket.instances = []
+    window.location.href = 'http://localhost/backups'
     status = {
         storeId: uuid(90),
         configuration: { ...configuration },
@@ -136,6 +202,8 @@ beforeEach(() => {
     configurationError = null
     startRequests = []
     configurationRequests = []
+    actionRequests = []
+    actionError = false
     configurationWait = null
     const fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
         Object.assign(
@@ -149,6 +217,16 @@ beforeEach(() => {
                           )
                         : Response.json(status)
                 const body: unknown = JSON.parse(String(options?.body))
+                if (path.endsWith('/delete') || path.endsWith('/restore')) {
+                    const request = body as Record<string, unknown>
+                    const operation = path.endsWith('/delete') ? 'delete' : 'restore'
+                    actionRequests.push({ operation, body: request })
+                    if (actionError)
+                        return Response.json({ error: 'artifact_invalid' }, { status: 409 })
+                    if (operation === 'delete')
+                        status.jobs = status.jobs.filter((job) => job.id !== request.jobId)
+                    return Response.json(status, { status: operation === 'restore' ? 202 : 200 })
+                }
                 if (path.endsWith('/start')) {
                     const request = body as { requestId: string }
                     startRequests.push(request)
@@ -199,6 +277,7 @@ afterEach(async () => {
     queryClient?.clear()
     document.body.innerHTML = ''
     restoreFetch()
+    globalThis.WebSocket = originalSocket
 })
 
 describe('managed backup UI', () => {
@@ -220,12 +299,13 @@ describe('managed backup UI', () => {
         expect(document.querySelector('button[aria-label="Sort by Requested"]')).not.toBeNull()
         expect(document.querySelector('td[aria-label="Source release cell"]')).not.toBeNull()
         expect(document.body.textContent).toContain('1 MiB')
-        expect(document.body.textContent).toContain('No longer retained')
         expect(document.body.textContent).toContain('not a confirmed recovery point')
+        expect(document.body.textContent).not.toContain('Refresh backups')
+        await openActions()
         const links = document.querySelectorAll<HTMLAnchorElement>('a[href^="/api/admin/backups/"]')
         expect(links.length).toBe(1)
         expect(links[0]?.getAttribute('href')).toBe(`/api/admin/backups/${completed.id}/download`)
-        expect(links[0]?.getAttribute('aria-label')).toContain(completed.id)
+        expect(menuItem('Restore backup').getAttribute('aria-disabled')).not.toBe('true')
         expect(document.body.textContent).toContain('application encryption key')
     })
     test('read-only access shows history without management or secret-bearing downloads', async () => {
@@ -234,6 +314,103 @@ describe('managed backup UI', () => {
         expect(document.querySelector('a[href^="/api/admin/backups/"]')).toBeNull()
         expect(document.body.textContent).toContain('backup management permission')
         expect(document.body.textContent).not.toContain('Create backup')
+        await openActions()
+        expect(menuItem('Restore').getAttribute('aria-disabled')).toBe('true')
+        expect(menuItem('Delete').getAttribute('aria-disabled')).toBe('true')
+    })
+    test('delete requires confirmation, cancels safely and removes only the selected row', async () => {
+        status.jobs.push({ ...completed, id: uuid(2), requestId: uuid(12), retained: false })
+        await renderPage()
+        await openActions(uuid(2))
+        expect(menuItem('Download').getAttribute('aria-disabled')).toBe('true')
+        expect(menuItem('Restore').getAttribute('aria-disabled')).toBe('true')
+        expect(menuItem('Delete').getAttribute('aria-disabled')).not.toBe('true')
+        await click(menuItem('Delete'))
+        expect(actionRequests).toHaveLength(0)
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(uuid(2))
+        await click(button('Cancel'))
+        expect(actionRequests).toHaveLength(0)
+        await openActions(uuid(2))
+        await click(menuItem('Delete'))
+        const confirm =
+            document.querySelector<HTMLButtonElement>('[role="dialog"] button.bg-danger') ??
+            [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
+                (item) => item.textContent?.startsWith('Delete'),
+            )
+        if (!confirm) throw new Error('Missing delete confirmation')
+        await click(confirm)
+        await waitFor(
+            () => actionRequests.length === 1 && !document.querySelector('[role="dialog"]'),
+        )
+        expect(actionRequests[0]?.operation).toBe('delete')
+        expect(actionRequests[0]?.body.jobId).toBe(uuid(2))
+        expect(document.body.textContent).not.toContain(uuid(2))
+        expect(document.body.textContent).toContain(completed.id)
+    })
+    test('restore requires destructive confirmation and surfaces real endpoint failures', async () => {
+        actionError = true
+        await renderPage()
+        await openActions()
+        await click(menuItem('Restore'))
+        expect(actionRequests).toHaveLength(0)
+        const dialog = document.querySelector('[role="dialog"]')
+        expect(dialog?.textContent).toContain(completed.id)
+        const confirm = [
+            ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+        ].find((item) => item.textContent?.startsWith('Restore'))
+        if (!confirm) throw new Error('Missing restore confirmation')
+        await click(confirm)
+        await waitFor(
+            () => actionRequests.length === 1 && !document.querySelector('[role="dialog"]'),
+        )
+        expect(actionRequests[0]?.operation).toBe('restore')
+        expect(actionRequests[0]?.body.metadataSha256).toBe(completed.artifact?.metadataSha256)
+        expect(document.body.textContent).not.toContain('Restore request recorded')
+        expect(document.body.textContent).toContain(
+            catalogs.en.admin.backups.errors.artifact_invalid,
+        )
+        expect(document.body.textContent).toContain(completed.id)
+    })
+    test('a confirmation becomes disabled when another operation starts through realtime', async () => {
+        await renderPage()
+        await openActions()
+        await click(menuItem('Delete'))
+        status.jobs.push({
+            ...completed,
+            id: uuid(3),
+            requestId: uuid(13),
+            state: 'running',
+            artifact: null,
+            retained: false,
+        })
+        await statusChanged()
+        const confirm = [
+            ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+        ].find((item) => item.textContent?.startsWith('Delete'))
+        await waitFor(() => confirm?.disabled === true)
+        if (confirm) await click(confirm)
+        expect(actionRequests).toHaveLength(0)
+    })
+    test('status filter options render the same colored badges as history rows', async () => {
+        await renderPage()
+        const toggle = document.querySelector<HTMLButtonElement>('button[aria-label="Filters"]')
+        if (!toggle) throw new Error('Missing table filter toggle')
+        await click(toggle)
+        const panel = document.getElementById(toggle.getAttribute('aria-controls') ?? '')
+        const select = panel?.querySelectorAll<HTMLElement>('[role="combobox"]')[1]
+        if (!select) throw new Error('Missing status filter')
+        await click(select)
+        await waitFor(() => !!document.querySelector('[role="option"]'))
+        const succeeded = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+            (item) => item.textContent?.includes('Completed'),
+        )
+        const failed = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((item) =>
+            item.textContent?.includes('Failed'),
+        )
+        expect(succeeded).toBeDefined()
+        expect(failed).toBeDefined()
+        expect(succeeded!.querySelector('.bg-success-bg')).not.toBeNull()
+        expect(failed!.querySelector('.bg-danger-bg')).not.toBeNull()
     })
     test('no view permission neither requests status nor exposes a cached recovery point', async () => {
         await renderPage({ permissions: [] })
@@ -270,7 +447,7 @@ describe('managed backup UI', () => {
         await waitFor(() => startRequests.length === 2)
         expect(startRequests[1]?.requestId).toBe(startRequests[0]?.requestId)
     })
-    test('polling reconciles a recorded request whose response was lost during maintenance', async () => {
+    test('realtime reconciles a recorded request whose response was lost during maintenance', async () => {
         admitBeforeStartFailure = true
         startError = 503
         await renderPage()
@@ -278,6 +455,7 @@ describe('managed backup UI', () => {
         await click(button('Start backup maintenance'))
         await waitFor(() => document.body.textContent?.includes('could not be confirmed') === true)
         statusError = null
+        await statusChanged()
         await waitFor(
             () => document.body.textContent?.includes('Backup request recorded') === true,
             6500,
@@ -287,14 +465,16 @@ describe('managed backup UI', () => {
         expect(document.body.textContent).toContain('Queued')
         expect(document.body.textContent).not.toContain('reuses its identity')
     }, 8000)
-    test('polling updates a running backup to a completed downloadable recovery point without interaction', async () => {
+    test('realtime updates a running backup to a completed recovery point', async () => {
         status.jobs = [{ ...completed, state: 'running', artifact: null, retained: false }]
         await renderPage()
         expect(button('Create backup').disabled).toBeTrue()
         status.jobs = [structuredClone(completed)]
+        await statusChanged()
         await waitFor(() => document.body.textContent?.includes('No backup running') === true, 6500)
         expect(button('Create backup').disabled).toBeFalse()
-        expect(document.querySelector('a[href^="/api/admin/backups/"]')).not.toBeNull()
+        await openActions()
+        expect(menuItem('Download backup').getAttribute('aria-disabled')).not.toBe('true')
     }, 8000)
     test('saves numeric settings with a revision and prevents duplicate submissions', async () => {
         await renderPage()
@@ -321,7 +501,7 @@ describe('managed backup UI', () => {
         await renderPage()
         await input('intervalHours', '48')
         status.configuration = { ...status.configuration, revision: 1, intervalHours: 72 }
-        await click(button('Refresh backups'))
+        await statusChanged()
         await waitFor(() => document.body.textContent?.includes('changed elsewhere') === true)
         expect(document.querySelector<HTMLInputElement>('[name="intervalHours"]')?.value).toBe('48')
         expect(button('Save backup settings').disabled).toBeTrue()
@@ -339,19 +519,25 @@ describe('managed backup UI', () => {
     test('keeps history during maintenance but locks controls until status recovers', async () => {
         await renderPage()
         statusError = 503
-        await click(button('Refresh backups'))
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['backups', userId] })
+        })
         await waitFor(() => document.body.textContent?.includes('temporarily unavailable') === true)
         expect(document.body.textContent).toContain(completed.id)
         expect(button('Create backup').disabled).toBeTrue()
         expect(document.querySelector('a[href^="/api/admin/backups/"]')).toBeNull()
         statusError = null
-        await click(button('Refresh backups'))
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['backups', userId] })
+        })
         await waitFor(() => !button('Create backup').disabled)
     })
     test('erases history and controls after a server authorization failure', async () => {
         await renderPage()
         statusError = 403
-        await click(button('Refresh backups'))
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['backups', userId] })
+        })
         await waitFor(
             () => document.body.textContent?.includes('Backup access is unavailable') === true,
         )

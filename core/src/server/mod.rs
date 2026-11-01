@@ -162,6 +162,18 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         )
         .route("/internal/v1/backups/start", post(handlers::backups::start))
         .route(
+            "/internal/v1/backups/maintenance",
+            get(handlers::backups::maintenance),
+        )
+        .route(
+            "/internal/v1/backups/{job_id}/delete",
+            post(handlers::backups::delete),
+        )
+        .route(
+            "/internal/v1/backups/{job_id}/restore",
+            post(handlers::backups::restore),
+        )
+        .route(
             "/internal/v1/backups/audit/ack",
             post(handlers::backups::acknowledge_audit),
         )

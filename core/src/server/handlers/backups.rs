@@ -1,4 +1,9 @@
-use axum::{body::Bytes, extract::rejection::BytesRejection, http::StatusCode, response::Response};
+use axum::{
+    body::Bytes,
+    extract::{Path, rejection::BytesRejection},
+    http::{StatusCode, Uri},
+    response::Response,
+};
 use serde::{Deserialize, Serialize};
 
 use super::no_store_status_json;
@@ -38,6 +43,77 @@ struct Config {
 struct AuditAcknowledgement {
     store_id: String,
     sequence: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Delete {
+    request_id: String,
+    actor_id: String,
+    metadata_sha256: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Restore {
+    request_id: String,
+    actor_id: String,
+    metadata_sha256: String,
+    actor_name: String,
+}
+
+fn digest(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+pub(in crate::server) async fn maintenance() -> Response {
+    forward("GET", "/maintenance", Vec::new()).await
+}
+
+pub(in crate::server) async fn delete(
+    Path(id): Path<String>,
+    uri: Uri,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    let Some(request) = parse::<Delete>(body).filter(|request| {
+        canonical_uuid(&id)
+            && uri.query().is_none()
+            && canonical_uuid(&request.request_id)
+            && canonical_uuid(&request.actor_id)
+            && request.metadata_sha256.as_deref().is_none_or(digest)
+    }) else {
+        return error(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match serde_json::to_vec(&request) {
+        Ok(body) => forward("POST", &format!("/artifacts/{id}/delete"), body).await,
+        Err(_) => unavailable(),
+    }
+}
+
+pub(in crate::server) async fn restore(
+    Path(id): Path<String>,
+    uri: Uri,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    let Some(request) = parse::<Restore>(body).filter(|request| {
+        canonical_uuid(&id)
+            && uri.query().is_none()
+            && canonical_uuid(&request.request_id)
+            && canonical_uuid(&request.actor_id)
+            && digest(&request.metadata_sha256)
+            && !request.actor_name.trim().is_empty()
+            && request.actor_name.chars().count() <= 160
+            && !request.actor_name.chars().any(char::is_control)
+    }) else {
+        return error(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match serde_json::to_vec(&request) {
+        Ok(body) => forward("POST", &format!("/artifacts/{id}/restore"), body).await,
+        Err(_) => unavailable(),
+    }
 }
 
 fn canonical_uuid(value: &str) -> bool {
@@ -110,7 +186,7 @@ pub(in crate::server) async fn config(body: Result<Bytes, BytesRejection>) -> Re
     }
 }
 
-async fn forward(method: &'static str, path: &'static str, body: Vec<u8>) -> Response {
+async fn forward(method: &'static str, path: &str, body: Vec<u8>) -> Response {
     #[cfg(unix)]
     {
         forward_socket(std::path::Path::new(AGENT_SOCKET), method, path, body).await
@@ -126,7 +202,7 @@ async fn forward(method: &'static str, path: &'static str, body: Vec<u8>) -> Res
 async fn forward_socket(
     socket: &std::path::Path,
     method: &'static str,
-    path: &'static str,
+    path: &str,
     body: Vec<u8>,
 ) -> Response {
     let result = tokio::time::timeout(AGENT_TIMEOUT, async {
@@ -156,7 +232,7 @@ impl Drop for ConnectionTask {
 async fn exchange<S>(
     stream: S,
     method: &'static str,
-    path: &'static str,
+    path: &str,
     body: Vec<u8>,
 ) -> Result<(StatusCode, serde_json::Value), ()>
 where

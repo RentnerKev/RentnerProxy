@@ -201,8 +201,9 @@ async function ensureNoProductionRestore(): Promise<void> {
         throw new Error('An interrupted production restore requires --resume with the same backup.')
 }
 
-async function beginProductionRestore(): Promise<void> {
-    const backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID
+export async function beginProductionRestore(
+    backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID,
+): Promise<void> {
     if (typeof backupId !== 'string' || !/^[a-f0-9]{64}$/u.test(backupId))
         throw new Error('Invalid restore backup identity.')
     const pending = await readProductionRestore()
@@ -218,9 +219,11 @@ async function beginProductionRestore(): Promise<void> {
     await writeAtomic(productionRestorePath, JSON.stringify(journal), 0o400, false, true)
 }
 
-async function completeProductionRestore(): Promise<void> {
+export async function completeProductionRestore(
+    backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID,
+): Promise<void> {
     const pending = await readProductionRestore()
-    if (!pending || pending.backupId !== process.env.RENTNERPROXY_RESTORE_BACKUP_ID)
+    if (!pending || pending.backupId !== backupId)
         throw new Error('Pending production restore identity mismatch.')
     await ensureNoPendingAppKeyRestore()
     await rm(productionRestorePath)
@@ -388,8 +391,8 @@ async function rollbackPendingAppKeyRestore(pendingRestore: PendingAppKeyRestore
     await syncDirectory(stateDirectory)
 }
 
-async function beginAppEncryptionKeyRestore(): Promise<void> {
-    const nextAppEncryptionKey = await readRegularFile(restoreAppKeyPath)
+export async function beginAppEncryptionKeyRestore(path = restoreAppKeyPath): Promise<void> {
+    const nextAppEncryptionKey = await readRegularFile(path)
     if (!validateAppEncryptionKey(nextAppEncryptionKey)) {
         throw new Error('Backup application encryption key is invalid.')
     }
@@ -429,7 +432,7 @@ async function beginAppEncryptionKeyRestore(): Promise<void> {
     console.log('Application encryption key restore was staged.')
 }
 
-async function completeAppEncryptionKeyRestore(): Promise<void> {
+export async function completeAppEncryptionKeyRestore(): Promise<void> {
     const pendingRestore = await readPendingAppKeyRestore()
     if (!pendingRestore) throw new Error('No application encryption key restore is pending.')
     const state = await readState()

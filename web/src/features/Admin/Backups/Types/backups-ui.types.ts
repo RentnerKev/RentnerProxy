@@ -21,7 +21,6 @@ export interface BackupsLogicResult {
         readonly forbidden: boolean
         readonly isLoading: boolean
         readonly isError: boolean
-        readonly refreshing: boolean
         readonly locked: boolean
         readonly pending: boolean
         readonly confirmOpen: boolean
@@ -33,7 +32,8 @@ export interface BackupsLogicResult {
         readonly lastSuccess: ManagedBackupJob | undefined
     }
     readonly handler: {
-        readonly handleRefresh: () => void
+        readonly handleRestore: (jobId: string) => Promise<void>
+        readonly handleDelete: (jobId: string) => Promise<void>
         readonly handleStart: () => void
         readonly handleConfirmOpenChange: (open: boolean) => void
         readonly handleConfirmStart: () => Promise<void>

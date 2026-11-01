@@ -734,18 +734,26 @@
                     "source": "Bronversie",
                     "duration": "Duur",
                     "size": "Grootte",
-                    "download": "Herstelbestand"
+                    "download": "Herstelbestand",
+                    "actions": "Acties"
                 },
                 "download": "Back-up downloaden",
                 "downloadLabel": "Back-up {{id}} downloaden",
                 "expired": "Niet meer bewaard",
                 "notReady": "Nog niet gereed",
-                "missingArtifact": "Geen gecontroleerd bestand"
+                "missingArtifact": "Geen gecontroleerd bestand",
+                "actionsLabel": "Acties voor back-up {{id}}",
+                "restore": "Back-up herstellen",
+                "delete": "Back-up verwijderen"
             },
             "messages": {
                 "accepted": "Back-upaanvraag vastgelegd. De verbinding met de appliance kan tijdens het onderhoud kort wegvallen; deze pagina wordt automatisch vernieuwd.",
-                "uncertain": "Het resultaat van de aanvraag kon niet worden bevestigd. Vernieuw eerst de geschiedenis. Een nieuwe poging gebruikt dezelfde aanvraagidentiteit en start geen tweede back-up.",
-                "saved": "Back-upschema en bewaarbeleid opgeslagen."
+                "uncertain": "Het resultaat van de aanvraag kon niet worden bevestigd. Wacht op de live-update van de geschiedenis. Een nieuwe poging gebruikt dezelfde aanvraagidentiteit en start geen tweede back-up.",
+                "saved": "Back-upschema en bewaarbeleid opgeslagen.",
+                "restoreAccepted": "Herstelaanvraag vastgelegd. Volg de bevestigde stappen terwijl het apparaat wordt hersteld.",
+                "deleted": "Back-up verwijderd.",
+                "actionUncertain": "De bewerking kon niet worden bevestigd. Wacht op de huidige apparaatstatus voordat je het opnieuw probeert.",
+                "actionAccepted": "Verwijderaanvraag vastgelegd. We wachten op bevestiging dat de bewerking is voltooid."
             },
             "errors": {
                 "authentication_required": "Je sessie is verlopen. Meld je opnieuw aan.",
@@ -761,7 +769,8 @@
                 "execution_failed": "Het maken van de back-up is mislukt. Controleer de toestand en opslag van de appliance en probeer het daarna opnieuw.",
                 "interrupted": "De back-up is onderbroken. Dit is geen bevestigd herstelpunt; maak een nieuwe back-up.",
                 "artifact_invalid": "Het back-upbestand is niet door de controle gekomen en kan niet als herstelpunt worden gebruikt.",
-                "recovery_failed": "De appliance kon het herstel van de diensten na het back-uponderhoud niet bevestigen. Controleer de toestand voordat je het opnieuw probeert."
+                "recovery_failed": "De appliance kon het herstel van de diensten na het back-uponderhoud niet bevestigen. Controleer de toestand voordat je het opnieuw probeert.",
+                "not_found": "Deze back-up bestaat niet meer. Kies een andere vermelding uit de huidige geschiedenis."
             },
             "downloadErrors": {
                 "not_found": "Deze back-up is niet meer beschikbaar. Vernieuw de geschiedenis en kies een bewaard herstelpunt.",
@@ -776,7 +785,32 @@
                 "secret": "Een volledige back-up bevat de database, certificaten, privésleutels en de versleutelingssleutel van de toepassing. Houd downloads privé en bescherm ze met versleutelde opslag.",
                 "offHost": "Lokale back-ups delen het gegevensvolume van de appliance. Download een kopie naar een apart apparaat, zodat een defecte host of een defect volume niet alle herstelpunten vernietigt.",
                 "extract": "Pak het gedownloade TAR-bestand uit in een lege, privédirectory en houd alle vijf bestanden ongewijzigd bij elkaar.",
-                "restore": "Gebruik de CLI restore:production van de bronversie met de uitgepakte directory als --input. Herstellen vervangt de gegevens van het doel en start de diensten opnieuw; controleer het herstel eerst op een geïsoleerd doel. Het bestaande herstelproces via de CLI blijft vereist."
+                "restore": "Gebruik Back-up herstellen in het rijmenu om een bewaarde, gecontroleerde back-up op dit apparaat te herstellen. Gebruik voor een ander doel de restore:production-CLI van de bronversie met de uitgepakte map als --input. Herstel vervangt de doelgegevens en herstart diensten; controleer dit eerst op een geïsoleerd doel."
+            },
+            "restoreConfirmTitle": "Deze back-up herstellen?",
+            "restoreConfirmDescription": "Back-up {{id}} vervangt de huidige gegevens van het apparaat. Diensten worden gepauzeerd en alle verbonden gebruikers zien de voortgang van het herstel. Back-upbestanden die na dit herstelpunt zijn gemaakt, blijven bewaard. Ga alleen verder als je de huidige gegevens wilt vervangen.",
+            "deleteConfirmTitle": "Deze back-up verwijderen?",
+            "deleteConfirmDescription": "Back-up {{id}} en eventuele opgeslagen bestanden verwijderen? Het herstelpunt of de geschiedenisvermelding wordt definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+            "restoreScreen": {
+                "returnToPage": "Terug naar de vorige pagina",
+                "title": "Apparaat wordt hersteld",
+                "description": "{{user}} herstelt back-up {{backup}}. Dit heeft gevolgen voor iedereen die met dit apparaat is verbonden.",
+                "progress": "{{percent}}% — voltooide herstelstappen",
+                "complete": "Herstel en hervatting van diensten bevestigd. Je keert automatisch terug naar de vorige pagina.",
+                "failed": "Het herstel is mislukt of de hervatting van diensten kon niet worden bevestigd. Controleer de apparaatstatus voordat je verdergaat.",
+                "connectionLost": "De verbinding met het apparaat is verbroken. We wachten op een bevestigde herstelstatus; voltooiing is nog niet bevestigd.",
+                "actorUnknown": "Een beheerder",
+                "phases": {
+                    "queued": "Herstel in wachtrij",
+                    "validating": "Back-up controleren",
+                    "quiescing": "Diensten pauzeren",
+                    "database": "Database herstellen",
+                    "controller": "Controllergegevens herstellen",
+                    "crowdsec": "CrowdSec-gegevens herstellen",
+                    "secrets": "Applicatiegeheimen herstellen",
+                    "restarting": "Diensten herstarten en controleren",
+                    "complete": "Herstel bevestigd"
+                }
             }
         },
         "migration": {

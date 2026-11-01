@@ -1,4 +1,4 @@
-import { createElement, useMemo, useState } from 'react'
+import { createElement, useMemo, useRef, useState } from 'react'
 import { filterFn_equalsString } from '@tanstack/react-table'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
 import type { ManagedBackupJob } from '@/lib/Backups/Types/backups.types.ts'
@@ -7,18 +7,38 @@ import {
     formatBackupDate,
     formatBackupDuration,
 } from '@/lib/Backups/presentation.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import BackupStateBadge from '../../BackupStateBadge.tsx'
-import type { BackupHistoryLogicResult, BackupHistoryProps } from '../Types/backup-history.types.ts'
+import BackupActions from '../Components/BackupActions.tsx'
+import type {
+    BackupHistoryLogicResult,
+    BackupHistoryProps,
+    BackupHistorySelection,
+} from '../Types/backup-history.types.ts'
 
 const getRowId = (job: ManagedBackupJob) => job.id
 
 export default function useBackupHistoryLogic(props: BackupHistoryProps): BackupHistoryLogicResult {
     const { t, locale } = useTranslationStore()
     const [showColumnFilters, setShowColumnFilters] = useState(false)
+    const [selection, setSelection] = useState<BackupHistorySelection | null>(null)
+    const [pending, setPending] = useState(false)
+    const busy = useRef(false)
+    const active = props.jobs.some((job) => job.state === 'queued' || job.state === 'running')
+    const selectedJob = props.jobs.find((job) => job.id === selection?.jobId)
+    const confirmationDisabled =
+        pending ||
+        !props.canManage ||
+        props.locked ||
+        active ||
+        !selectedJob ||
+        (selection?.action === 'restore' &&
+            (selectedJob.state !== 'succeeded' ||
+                !selectedJob.retained ||
+                !selectedJob.artifact ||
+                selectedJob.artifact.id !== selectedJob.id))
     const data = useMemo(() => [...props.jobs], [props.jobs])
     const columns = useMemo<Array<ColumnDef<ClientTableFeatures, ManagedBackupJob>>>(
         () => [
@@ -105,30 +125,56 @@ export default function useBackupHistoryLogic(props: BackupHistoryProps): Backup
                         : '—',
             },
             {
-                id: 'artifact',
-                header: t('admin.backups.history.columns.download'),
+                id: 'actions',
+                header: t('admin.backups.history.columns.actions'),
                 enableSorting: false,
                 enableColumnFilter: false,
                 cell: ({ row }) => {
                     const job = row.original
-                    if (job.state !== 'succeeded') return t('admin.backups.history.notReady')
-                    if (!job.retained) return t('admin.backups.history.expired')
-                    if (!job.artifact || job.artifact.id !== job.id)
-                        return t('admin.backups.history.missingArtifact')
-                    if (!props.canDownload) return '—'
-                    return createElement(
-                        'a',
-                        {
-                            href: `/api/admin/backups/${job.id}/download`,
-                            className: buttonClassName('secondary'),
-                            'aria-label': t('admin.backups.history.downloadLabel', { id: job.id }),
-                        },
-                        t('admin.backups.history.download'),
-                    )
+                    const reason =
+                        job.state !== 'succeeded'
+                            ? t('admin.backups.history.notReady')
+                            : !job.retained
+                              ? t('admin.backups.history.expired')
+                              : !job.artifact || job.artifact.id !== job.id
+                                ? t('admin.backups.history.missingArtifact')
+                                : ''
+                    const unavailable = !!reason || props.locked || active || pending
+                    return createElement(BackupActions, {
+                        label: t('admin.backups.history.actionsLabel', { id: job.id }),
+                        items: [
+                            {
+                                id: 'download',
+                                type: 'link',
+                                label: t('admin.backups.history.download'),
+                                href: `/api/admin/backups/${job.id}/download`,
+                                disabled: unavailable || !props.canDownload,
+                                description:
+                                    reason || (!props.canManage ? t('admin.backups.viewOnly') : ''),
+                            },
+                            {
+                                id: 'restore',
+                                label: t('admin.backups.history.restore'),
+                                danger: true,
+                                disabled: unavailable || !props.canManage,
+                                description:
+                                    reason || (!props.canManage ? t('admin.backups.viewOnly') : ''),
+                                onSelect: () => setSelection({ jobId: job.id, action: 'restore' }),
+                            },
+                            {
+                                id: 'delete',
+                                label: t('admin.backups.history.delete'),
+                                danger: true,
+                                disabled: props.locked || active || pending || !props.canManage,
+                                description: !props.canManage ? t('admin.backups.viewOnly') : '',
+                                onSelect: () => setSelection({ jobId: job.id, action: 'delete' }),
+                            },
+                        ],
+                    })
                 },
             },
         ],
-        [locale, props.canDownload, t],
+        [locale, props.canDownload, props.canManage, props.locked, active, pending, t],
     )
     const globalFilterFn = useMemo<FilterFn<ClientTableFeatures, ManagedBackupJob>>(
         () => (row, _columnId, value) =>
@@ -157,13 +203,20 @@ export default function useBackupHistoryLogic(props: BackupHistoryProps): Backup
         state: {
             searchInput: state.searchInput,
             showColumnFilters,
+            selection,
+            pending,
+            confirmationDisabled,
             columnFilterConfigs: {
                 state: {
                     type: 'select',
                     placeholder: t('table.all'),
                     options: (
                         ['queued', 'running', 'succeeded', 'failed', 'interrupted'] as const
-                    ).map((value) => ({ value, label: t(`admin.backups.states.${value}`) })),
+                    ).map((value) => ({
+                        value,
+                        label: t(`admin.backups.states.${value}`),
+                        content: createElement(BackupStateBadge, { state: value }),
+                    })),
                 },
                 origin: {
                     type: 'select',
@@ -179,6 +232,25 @@ export default function useBackupHistoryLogic(props: BackupHistoryProps): Backup
             handleSearchInputChange: handler.handleSearchInputChange,
             handleResetFilters: handler.handleResetFilters,
             handleToggleColumnFilters: () => setShowColumnFilters((value) => !value),
+            handleConfirmationOpenChange: (open) => {
+                if (!open && !busy.current) setSelection(null)
+            },
+            handleConfirmAction: async () => {
+                if (!selection || confirmationDisabled || busy.current) return
+                busy.current = true
+                setPending(true)
+                try {
+                    if (selection.action === 'restore') await props.onRestore(selection.jobId)
+                    else await props.onDelete(selection.jobId)
+                } catch {
+                    // The page action handler exposes the endpoint error; dismiss this confirmation.
+                    return
+                } finally {
+                    busy.current = false
+                    setPending(false)
+                    setSelection(null)
+                }
+            },
         },
     }
 }

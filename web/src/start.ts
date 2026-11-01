@@ -104,16 +104,31 @@ const startHostMonitoringLifecycle = createServerOnlyFn(() =>
 if (typeof window === 'undefined') void startHostMonitoringLifecycle()
 
 const startNpmImportTempCleanup = createServerOnlyFn(async () => {
-    const { pruneStaleNpmImports } = await import('@/server/Admin/NpmImport/npm-temp.ts')
-    await pruneStaleNpmImports().catch(() => undefined)
-    const timer = setInterval(
-        () => {
-            void pruneStaleNpmImports().catch(() => undefined)
-        },
-        60 * 60 * 1_000,
-    )
-    timer.unref()
-    process.once('rentnerproxy:shutdown', () => clearInterval(timer))
+    await startWorkerLifecycle(async () => {
+        const { pruneStaleNpmImports } = await import('@/server/Admin/NpmImport/npm-temp.ts')
+        let timer: ReturnType<typeof setInterval> | null = null
+        let running: Promise<void> | null = null
+        const prune = () => {
+            running ??= pruneStaleNpmImports()
+                .catch(() => undefined)
+                .then(() => undefined)
+                .finally(() => {
+                    running = null
+                })
+        }
+        return {
+            start() {
+                prune()
+                timer = setInterval(prune, 60 * 60 * 1_000)
+                timer.unref()
+            },
+            async stop() {
+                if (timer !== null) clearInterval(timer)
+                timer = null
+                await running
+            },
+        }
+    })
 })
 if (typeof window === 'undefined') void startNpmImportTempCleanup()
 
