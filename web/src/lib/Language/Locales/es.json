@@ -856,6 +856,8 @@
                 "secretsHelp": "Deja las credenciales vacías para conservar las guardadas. Las credenciales y claves de recuperación almacenadas nunca se muestran.",
                 "keyHelp": "Guarda el kit de recuperación fuera de este dispositivo. Sin la clave no podrás recuperar las copias externas. Las claves nuevas se aplican a futuras cargas; conserva las anteriores para las copias antiguas.",
                 "generate": "Generar nueva clave de recuperación",
+                "keyGenerated": "Clave de recuperación generada. Puedes mostrarla abajo o descargar el kit de recuperación.",
+                "newRecoveryKey": "Nueva clave de recuperación",
                 "download": "Descargar kit de recuperación",
                 "saved": "He guardado el kit de recuperación fuera de este dispositivo.",
                 "save": "Guardar configuración externa",

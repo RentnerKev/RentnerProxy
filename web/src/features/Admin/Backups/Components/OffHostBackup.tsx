@@ -114,6 +114,27 @@ export default function OffHostBackup(props: OffHostBackupProps) {
                 </div>
 
                 {state.recoveryKey ? (
+                    <div className="grid gap-3">
+                        <output aria-live="polite" className="text-sm font-bold text-ink">
+                            {t('admin.backups.offHost.keyGenerated')}
+                        </output>
+                        <PasswordInput
+                            key={state.recoveryKeyGeneration}
+                            id={state.id + '-recovery-key'}
+                            name="recoveryKey"
+                            label={t('admin.backups.offHost.newRecoveryKey')}
+                            value={state.recoveryKey}
+                            onValueChange={() => undefined}
+                            readOnly
+                            disabled={state.locked}
+                            locale={locale}
+                            autoComplete="off"
+                            validationMode="external"
+                        />
+                    </div>
+                ) : null}
+
+                {state.recoveryKey ? (
                     <label className="flex items-center gap-3 text-sm font-bold text-ink">
                         <CheckboxInput
                             name="recoveryKeySaved"

@@ -835,6 +835,8 @@
                 "secretsHelp": "Laat de inloggegevens leeg om de opgeslagen waarden te behouden. Opgeslagen inloggegevens en herstelsleutels worden nooit getoond.",
                 "keyHelp": "Bewaar het herstelpakket veilig buiten dit apparaat. Zonder sleutel zijn externe kopieën niet te herstellen. Nieuwe sleutels gelden voor toekomstige uploads; bewaar eerdere sleutels voor oudere kopieën.",
                 "generate": "Nieuwe herstelsleutel maken",
+                "keyGenerated": "Herstelsleutel gemaakt. Toon hem hieronder of download de herstelkit.",
+                "newRecoveryKey": "Nieuwe herstelsleutel",
                 "download": "Herstelpakket downloaden",
                 "saved": "Ik heb het herstelpakket buiten dit apparaat opgeslagen.",
                 "save": "Externe instellingen opslaan",

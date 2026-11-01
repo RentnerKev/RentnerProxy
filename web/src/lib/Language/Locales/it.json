@@ -856,6 +856,8 @@
                 "secretsHelp": "Lascia vuote le credenziali per mantenere quelle salvate. Le credenziali e le chiavi di ripristino memorizzate non vengono mai mostrate.",
                 "keyHelp": "Conserva il kit di ripristino fuori da questo dispositivo. Senza la chiave le copie esterne non sono recuperabili. Le nuove chiavi valgono per i caricamenti futuri; conserva quelle precedenti per le vecchie copie.",
                 "generate": "Genera nuova chiave di ripristino",
+                "keyGenerated": "Chiave di ripristino generata. Puoi mostrarla qui sotto o scaricare il kit di ripristino.",
+                "newRecoveryKey": "Nuova chiave di ripristino",
                 "download": "Scarica kit di ripristino",
                 "saved": "Ho salvato il kit di ripristino fuori da questo dispositivo.",
                 "save": "Salva impostazioni esterne",

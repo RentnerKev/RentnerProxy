@@ -854,6 +854,8 @@
                 "secretsHelp": "Leere Zugangsdatenfelder behalten die gespeicherten Werte bei. Gespeicherte Zugangsdaten und Wiederherstellungsschlüssel werden niemals angezeigt.",
                 "keyHelp": "Bewahre das Wiederherstellungspaket sicher außerhalb dieser Appliance auf. Ohne Schlüssel sind externe Kopien nicht wiederherstellbar. Ein neuer Schlüssel gilt für künftige Uploads; behalte bisherige Schlüssel für ältere Kopien.",
                 "generate": "Neuen Wiederherstellungsschlüssel erzeugen",
+                "keyGenerated": "Wiederherstellungsschlüssel erzeugt. Du kannst ihn unten aufdecken oder das Wiederherstellungspaket herunterladen.",
+                "newRecoveryKey": "Neuer Wiederherstellungsschlüssel",
                 "download": "Wiederherstellungspaket herunterladen",
                 "saved": "Ich habe das Wiederherstellungspaket außerhalb dieser Appliance gespeichert.",
                 "save": "Externe Backups speichern",

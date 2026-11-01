@@ -856,6 +856,8 @@
                 "secretsHelp": "Laissez les identifiants vides pour conserver les valeurs enregistrées. Les identifiants et clés de récupération enregistrés ne sont jamais affichés.",
                 "keyHelp": "Conservez le kit de récupération hors de cet appareil. Sans sa clé, les copies externes sont irrécupérables. Une nouvelle clé concerne les futurs transferts ; conservez les anciennes pour les anciennes copies.",
                 "generate": "Générer une nouvelle clé de récupération",
+                "keyGenerated": "Clé de récupération générée. Affichez-la ci-dessous ou téléchargez le kit de récupération.",
+                "newRecoveryKey": "Nouvelle clé de récupération",
                 "download": "Télécharger le kit de récupération",
                 "saved": "J’ai enregistré le kit de récupération hors de cet appareil.",
                 "save": "Enregistrer les paramètres externes",

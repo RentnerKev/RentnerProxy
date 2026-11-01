@@ -98,6 +98,7 @@ export interface OffHostBackupLogicResult {
         readonly canSave: boolean
         readonly conflict: boolean
         readonly downloaded: boolean
+        readonly recoveryKeyGeneration: number
         readonly recoveryCommand: string
         readonly restoreCommand: string
     }

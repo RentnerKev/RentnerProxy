@@ -854,6 +854,8 @@
                 "secretsHelp": "Leave credentials blank to preserve stored values. Stored credentials and recovery keys are never displayed.",
                 "keyHelp": "Store the recovery kit safely outside this appliance. Without its key, remote copies cannot be recovered. New keys apply to future uploads; keep older keys for older copies.",
                 "generate": "Generate new recovery key",
+                "keyGenerated": "Recovery key generated. Reveal it below or download the recovery kit.",
+                "newRecoveryKey": "New recovery key",
                 "download": "Download recovery kit",
                 "saved": "I have saved the recovery kit outside this appliance.",
                 "save": "Save off-host settings",

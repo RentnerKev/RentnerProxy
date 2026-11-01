@@ -41,6 +41,7 @@ export default function useOffHostBackupLogic(props: OffHostBackupProps): OffHos
     const [base, setBase] = useState(props.configuration)
     const [pending, setPending] = useState(false)
     const [downloaded, setDownloaded] = useState(false)
+    const [recoveryKeyGeneration, setRecoveryKeyGeneration] = useState(0)
     const busy = useRef(false)
     const receipt = useRef<{ fingerprint: string; requestId: string } | null>(null)
     const form = useForm({
@@ -115,6 +116,7 @@ export default function useOffHostBackupLogic(props: OffHostBackupProps): OffHos
             ...values,
             locked,
             downloaded,
+            recoveryKeyGeneration,
             recoveryCommand:
                 'bun --no-env-file scripts/recover-offhost-backup.ts --target-file <target.json> --key-file <recovery-key.json> --object <targetId/jobId.rpbk> --output <backup-dir>',
             restoreCommand:
@@ -142,6 +144,7 @@ export default function useOffHostBackupLogic(props: OffHostBackupProps): OffHos
                 try {
                     const bytes = crypto.getRandomValues(new Uint8Array(32))
                     form.setFieldValue('recoveryKey', btoa(String.fromCharCode(...bytes)))
+                    setRecoveryKeyGeneration((generation) => generation + 1)
                     form.setFieldValue('recoveryKeySaved', false)
                     setDownloaded(false)
                 } catch {

@@ -84,6 +84,33 @@ afterEach(async () => {
     failSave = false
 })
 describe('off-host backup configuration', () => {
+    test('confirms generation and reveals only the new key, masking replacements and clearing on reset', async () => {
+        await render()
+        expect(document.querySelector('input[name="recoveryKey"]')).toBeNull()
+        expect(button('Download recovery kit').disabled).toBeTrue()
+
+        await click(button('Generate new recovery key'))
+        const first = document.querySelector<HTMLInputElement>('input[name="recoveryKey"]')!
+        expect(first.readOnly).toBeTrue()
+        expect(first.type).toBe('password')
+        expect(atob(first.value)).toHaveLength(32)
+        expect(document.querySelector('output')?.textContent).toContain('Recovery key generated')
+        expect(button('Download recovery kit').disabled).toBeFalse()
+        await click(document.querySelector(`button[aria-controls="${first.id}"]`)!)
+        expect(first.type).toBe('text')
+
+        await click(button('Generate new recovery key'))
+        const replacement = document.querySelector<HTMLInputElement>('input[name="recoveryKey"]')!
+        expect(replacement.value).not.toBe(first.value)
+        expect(replacement.type).toBe('password')
+        expect(replacement.readOnly).toBeTrue()
+
+        await click(button('Load current settings'))
+        expect(document.querySelector('input[name="recoveryKey"]')).toBeNull()
+        expect(document.querySelector('output')).toBeNull()
+        expect(button('Download recovery kit').disabled).toBeTrue()
+    })
+
     test('preserves stored secrets by omitting blank credentials and keys from an edit', async () => {
         await render()
         expect(
@@ -124,12 +151,16 @@ describe('off-host backup configuration', () => {
             expect(kit.format).toBe('rentnerproxy-off-host-recovery-key')
             expect(kit.version).toBe(1)
             expect(atob(kit.recoveryKey)).toHaveLength(32)
+            expect(
+                document.querySelector<HTMLInputElement>('input[name="recoveryKey"]')?.value,
+            ).toBe(kit.recoveryKey)
             expect(document.body.textContent).not.toContain(kit.recoveryKey)
             expect(button('Save off-host settings').disabled).toBeTrue()
             await click(checkbox)
             await click(button('Save off-host settings'))
             expect(requests[0]?.recoveryKey).toBe(kit.recoveryKey)
             expect(requests[0]?.recoveryKeySaved).toBeTrue()
+            expect(document.querySelector('input[name="recoveryKey"]')).toBeNull()
         } finally {
             create.mockRestore()
             anchor.mockRestore()

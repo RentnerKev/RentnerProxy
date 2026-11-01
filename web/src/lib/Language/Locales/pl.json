@@ -858,6 +858,8 @@
                 "secretsHelp": "Pozostaw dane dostępowe puste, aby zachować zapisane wartości. Zapisane dane dostępowe i klucze odzyskiwania nigdy nie są wyświetlane.",
                 "keyHelp": "Przechowuj zestaw odzyskiwania poza tym urządzeniem. Bez klucza nie można odzyskać kopii zdalnych. Nowe klucze dotyczą przyszłych przesłań; zachowaj poprzednie klucze dla starszych kopii.",
                 "generate": "Wygeneruj nowy klucz odzyskiwania",
+                "keyGenerated": "Wygenerowano klucz odzyskiwania. Możesz go wyświetlić poniżej lub pobrać zestaw odzyskiwania.",
+                "newRecoveryKey": "Nowy klucz odzyskiwania",
                 "download": "Pobierz zestaw odzyskiwania",
                 "saved": "Zapisano zestaw odzyskiwania poza tym urządzeniem.",
                 "save": "Zapisz ustawienia zdalne",
