@@ -80,7 +80,7 @@ export default function BackupsPage(props: BackupsPageProps) {
                     {props.downloadError ? (
                         <p
                             role="alert"
-                            className="rounded-xl bg-danger-soft p-4 text-sm text-danger-text"
+                            className="rounded-xl bg-danger-bg p-4 text-sm text-danger-text"
                         >
                             {t(`admin.backups.downloadErrors.${props.downloadError}`)}
                         </p>

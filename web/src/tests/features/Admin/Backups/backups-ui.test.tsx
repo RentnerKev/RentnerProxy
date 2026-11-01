@@ -217,6 +217,8 @@ describe('managed backup UI', () => {
         )
         await renderPage()
         expect(document.body.textContent).toContain('v1.0.0-beta.3')
+        expect(document.querySelector('button[aria-label="Sort by Requested"]')).not.toBeNull()
+        expect(document.querySelector('td[aria-label="Source release cell"]')).not.toBeNull()
         expect(document.body.textContent).toContain('1 MiB')
         expect(document.body.textContent).toContain('No longer retained')
         expect(document.body.textContent).toContain('not a confirmed recovery point')

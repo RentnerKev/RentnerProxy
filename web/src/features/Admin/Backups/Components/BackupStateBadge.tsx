@@ -7,10 +7,10 @@ export default function BackupStateBadge({ state }: { readonly state: ManagedBac
         <span
             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold ${
                 state === 'succeeded'
-                    ? 'bg-success-soft text-success-text'
+                    ? 'bg-success-bg text-success-text'
                     : state === 'failed' || state === 'interrupted'
-                      ? 'bg-danger-soft text-danger-text'
-                      : 'bg-accent-soft text-accent'
+                      ? 'bg-danger-bg text-danger-text'
+                      : 'bg-accent-muted text-brand-text'
             }`}
         >
             {t(`admin.backups.states.${state}`)}
