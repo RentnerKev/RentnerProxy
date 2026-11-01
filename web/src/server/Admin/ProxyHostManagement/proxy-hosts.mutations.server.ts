@@ -7,7 +7,7 @@ import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
 import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 
-import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, ne, or, sql } from 'drizzle-orm'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -192,7 +192,8 @@ export async function createProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
-            upstreamPool: parsedInput.upstreamPool ?? null,
+            // Bun SQL encodes the object; bypass the Drizzle JSON string encoder.
+            upstreamPool: parsedInput.upstreamPool ? sql`${parsedInput.upstreamPool}` : null,
             forwardScheme: parsedInput.forwardScheme,
         })
         .returning(proxyHostSummaryColumns)
@@ -381,7 +382,7 @@ export async function updateProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
-            upstreamPool,
+            upstreamPool: upstreamPool ? sql`${upstreamPool}` : null,
             forwardScheme: parsedInput.forwardScheme,
             updatedAt: new Date(),
         })

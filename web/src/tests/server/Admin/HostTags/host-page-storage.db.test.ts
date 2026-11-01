@@ -164,6 +164,7 @@ describe('host page storage on isolated PostgreSQL', () => {
                             'forwardHost',
                             'forwardScheme',
                             'forwardPort',
+                            'upstreamPool',
                             'domains',
                         ].toSorted(),
                     )

@@ -2708,6 +2708,11 @@ describe('ordered upstream pool persistence', () => {
                 createProxyHostService({ ...input, upstreamPool }),
             )
             expect(created.upstreamPool).toEqual(upstreamPool)
+            const storedType = await getAuthDatabase()
+                .select({ type: sql<string>`jsonb_typeof(${proxyHosts.upstreamPool})` })
+                .from(proxyHosts)
+                .where(eq(proxyHosts.id, created.id))
+            expect(storedType[0]?.type).toBe('object')
             const listed = await runAsUser(owner.id, getProxyHostsService)
             expect(listed.find((host) => host.id === created.id)?.upstreamPool).toEqual(
                 upstreamPool,
@@ -2778,8 +2783,11 @@ describe('ordered upstream pool persistence', () => {
                     expect(
                         getAuthDatabase()
                             .update(proxyHosts)
-                            .set({ upstreamPool: sql`${JSON.stringify(pool)}::jsonb` })
-                            .where(eq(proxyHosts.id, created.id)),
+                            .set({
+                                upstreamPool: pool === null ? sql`'null'::jsonb` : sql`${pool}`,
+                            })
+                            .where(eq(proxyHosts.id, created.id))
+                            .execute(),
                     ).rejects.toBeDefined(),
                 ),
             )
