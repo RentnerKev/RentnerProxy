@@ -1,4 +1,5 @@
 import type { ManagedBackupJob, ManagedBackupStatus } from './Types/backups.types.ts'
+import type { OffHostStatus } from './Types/off-host.types.ts'
 
 const uuid = (value: number) => `01900000-0000-7000-8000-${String(value).padStart(12, '0')}`
 
@@ -17,6 +18,21 @@ export function isLocalBackupDemoEnvironment(environment: NodeJS.ProcessEnv): bo
         isLoopbackUrl(environment.APP_URL) &&
         isLoopbackUrl(environment.DATABASE_URL)
     )
+}
+
+export function createDemoOffHostStatus(): OffHostStatus {
+    return {
+        revision: 0,
+        enabled: false,
+        endpoint: '',
+        region: 'us-east-1',
+        bucket: '',
+        prefix: 'rentnerproxy',
+        configured: false,
+        targetId: null,
+        keyId: null,
+        retainedCopies: 0,
+    }
 }
 
 export function createDemoBackupStatus(now = Date.now()): ManagedBackupStatus {
@@ -72,5 +88,6 @@ export function createDemoBackupStatus(now = Date.now()): ManagedBackupStatus {
         },
         jobs,
         auditEvents: [],
+        offHost: createDemoOffHostStatus(),
     }
 }

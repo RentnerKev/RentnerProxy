@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { BACKUPS_LOCAL_DEMO_KEY } from '@/config/backups.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { systemSettings } from '@/db/schema.ts'
-import { isLocalBackupDemoEnvironment } from '@/lib/Backups/demoStatus.ts'
+import { createDemoOffHostStatus, isLocalBackupDemoEnvironment } from '@/lib/Backups/demoStatus.ts'
 import type { ManagedBackupStatus } from '@/lib/Backups/Types/backups.types.ts'
 import { managedBackupDeleteSchema, managedBackupStatusSchema } from '@/lib/Backups/validation.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -136,5 +136,7 @@ export async function getLocalBackupDemoStatus(): Promise<ManagedBackupStatus | 
         }
     }
     const parsed = managedBackupStatusSchema.safeParse(value)
-    return parsed.success ? parsed.data : null
+    return parsed.success
+        ? { ...parsed.data, offHost: parsed.data.offHost ?? createDemoOffHostStatus() }
+        : null
 }
