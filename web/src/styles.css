@@ -20,9 +20,9 @@
         ui-sans-serif, system-ui, sans-serif;
     --font-mono: SFMono-Regular, Consolas, 'Liberation Mono', ui-monospace, monospace;
 
-    --animate-loading-packet: loading-packet 2.4s ease-in-out infinite;
+    --animate-loading-progress: loading-progress 2s ease-in-out infinite;
 
-    @keyframes loading-packet {
+    @keyframes loading-progress {
         0% {
             opacity: 0;
             transform: translateX(-100%);
@@ -33,7 +33,7 @@
         }
         100% {
             opacity: 0;
-            transform: translateX(400%);
+            transform: translateX(300%);
         }
     }
 
