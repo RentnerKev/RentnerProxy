@@ -118,6 +118,7 @@
         "otpIncomplete": "Saisissez les {{count}} chiffres du code."
     },
     "shell": {
+        "backups": "Sauvegardes",
         "home": "Accueil de RentnerProxy",
         "overviewLink": "Vue d’ensemble de RentnerProxy",
         "overview": "Vue d’ensemble",
@@ -691,6 +692,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "Système / Récupération",
+            "title": "Sauvegardes",
+            "description": "Créez des sauvegardes complètes de l’appliance, gérez les planifications automatiques et téléchargez des points de récupération vérifiés.",
+            "refresh": "Actualiser les sauvegardes",
+            "start": "Créer une sauvegarde",
+            "retryStart": "Réessayer la demande de sauvegarde",
+            "confirmTitle": "Créer une sauvegarde complète ?",
+            "impact": "L’appliance arrête brièvement l’interface d’administration, le trafic du proxy et CrowdSec pour créer une sauvegarde cohérente. Les connexions existantes peuvent être fermées. Gardez cette page ouverte ; le statut s’actualisera au retour des services. Les sauvegardes planifiées ont le même impact.",
+            "confirmStart": "Démarrer la maintenance de sauvegarde",
+            "loading": "Chargement de l’historique et de la planification des sauvegardes…",
+            "unavailable": "Le statut des sauvegardes est temporairement indisponible",
+            "unavailableDescription": "L’appliance effectue peut-être une maintenance de sauvegarde. Le dernier historique reçu est affiché ; les actions restent désactivées jusqu’à ce que le statut puisse être actualisé.",
+            "forbidden": "L’accès aux sauvegardes est indisponible",
+            "forbiddenDescription": "Votre session ou vos autorisations ont changé. Reconnectez-vous ou demandez à un propriétaire de vous accorder l’accès aux sauvegardes.",
+            "lastSuccess": "Dernière sauvegarde réussie",
+            "none": "Aucune sauvegarde réussie pour le moment",
+            "active": "Sauvegarde en cours",
+            "activeNone": "Aucune sauvegarde en cours",
+            "nextRun": "Prochaine sauvegarde planifiée",
+            "disabled": "Les sauvegardes automatiques sont désactivées",
+            "unknown": "Indisponible",
+            "viewOnly": "Vous pouvez consulter l’historique des sauvegardes. Le lancement de sauvegardes, la modification des planifications et le téléchargement de sauvegardes complètes nécessitent l’autorisation de gestion des sauvegardes.",
+            "states": {
+                "queued": "En attente",
+                "running": "En cours",
+                "succeeded": "Terminée",
+                "failed": "Échec",
+                "interrupted": "Interrompue"
+            },
+            "origins": {
+                "manual": "Manuel",
+                "schedule": "Planifié"
+            },
+            "schedule": {
+                "title": "Planification et conservation",
+                "description": "Les intervalles sont calculés à partir de la planification enregistrée. L’activation d’une planification ou la modification de son intervalle programme la prochaine sauvegarde à partir de maintenant.",
+                "enabled": "Activer les sauvegardes automatiques",
+                "interval": "Intervalle en heures",
+                "intervalHelp": "Nombre entier d’heures de 1 à 8 760. Choisissez une fenêtre de maintenance adaptée à vos services.",
+                "retention": "Points de récupération à conserver",
+                "retentionHelp": "Conservez de 1 à 50 sauvegardes terminées localement. Les anciennes copies ne sont supprimées qu’après la réussite d’une nouvelle sauvegarde vérifiée ; les tâches en échec ne suppriment jamais la dernière copie valide.",
+                "save": "Enregistrer les paramètres de sauvegarde",
+                "reset": "Charger les paramètres actuels",
+                "conflict": "Les paramètres de sauvegarde ont été modifiés ailleurs. Vos modifications sont conservées. Chargez les paramètres actuels avant d’enregistrer à nouveau."
+            },
+            "history": {
+                "title": "Historique des sauvegardes",
+                "description": "Les 100 dernières tâches indiquent le statut, la version source et la disponibilité des fichiers. Seules les sauvegardes conservées, terminées et vérifiées peuvent être téléchargées.",
+                "searchLabel": "Rechercher dans l’historique des sauvegardes",
+                "searchPlaceholder": "Statut, version source ou identifiant de sauvegarde…",
+                "noData": "Aucune sauvegarde pour le moment",
+                "emptyDescription": "Créez une sauvegarde ou activez une planification pour enregistrer votre premier point de récupération.",
+                "itemLabel": "sauvegardes",
+                "filteredEmptyTitle": "Aucune sauvegarde correspondante",
+                "filteredEmptyDescription": "Modifiez la recherche ou effacez les filtres pour afficher davantage de sauvegardes.",
+                "columns": {
+                    "requestedAt": "Demandée le",
+                    "origin": "Déclencheur",
+                    "state": "Statut",
+                    "source": "Version source",
+                    "duration": "Durée",
+                    "size": "Taille",
+                    "download": "Fichier de récupération"
+                },
+                "download": "Télécharger la sauvegarde",
+                "downloadLabel": "Télécharger la sauvegarde {{id}}",
+                "expired": "N’est plus conservée",
+                "notReady": "Pas encore prête",
+                "missingArtifact": "Aucun fichier vérifié"
+            },
+            "messages": {
+                "accepted": "Demande de sauvegarde enregistrée. L’appliance peut se déconnecter brièvement pendant la maintenance ; cette page s’actualisera automatiquement.",
+                "uncertain": "Le résultat de la demande n’a pas pu être confirmé. Actualisez d’abord l’historique. Une nouvelle tentative réutilise l’identifiant de cette demande et ne lance pas de deuxième sauvegarde.",
+                "saved": "Planification et conservation des sauvegardes enregistrées."
+            },
+            "errors": {
+                "authentication_required": "Votre session a expiré. Reconnectez-vous.",
+                "permission_denied": "Vous n’avez plus l’autorisation de gérer les sauvegardes.",
+                "invalid_input": "Saisissez un intervalle de 1 à 8 760 heures entières et un nombre de sauvegardes à conserver de 1 à 50.",
+                "busy": "Une sauvegarde ou sa maintenance est déjà en cours. Patientez et actualisez l’historique.",
+                "revision_conflict": "La configuration a changé ou cette demande est en conflit avec une demande antérieure. Chargez les paramètres actuels et réessayez.",
+                "capacity": "La capacité de sauvegarde est temporairement indisponible. Vérifiez le stockage de l’appliance et l’envoi des événements d’audit avant de réessayer.",
+                "rate_limited": "Trop de demandes de sauvegarde. Patientez un instant et réessayez.",
+                "unavailable": "L’opération n’a pas pu être confirmée. Actualisez les paramètres actuels avant de réessayer.",
+                "invalid_response": "L’appliance a renvoyé une réponse inattendue. Actualisez avant de réessayer.",
+                "aborted": "L’opération n’a pas pu être confirmée. Actualisez avant de réessayer.",
+                "execution_failed": "La création de la sauvegarde a échoué. Vérifiez l’état et le stockage de l’appliance, puis réessayez.",
+                "interrupted": "La sauvegarde a été interrompue. Ce n’est pas un point de récupération confirmé ; créez une nouvelle sauvegarde.",
+                "artifact_invalid": "Le fichier de sauvegarde n’a pas réussi la vérification et ne peut pas servir de point de récupération.",
+                "recovery_failed": "L’appliance n’a pas pu confirmer le rétablissement des services après la maintenance de sauvegarde. Vérifiez son état avant de réessayer."
+            },
+            "downloadErrors": {
+                "not_found": "Cette sauvegarde n’est plus disponible. Actualisez l’historique et choisissez un point de récupération conservé.",
+                "conflict": "Cette sauvegarde n’a pas pu être vérifiée ou un autre téléchargement est en cours. Actualisez et réessayez avec une sauvegarde conservée.",
+                "unavailable": "Le téléchargement de la sauvegarde est temporairement indisponible. Vérifiez l’état de l’appliance et réessayez.",
+                "permission_denied": "Le téléchargement de sauvegardes complètes nécessite l’autorisation de gestion des sauvegardes.",
+                "authentication_required": "Votre session a expiré avant le téléchargement. Reconnectez-vous.",
+                "rate_limited": "Trop de demandes de téléchargement. Patientez un instant avant de réessayer."
+            },
+            "recovery": {
+                "title": "Protéger et restaurer votre sauvegarde",
+                "secret": "Une sauvegarde complète contient la base de données, les certificats, les clés privées et la clé de chiffrement de l’application. Gardez les téléchargements privés et protégez-les avec un stockage chiffré.",
+                "offHost": "Les sauvegardes locales partagent le volume de données de l’appliance. Téléchargez une copie sur un appareil distinct afin qu’une panne de l’hôte ou du volume ne détruise pas tous les points de récupération.",
+                "extract": "Extrayez le TAR téléchargé dans un répertoire vide et privé, puis conservez les cinq fichiers ensemble sans les modifier.",
+                "restore": "Utilisez la CLI restore:production de la version source avec le répertoire extrait comme --input. La restauration remplace les données de la cible et redémarre ses services ; vérifiez d’abord la récupération sur une cible isolée. Le processus existant de restauration en CLI reste obligatoire."
+            }
+        },
         "migration": {
             "eyebrow": "Système / Migration",
             "title": "Transférer la configuration",

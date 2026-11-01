@@ -23,6 +23,15 @@ import {
 const root = resolve(import.meta.dir, '../../../../../..')
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
+test('cancelled publication verification stops before filesystem access', async () => {
+    const stop = new AbortController()
+    stop.abort(new Error('cancelled fixture'))
+    await assert.rejects(
+        verifyPublishedBackup('never-open-this-fixture', stop.signal),
+        /cancelled fixture/,
+    )
+})
+
 function directoryArchive() {
     const header = Buffer.alloc(512)
     header.write('./')

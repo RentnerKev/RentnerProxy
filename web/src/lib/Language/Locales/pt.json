@@ -118,6 +118,7 @@
         "otpIncomplete": "Introduza todos os {{count}} dígitos do código."
     },
     "shell": {
+        "backups": "Cópias de segurança",
         "home": "Página inicial do RentnerProxy",
         "overviewLink": "Visão geral do RentnerProxy",
         "overview": "Visão geral",
@@ -691,6 +692,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "Sistema / Recuperação",
+            "title": "Cópias de segurança",
+            "description": "Crie cópias de segurança completas do appliance, gerencie agendamentos automáticos e baixe pontos de recuperação verificados.",
+            "refresh": "Atualizar cópias de segurança",
+            "start": "Criar cópia de segurança",
+            "retryStart": "Tentar novamente a solicitação de cópia de segurança",
+            "confirmTitle": "Criar uma cópia de segurança completa?",
+            "impact": "O appliance interrompe brevemente a interface de gerenciamento, o tráfego do proxy e o CrowdSec para criar uma cópia de segurança consistente. As conexões existentes podem ser encerradas. Mantenha esta página aberta; o status será atualizado quando os serviços retornarem. As cópias agendadas têm o mesmo impacto.",
+            "confirmStart": "Iniciar manutenção de cópia de segurança",
+            "loading": "Carregando histórico e agendamento das cópias de segurança…",
+            "unavailable": "O status das cópias de segurança está temporariamente indisponível",
+            "unavailableDescription": "O appliance pode estar realizando manutenção de cópia de segurança. O último histórico recebido é exibido; as ações permanecem desativadas até que o status possa ser atualizado.",
+            "forbidden": "O acesso às cópias de segurança está indisponível",
+            "forbiddenDescription": "Sua sessão ou suas permissões mudaram. Entre novamente ou peça a um proprietário que conceda acesso às cópias de segurança.",
+            "lastSuccess": "Última cópia de segurança bem-sucedida",
+            "none": "Nenhuma cópia de segurança bem-sucedida ainda",
+            "active": "Cópia de segurança atual",
+            "activeNone": "Nenhuma cópia de segurança em andamento",
+            "nextRun": "Próxima cópia de segurança agendada",
+            "disabled": "As cópias de segurança automáticas estão desativadas",
+            "unknown": "Indisponível",
+            "viewOnly": "Você pode consultar o histórico das cópias de segurança. Para iniciar cópias, alterar agendamentos e baixar cópias completas, é necessária a permissão de gerenciamento de cópias de segurança.",
+            "states": {
+                "queued": "Na fila",
+                "running": "Em andamento",
+                "succeeded": "Concluída",
+                "failed": "Falhou",
+                "interrupted": "Interrompida"
+            },
+            "origins": {
+                "manual": "Manual",
+                "schedule": "Agendada"
+            },
+            "schedule": {
+                "title": "Agendamento e retenção",
+                "description": "Os intervalos são calculados a partir do agendamento salvo. Ativar um agendamento ou alterar seu intervalo programa a próxima cópia a partir de agora.",
+                "enabled": "Ativar cópias de segurança automáticas",
+                "interval": "Intervalo em horas",
+                "intervalHelp": "Horas inteiras de 1 a 8.760. Escolha uma janela de manutenção adequada aos seus serviços.",
+                "retention": "Pontos de recuperação a manter",
+                "retentionHelp": "Mantenha de 1 a 50 cópias concluídas localmente. As cópias antigas só são removidas após a conclusão bem-sucedida de uma nova cópia verificada; tarefas com falha nunca excluem a última cópia válida.",
+                "save": "Salvar configurações das cópias de segurança",
+                "reset": "Carregar configurações atuais",
+                "conflict": "As configurações das cópias de segurança foram alteradas em outro lugar. Suas alterações foram mantidas. Carregue as configurações atuais antes de salvar novamente."
+            },
+            "history": {
+                "title": "Histórico das cópias de segurança",
+                "description": "As últimas 100 tarefas incluem status, versão de origem e disponibilidade dos arquivos. Apenas cópias mantidas, concluídas e verificadas podem ser baixadas.",
+                "searchLabel": "Pesquisar no histórico das cópias de segurança",
+                "searchPlaceholder": "Status, versão de origem ou ID da cópia…",
+                "noData": "Nenhuma cópia de segurança ainda",
+                "emptyDescription": "Crie uma cópia de segurança ou ative um agendamento para registrar seu primeiro ponto de recuperação.",
+                "itemLabel": "cópias de segurança",
+                "filteredEmptyTitle": "Nenhuma cópia de segurança correspondente",
+                "filteredEmptyDescription": "Altere a pesquisa ou limpe os filtros para ver mais cópias de segurança.",
+                "columns": {
+                    "requestedAt": "Solicitada",
+                    "origin": "Acionamento",
+                    "state": "Status",
+                    "source": "Versão de origem",
+                    "duration": "Duração",
+                    "size": "Tamanho",
+                    "download": "Arquivo de recuperação"
+                },
+                "download": "Baixar cópia de segurança",
+                "downloadLabel": "Baixar cópia de segurança {{id}}",
+                "expired": "Não é mais mantida",
+                "notReady": "Ainda não está pronta",
+                "missingArtifact": "Nenhum arquivo verificado"
+            },
+            "messages": {
+                "accepted": "Solicitação de cópia registrada. O appliance pode se desconectar brevemente durante a manutenção; esta página será atualizada automaticamente.",
+                "uncertain": "Não foi possível confirmar o resultado da solicitação. Atualize o histórico primeiro. Tentar novamente esta solicitação reutiliza seu identificador e não inicia uma segunda cópia.",
+                "saved": "Agendamento e retenção das cópias de segurança salvos."
+            },
+            "errors": {
+                "authentication_required": "Sua sessão expirou. Entre novamente.",
+                "permission_denied": "Você não tem mais permissão para gerenciar cópias de segurança.",
+                "invalid_input": "Informe um intervalo de 1–8.760 horas inteiras e uma quantidade de cópias a manter de 1–50.",
+                "busy": "Uma cópia de segurança ou sua manutenção já está em andamento. Aguarde e atualize o histórico.",
+                "revision_conflict": "A configuração mudou ou esta solicitação entra em conflito com uma anterior. Carregue as configurações atuais e tente novamente.",
+                "capacity": "A capacidade para cópias de segurança está temporariamente indisponível. Verifique o armazenamento do appliance e o envio de eventos de auditoria antes de tentar novamente.",
+                "rate_limited": "Muitas solicitações de cópia de segurança. Aguarde um momento e tente novamente.",
+                "unavailable": "Não foi possível confirmar a operação. Atualize as configurações atuais antes de tentar novamente.",
+                "invalid_response": "O appliance retornou uma resposta inesperada. Atualize antes de tentar novamente.",
+                "aborted": "Não foi possível confirmar a operação. Atualize antes de tentar novamente.",
+                "execution_failed": "A criação da cópia de segurança falhou. Verifique a integridade e o armazenamento do appliance e tente novamente.",
+                "interrupted": "A cópia de segurança foi interrompida. Ela não é um ponto de recuperação confirmado; crie uma nova cópia.",
+                "artifact_invalid": "O arquivo da cópia de segurança não passou na verificação e não pode ser usado como ponto de recuperação.",
+                "recovery_failed": "O appliance não conseguiu confirmar a recuperação dos serviços após a manutenção da cópia de segurança. Verifique sua integridade antes de tentar novamente."
+            },
+            "downloadErrors": {
+                "not_found": "Esta cópia de segurança não está mais disponível. Atualize o histórico e escolha um ponto de recuperação mantido.",
+                "conflict": "Não foi possível verificar esta cópia ou outro download está em andamento. Atualize e tente novamente com uma cópia mantida.",
+                "unavailable": "O download da cópia de segurança está temporariamente indisponível. Verifique a integridade do appliance e tente novamente.",
+                "permission_denied": "Para baixar cópias de segurança completas, é necessária a permissão de gerenciamento de cópias de segurança.",
+                "authentication_required": "Sua sessão expirou antes do download. Entre novamente.",
+                "rate_limited": "Muitas solicitações de download. Aguarde um momento antes de tentar novamente."
+            },
+            "recovery": {
+                "title": "Proteja e restaure sua cópia de segurança",
+                "secret": "Uma cópia de segurança completa contém o banco de dados, os certificados, as chaves privadas e a chave de criptografia da aplicação. Mantenha os downloads privados e proteja-os com armazenamento criptografado.",
+                "offHost": "As cópias locais compartilham o volume de dados do appliance. Baixe uma cópia em um dispositivo separado para que uma falha do host ou do volume não destrua todos os pontos de recuperação.",
+                "extract": "Extraia o TAR baixado para um diretório vazio e privado e mantenha os cinco arquivos juntos sem editá-los.",
+                "restore": "Use a CLI restore:production da versão de origem com o diretório extraído como --input. A restauração substitui os dados do destino e reinicia seus serviços; verifique primeiro a recuperação em um destino isolado. O processo de restauração existente pela CLI continua sendo obrigatório."
+            }
+        },
         "migration": {
             "eyebrow": "Sistema / Migração",
             "title": "Transferir configuração",

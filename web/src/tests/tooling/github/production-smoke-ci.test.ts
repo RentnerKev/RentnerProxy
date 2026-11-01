@@ -1,6 +1,19 @@
 import { describe, expect, test } from 'bun:test'
 
 import { smokeProgress } from '../../../../../.github/scripts/ci/production-smoke-ci.ts'
+
+test('managed backup completion must match the observed checks before CI reports success', () => {
+    const progress = smokeProgress('backups')
+    expect(progress.consume('PASS authenticated backup download')).toBe(
+        'Managed backups: check 1 passed',
+    )
+    expect(progress.result(0).passed).toBe(false)
+    progress.consume('Managed backups integration: 2 checks passed.')
+    expect(progress.result(0).passed).toBe(false)
+    progress.consume('Managed backups integration: 1 checks passed.')
+    expect(progress.result(0).passed).toBe(true)
+    expect(progress.result(1).passed).toBe(false)
+})
 import {
     SMOKE_RUN_LABEL,
     restoreSmokeDiagnostic,

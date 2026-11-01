@@ -153,6 +153,10 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         ));
     let backups = Router::new()
         .route(
+            "/internal/v1/backups/{job_id}/download",
+            get(handlers::backups::download),
+        )
+        .route(
             "/internal/v1/backups/status",
             get(handlers::backups::status),
         )

@@ -9,6 +9,7 @@ import {
 } from '../../../scripts/backup/managed-jobs.ts'
 import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/backup/publication.ts'
 import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
+import { createBackupDownload } from './download.ts'
 import {
     managedBackupArtifactSchema,
     managedBackupAuditAcknowledgementSchema,
@@ -282,8 +283,17 @@ export async function removeRetainedBackup(
     await io.sync(root)
 }
 export function createBackupAgentHandler(engine: Engine) {
-    return async (request: Request): Promise<Response> => {
+    const download = createBackupDownload(() => engine.status())
+    return async (
+        request: Request,
+        server?: { timeout: (request: Request, seconds: number) => void },
+    ): Promise<Response> => {
         const path = new URL(request.url).pathname
+        const downloadPath = /^\/artifacts\/([^/]+)\/download$/u.exec(path)
+        if (request.method === 'GET' && downloadPath && new URL(request.url).search === '') {
+            server?.timeout(request, 0)
+            return download(request, downloadPath[1]!)
+        }
         if (request.method === 'GET' && path === '/status') {
             try {
                 return Response.json(await engine.status())

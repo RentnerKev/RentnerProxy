@@ -3,3 +3,9 @@ export const BACKUP_AUDIT_POLICY = {
     capacity: 600,
     jobEvents: 53,
 } as const
+
+export const BACKUP_UI_POLICY = {
+    pollIntervalMs: 5_000,
+    requestTimeoutMs: 20_000,
+    responseLimitBytes: 512 * 1_024,
+} as const

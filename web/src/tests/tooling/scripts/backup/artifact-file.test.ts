@@ -31,6 +31,20 @@ import {
 
 const cwd = resolve(import.meta.dir, '../../../../../..')
 const digest = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
+
+test('key and archive file parsers stop cancelled verification before touching a file', async () => {
+    const stop = new AbortController()
+    stop.abort(new Error('cancelled fixture'))
+    const inaccessible = {} as import('node:fs/promises').FileHandle
+    await assert.rejects(
+        parseApplicationEncryptionKeyFile(inaccessible, stop.signal),
+        /cancelled fixture/,
+    )
+    await assert.rejects(
+        validateStateArchiveFile(inaccessible, 'controller', stop.signal),
+        /cancelled fixture/,
+    )
+})
 async function fixture(run: (directory: string) => Promise<void>) {
     await mkdir(join(cwd, 'tmp'), { recursive: true })
     const directory = await mkdtemp(join(cwd, 'tmp', 'artifact-file-'))

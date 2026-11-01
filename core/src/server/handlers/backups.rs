@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use super::no_store_status_json;
 
+#[path = "backups_download.rs"]
+mod download;
+pub(in crate::server) use download::download;
+
 const MAX_REQUEST_BYTES: usize = 2_048;
 #[cfg(any(unix, test))]
 const MAX_RESPONSE_BYTES: usize = 512 * 1024;

@@ -97,6 +97,7 @@
         "delete": "Verwijderen"
     },
     "shell": {
+        "backups": "Back-ups",
         "home": "RentnerProxy-startpagina",
         "overviewLink": "RentnerProxy-overzicht",
         "overview": "Overzicht",
@@ -670,6 +671,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "Systeem / Herstel",
+            "title": "Back-ups",
+            "description": "Maak volledige back-ups van de appliance, beheer automatische schema’s en download gecontroleerde herstelpunten.",
+            "refresh": "Back-ups vernieuwen",
+            "start": "Back-up maken",
+            "retryStart": "Back-upaanvraag opnieuw proberen",
+            "confirmTitle": "Een volledige back-up maken?",
+            "impact": "De appliance stopt kort de beheerinterface, het proxyverkeer en CrowdSec om een consistente back-up te maken. Bestaande verbindingen kunnen worden gesloten. Houd deze pagina open; de status wordt vernieuwd zodra de diensten terug zijn. Geplande back-ups hebben dezelfde gevolgen.",
+            "confirmStart": "Back-uponderhoud starten",
+            "loading": "Back-upgeschiedenis en schema laden…",
+            "unavailable": "Back-upstatus is tijdelijk niet beschikbaar",
+            "unavailableDescription": "De appliance voert mogelijk back-uponderhoud uit. De laatst ontvangen geschiedenis wordt getoond; acties blijven uitgeschakeld totdat de status kan worden vernieuwd.",
+            "forbidden": "Toegang tot back-ups is niet beschikbaar",
+            "forbiddenDescription": "Je sessie of rechten zijn gewijzigd. Meld je opnieuw aan of vraag een eigenaar om toegang tot back-ups.",
+            "lastSuccess": "Laatste geslaagde back-up",
+            "none": "Nog geen geslaagde back-up",
+            "active": "Huidige back-up",
+            "activeNone": "Er wordt geen back-up uitgevoerd",
+            "nextRun": "Volgende geplande back-up",
+            "disabled": "Automatische back-ups zijn uitgeschakeld",
+            "unknown": "Niet beschikbaar",
+            "viewOnly": "Je kunt de back-upgeschiedenis bekijken. Voor het starten van back-ups, wijzigen van schema’s en downloaden van volledige back-ups is de bevoegdheid voor back-upbeheer vereist.",
+            "states": {
+                "queued": "In wachtrij",
+                "running": "Bezig",
+                "succeeded": "Voltooid",
+                "failed": "Mislukt",
+                "interrupted": "Onderbroken"
+            },
+            "origins": {
+                "manual": "Handmatig",
+                "schedule": "Gepland"
+            },
+            "schedule": {
+                "title": "Schema en bewaarbeleid",
+                "description": "Intervallen worden berekend vanaf het opgeslagen schema. Als je een schema inschakelt of het interval wijzigt, wordt de volgende back-up vanaf nu gepland.",
+                "enabled": "Automatische back-ups inschakelen",
+                "interval": "Interval in uren",
+                "intervalHelp": "Hele uren van 1 tot 8.760. Kies een onderhoudsvenster dat geschikt is voor je diensten.",
+                "retention": "Te bewaren herstelpunten",
+                "retentionHelp": "Bewaar lokaal 1 tot 50 voltooide back-ups. Oudere kopieën worden pas verwijderd nadat een nieuwe gecontroleerde back-up is geslaagd; mislukte taken verwijderen nooit de laatste goede kopie.",
+                "save": "Back-upinstellingen opslaan",
+                "reset": "Huidige instellingen laden",
+                "conflict": "De back-upinstellingen zijn elders gewijzigd. Je wijzigingen zijn bewaard. Laad de huidige instellingen voordat je opnieuw opslaat."
+            },
+            "history": {
+                "title": "Back-upgeschiedenis",
+                "description": "De laatste 100 taken bevatten de status, bronversie en beschikbaarheid van bestanden. Alleen bewaarde, voltooide en gecontroleerde back-ups kunnen worden gedownload.",
+                "searchLabel": "Back-upgeschiedenis doorzoeken",
+                "searchPlaceholder": "Status, bronversie of back-up-ID…",
+                "noData": "Nog geen back-ups",
+                "emptyDescription": "Maak een back-up of schakel een schema in om je eerste herstelpunt vast te leggen.",
+                "itemLabel": "back-ups",
+                "filteredEmptyTitle": "Geen overeenkomende back-ups",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of wis de filters om meer back-ups te zien.",
+                "columns": {
+                    "requestedAt": "Aangevraagd",
+                    "origin": "Aanleiding",
+                    "state": "Status",
+                    "source": "Bronversie",
+                    "duration": "Duur",
+                    "size": "Grootte",
+                    "download": "Herstelbestand"
+                },
+                "download": "Back-up downloaden",
+                "downloadLabel": "Back-up {{id}} downloaden",
+                "expired": "Niet meer bewaard",
+                "notReady": "Nog niet gereed",
+                "missingArtifact": "Geen gecontroleerd bestand"
+            },
+            "messages": {
+                "accepted": "Back-upaanvraag vastgelegd. De verbinding met de appliance kan tijdens het onderhoud kort wegvallen; deze pagina wordt automatisch vernieuwd.",
+                "uncertain": "Het resultaat van de aanvraag kon niet worden bevestigd. Vernieuw eerst de geschiedenis. Een nieuwe poging gebruikt dezelfde aanvraagidentiteit en start geen tweede back-up.",
+                "saved": "Back-upschema en bewaarbeleid opgeslagen."
+            },
+            "errors": {
+                "authentication_required": "Je sessie is verlopen. Meld je opnieuw aan.",
+                "permission_denied": "Je hebt geen bevoegdheid meer om back-ups te beheren.",
+                "invalid_input": "Voer een interval van 1–8.760 hele uren en een bewaaraantal van 1–50 in.",
+                "busy": "Er is al een back-up of bijbehorend onderhoud actief. Wacht en vernieuw de geschiedenis.",
+                "revision_conflict": "De configuratie is gewijzigd of deze aanvraag conflicteert met een eerdere aanvraag. Laad de huidige instellingen en probeer het opnieuw.",
+                "capacity": "Back-upcapaciteit is tijdelijk niet beschikbaar. Controleer de opslag van de appliance en de aflevering van auditgebeurtenissen voordat je het opnieuw probeert.",
+                "rate_limited": "Te veel back-upaanvragen. Wacht even en probeer het opnieuw.",
+                "unavailable": "De bewerking kon niet worden bevestigd. Vernieuw de huidige instellingen voordat je het opnieuw probeert.",
+                "invalid_response": "De appliance gaf een onverwacht antwoord. Vernieuw voordat je het opnieuw probeert.",
+                "aborted": "De bewerking kon niet worden bevestigd. Vernieuw voordat je het opnieuw probeert.",
+                "execution_failed": "Het maken van de back-up is mislukt. Controleer de toestand en opslag van de appliance en probeer het daarna opnieuw.",
+                "interrupted": "De back-up is onderbroken. Dit is geen bevestigd herstelpunt; maak een nieuwe back-up.",
+                "artifact_invalid": "Het back-upbestand is niet door de controle gekomen en kan niet als herstelpunt worden gebruikt.",
+                "recovery_failed": "De appliance kon het herstel van de diensten na het back-uponderhoud niet bevestigen. Controleer de toestand voordat je het opnieuw probeert."
+            },
+            "downloadErrors": {
+                "not_found": "Deze back-up is niet meer beschikbaar. Vernieuw de geschiedenis en kies een bewaard herstelpunt.",
+                "conflict": "Deze back-up kon niet worden gecontroleerd of er is een andere download actief. Vernieuw en probeer opnieuw een bewaarde back-up te downloaden.",
+                "unavailable": "De back-updownload is tijdelijk niet beschikbaar. Controleer de toestand van de appliance en probeer het opnieuw.",
+                "permission_denied": "Voor het downloaden van volledige back-ups is de bevoegdheid voor back-upbeheer vereist.",
+                "authentication_required": "Je sessie is vóór de download verlopen. Meld je opnieuw aan.",
+                "rate_limited": "Te veel downloadaanvragen. Wacht even voordat je het opnieuw probeert."
+            },
+            "recovery": {
+                "title": "Je back-up beschermen en herstellen",
+                "secret": "Een volledige back-up bevat de database, certificaten, privésleutels en de versleutelingssleutel van de toepassing. Houd downloads privé en bescherm ze met versleutelde opslag.",
+                "offHost": "Lokale back-ups delen het gegevensvolume van de appliance. Download een kopie naar een apart apparaat, zodat een defecte host of een defect volume niet alle herstelpunten vernietigt.",
+                "extract": "Pak het gedownloade TAR-bestand uit in een lege, privédirectory en houd alle vijf bestanden ongewijzigd bij elkaar.",
+                "restore": "Gebruik de CLI restore:production van de bronversie met de uitgepakte directory als --input. Herstellen vervangt de gegevens van het doel en start de diensten opnieuw; controleer het herstel eerst op een geïsoleerd doel. Het bestaande herstelproces via de CLI blijft vereist."
+            }
+        },
         "migration": {
             "eyebrow": "Systeem / Migratie",
             "title": "Configuratie overzetten",

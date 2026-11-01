@@ -159,11 +159,12 @@ describe('production smokes workflow execution contract', () => {
         ).toHaveLength(1)
         expect(steps.at(-1)?.if).toBe("always() && steps.bun.outcome == 'success'")
     })
-    test('runs the four existing smoke scripts as separate sequential steps', async () => {
+    test('runs runtime and managed backup smoke scripts as separate sequential steps', async () => {
         const source = await workflow()
         const commands = [
             'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy',
             'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts production',
+            'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts backups',
             'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates',
             'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls',
         ]
@@ -206,6 +207,8 @@ describe('production smokes workflow execution contract', () => {
         expect(runner).toContain("source: 'scripts/smoke/proxy/upstream-tls.ts'")
         expect(runner).toContain("script: 'production:smoke'")
         expect(runner).toContain("source: '.github/scripts/ci/appliance-compose-smoke.ts'")
+        expect(runner).toContain("script: 'backups:smoke'")
+        expect(runner).toContain("source: '.github/scripts/ci/managed-backups-smoke.ts'")
         expect(packageManifest).toContain('.github/scripts/ci/appliance-compose-smoke.ts')
         expect(packageManifest).toContain('.github/scripts/ci/proxy-smoke.ts')
         expect(runner).toContain('cwd: repositoryRoot')

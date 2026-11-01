@@ -41,6 +41,12 @@ export const smokeSuites = {
         source: '.github/scripts/ci/appliance-compose-smoke.ts',
         completion: /^Appliance Compose smoke passed: (\d+) assertions$/u,
     },
+    backups: {
+        label: 'Managed backups',
+        script: 'backups:smoke',
+        source: '.github/scripts/ci/managed-backups-smoke.ts',
+        completion: /^Managed backups integration: (\d+) checks passed\.$/u,
+    },
 } as const
 
 // Raw child output can contain assertion operands, generated credentials or PEM material.

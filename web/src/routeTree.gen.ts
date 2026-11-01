@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAccessPoliciesRouteImport } from './routes/_authenticated/access-policies'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAuditLogsRouteImport } from './routes/_authenticated/audit-logs'
+import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticated/backups'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticated/crowdsec'
 import { Route as AuthenticatedDdnsRouteImport } from './routes/_authenticated/ddns'
@@ -52,6 +53,7 @@ import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admi
 import { Route as ApiAdminMonitoringHistoryRouteImport } from './routes/api/admin/monitoring/history'
 import { Route as ApiAdminMonitoringPolicyRouteImport } from './routes/api/admin/monitoring/policy'
 import { Route as ApiAdminMonitoringSummaryRouteImport } from './routes/api/admin/monitoring/summary'
+import { Route as ApiAdminBackupsJobIdDownloadRouteImport } from './routes/api/admin/backups/$jobId/download'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -80,6 +82,11 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
 const AuthenticatedAuditLogsRoute = AuthenticatedAuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBackupsRoute = AuthenticatedBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCertificatesRoute =
@@ -276,12 +283,19 @@ const ApiAdminMonitoringSummaryRoute =
     path: '/api/admin/monitoring/summary',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminBackupsJobIdDownloadRoute =
+  ApiAdminBackupsJobIdDownloadRouteImport.update({
+    id: '/api/admin/backups/$jobId/download',
+    path: '/api/admin/backups/$jobId/download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
+  '/backups': typeof AuthenticatedBackupsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/ddns': typeof AuthenticatedDdnsRoute
@@ -319,12 +333,14 @@ export interface FileRoutesByFullPath {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
+  '/backups': typeof AuthenticatedBackupsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/ddns': typeof AuthenticatedDdnsRoute
@@ -361,6 +377,7 @@ export interface FileRoutesByTo {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -369,6 +386,7 @@ export interface FileRoutesById {
   '/_authenticated/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/audit-logs': typeof AuthenticatedAuditLogsRoute
+  '/_authenticated/backups': typeof AuthenticatedBackupsRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/_authenticated/ddns': typeof AuthenticatedDdnsRoute
@@ -407,6 +425,7 @@ export interface FileRoutesById {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -415,6 +434,7 @@ export interface FileRouteTypes {
     | '/access-policies'
     | '/account'
     | '/audit-logs'
+    | '/backups'
     | '/certificates'
     | '/crowdsec'
     | '/ddns'
@@ -452,12 +472,14 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/backups/$jobId/download'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/access-policies'
     | '/account'
     | '/audit-logs'
+    | '/backups'
     | '/certificates'
     | '/crowdsec'
     | '/ddns'
@@ -494,6 +516,7 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/backups/$jobId/download'
   id:
     | '__root__'
     | '/_authenticated'
@@ -501,6 +524,7 @@ export interface FileRouteTypes {
     | '/_authenticated/access-policies'
     | '/_authenticated/account'
     | '/_authenticated/audit-logs'
+    | '/_authenticated/backups'
     | '/_authenticated/certificates'
     | '/_authenticated/crowdsec'
     | '/_authenticated/ddns'
@@ -539,6 +563,7 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/backups/$jobId/download'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -558,6 +583,7 @@ export interface RootRouteChildren {
   ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
   ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
   ApiAdminMonitoringSummaryRoute: typeof ApiAdminMonitoringSummaryRoute
+  ApiAdminBackupsJobIdDownloadRoute: typeof ApiAdminBackupsJobIdDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -602,6 +628,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/audit-logs'
       preLoaderRoute: typeof AuthenticatedAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/backups': {
+      id: '/_authenticated/backups'
+      path: '/backups'
+      fullPath: '/backups'
+      preLoaderRoute: typeof AuthenticatedBackupsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/certificates': {
@@ -863,6 +896,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminMonitoringSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/backups/$jobId/download': {
+      id: '/api/admin/backups/$jobId/download'
+      path: '/api/admin/backups/$jobId/download'
+      fullPath: '/api/admin/backups/$jobId/download'
+      preLoaderRoute: typeof ApiAdminBackupsJobIdDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -870,6 +910,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessPoliciesRoute: typeof AuthenticatedAccessPoliciesRoute
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedAuditLogsRoute: typeof AuthenticatedAuditLogsRoute
+  AuthenticatedBackupsRoute: typeof AuthenticatedBackupsRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCrowdsecRoute: typeof AuthenticatedCrowdsecRoute
   AuthenticatedDdnsRoute: typeof AuthenticatedDdnsRoute
@@ -892,6 +933,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessPoliciesRoute: AuthenticatedAccessPoliciesRoute,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedAuditLogsRoute: AuthenticatedAuditLogsRoute,
+  AuthenticatedBackupsRoute: AuthenticatedBackupsRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCrowdsecRoute: AuthenticatedCrowdsecRoute,
   AuthenticatedDdnsRoute: AuthenticatedDdnsRoute,
@@ -976,6 +1018,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
   ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,
   ApiAdminMonitoringSummaryRoute: ApiAdminMonitoringSummaryRoute,
+  ApiAdminBackupsJobIdDownloadRoute: ApiAdminBackupsJobIdDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

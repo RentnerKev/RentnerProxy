@@ -118,6 +118,7 @@
         "otpIncomplete": "Introduce los {{count}} dígitos del código."
     },
     "shell": {
+        "backups": "Copias de seguridad",
         "home": "Inicio de RentnerProxy",
         "overviewLink": "Resumen de RentnerProxy",
         "overview": "Resumen",
@@ -691,6 +692,114 @@
         }
     },
     "admin": {
+        "backups": {
+            "eyebrow": "Sistema / Recuperación",
+            "title": "Copias de seguridad",
+            "description": "Crea copias de seguridad completas del dispositivo, gestiona las programaciones automáticas y descarga puntos de recuperación verificados.",
+            "refresh": "Actualizar copias de seguridad",
+            "start": "Crear copia de seguridad",
+            "retryStart": "Reintentar solicitud de copia de seguridad",
+            "confirmTitle": "¿Crear una copia de seguridad completa?",
+            "impact": "El dispositivo detiene brevemente la interfaz de administración, el tráfico del proxy y CrowdSec para crear una copia de seguridad coherente. Las conexiones existentes pueden cerrarse. Mantén esta página abierta; el estado se actualizará cuando vuelvan los servicios. Las copias programadas tienen el mismo impacto.",
+            "confirmStart": "Iniciar mantenimiento de copia de seguridad",
+            "loading": "Cargando historial y programación de copias de seguridad…",
+            "unavailable": "El estado de las copias de seguridad no está disponible temporalmente",
+            "unavailableDescription": "Es posible que el dispositivo esté realizando mantenimiento de copia de seguridad. Se muestra el último historial recibido; las acciones permanecerán desactivadas hasta poder actualizar el estado.",
+            "forbidden": "El acceso a las copias de seguridad no está disponible",
+            "forbiddenDescription": "Tu sesión o tus permisos han cambiado. Vuelve a iniciar sesión o pide a un propietario que te conceda acceso a las copias de seguridad.",
+            "lastSuccess": "Última copia de seguridad correcta",
+            "none": "Todavía no hay copias de seguridad correctas",
+            "active": "Copia de seguridad actual",
+            "activeNone": "No hay ninguna copia de seguridad en curso",
+            "nextRun": "Próxima copia de seguridad programada",
+            "disabled": "Las copias de seguridad automáticas están desactivadas",
+            "unknown": "No disponible",
+            "viewOnly": "Puedes consultar el historial de copias de seguridad. Para iniciar copias, cambiar programaciones y descargar copias completas se necesita permiso de gestión de copias de seguridad.",
+            "states": {
+                "queued": "En cola",
+                "running": "En curso",
+                "succeeded": "Completada",
+                "failed": "Fallida",
+                "interrupted": "Interrumpida"
+            },
+            "origins": {
+                "manual": "Manual",
+                "schedule": "Programada"
+            },
+            "schedule": {
+                "title": "Programación y retención",
+                "description": "Los intervalos se calculan a partir de la programación guardada. Al activar una programación o cambiar su intervalo, la próxima copia se planifica a partir de ahora.",
+                "enabled": "Activar copias de seguridad automáticas",
+                "interval": "Intervalo en horas",
+                "intervalHelp": "Horas enteras de 1 a 8.760. Elige una ventana de mantenimiento adecuada para tus servicios.",
+                "retention": "Puntos de recuperación que se conservarán",
+                "retentionHelp": "Conserva de 1 a 50 copias completadas localmente. Las copias antiguas solo se eliminan cuando finaliza correctamente una nueva copia verificada; los trabajos fallidos nunca eliminan la última copia válida.",
+                "save": "Guardar ajustes de copia de seguridad",
+                "reset": "Cargar ajustes actuales",
+                "conflict": "Los ajustes de copia de seguridad han cambiado en otro lugar. Se han conservado tus cambios. Carga los ajustes actuales antes de volver a guardar."
+            },
+            "history": {
+                "title": "Historial de copias de seguridad",
+                "description": "Los últimos 100 trabajos incluyen el estado, la versión de origen y la disponibilidad de los archivos. Solo se pueden descargar copias conservadas, completadas y verificadas.",
+                "searchLabel": "Buscar en el historial de copias de seguridad",
+                "searchPlaceholder": "Estado, versión de origen o ID de copia…",
+                "noData": "Todavía no hay copias de seguridad",
+                "emptyDescription": "Crea una copia de seguridad o activa una programación para registrar tu primer punto de recuperación.",
+                "itemLabel": "copias de seguridad",
+                "filteredEmptyTitle": "No hay copias de seguridad coincidentes",
+                "filteredEmptyDescription": "Cambia la búsqueda o borra los filtros para ver más copias de seguridad.",
+                "columns": {
+                    "requestedAt": "Solicitada",
+                    "origin": "Origen",
+                    "state": "Estado",
+                    "source": "Versión de origen",
+                    "duration": "Duración",
+                    "size": "Tamaño",
+                    "download": "Archivo de recuperación"
+                },
+                "download": "Descargar copia de seguridad",
+                "downloadLabel": "Descargar copia de seguridad {{id}}",
+                "expired": "Ya no se conserva",
+                "notReady": "No está lista",
+                "missingArtifact": "No hay ningún archivo verificado"
+            },
+            "messages": {
+                "accepted": "Solicitud de copia registrada. El dispositivo puede desconectarse brevemente durante el mantenimiento; esta página se actualizará automáticamente.",
+                "uncertain": "No se pudo confirmar el resultado de la solicitud. Actualiza primero el historial. Al reintentar esta solicitud se reutiliza su identificador y no se inicia una segunda copia.",
+                "saved": "Programación y retención de copias de seguridad guardadas."
+            },
+            "errors": {
+                "authentication_required": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
+                "permission_denied": "Ya no tienes permiso para gestionar copias de seguridad.",
+                "invalid_input": "Introduce un intervalo de 1–8.760 horas enteras y una retención de 1–50 copias.",
+                "busy": "Ya hay una copia de seguridad o su mantenimiento en curso. Espera y actualiza el historial.",
+                "revision_conflict": "La configuración ha cambiado o esta solicitud entra en conflicto con una anterior. Carga los ajustes actuales y vuelve a intentarlo.",
+                "capacity": "La capacidad para realizar copias no está disponible temporalmente. Comprueba el almacenamiento del dispositivo y el envío de eventos de auditoría antes de reintentarlo.",
+                "rate_limited": "Demasiadas solicitudes de copia de seguridad. Espera un momento y vuelve a intentarlo.",
+                "unavailable": "No se pudo confirmar la operación. Actualiza los ajustes actuales antes de reintentarlo.",
+                "invalid_response": "El dispositivo devolvió una respuesta inesperada. Actualiza antes de reintentarlo.",
+                "aborted": "No se pudo confirmar la operación. Actualiza antes de reintentarlo.",
+                "execution_failed": "No se pudo crear la copia de seguridad. Comprueba el estado y el almacenamiento del dispositivo y vuelve a intentarlo.",
+                "interrupted": "La copia de seguridad se interrumpió. No es un punto de recuperación confirmado; crea una copia nueva.",
+                "artifact_invalid": "El archivo de copia de seguridad no superó la verificación y no se puede usar como punto de recuperación.",
+                "recovery_failed": "El dispositivo no pudo confirmar la recuperación de los servicios tras el mantenimiento de copia de seguridad. Comprueba su estado antes de reintentarlo."
+            },
+            "downloadErrors": {
+                "not_found": "Esta copia de seguridad ya no está disponible. Actualiza el historial y elige un punto de recuperación conservado.",
+                "conflict": "No se pudo verificar esta copia o hay otra descarga en curso. Actualiza y vuelve a probar con una copia conservada.",
+                "unavailable": "La descarga de la copia de seguridad no está disponible temporalmente. Comprueba el estado del dispositivo y vuelve a intentarlo.",
+                "permission_denied": "Para descargar copias de seguridad completas se necesita permiso de gestión de copias de seguridad.",
+                "authentication_required": "Tu sesión caducó antes de la descarga. Vuelve a iniciar sesión.",
+                "rate_limited": "Demasiadas solicitudes de descarga. Espera un momento antes de reintentarlo."
+            },
+            "recovery": {
+                "title": "Protege y restaura tu copia de seguridad",
+                "secret": "Una copia de seguridad completa contiene la base de datos, los certificados, las claves privadas y la clave de cifrado de la aplicación. Mantén las descargas en privado y protégelas mediante almacenamiento cifrado.",
+                "offHost": "Las copias locales comparten el volumen de datos del dispositivo. Descarga una copia en otro dispositivo para que un fallo del servidor o del volumen no destruya todos los puntos de recuperación.",
+                "extract": "Extrae el TAR descargado en un directorio vacío y privado y mantén los cinco archivos juntos sin editarlos.",
+                "restore": "Usa la CLI restore:production de la versión de origen con el directorio extraído como --input. La restauración reemplaza los datos del destino y reinicia sus servicios; verifica primero la recuperación en un destino aislado. Sigue siendo obligatorio el proceso de restauración existente mediante CLI."
+            }
+        },
         "migration": {
             "eyebrow": "Sistema / Migración",
             "title": "Transferir configuración",

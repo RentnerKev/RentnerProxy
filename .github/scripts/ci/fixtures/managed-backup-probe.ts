@@ -31,6 +31,16 @@ const artifacts = '/var/lib/rentnerproxy/backups/artifacts'
 const markerPath = '/var/lib/rentnerproxy/proxy/managed-backup-smoke-marker'
 const marker = 'isolated-managed-backup-fixture'
 const actorId = '0198d98a-0000-7000-8000-000000000001'
+let failurePhase:
+    | 'setup'
+    | 'web-auth'
+    | 'web-config'
+    | 'web-notifications'
+    | 'download-auth'
+    | 'download-response'
+    | 'download-archive'
+    | 'download-expired'
+    | 'download-audit' = 'setup'
 const probeModes = [
     'auth',
     'web-isolation',
@@ -332,6 +342,7 @@ async function webRequest(
 }
 
 async function webApiProbe() {
+    failurePhase = 'web-auth'
     const viewerId = randomUUID()
     const ownerToken = randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url')
     const viewerToken = randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url')
@@ -383,11 +394,105 @@ async function webApiProbe() {
         )
     }
     const configured = await webRequest('config', ownerToken, configuration)
+    failurePhase = 'web-config'
     assert.equal(configured.status, 200)
     const configuredStatus = managedBackupStatusSchema.parse(configured.body)
     assert.equal(configuredStatus.configuration.enabled, false)
     assert.equal(configuredStatus.configuration.retentionCount, 1)
-    return await exerciseBackupNotifications(ownerToken, viewerId)
+    failurePhase = 'web-notifications'
+    const completed = await exerciseBackupNotifications(ownerToken, viewerId)
+    await verifyWebBackupDownload(ownerToken, viewerToken, completed.id)
+    return completed
+}
+
+async function verifyWebBackupDownload(ownerToken: string, viewerToken: string, id: string) {
+    failurePhase = 'download-auth'
+    const auditQuery = `SELECT count(*) FROM rentnerproxy.audit_events WHERE resource='config-export' AND target_id=${sqlQuote(id)} AND action='request' AND result='success'`
+    const auditBefore = Number(await psql(auditQuery))
+    const url = 'http://127.0.0.1:3000/api/admin/backups/' + id + '/download'
+    const download = (token?: string, origin = 'https://managed-backup.invalid') =>
+        fetch(url, {
+            headers: {
+                origin,
+                ...(token ? { cookie: SESSION_COOKIE_NAME + '=' + token } : {}),
+            },
+            redirect: 'error',
+            signal: AbortSignal.timeout(30_000),
+        })
+    for (const [token, origin, expected] of [
+        [undefined, 'https://managed-backup.invalid', 401],
+        [viewerToken, 'https://managed-backup.invalid', 403],
+        [ownerToken, 'https://forged.invalid', 403],
+    ] as const) {
+        const deniedResponse = await download(token, origin)
+        assert.equal(deniedResponse.status, expected)
+        await deniedResponse.body?.cancel()
+    }
+    failurePhase = 'download-response'
+    const response = await download(ownerToken)
+    console.error(
+        `Managed backup download response: status=${response.status} tar=${response.headers.get('content-type') === 'application/x-tar'} private=${response.headers.get('cache-control') === 'private, no-store'} attachment=${response.headers.get('content-disposition') === `attachment; filename="rentnerproxy-backup-${id}.tar"`}`,
+    )
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('content-type'), 'application/x-tar')
+    assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
+    assert.equal(
+        response.headers.get('content-disposition'),
+        `attachment; filename="rentnerproxy-backup-${id}.tar"`,
+    )
+    failurePhase = 'download-archive'
+    const archive = '/tmp/managed-backup-download.tar'
+    const directory = '/tmp/managed-backup-downloaded'
+    await writeFile(archive, new Uint8Array(), { flag: 'wx', mode: 0o600 })
+    await Bun.write(archive, response)
+    assert.equal((await stat(archive)).size, Number(response.headers.get('content-length')))
+    const listing = Bun.spawn(['tar', '--list', '--file', archive], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+    })
+    const names = (await new Response(listing.stdout).text()).trim().split('\n').toSorted()
+    assert.equal(await listing.exited, 0)
+    assert.deepEqual(names, [
+        'app-encryption-key',
+        'controller-state.tar',
+        'crowdsec-state.tar',
+        'metadata.json',
+        'postgres.dump',
+    ])
+    await mkdir(directory, { mode: 0o700 })
+    const extraction = Bun.spawn(
+        ['tar', '--extract', '--file', archive, '--directory', directory],
+        { stdout: 'ignore', stderr: 'pipe' },
+    )
+    assert.equal(await extraction.exited, 0)
+    const verified = await verifyPublishedBackup(directory)
+    const current = await status()
+    const job = current.jobs.find((entry) => entry.id === id)
+    assert.ok(job?.artifact)
+    assert.equal(verified.metadataSha256, job.artifact.metadataSha256)
+    assert.equal(verified.bytes, job.artifact.bytes)
+    failurePhase = 'download-expired'
+    const expired = current.jobs.find((entry) => entry.state === 'succeeded' && !entry.retained)
+    assert.ok(expired)
+    const unavailable = await fetch(
+        'http://127.0.0.1:3000/api/admin/backups/' + expired.id + '/download',
+        {
+            headers: {
+                cookie: SESSION_COOKIE_NAME + '=' + ownerToken,
+                'sec-fetch-site': 'same-origin',
+                'sec-fetch-mode': 'navigate',
+                accept: 'text/html',
+            },
+            redirect: 'manual',
+            signal: AbortSignal.timeout(10_000),
+        },
+    )
+    assert.equal(unavailable.status, 303)
+    assert.equal(unavailable.headers.get('location'), '/backups?downloadError=not_found')
+    await unavailable.body?.cancel()
+    failurePhase = 'download-audit'
+    assert.equal(Number(await psql(auditQuery)), auditBefore + 1)
 }
 
 const notificationReceiptPath = '/tmp/managed-backup-notification-proof.json'
@@ -762,7 +867,7 @@ if (import.meta.main) {
         assert.ok(probeModes.includes(mode as (typeof probeModes)[number]))
         console.log(JSON.stringify(await run(mode as (typeof probeModes)[number])))
     } catch {
-        console.error('Managed backup fixture probe failed')
+        console.error('Managed backup fixture probe failed during ' + failurePhase)
         process.exitCode = 1
     }
 }

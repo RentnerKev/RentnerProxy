@@ -56,6 +56,9 @@ export default function getApplicationShellViewModel(
         ...(permissionSet.has(PERMISSIONS.PROXY_ACCESS_LOGS_VIEW)
             ? ([{ to: '/proxy-access-logs', label: t('shell.proxyAccessLogs') }] as const)
             : []),
+        ...(permissionSet.has(PERMISSIONS.BACKUPS_VIEW)
+            ? ([{ to: '/backups', label: t('shell.backups') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.MIGRATION)
             ? ([{ to: '/migration', label: t('shell.migration') }] as const)
             : permissionSet.has(PERMISSIONS.NPM_IMPORT)

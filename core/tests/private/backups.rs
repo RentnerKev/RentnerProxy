@@ -48,6 +48,7 @@ async fn backups_always_require_configured_explicit_token() {
         ("POST", "/start"),
         ("PUT", "/config"),
         ("POST", "/audit/ack"),
+        ("GET", "/00000000-0000-4000-8000-000000000001/download"),
     ] {
         for (configured, authorized) in [(false, false), (false, true), (true, false)] {
             let response = call(
