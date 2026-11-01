@@ -46,8 +46,6 @@ updates:
     - package-ecosystem: 'gomod'
       directories:
           - '/core/caddy-modules/responsecache'
-          - '/docker/crowdsec/tooling/engine-build'
-          - '/docker/gosu/tooling'
       schedule:
           interval: 'cron'
           cronjob: '0 3 * * 1'
