@@ -15,7 +15,6 @@ export interface AuthenticatedLayoutLogicResult {
         readonly restoreDisconnected: boolean
         readonly isIdentityPending: boolean
         readonly identityGeneration: number
-        readonly identityLoadingMessage: string
         readonly hasIdentityError: boolean
         readonly identityErrorMessage: string
         readonly retryLabel: string

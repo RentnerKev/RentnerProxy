@@ -17,7 +17,7 @@ import {
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { ManagedBackupMaintenance } from '@/lib/Backups/Types/backups.types.ts'
-import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -354,6 +354,38 @@ test('application identity snapshots are suspended throughout the destructive re
     expect(invalidate).not.toHaveBeenCalled()
     expect(progress()?.value).toBe(42)
 })
+
+test.each(['pending', 'failed'] as const)(
+    'restore takes precedence over a %s identity check and its loading or error screen',
+    async (identityState) => {
+        await mount()
+        await deliver({ revision: 'before', userVersion: 'viewer' }, 'app-events')
+        const gate = Promise.withResolvers<void>()
+        const invalidate = spyOn(router, 'invalidate').mockImplementation(() => gate.promise)
+        restorers.push(() => invalidate.mockRestore())
+        try {
+            await deliver({ revision: 'changed', userVersion: 'viewer' }, 'app-events')
+            await waitFor(
+                () =>
+                    container.querySelector('h1')?.textContent === catalogs.en.system.loading.title,
+            )
+            if (identityState === 'failed') {
+                await act(async () => gate.reject(new Error('Synthetic identity failure')))
+                await waitFor(() => !!container.querySelector('main[role="alert"]'))
+            }
+            await deliver(running)
+            await waitFor(() => progress()?.value === 42)
+            expect(container.querySelectorAll('main')).toHaveLength(1)
+            expect(container.querySelector('main')?.getAttribute('aria-labelledby')).toBe(
+                'restore-progress-title',
+            )
+            expect(container.textContent).not.toContain(catalogs.en.system.loading.title)
+            expect(container.querySelector('main[role="alert"]')).toBeNull()
+        } finally {
+            await act(async () => gate.resolve())
+        }
+    },
+)
 
 test.each(['queued', 'validating'] as const)(
     'a failed %s preflight can return to the preserved page without claiming successful restore',

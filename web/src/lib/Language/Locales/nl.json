@@ -231,6 +231,11 @@
         "logoutRevocationFailed": "Je bent afgemeld in deze browser, maar de serversessie kon niet worden ingetrokken."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Even geduld",
+            "title": "Bijna klaar.",
+            "description": "Je overzicht wordt geladen."
+        },
         "response": "Systeemantwoord",
         "recovery": "Veilig herstel van de route",
         "error": {

@@ -252,6 +252,11 @@
         "logoutRevocationFailed": "Has cerrado sesión en este navegador, pero no se pudo revocar la sesión del servidor."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Un momento",
+            "title": "Ya casi está.",
+            "description": "Cargando tu panel."
+        },
         "response": "Respuesta del sistema",
         "recovery": "Regreso seguro a la aplicación",
         "error": {

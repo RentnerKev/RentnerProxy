@@ -252,6 +252,11 @@
         "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Um momento",
+            "title": "Está quase.",
+            "description": "A carregar o teu painel."
+        },
         "response": "Resposta do sistema",
         "recovery": "Recuperação segura da rota",
         "error": {

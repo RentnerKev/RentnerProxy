@@ -252,6 +252,11 @@
         "logoutRevocationFailed": "Vous êtes déconnecté dans ce navigateur, mais la session sur le serveur n’a pas pu être révoquée."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Un instant",
+            "title": "C’est pour bientôt.",
+            "description": "Chargement de votre tableau de bord."
+        },
         "response": "Réponse du système",
         "recovery": "Retour sécurisé à l’application",
         "error": {

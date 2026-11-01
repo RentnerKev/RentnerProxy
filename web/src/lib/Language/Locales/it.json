@@ -252,6 +252,11 @@
         "logoutRevocationFailed": "Hai effettuato la disconnessione in questo browser, ma non è stato possibile revocare la sessione sul server."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Un momento",
+            "title": "Ci siamo quasi.",
+            "description": "Caricamento della tua panoramica."
+        },
         "response": "Risposta del sistema",
         "recovery": "Ripristino del percorso sicuro",
         "error": {

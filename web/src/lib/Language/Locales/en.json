@@ -250,6 +250,11 @@
         "logoutRevocationFailed": "Signed out in this browser, but the server session could not be revoked."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Just a moment",
+            "title": "Nearly there.",
+            "description": "Loading your dashboard."
+        },
         "response": "System response",
         "recovery": "Safe route recovery",
         "error": {

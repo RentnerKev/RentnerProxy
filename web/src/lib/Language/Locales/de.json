@@ -250,6 +250,11 @@
         "logoutRevocationFailed": "Du bist in diesem Browser abgemeldet, aber die Sitzung auf dem Server konnte nicht widerrufen werden."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Einen Moment",
+            "title": "Gleich wieder da.",
+            "description": "Deine Übersicht wird geladen."
+        },
         "response": "Systemmeldung",
         "recovery": "Sicher zurück zur Anwendung",
         "error": {

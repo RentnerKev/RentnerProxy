@@ -254,6 +254,11 @@
         "logoutRevocationFailed": "Wylogowano w tej przeglądarce, ale nie udało się unieważnić sesji na serwerze."
     },
     "system": {
+        "loading": {
+            "eyebrow": "Chwileczkę",
+            "title": "Już prawie gotowe.",
+            "description": "Trwa ładowanie panelu."
+        },
         "response": "Odpowiedź systemu",
         "recovery": "Bezpieczne odzyskiwanie trasy",
         "error": {
