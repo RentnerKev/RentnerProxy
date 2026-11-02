@@ -468,7 +468,9 @@ integrationTest.each(['first', 'round_robin'] as const)(
             exportedDocument.redirectHosts.some((host) => host.id === unrelatedRedirect.id),
         ).toBeTrue()
         expect(
-            exportedDocument.policies.some((policy) => policy.id === unrelatedPolicy.id),
+            exportedDocument.policies.some(
+                (exportedPolicy) => exportedPolicy.id === unrelatedPolicy.id,
+            ),
         ).toBeTrue()
         // Keep the actual exported host unchanged, excluding unrelated global export entries.
         const document = {
