@@ -83,13 +83,24 @@ function parseJsonRecord(value: string, label: string): PersistenceSnapshot {
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
             throw new Error(`Persistence fixture returned invalid ${label}.`)
         }
-        return parsed as PersistenceSnapshot
+        return canonicalPersistenceSnapshot(parsed as PersistenceSnapshot)
     } catch (error) {
         if (error instanceof SyntaxError) {
             throw new Error(`Persistence fixture returned invalid ${label}.`, { cause: error })
         }
         throw error
     }
+}
+
+export function canonicalPersistenceSnapshot(snapshot: PersistenceSnapshot): PersistenceSnapshot {
+    const host = snapshot.proxyHost
+    if (!host || typeof host !== 'object' || Array.isArray(host)) return snapshot
+    const fields = host as Readonly<Record<string, unknown>>
+    // Published single-target schemas lack the additive nullable pool column.
+    // Preserve actual pools and every other field so data changes still fail.
+    if (fields.upstream_pool !== null) return snapshot
+    const { upstream_pool: _emptyPool, ...singleTargetHost } = fields
+    return { ...snapshot, proxyHost: singleTargetHost }
 }
 
 export async function readPersistenceSnapshot(
