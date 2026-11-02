@@ -1,5 +1,6 @@
 import { webSocketProbeScript } from './websocket-probe.ts'
-import { prepareTargetSource, immutableImageId } from './source-identity.ts'
+import { prepareTargetSource } from './source-identity.ts'
+import { createCompatibilityImages } from './images.ts'
 import {
     copyHistoricalZod,
     loadHistoricalToolClosure,
@@ -74,8 +75,8 @@ delete process.env.GH_TOKEN
 delete process.env.GITHUB_TOKEN
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = `rp-compat-${runId}`
-const targetImage = `rentnerproxy:compat-${runId}`
-const http3Image = `rentnerproxy:compat-http3-${runId}`
+const images = createCompatibilityImages(runId, Boolean(source))
+const { targetImage, http3Image } = images
 const marker = `release-compatibility-${runId}`
 let stage = 'prepare'
 let container = ''
@@ -757,23 +758,7 @@ async function run(): Promise<void> {
         `source_version=${source?.version ?? 'fresh'} source_revision=${source?.revision ?? 'none'} source_image=${source?.image ?? 'none'} source_digest=${source?.digest ?? 'none'} target_sha=${targetSourceRevision} target_source=git-archive target_image_tag=${targetImage}`,
     )
     stage = 'target-build'
-    await command(
-        [
-            'docker',
-            'build',
-            '--file',
-            join(targetSource.context, 'docker/production/Dockerfile'),
-            '--tag',
-            targetImage,
-            '--label',
-            `org.opencontainers.image.revision=${targetSourceRevision}`,
-            targetSource.context,
-        ],
-        1_800_000,
-    )
-    targetImageId = immutableImageId(
-        await command(['docker', 'image', 'inspect', '--format', '{{.Id}}', targetImage]),
-    )
+    targetImageId = await images.prepareTarget(command, targetSource)
     await writeFile(targetFile, composeFile(targetImageId, upstreamPort))
     console.log(
         `target_sha=${targetSourceRevision} target_source=git-archive target_image_id=${targetImageId}`,
@@ -972,6 +957,5 @@ try {
         await rm(temporaryRoot, { recursive: true, force: true })
     }
     backend?.stop(true)
-    await command(['docker', 'image', 'rm', targetImage], 180_000).catch(() => undefined)
-    if (source) await command(['docker', 'image', 'rm', http3Image], 180_000).catch(() => undefined)
+    await images.cleanup(command)
 }

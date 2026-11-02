@@ -43,19 +43,26 @@ const buildInputs = [
 ]
 
 test.each(['release-compatibility', 'runtime-reliability'])(
-    '%s includes transitive production build and fixture inputs',
+    '%s retains main/manual coverage while central PR checks cover all production inputs',
     async (name) => {
         const triggers = (await workflow(name)).on
-        const paths = triggers.pull_request?.paths ?? []
+        expect(triggers).not.toHaveProperty('pull_request')
+        expect(triggers).toHaveProperty('push')
+        expect(triggers).toHaveProperty('workflow_dispatch')
+        const central = (await workflow('production-smokes')).on
+        expect(central).toHaveProperty('pull_request')
+        expect(central.pull_request?.paths).toBeUndefined()
+        expect(central.pull_request?.['paths-ignore']).toBeUndefined()
+        const paths = triggers.push?.paths ?? []
         const matches = (path: string) => paths.some((pattern) => new Bun.Glob(pattern).match(path))
-        for (const path of [...buildInputs, `.github/workflows/${name}.yml`]) {
-            expect({ path, included: matches(path) }).toEqual({ path, included: true })
-        }
-        for (const path of ['README.md', 'docs/operations.md', '.github/WORKFLOWS.md']) {
-            expect({ path, included: matches(path) }).toEqual({ path, included: false })
-        }
-        if (name === 'runtime-reliability') expect(triggers.push?.paths).toEqual(paths)
-        else {
+        if (name === 'runtime-reliability') {
+            for (const path of [...buildInputs, `.github/workflows/${name}.yml`]) {
+                expect({ path, included: matches(path) }).toEqual({ path, included: true })
+            }
+            for (const path of ['README.md', 'docs/operations.md', '.github/WORKFLOWS.md']) {
+                expect({ path, included: matches(path) }).toEqual({ path, included: false })
+            }
+        } else {
             expect(triggers.push?.paths).toBeUndefined()
             expect(triggers.push?.['paths-ignore']).toBeUndefined()
         }
