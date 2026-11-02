@@ -8,6 +8,10 @@ import { proxyForwardHostSchema, proxyHostFormSchema } from '../../../validation
 import type { UpstreamPoolEditorProps } from '../Types/upstream-pool-fields.types.ts'
 import UpstreamFailoverFields from './UpstreamFailoverFields.tsx'
 
+/**
+ * Presents single, round-robin and ordered pool modes with bounded target controls and field errors.
+ * Target one uses the existing scalar inputs; secondary targets share the host's scheme and TLS policy.
+ */
 export default function UpstreamPoolFields({
     form,
     formId,

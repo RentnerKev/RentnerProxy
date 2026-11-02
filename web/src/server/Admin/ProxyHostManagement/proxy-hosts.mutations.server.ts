@@ -40,6 +40,10 @@ function invalidInput(): ProxyHostDomainError {
     return new ProxyHostDomainError('invalid_input', 'Proxy host input is invalid.')
 }
 
+/**
+ * Projects stored routing state while retaining the complete ordered pool.
+ * SQL-null pools stay absent in legacy summaries rather than adding a new field.
+ */
 export function toProxyHostSummary(
     proxyHost: ProxyHostRow,
     domains: ReadonlyArray<string>,
@@ -136,6 +140,11 @@ export function parseUpdateProxyHostInput(input: UpdateProxyHostInput) {
     return parsed.data
 }
 
+/**
+ * Validates, authorizes and persists a host within the supplied transaction.
+ * Ordered pools share the host's scheme and TLS policy; absent or null pools
+ * retain single-target behavior. Native JSONB binding stores pools as objects.
+ */
 export async function createProxyHostInTransaction(
     transaction: AuthTransaction,
     actorId: string,
@@ -271,6 +280,12 @@ export async function createProxyHostInTransaction(
     }
 }
 
+/**
+ * Updates authorized desired state while preserving an omitted pool and clearing
+ * an explicitly null pool. Replacement and retained pools must match the scalar
+ * primary target; member order and shared TLS policy remain part of routing state.
+ * Routing changes also invalidate the host's monitoring observations.
+ */
 export async function updateProxyHostInTransaction(
     transaction: AuthTransaction,
     actorId: string,

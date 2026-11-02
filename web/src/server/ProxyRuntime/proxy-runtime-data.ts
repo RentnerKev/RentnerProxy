@@ -92,6 +92,11 @@ export async function readProxyRuntimeTrustedCas(
         .orderBy(asc(trustedCas.id))
 }
 
+/**
+ * Hydrates enabled routes, ordered pool members, shared TLS and referenced policy
+ * data from the supplied transaction before building the canonical snapshot.
+ * Pool reads preserve every target rather than reducing a route to its primary.
+ */
 export async function readProxyRuntimeSnapshot(
     transaction: AuthTransaction,
 ): Promise<ProxyRuntimeSnapshot> {
@@ -232,6 +237,11 @@ export async function readProxyRuntimeSnapshot(
     )
 }
 
+/**
+ * Loads one host, including disabled hosts, with its full ordered pool and shared
+ * TLS/access policy for host-scoped configuration. Returns null when absent and
+ * rejects missing referenced policy data instead of weakening access control.
+ */
 export async function readProxyRuntimeHost(
     transaction: AuthTransaction,
     proxyHostId: string,

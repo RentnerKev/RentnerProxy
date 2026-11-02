@@ -383,6 +383,11 @@ export function disableProxyHostService(proxyHostId: string): Promise<ProxyHostM
     return setProxyHostEnabledService(proxyHostId, false)
 }
 
+/**
+ * Reauthorizes the caller before a bounded lookup by ID or literal search text.
+ * Domain and target searches include secondary pool members through bound,
+ * escaped ILIKE parameters; results expose only lightweight primary-target labels.
+ */
 export async function searchProxyHostsService(
     actor: AuthenticatedUser,
     input: QuickSearchInput,

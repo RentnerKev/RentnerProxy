@@ -41,6 +41,11 @@ export function getUpstreamFailoverFormValues(
     }
 }
 
+/**
+ * Creates an independent editor draft, using the first pool member as the scalar target.
+ * Edit retains copied domains; duplicate clears domains while copying ordered targets and settings.
+ * Create ignores any source, and single-target drafts use null so existing pools can be removed explicitly.
+ */
 export function getProxyHostFormValues(
     mode: ProxyHostFormModalProps['mode'],
     proxyHost?: ProxyHostSummary,

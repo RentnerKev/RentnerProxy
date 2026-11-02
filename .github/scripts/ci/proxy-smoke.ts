@@ -584,16 +584,21 @@ async function runSmoke(): Promise<void> {
             )
         }
 
+        /** Optionally keeps an admitted stream open through a reload and verifies its echo afterward. */
         async function expectWebSocketUpgrade(
             host: string,
             authorization?: string,
             expectedStatus = 101,
+            afterUpgrade?: () => Promise<void>,
         ): Promise<void> {
             const proxyPort = Number(new URL(proxyUrl).port)
             await new Promise<void>((resolve, reject) => {
                 const socket = createConnection({ host: '127.0.0.1', port: proxyPort })
                 let response = ''
                 let settled = false
+                let upgraded = false
+                let expectedEcho: Buffer | null = null
+                let received = Buffer.alloc(0)
                 const finish = (error?: Error) => {
                     if (settled) return
                     settled = true
@@ -601,9 +606,24 @@ async function runSmoke(): Promise<void> {
                     if (error) reject(error)
                     else resolve()
                 }
-                socket.setTimeout(5_000, () => finish(new Error('WebSocket upgrade timed out')))
+                socket.setTimeout(afterUpgrade ? 15_000 : 5_000, () =>
+                    finish(new Error('WebSocket upgrade or reload echo timed out')),
+                )
                 socket.once('error', (error) => finish(error))
+                socket.once('close', () => {
+                    if (!settled) finish(new Error('Admitted WebSocket closed during reload'))
+                })
                 socket.on('data', (chunk) => {
+                    if (upgraded) {
+                        received = Buffer.concat([
+                            received,
+                            typeof chunk === 'string' ? Buffer.from(chunk, 'latin1') : chunk,
+                        ])
+                        if (received.length > 4_096)
+                            finish(new Error('WebSocket reload echo exceeded the fixture bound'))
+                        else if (expectedEcho && received.includes(expectedEcho)) finish()
+                        return
+                    }
                     response += chunk.toString('latin1')
                     if (!response.includes('\r\n\r\n')) return
                     try {
@@ -614,6 +634,31 @@ async function runSmoke(): Promise<void> {
                         if (expectedStatus === 101) {
                             assert.match(response, /^upgrade: websocket\r\n/imu)
                             assert.match(response, /^connection: Upgrade\r\n/imu)
+                        }
+                        if (afterUpgrade && expectedStatus === 101) {
+                            upgraded = true
+                            void afterUpgrade().then(
+                                () => {
+                                    if (settled) return
+                                    expectedEcho = Buffer.from('pool-drain-' + randomUUID())
+                                    const mask = randomBytes(4)
+                                    const masked = Buffer.from(expectedEcho)
+                                    for (let index = 0; index < masked.length; index += 1)
+                                        masked[index] = masked[index]! ^ mask[index % 4]!
+                                    socket.write(
+                                        Buffer.concat([
+                                            Buffer.from([0x81, 0x80 | masked.length]),
+                                            mask,
+                                            masked,
+                                        ]),
+                                    )
+                                },
+                                (error: unknown) =>
+                                    finish(
+                                        error instanceof Error ? error : new Error(String(error)),
+                                    ),
+                            )
+                            return
                         }
                         finish()
                     } catch (error) {
@@ -1765,10 +1810,16 @@ async function runSmoke(): Promise<void> {
             forwardPort: second.port!,
             upstreamPool: { policy: 'first' as const, members: poolMembers.toReversed() },
         }
-        const reordered = await authorized(() =>
-            services.updateProxyHostService({ ...reorderedPool, proxyHostId: firstPoolHost.id }),
-        )
-        assert.equal(reordered.runtimeStatus, 'applied')
+        await expectWebSocketUpgrade('pool-first.test', undefined, 101, async () => {
+            const reordered = await authorized(() =>
+                services.updateProxyHostService({
+                    ...reorderedPool,
+                    proxyHostId: firstPoolHost.id,
+                }),
+            )
+            assert.equal(reordered.runtimeStatus, 'applied')
+        })
+        passed('an admitted pool WebSocket remains usable while a reload drains its old handler')
         for (let request = 0; request < 4; request += 1) {
             const response = await proxyRequest('pool-first.test')
             assert.equal(response.status, 200)

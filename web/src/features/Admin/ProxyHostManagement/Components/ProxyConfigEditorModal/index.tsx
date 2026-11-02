@@ -49,6 +49,7 @@ function getUpstreamTransport(host: ProxyHostSummary, t: Translate): string {
     )
 }
 
+/** Summarizes ordered forwarding targets alongside inbound HTTPS, shared upstream TLS and loaded-config status. */
 function HostConfigurationOverview({
     activeAvailable,
     enabled,

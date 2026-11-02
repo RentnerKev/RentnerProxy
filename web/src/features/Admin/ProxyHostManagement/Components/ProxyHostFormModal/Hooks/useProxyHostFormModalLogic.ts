@@ -39,6 +39,11 @@ import type { CertificateJobActionResult } from '@/lib/CertificateJobs/Types/cer
 import { proxyHostFormSchema } from '../../../validation.ts'
 import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHostFormValues.ts'
 
+/**
+ * Owns create/edit/duplicate drafts, validation, certificate requests and save/disable confirmation.
+ * Ordinary single-target saves omit pool data; changing an existing pool to single sends explicit null.
+ * Pending disable confirmation retains a deep copy so later draft edits cannot alter the reviewed submission.
+ */
 export default function useProxyHostFormModalLogic({
     initialGuideOpen = false,
     canConfigureCompression = false,
