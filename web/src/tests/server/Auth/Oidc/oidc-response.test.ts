@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { Window } from 'happy-dom'
 import { OIDC_FLOW_COOKIE_NAME, OIDC_DEVELOPMENT_FLOW_COOKIE_NAME } from '@/config/oidc.config.ts'
 import { SESSION_COOKIE_NAME, MFA_CHALLENGE_COOKIE_NAME } from '@/config/auth.config.ts'
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
@@ -6,7 +7,10 @@ import { createOidcHttpHandlers } from '@/server/Auth/Oidc/oidc-response.server.
 import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts'
 
 const providerId = '0194f777-4074-7000-8000-000000000001'
-function fixture(origin = 'https://proxy.example.test') {
+function fixture(
+    origin = 'https://proxy.example.test',
+    authorizationUrl = new URL('https://identity.example.test/authorize?state=opaque'),
+) {
     const browserToken = createOpaqueToken()
     const state = createOpaqueToken()
     const sessionToken = createOpaqueToken()
@@ -39,7 +43,7 @@ function fixture(origin = 'https://proxy.example.test') {
             return {
                 state,
                 browserToken,
-                authorizationUrl: new URL('https://identity.example.test/authorize?state=opaque'),
+                authorizationUrl,
                 expiresAt: new Date(Date.now() + 60_000),
             }
         },
@@ -93,14 +97,37 @@ function fixture(origin = 'https://proxy.example.test') {
     }
 }
 
+/** Parses the emitted attributes with an HTML parser to detect element or attribute injection. */
+async function parseNavigationBridge(response: Response) {
+    const body = await response.text()
+    const window = new Window()
+    try {
+        const document = new window.DOMParser().parseFromString(body, 'text/html')
+        return {
+            body,
+            refresh: [...document.querySelectorAll('meta[http-equiv="refresh"]')].map((element) =>
+                element.getAttribute('content'),
+            ),
+            links: [...document.querySelectorAll('a')].map((element) =>
+                element.getAttribute('href'),
+            ),
+            scripts: document.querySelectorAll('script').length,
+            injectedElements: document.querySelectorAll(
+                '[onload], [onclick], [autofocus], svg, img, form',
+            ).length,
+        }
+    } finally {
+        await window.happyDOM.close()
+    }
+}
+
 describe('OIDC raw HTTP endpoints', () => {
-    test('starts by same-origin POST with host-only browser binding and no protocol response body', async () => {
+    test('starts with a no-store HTML navigation bridge and host-only browser binding under form-action self', async () => {
         const value = fixture()
         const response = await value.handlers.start(value.start())
-        expect(response.status).toBe(303)
-        expect(response.headers.get('location')).toStartWith(
-            'https://identity.example.test/authorize',
-        )
+        expect(response.status).toBe(200)
+        expect(response.headers.get('location')).toBeNull()
+        expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
         const cookies = response.headers.getSetCookie().join(';')
         expect(cookies).toContain(`${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}`)
         for (const flag of ['Path=/', 'HttpOnly', 'SameSite=Lax', 'Secure'])
@@ -108,8 +135,121 @@ describe('OIDC raw HTTP endpoints', () => {
         expect(cookies).not.toContain('Domain=')
         expect(response.headers.get('cache-control')).toContain('no-store')
         expect(response.headers.get('referrer-policy')).toBe('no-referrer')
-        expect(await response.text()).toBe('')
+        const bridge = await parseNavigationBridge(response)
+        expect(bridge.refresh).toEqual([
+            '0;url=https://identity.example.test/authorize?state=opaque',
+        ])
+        expect(bridge.links).toEqual(['https://identity.example.test/authorize?state=opaque'])
+        expect(bridge.scripts).toBe(0)
+        expect(bridge.injectedElements).toBe(0)
+        expect(bridge.body).not.toContain(value.browserToken)
+        expect(bridge.body).not.toContain(value.sessionToken)
     })
+
+    test('escapes all HTML metacharacters in both navigation attributes without changing the destination', async () => {
+        const destination = `https://identity.example.test/authorize?state=opaque&client_id=a'"<svg onload=alert(1)>&entity=&quot;`
+        const authorizationUrl = new URL('https://identity.example.test/authorize')
+        // Exercise the rendering boundary without relying on URL serialization to pre-encode hostile metacharacters.
+        Object.defineProperty(authorizationUrl, 'href', { value: destination })
+        const value = fixture(undefined, authorizationUrl)
+        const response = await value.handlers.start(value.start())
+        expect(response.status).toBe(200)
+        expect(response.headers.get('location')).toBeNull()
+        const bridge = await parseNavigationBridge(response)
+        expect(bridge.refresh).toEqual(['0;url=' + destination])
+        expect(bridge.links).toEqual([destination])
+        expect(bridge.scripts).toBe(0)
+        expect(bridge.injectedElements).toBe(0)
+        expect(bridge.body).toContain('&amp;client_id=a&#39;&quot;&lt;svg onload=alert(1)&gt;')
+        expect(bridge.body).toContain('&amp;entity=&amp;quot;')
+        expect(bridge.body).not.toContain('<svg')
+    })
+
+    for (const suppliedOrigin of ['null', null]) {
+        test(`accepts a privacy-preserved same-origin native navigation with ${suppliedOrigin === null ? 'absent' : 'null'} Origin`, async () => {
+            const value = fixture()
+            const request = value.start({
+                'sec-fetch-site': 'same-origin',
+                'sec-fetch-mode': 'navigate',
+                'sec-fetch-dest': 'document',
+            })
+            if (suppliedOrigin === null) request.headers.delete('origin')
+            else request.headers.set('origin', suppliedOrigin)
+            const response = await value.handlers.start(request)
+            expect(response.status).toBe(200)
+            expect(response.headers.get('location')).toBeNull()
+            expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+            expect(response.headers.getSetCookie().join(';')).toContain(
+                `${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}`,
+            )
+            expect(value.begins()).toBe(1)
+        })
+    }
+
+    const navigationMetadata = {
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-dest': 'document',
+    }
+    const invalidMetadata: { label: string; headers: Record<string, string> }[] = [
+        { label: 'missing all metadata', headers: {} },
+        {
+            label: 'missing site',
+            headers: { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' },
+        },
+        {
+            label: 'missing mode',
+            headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'document' },
+        },
+        {
+            label: 'missing destination',
+            headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate' },
+        },
+        ...['same-site', 'cross-site', 'none', 'same-origin, same-origin'].map((site) => ({
+            label: `site=${site}`,
+            headers: { ...navigationMetadata, 'sec-fetch-site': site },
+        })),
+        ...['cors', 'no-cors', 'navigate, navigate'].map((mode) => ({
+            label: `mode=${mode}`,
+            headers: { ...navigationMetadata, 'sec-fetch-mode': mode },
+        })),
+        ...['iframe', 'empty', 'document, document'].map((destination) => ({
+            label: `destination=${destination}`,
+            headers: { ...navigationMetadata, 'sec-fetch-dest': destination },
+        })),
+    ]
+    for (const suppliedOrigin of ['null', null]) {
+        for (const metadata of invalidMetadata) {
+            test(`rejects ${suppliedOrigin === null ? 'absent' : 'null'} Origin with ${metadata.label}`, async () => {
+                const value = fixture()
+                const request = value.start(metadata.headers)
+                if (suppliedOrigin === null) request.headers.delete('origin')
+                else request.headers.set('origin', suppliedOrigin)
+                request.headers.set('referer', 'https://proxy.example.test/login')
+                const response = await value.handlers.start(request)
+                expect(response.status).toBe(403)
+                expect(response.headers.getSetCookie()).toHaveLength(0)
+                expect(value.begins()).toBe(0)
+            })
+        }
+    }
+
+    for (const suppliedOrigin of [
+        'https://attacker.example.test',
+        'https://proxy.example.test.attacker.example',
+        '',
+        'null, https://proxy.example.test',
+    ]) {
+        test(`rejects explicit untrusted Origin ${JSON.stringify(suppliedOrigin)} despite claimed same-origin metadata`, async () => {
+            const value = fixture()
+            const response = await value.handlers.start(
+                value.start({ ...navigationMetadata, origin: suppliedOrigin }),
+            )
+            expect(response.status).toBe(403)
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+            expect(value.begins()).toBe(0)
+        })
+    }
 
     test('rejects foreign origins, duplicate parameters, oversized bodies and unsupported methods', async () => {
         const value = fixture()

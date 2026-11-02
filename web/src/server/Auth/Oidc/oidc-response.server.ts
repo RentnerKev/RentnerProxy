@@ -69,7 +69,34 @@ function redirect(
     return new Response(null, { status: 303, headers })
 }
 
-/** Raw auth endpoints return fixed redirects and never serialize protocol responses. */
+/** Commits a same-origin document before navigation, retaining CSP restrictions on native form submissions. */
+function authorizationNavigationResponse(authorizationUrl: URL, headers: Headers): Response {
+    const destination = authorizationUrl.href
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+    headers.set('Content-Type', 'text/html; charset=utf-8')
+    return new Response(
+        `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${destination}"><title>Continue sign-in</title></head><body><a href="${destination}" rel="noreferrer">Continue sign-in</a></body></html>`,
+        { status: 200, headers },
+    )
+}
+
+/** Accepts privacy-suppressed Origin only with browser-controlled proof of a same-origin document navigation. */
+function isSameOriginLoginStart(request: Request, origin: string): boolean {
+    const suppliedOrigin = request.headers.get('origin')
+    if (suppliedOrigin === origin) return true
+    if (suppliedOrigin !== null && suppliedOrigin !== 'null') return false
+    return (
+        request.headers.get('sec-fetch-site') === 'same-origin' &&
+        request.headers.get('sec-fetch-mode') === 'navigate' &&
+        request.headers.get('sec-fetch-dest') === 'document'
+    )
+}
+
+/** Raw auth endpoints expose only navigation destinations and fixed callback/error redirects. */
 export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies) {
     return {
         /** Accepts a bounded same-origin provider selection and starts a native browser navigation. */
@@ -77,7 +104,7 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
             const headers = responseHeaders()
             if (request.method !== 'POST') return new Response(null, { status: 405, headers })
             const origin = dependencies.origin()
-            if (!origin || request.headers.get('origin') !== origin)
+            if (!origin || !isSameOriginLoginStart(request, origin))
                 return new Response(null, { status: 403, headers })
             if (
                 request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !==
@@ -104,7 +131,6 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                     throw new Error('invalid_input')
                 const providerId = z.uuid().parse(body.get('providerId'))
                 const result = await dependencies.begin(providerId)
-                headers.set('Location', result.authorizationUrl.href)
                 headers.append(
                     'Set-Cookie',
                     cookie(
@@ -115,7 +141,7 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                         origin,
                     ),
                 )
-                return new Response(null, { status: 303, headers })
+                return authorizationNavigationResponse(result.authorizationUrl, headers)
             } catch {
                 return redirect('/login?oidcError=failed', headers)
             }
