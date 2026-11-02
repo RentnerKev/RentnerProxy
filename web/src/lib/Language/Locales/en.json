@@ -246,6 +246,10 @@
         "user_not_active": "This account is not active."
     },
     "auth": {
+        "oidc": {
+            "signInWith": "Sign in with {{provider}}",
+            "failed": "Sign-in failed. Try again or use your local account."
+        },
         "logoutFailed": "Could not sign out. Check your connection and try again.",
         "logoutRevocationFailed": "Signed out in this browser, but the server session could not be revoked."
     },

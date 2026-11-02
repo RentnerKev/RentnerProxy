@@ -57,6 +57,7 @@ export const AUDIT_RESOURCES = [
 
 export const AUDIT_AUTHENTICATION_METHODS = [
     'password',
+    'oidc',
     'totp',
     'recovery-code',
     'passkey',
@@ -102,6 +103,7 @@ export const AUDIT_CHANGED_FIELDS = [
     'accessPolicy',
     'security',
     'dnsConnections',
+    'oidcProviders',
     'ddns',
     'dockerDiscovery',
     'tags',

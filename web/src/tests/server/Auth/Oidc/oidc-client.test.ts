@@ -1,0 +1,257 @@
+import { describe, expect, test } from 'bun:test'
+import { generateKeyPairSync, sign } from 'node:crypto'
+import type { CustomFetch } from 'openid-client'
+import { createOidcProtocolClient } from '@/server/Auth/Oidc/oidc-client.server.ts'
+import type { OidcClientConfiguration } from '@/server/Auth/Oidc/Types/oidc.types.ts'
+
+const configuration: OidcClientConfiguration = {
+    providerId: 'provider',
+    revision: 1,
+    issuer: 'https://issuer.example',
+    clientId: 'client',
+    clientSecret: 'test-only-secret',
+    tokenEndpointAuthMethod: 'client_secret_basic',
+    allowedEndpointOrigins: ['https://issuer.example'],
+    allowedPrivateCidrs: [],
+}
+const authorization = {
+    redirectUri: 'https://proxy.example/api/auth/oidc/callback',
+    state: 'state',
+    nonce: 'nonce',
+    codeVerifier: 'a'.repeat(43),
+}
+const key = generateKeyPairSync('rsa', { modulusLength: 2048 })
+const otherKey = generateKeyPairSync('rsa', { modulusLength: 2048 })
+
+function fixture(overrides: Record<string, unknown> = {}, invalidSignature = false) {
+    const calls: string[] = []
+    let consumed = false
+    let activeKey = key
+    let kid = 'key'
+    const fetch: CustomFetch = async (url, init) => {
+        calls.push(url)
+        if (url.endsWith('/.well-known/openid-configuration'))
+            return Response.json({
+                issuer: configuration.issuer,
+                authorization_endpoint: configuration.issuer + '/authorize',
+                token_endpoint: configuration.issuer + '/token',
+                jwks_uri: configuration.issuer + '/jwks',
+                id_token_signing_alg_values_supported: ['RS256'],
+                code_challenge_methods_supported: ['S256'],
+            })
+        if (url.endsWith('/jwks'))
+            return Response.json({
+                keys: [
+                    {
+                        ...activeKey.publicKey.export({ format: 'jwk' }),
+                        kid,
+                        use: 'sig',
+                        alg: 'RS256',
+                    },
+                ],
+            })
+        if (url.endsWith('/token')) {
+            expect(init.headers.authorization).toStartWith('Basic ')
+            const body = new URLSearchParams(String(init.body))
+            expect(body.get('code_verifier')).toBe(authorization.codeVerifier)
+            expect(body.get('redirect_uri')).toBe(authorization.redirectUri)
+            if (consumed || body.get('code') !== 'one-use')
+                return Response.json({ error: 'invalid_grant' }, { status: 400 })
+            consumed = true
+            const now = Math.floor(Date.now() / 1000)
+            const claims = {
+                iss: configuration.issuer,
+                sub: 'subject',
+                aud: configuration.clientId,
+                exp: now + 120,
+                iat: now - 1,
+                nonce: authorization.nonce,
+                ...overrides,
+            }
+            const input =
+                Buffer.from(JSON.stringify({ alg: 'RS256', kid })).toString('base64url') +
+                '.' +
+                Buffer.from(JSON.stringify(claims)).toString('base64url')
+            const jwt =
+                input +
+                '.' +
+                sign(
+                    'RSA-SHA256',
+                    Buffer.from(input),
+                    invalidSignature ? otherKey.privateKey : activeKey.privateKey,
+                ).toString('base64url')
+            return Response.json({
+                access_token: 'never-return',
+                token_type: 'Bearer',
+                id_token: jwt,
+            })
+        }
+        throw new Error('fixture unexpected request')
+    }
+    return {
+        client: createOidcProtocolClient({ fetch: () => fetch }),
+        calls,
+        fetch,
+        rotate: () => {
+            activeKey = otherKey
+            kid = 'rotated'
+            consumed = false
+        },
+        resetCode: () => {
+            consumed = false
+        },
+    }
+}
+const callback = () => new URL(authorization.redirectUri + '?code=one-use&state=state')
+
+describe('OIDC protocol with real signed tokens', () => {
+    test('builds only code/S256/openid and verifies signature, nonce and identity', async () => {
+        const { client, calls } = fixture()
+        const url = await client.buildAuthorizationUrl(configuration, authorization)
+        expect(url.searchParams.get('scope')).toBe('openid')
+        expect(url.searchParams.get('response_type')).toBe('code')
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+        expect(url.searchParams.get('code_challenge')).toHaveLength(43)
+        expect(url.searchParams.get('nonce')).toBe('nonce')
+        expect(
+            await client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        expect(calls.filter((call) => call.includes('well-known'))).toHaveLength(1)
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+    test.each([
+        ['nonce', { nonce: 'other' }],
+        ['issuer', { iss: 'https://other.example' }],
+        ['audience', { aud: 'other' }],
+        ['azp', { azp: 'other' }],
+        ['multiple audiences without azp', { aud: ['client', 'other'] }],
+        ['expired', { exp: 1 }],
+        ['future issued', { iat: Math.floor(Date.now() / 1000) + 120 }],
+        ['empty subject', { sub: '' }],
+        ['non-string subject', { sub: 123 }],
+        ['control subject', { sub: 'bad\nsubject' }],
+        ['missing exp', { exp: undefined }],
+    ])('rejects %s', async (_label, claims) => {
+        const { client } = fixture(claims)
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+    test('rejects a forged signature despite valid claims', async () => {
+        const { client } = fixture({}, true)
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+    test('unknown kid cannot repeatedly refresh keys and rotation recovers after bounded cache expiry', async () => {
+        const provider = fixture()
+        let now = 0
+        const client = createOidcProtocolClient({ fetch: () => provider.fetch, now: () => now })
+        await client.exchangeAuthorizationCode(configuration, authorization, callback())
+        provider.rotate()
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        provider.resetCode()
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        expect(provider.calls.filter((call) => call.endsWith('/jwks'))).toHaveLength(1)
+        provider.resetCode()
+        now = 300_001
+        expect(
+            await client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        expect(provider.calls.filter((call) => call.endsWith('/jwks'))).toHaveLength(2)
+    })
+    test('rejects wrong state before exchanging a code', async () => {
+        const { client, calls } = fixture()
+        await expect(
+            client.exchangeAuthorizationCode(
+                configuration,
+                authorization,
+                new URL(authorization.redirectUri + '?code=one-use&state=other'),
+            ),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        expect(calls.some((url) => url.endsWith('/token'))).toBe(false)
+    })
+    test('discovery expires, coalesces and fails closed on outage', async () => {
+        let now = 0
+        let requests = 0
+        let outage = false
+        const { fetch } = fixture()
+        const client = createOidcProtocolClient({
+            now: () => now,
+            fetch:
+                () =>
+                async (...args) => {
+                    requests++
+                    if (outage) throw new Error('private failure')
+                    return fetch(...args)
+                },
+        })
+        await Promise.all(
+            Array.from({ length: 8 }, () =>
+                client.buildAuthorizationUrl(configuration, authorization),
+            ),
+        )
+        expect(requests).toBe(1)
+        outage = true
+        now = 300_001
+        await expect(
+            client.buildAuthorizationUrl(configuration, authorization),
+        ).rejects.toMatchObject({ code: 'provider_unavailable', message: 'provider_unavailable' })
+    })
+    test('cache is capped and changed trust policy cannot reuse earlier discovery', async () => {
+        const provider = fixture()
+        await Promise.all(
+            Array.from({ length: 32 }, (_, index) =>
+                provider.client.buildAuthorizationUrl(
+                    { ...configuration, revision: index + 1 },
+                    authorization,
+                ),
+            ),
+        )
+        await expect(
+            provider.client.buildAuthorizationUrl(
+                { ...configuration, revision: 33 },
+                authorization,
+            ),
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
+        const fresh = fixture()
+        await fresh.client.buildAuthorizationUrl(configuration, authorization)
+        await expect(
+            fresh.client.buildAuthorizationUrl(
+                { ...configuration, allowedEndpointOrigins: ['https://other.example'] },
+                authorization,
+            ),
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
+    })
+    test('rejects untrusted discovery endpoint and excessive JWKS before protocol use', async () => {
+        const client = createOidcProtocolClient({
+            fetch: () => async () =>
+                Response.json({
+                    issuer: configuration.issuer,
+                    authorization_endpoint: 'https://evil.example/auth',
+                    token_endpoint: configuration.issuer + '/token',
+                    jwks_uri: configuration.issuer + '/jwks',
+                    id_token_signing_alg_values_supported: ['RS256'],
+                }),
+        })
+        await expect(
+            client.buildAuthorizationUrl(configuration, authorization),
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
+        const { fetch } = fixture()
+        const oversized = createOidcProtocolClient({
+            fetch: () => async (url, init) =>
+                url.endsWith('/jwks')
+                    ? Response.json({ keys: Array.from({ length: 33 }, () => ({})) })
+                    : fetch(url, init),
+        })
+        await expect(
+            oversized.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+})

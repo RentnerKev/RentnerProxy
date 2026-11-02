@@ -185,7 +185,7 @@ function createLoginChallenge(): LoginMfaChallenge {
         createdAt: new Date().toISOString(),
         factorId: 'factor-1',
         kind: 'login-mfa',
-        passwordFingerprint: 'a'.repeat(64),
+        firstFactor: { kind: 'password', passwordFingerprint: 'a'.repeat(64) },
         userId: 'user-1',
     }
 }
@@ -305,4 +305,54 @@ describe('authentication challenge storage', () => {
             await acquireCodeChallengeVerification('login-mfa', issued.id, dependencies),
         ).toBeNull()
     })
+
+    test('preserves an OIDC first factor through one-use consumption', async () => {
+        const firstFactor = {
+            kind: 'oidc' as const,
+            providerId: 'provider-1',
+            providerRevision: 3,
+            issuer: 'https://identity.example.test',
+            subject: 'opaque-subject',
+        }
+        const issued = await createAuthChallenge(
+            { ...createLoginChallenge(), firstFactor },
+            300_000,
+            dependencies,
+        )
+        expect(await consumeAuthChallenge('login-mfa', issued.id, dependencies)).toMatchObject({
+            firstFactor,
+            userId: 'user-1',
+        })
+        expect(await consumeAuthChallenge('login-mfa', issued.id, dependencies)).toBeNull()
+    })
+
+    const oidcProof = {
+        kind: 'oidc',
+        providerId: 'provider-1',
+        providerRevision: 3,
+        issuer: 'https://identity.example.test',
+        subject: 'opaque-subject',
+    }
+    for (const firstFactor of [
+        { ...oidcProof, providerRevision: -1 },
+        { ...oidcProof, providerRevision: 1.5 },
+        { ...oidcProof, subject: '' },
+        { ...oidcProof, passwordFingerprint: 'a'.repeat(64) },
+        { ...oidcProof, userId: 'another-user' },
+        { kind: 'password', passwordFingerprint: 'not-a-fingerprint' },
+        { ...oidcProof, kind: 'password' },
+    ]) {
+        test(`rejects malformed or substituted first-factor data ${JSON.stringify(firstFactor)}`, async () => {
+            const issued = await createAuthChallenge(createLoginChallenge(), 300_000, dependencies)
+            fakeValkey.setRaw(
+                `rentnerproxy:auth-challenge:login-mfa:${issued.id}`,
+                JSON.stringify({ ...createLoginChallenge(), firstFactor }),
+            )
+            await expect(
+                getAuthChallenge('login-mfa', issued.id, dependencies),
+            ).rejects.toMatchObject({
+                name: 'AuthChallengeStateError',
+            })
+        })
+    }
 })

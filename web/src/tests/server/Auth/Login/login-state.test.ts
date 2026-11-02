@@ -10,6 +10,7 @@ import {
 } from '@/db/schema.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
+import type { OidcIdentityProof } from '@/server/Auth/Oidc/Types/oidc.types.ts'
 import type {
     AuthChallenge,
     LoginMfaChallenge,
@@ -37,6 +38,19 @@ const challenges = new Map<string, LoginMfaChallenge>()
 const events: string[] = []
 let transactionPause: { entered: () => void; resume: Promise<void> } | null = null
 let decryptionPause: { entered: () => void; resume: Promise<void> } | null = null
+const oidcProof: OidcIdentityProof = {
+    providerId: 'provider-1',
+    providerRevision: 1,
+    issuer: 'https://identity.example.test',
+    subject: 'opaque-subject',
+    userId,
+}
+let oidcProvider: {
+    enabled: boolean
+    revision: number
+    issuer: string
+    bindings: { subject: string; userId: string }[]
+} | null = null
 
 const access: AuthenticatedUser = {
     displayName: 'Test User',
@@ -160,6 +174,12 @@ const database: AuthenticationTestDatabase = {
 
 mock.module('@tanstack/react-start/server-only', () => ({}))
 mock.module('@/server/Auth/Core/database.server.ts', () => ({ getAuthDatabase: () => database }))
+mock.module('@/server/Auth/Oidc/oidc-providers.service.ts', () => ({
+    lockOidcProviderInTransaction: async (_transaction: unknown, providerId: string) => {
+        events.push('provider-lock')
+        return providerId === oidcProof.providerId ? oidcProvider : null
+    },
+}))
 mock.module('@/server/Auth/Access/cookies.server.ts', () => ({
     getSessionCookie: () => sessionCookie,
 }))
@@ -231,11 +251,14 @@ const { consumePasswordResetService } =
 const { changeCurrentPasswordService } = await import('@/server/Auth/Account/account.service.ts')
 const { createSessionInTransaction } = await import('@/server/Auth/Access/sessions.service.ts')
 const { getAuthDatabase } = await import('@/server/Auth/Core/database.server.ts')
+const { requireOidcAuthenticationInTransaction } =
+    await import('@/server/Auth/Oidc/oidc-authentication.server.ts')
 const {
     completeLoginMfaWithTotpService,
     completeLoginMfaWithRecoveryCodeService,
     disableTotpService,
     regenerateRecoveryCodesService,
+    createOidcLoginMfaChallengeService,
 } = await import('@/server/Auth/TwoFactor/two-factor.service.ts')
 
 function enabledFactor(id = 'factor-1'): AuthenticationTestFactor {
@@ -305,6 +328,12 @@ beforeEach(() => {
     events.length = 0
     transactionPause = null
     decryptionPause = null
+    oidcProvider = {
+        enabled: true,
+        revision: 1,
+        issuer: oidcProof.issuer,
+        bindings: [{ subject: oidcProof.subject, userId }],
+    }
 })
 
 describe('password authentication state', () => {
@@ -334,7 +363,10 @@ describe('password authentication state', () => {
                 const challengeId = await issueChallenge()
                 expect(challenges.get(challengeId)).toMatchObject({
                     factorId: factor.id,
-                    passwordFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+                    firstFactor: {
+                        kind: 'password',
+                        passwordFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+                    },
                 })
                 expect(JSON.stringify(challenges.get(challengeId))).not.toContain(currentHash)
                 await rotatePassword(method)
@@ -529,4 +561,125 @@ describe('password authentication state', () => {
         expect(session.id).toBeDefined()
         expect(session.reauthenticatedAt).toBeInstanceOf(Date)
     })
+})
+
+describe('OIDC authentication state and local assurance', () => {
+    test('defaults OIDC session freshness to local confirmation required', async () => {
+        const session = await getAuthDatabase().transaction((transaction) =>
+            createSessionInTransaction(transaction, userId, 'oidc'),
+        )
+        expect(session.reauthenticatedAt.getTime()).toBe(0)
+    })
+
+    test('creates an OIDC session without granting recent local authentication', async () => {
+        storedSessions = []
+        const session = await getAuthDatabase().transaction((transaction) =>
+            createSessionInTransaction(transaction, userId, 'oidc', new Date(0)),
+        )
+        expect(session.reauthenticatedAt.getTime()).toBe(0)
+        expect(storedSessions.at(-1)?.reauthenticatedAt).toEqual(new Date(0))
+        await expect(
+            disableTotpService({ ...currentSession(), id: session.id }),
+        ).rejects.toMatchObject({
+            code: 'reauthentication_required',
+        })
+    })
+
+    for (const secondFactor of ['totp', 'recovery'] as const) {
+        test(`completes OIDC with local ${secondFactor} and fresh assurance once`, async () => {
+            factor = enabledFactor()
+            const issued = await createOidcLoginMfaChallengeService({
+                ...oidcProof,
+                factorId: factor.id,
+            })
+            const complete = () =>
+                secondFactor === 'totp'
+                    ? completeLoginMfaWithTotpService({ challengeId: issued.id, token: '123456' })
+                    : completeLoginMfaWithRecoveryCodeService({
+                          challengeId: issued.id,
+                          recoveryCode: 'valid-recovery',
+                      })
+            expect(await complete()).toMatchObject({ success: true })
+            expect(events.indexOf('provider-lock')).toBeLessThan(events.indexOf('user-lock:update'))
+            expect(events.indexOf('user-lock:update')).toBeLessThan(
+                events.indexOf('session-created'),
+            )
+            expect(Number(storedSessions.at(-1)?.reauthenticatedAt)).toBeGreaterThan(
+                Date.now() - 5_000,
+            )
+            expect(await complete()).toEqual({ success: false, code: 'challenge_expired' })
+        })
+    }
+
+    for (const change of [
+        'disabled',
+        'revision',
+        'issuer',
+        'binding',
+        'removed',
+        'user-disabled',
+        'permission-removed',
+    ] as const) {
+        test(`rejects pending OIDC MFA after ${change}`, async () => {
+            factor = enabledFactor()
+            const issued = await createOidcLoginMfaChallengeService({
+                ...oidcProof,
+                factorId: factor.id,
+            })
+            if (!oidcProvider) throw new Error('Missing test provider.')
+            if (change === 'disabled') oidcProvider.enabled = false
+            if (change === 'revision') oidcProvider.revision += 1
+            if (change === 'issuer') oidcProvider.issuer = 'https://another.example.test'
+            if (change === 'binding')
+                oidcProvider.bindings[0] = { subject: oidcProof.subject, userId: 'another-user' }
+            if (change === 'removed') oidcProvider = null
+            if (change === 'user-disabled') user.status = 'disabled'
+            if (change === 'permission-removed') hasAppAccess = false
+            expect(
+                await completeLoginMfaWithRecoveryCodeService({
+                    challengeId: issued.id,
+                    recoveryCode: 'valid-recovery',
+                }),
+            ).toEqual({
+                success: false,
+                code: 'authentication_failed',
+            })
+            expect(events).not.toContain('session-created')
+            expect(events).not.toContain('recovery-used')
+        })
+    }
+
+    test('rechecks provider state after local TOTP verification has started', async () => {
+        factor = enabledFactor()
+        const issued = await createOidcLoginMfaChallengeService({
+            ...oidcProof,
+            factorId: factor.id,
+        })
+        const entered = Promise.withResolvers<void>()
+        const resumed = Promise.withResolvers<void>()
+        decryptionPause = { entered: entered.resolve, resume: resumed.promise }
+        const pending = completeLoginMfaWithTotpService({ challengeId: issued.id, token: '123456' })
+        await entered.promise
+        if (!oidcProvider) throw new Error('Missing test provider.')
+        oidcProvider.enabled = false
+        resumed.resolve()
+        expect(await pending).toEqual({ success: false, code: 'authentication_failed' })
+        expect(factor.lastUsedCounter).toBe(0)
+        expect(events).not.toContain('session-created')
+    })
+
+    for (const proof of [
+        { ...oidcProof, providerId: 'another-provider' },
+        { ...oidcProof, issuer: oidcProof.issuer + '/' },
+        { ...oidcProof, subject: 'Opaque-subject' },
+    ]) {
+        test(`requires exact provider identity ${JSON.stringify(proof)}`, async () => {
+            await expect(
+                getAuthDatabase().transaction((transaction) =>
+                    requireOidcAuthenticationInTransaction(transaction, proof),
+                ),
+            ).rejects.toMatchObject({ code: 'user_not_active' })
+            expect(events).not.toContain('user-lock:update')
+        })
+    }
 })

@@ -29,6 +29,8 @@ import {
 } from '@/server/Auth/Core/encryption.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { LoginMfaChallenge } from '@/server/Valkey/Types/auth-challenges.types.ts'
+import type { OidcIdentityProof } from '@/server/Auth/Oidc/Types/oidc.types.ts'
+import { requireOidcAuthenticationInTransaction } from '@/server/Auth/Oidc/oidc-authentication.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
@@ -423,7 +425,34 @@ export async function createLoginMfaChallengeService(input: {
             attempts: 0,
             createdAt: new Date().toISOString(),
             kind: 'login-mfa',
-            ...input,
+            factorId: input.factorId,
+            userId: input.userId,
+            firstFactor: { kind: 'password', passwordFingerprint: input.passwordFingerprint },
+        },
+        LOGIN_MFA_CHALLENGE_DURATION_MS,
+    )
+}
+
+/** Keeps verified OIDC trust bound to the account until its required local factor is consumed. */
+export async function createOidcLoginMfaChallengeService(
+    input: OidcIdentityProof & {
+        readonly factorId: string
+    },
+) {
+    return createAuthChallenge(
+        {
+            attempts: 0,
+            createdAt: new Date().toISOString(),
+            kind: 'login-mfa',
+            factorId: input.factorId,
+            userId: input.userId,
+            firstFactor: {
+                kind: 'oidc',
+                providerId: input.providerId,
+                providerRevision: input.providerRevision,
+                issuer: input.issuer,
+                subject: input.subject,
+            },
         },
         LOGIN_MFA_CHALLENGE_DURATION_MS,
     )
@@ -435,11 +464,18 @@ async function completeLoginMfaTransaction(
 ): Promise<MfaLoginCompletionResult> {
     try {
         return await getAuthDatabase().transaction(async (transaction) => {
-            await requirePasswordAuthenticationInTransaction(
-                transaction,
-                consumed.userId,
-                consumed.passwordFingerprint,
-            )
+            if (consumed.firstFactor.kind === 'password') {
+                await requirePasswordAuthenticationInTransaction(
+                    transaction,
+                    consumed.userId,
+                    consumed.firstFactor.passwordFingerprint,
+                )
+            } else {
+                await requireOidcAuthenticationInTransaction(transaction, {
+                    ...consumed.firstFactor,
+                    userId: consumed.userId,
+                })
+            }
             const factor = await getLoginMfaFactorInTransaction(transaction, consumed.userId)
 
             if (factor?.id !== consumed.factorId) {

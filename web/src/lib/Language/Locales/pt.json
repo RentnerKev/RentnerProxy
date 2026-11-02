@@ -248,6 +248,10 @@
         "user_not_active": "Esta conta não está ativa."
     },
     "auth": {
+        "oidc": {
+            "signInWith": "Iniciar sessão com {{provider}}",
+            "failed": "Não foi possível iniciar sessão. Tenta novamente ou usa a tua conta local."
+        },
         "logoutFailed": "Não foi possível terminar sessão. Verifique a ligação e tente novamente.",
         "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
     },

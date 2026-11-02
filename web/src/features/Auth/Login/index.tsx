@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
 import LoginForm from './Components/LoginForm.tsx'
 import useLoginLogic from './Hooks/useLoginLogic.ts'
+import OidcLoginProviders from './Components/OidcLoginProviders.tsx'
 export default function LoginPage() {
     const { state, handler, form } = useLoginLogic()
     return (
@@ -21,6 +22,7 @@ export default function LoginPage() {
                 form={form}
                 onPasskeyLogin={() => void handler.handlePasskeyLogin()}
             />
+            <OidcLoginProviders state={state} onSubmit={handler.handleOidcSubmit} />
         </AuthShell>
     )
 }

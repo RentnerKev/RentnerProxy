@@ -10,6 +10,11 @@ export interface LoginFormProps {
     readonly onPasskeyLogin: () => void
 }
 
+export interface OidcLoginProvidersProps {
+    readonly state: LoginLogicResult<unknown>['state']
+    readonly onSubmit: LoginLogicResult<unknown>['handler']['handleOidcSubmit']
+}
+
 export interface TwoFactorLoginFormProps {
     readonly handler: TwoFactorLoginLogicResult<unknown>['handler']
     readonly state: TwoFactorLoginLogicResult<unknown>['state']

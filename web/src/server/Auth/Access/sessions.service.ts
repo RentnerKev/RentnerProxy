@@ -77,11 +77,19 @@ export async function pruneExpiredSessionsInTransaction(
     `)
 }
 
+/** Issues a local session; OIDC alone does not grant recent local authentication for sensitive actions. */
 export async function createSessionInTransaction(
     transaction: AuthTransaction,
     userId: string,
     authenticationMethod:
-        'password' | 'totp' | 'recovery-code' | 'passkey' | 'invite' | 'setup' = 'password',
+        | 'password'
+        | 'totp'
+        | 'recovery-code'
+        | 'passkey'
+        | 'invite'
+        | 'setup'
+        | 'oidc' = 'password',
+    reauthenticatedAt = authenticationMethod === 'oidc' ? new Date(0) : new Date(),
 ) {
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)
@@ -101,7 +109,7 @@ export async function createSessionInTransaction(
 
     const sessionRows = await transaction
         .insert(sessions)
-        .values({ expiresAt, reauthenticatedAt: now, tokenHash, userId })
+        .values({ expiresAt, reauthenticatedAt, tokenHash, userId })
         .returning({ id: sessions.id })
     const session = sessionRows.at(0)
 
@@ -125,12 +133,12 @@ export async function createSessionInTransaction(
         result: 'success',
         metadata: { authenticationMethod },
     })
-    return { id: session.id, token, expiresAt, reauthenticatedAt: now, user: access }
+    return { id: session.id, token, expiresAt, reauthenticatedAt, user: access }
 }
 
 export async function createSessionService(
     userId: string,
-    authenticationMethod: 'password' | 'invite' | 'setup' = 'password',
+    authenticationMethod: 'password' | 'invite' | 'setup' | 'oidc' = 'password',
 ) {
     return getAuthDatabase().transaction((transaction) =>
         createSessionInTransaction(transaction, userId, authenticationMethod),

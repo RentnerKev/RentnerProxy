@@ -246,6 +246,10 @@
         "user_not_active": "Dieses Konto ist nicht aktiv."
     },
     "auth": {
+        "oidc": {
+            "signInWith": "Mit {{provider}} anmelden",
+            "failed": "Anmeldung fehlgeschlagen. Versuche es erneut oder nutze dein lokales Konto."
+        },
         "logoutFailed": "Abmelden fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
         "logoutRevocationFailed": "Du bist in diesem Browser abgemeldet, aber die Sitzung auf dem Server konnte nicht widerrufen werden."
     },

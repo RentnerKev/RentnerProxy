@@ -15,7 +15,13 @@ mock.module('@/features/Auth/Login/middleware.ts', () => ({
     beginPasskeyLoginHandler: async () => ({ success: false, message: 'Unavailable.' }),
     finishPasskeyLoginHandler: async () => ({ success: false, message: 'Unavailable.' }),
 }))
+mock.module('@/features/Auth/Oidc/middleware.ts', () => ({
+    getPublicOidcProvidersHandler: async () => {
+        throw new Error('Provider list unavailable')
+    },
+}))
 mock.module('@tanstack/react-router', () => ({
+    useSearch: () => ({}),
     useNavigate: () => async () => {},
     useRouter: () => ({ invalidate: async () => {} }),
     useRouterState: () => undefined,

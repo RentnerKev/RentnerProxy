@@ -250,6 +250,10 @@
         "user_not_active": "To konto nie jest aktywne."
     },
     "auth": {
+        "oidc": {
+            "signInWith": "Zaloguj się przez {{provider}}",
+            "failed": "Logowanie nie powiodło się. Spróbuj ponownie lub użyj konta lokalnego."
+        },
         "logoutFailed": "Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.",
         "logoutRevocationFailed": "Wylogowano w tej przeglądarce, ale nie udało się unieważnić sesji na serwerze."
     },

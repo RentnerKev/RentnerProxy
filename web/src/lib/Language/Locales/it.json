@@ -248,6 +248,10 @@
         "user_not_active": "Questo account non è attivo."
     },
     "auth": {
+        "oidc": {
+            "signInWith": "Accedi con {{provider}}",
+            "failed": "Accesso non riuscito. Riprova o usa il tuo account locale."
+        },
         "logoutFailed": "Impossibile disconnettersi. Controlla la connessione e riprova.",
         "logoutRevocationFailed": "Hai effettuato la disconnessione in questo browser, ma non è stato possibile revocare la sessione sul server."
     },
