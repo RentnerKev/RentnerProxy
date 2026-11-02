@@ -1,3 +1,4 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -389,18 +390,47 @@ describe('NPM import with PostgreSQL', () => {
     })
 })
 
-integrationTest.each(['first', 'round_robin'] as const)(
-    'portable v2 applies exported %s pools through the real import transaction without reordering members',
-    async (policy) => {
+integrationTest.each(
+    (
+        [
+            ['first', 2],
+            ['round_robin', 2],
+            ['first', 3],
+            ['round_robin', 3],
+        ] as const
+    ).map(([policy, version]) => [`${policy} v${version}`, policy, version] as const),
+)(
+    'portable %s pool survives export and real import with exact members and failover options',
+    async (_case, policy, version) => {
         const owner = await createUser(SYSTEM_ROLES.OWNER)
         const domain = `portable-pool-${randomUUID().slice(0, 12)}${SUFFIX}`
-        const upstreamPool = {
+        const upstreamPool: ProxyUpstreamPool = {
             policy,
             members: [
                 { host: 'z-primary.internal', port: 8080 },
                 { host: '2001:db8::9', port: 9443 },
                 { host: 'a-secondary.internal', port: 8081 },
             ],
+            ...(version === 3
+                ? {
+                      failover: {
+                          active: {
+                              path: '/ready?scope=portable',
+                              intervalSeconds: 15,
+                              timeoutSeconds: 3,
+                              fails: 3,
+                              passes: 4,
+                              expectedStatus: 204,
+                          },
+                          passive: { failDurationSeconds: 45, maxFails: 2 },
+                          retries: {
+                              maxRetries: 3,
+                              tryDurationSeconds: 7,
+                              tryIntervalMilliseconds: 350,
+                          },
+                      },
+                  }
+                : {}),
         }
         const original = await runAsUser(owner, () =>
             createProxyHostService({
@@ -417,13 +447,13 @@ integrationTest.each(['first', 'round_robin'] as const)(
         testDirectories.push(directory)
         const path = join(directory, 'portable.json')
         await writeFile(path, exported, 'utf8')
-        expect((await readPortableSource(path)).version).toBe(2)
+        expect((await readPortableSource(path)).version).toBe(version)
         const fingerprint = createHash('sha256').update(exported).digest('hex')
         await runAsUser(owner, () => deleteProxyHostService(original.id))
         const preview = await runAsUser(owner, () =>
             previewImportService(path, fingerprint, 'rentnerproxy', PERMISSIONS.MIGRATION),
         )
-        expect(preview.sourceSchema).toBe('rentnerproxy-portable-v2')
+        expect(preview.sourceSchema).toBe(`rentnerproxy-portable-v${version}`)
         expect(preview.counts.ready).toBe(1)
         const applied = await runAsUser(owner, () =>
             applyImportService(
@@ -451,6 +481,7 @@ integrationTest.each(['first', 'round_robin'] as const)(
         })
         expect(imported?.upstreamPool?.policy).toBe(policy)
         expect(imported?.upstreamPool?.members).toEqual(upstreamPool.members)
+        expect(imported?.upstreamPool?.failover).toEqual(upstreamPool.failover)
         const stored = await getAuthDatabase()
             .select({ pool: proxyHosts.upstreamPool })
             .from(proxyHosts)
