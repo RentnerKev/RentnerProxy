@@ -125,7 +125,7 @@ describe('same-run OCI runtime image artifacts', () => {
         ['identity.json', 'appliance'],
         ['image.tar', 'proxy-runtime'],
         ['identity.json', 'proxy-runtime'],
-    ]) {
+    ] as const) {
         test(`rejects tampered ${kind} ${filename} before any image commands`, async () => {
             await fixture(async ({ directory, command, calls }) => {
                 const packed = await runtimeImageArtifact('pack', command)
