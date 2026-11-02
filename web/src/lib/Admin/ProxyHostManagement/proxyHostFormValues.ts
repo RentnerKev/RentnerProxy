@@ -3,6 +3,43 @@ import type {
     ProxyHostFormModalProps,
 } from '@/features/Admin/ProxyHostManagement/Components/ProxyHostFormModal/Types/proxy-host-form.types.ts'
 import type { ProxyHostSummary } from './Types/proxy-hosts.types.ts'
+import type { ProxyUpstreamFailover } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
+
+export function getUpstreamFailoverFormValues(
+    failover: ProxyUpstreamFailover,
+): NonNullable<NonNullable<ProxyHostEditorFormValues['upstreamPool']>['failover']> {
+    return {
+        ...(failover.active
+            ? {
+                  active: {
+                      path: failover.active.path,
+                      intervalSeconds: String(failover.active.intervalSeconds),
+                      timeoutSeconds: String(failover.active.timeoutSeconds),
+                      fails: String(failover.active.fails),
+                      passes: String(failover.active.passes),
+                      expectedStatus: String(failover.active.expectedStatus),
+                  },
+              }
+            : {}),
+        ...(failover.passive
+            ? {
+                  passive: {
+                      failDurationSeconds: String(failover.passive.failDurationSeconds),
+                      maxFails: String(failover.passive.maxFails),
+                  },
+              }
+            : {}),
+        ...(failover.retries
+            ? {
+                  retries: {
+                      maxRetries: String(failover.retries.maxRetries),
+                      tryDurationSeconds: String(failover.retries.tryDurationSeconds),
+                      tryIntervalMilliseconds: String(failover.retries.tryIntervalMilliseconds),
+                  },
+              }
+            : {}),
+    }
+}
 
 export function getProxyHostFormValues(
     mode: ProxyHostFormModalProps['mode'],
@@ -21,6 +58,9 @@ export function getProxyHostFormValues(
         upstreamPool: source?.upstreamPool
             ? {
                   policy: source.upstreamPool.policy,
+                  ...(source.upstreamPool.failover
+                      ? { failover: getUpstreamFailoverFormValues(source.upstreamPool.failover) }
+                      : {}),
                   members: source.upstreamPool.members.map((member) => ({
                       host: member.host,
                       port: String(member.port),

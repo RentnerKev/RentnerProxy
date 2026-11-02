@@ -1073,7 +1073,7 @@ fn host_sources_include_effective_http_and_https_routes() {
         ..Default::default()
     };
     let json: Value = serde_json::from_str(
-        &render_host_config_for_runtime(&host, &defaults, 9443, None, &[]).unwrap(),
+        &render_host_config_for_runtime(&host, &defaults, 9443, None, &[], "none").unwrap(),
     )
     .unwrap();
     assert_eq!(json["http"]["handle"].as_array().unwrap().len(), 1);
@@ -1109,6 +1109,7 @@ fn host_source_preview_preserves_trusted_termination_routes() {
             9443,
             None,
             &trusted_proxy_cidrs,
+            "none",
         )
         .unwrap(),
     )
@@ -1227,7 +1228,7 @@ fn response_compression_inherits_overrides_and_resets_without_changing_caddy_def
             ..Default::default()
         };
         let source: Value = serde_json::from_str(
-            &render_host_config_for_runtime(&host, &defaults, 443, None, &[]).unwrap(),
+            &render_host_config_for_runtime(&host, &defaults, 443, None, &[], "none").unwrap(),
         )
         .unwrap();
         let handlers = source["http"]["handle"].as_array().unwrap();

@@ -12,6 +12,7 @@ import { SQL } from 'bun'
 import { Database } from 'bun:sqlite'
 
 import { startTestUpstream } from '../../../scripts/smoke/proxy/upstream.ts'
+import { runUpstreamFailoverSmoke } from '../../../scripts/smoke/proxy/upstream-failover.ts'
 import { sharedSmokeImage, verifySharedSmokeImage } from '../../../scripts/smoke/images.ts'
 import { smokeCompose, smokeDockerArguments } from '../../../scripts/smoke/resources.ts'
 
@@ -492,6 +493,7 @@ async function runSmoke(): Promise<void> {
             controller,
             crowdSecController,
             authorizationRegistry,
+            upstreamHealthServices,
         ] = await Promise.all([
             import('drizzle-orm'),
             import('@tanstack/react-start/server-entry'),
@@ -511,6 +513,7 @@ async function runSmoke(): Promise<void> {
             import('../../../web/src/server/Controller/proxy.server.ts'),
             import('../../../web/src/server/Controller/crowdsec.server.ts'),
             import('../../../web/src/server/Auth/Access/registry.service.ts'),
+            import('../../../web/src/server/Admin/ProxyHostManagement/upstream-health.service.ts'),
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()
@@ -1800,6 +1803,31 @@ async function runSmoke(): Promise<void> {
         await authorized(() => services.deleteProxyHostService(roundRobinHost.id))
         await authorized(() => services.deleteProxyHostService(firstPoolHost.id))
         await authorized(() => policyServices.deleteAccessPolicyService(poolPolicy.accessPolicyId))
+
+        await runUpstreamFailoverSmoke({
+            forwardHost: hostInput.forwardHost,
+            createHost: (input) => authorized(() => services.createProxyHostService(input)),
+            deleteHost: (id) => authorized(() => services.deleteProxyHostService(id)),
+            readHosts: () => authorized(() => services.getProxyHostsService()),
+            readSnapshot: () => runtime.getProxyRuntimeSnapshotService(),
+            readRuntimeStatus: () => controller.getProxyRuntimeStatus(),
+            readHealth: (id) =>
+                authorized(() => upstreamHealthServices.getProxyHostUpstreamHealthService(id)),
+            request: (host, init) =>
+                fetch(proxyUrl + '/failover-smoke', {
+                    ...init,
+                    headers: { host, connection: 'close' },
+                    signal: AbortSignal.timeout(5_000),
+                }),
+            stopRuntime: async () => {
+                await command([...compose, 'stop', 'proxy-runtime'])
+            },
+            startRuntime: async () => {
+                await command([...compose, 'start', 'proxy-runtime'])
+                await refreshRuntimeAddresses()
+            },
+            passed,
+        })
 
         assert.equal(
             (await authorized(() => services.disableProxyHostService(created.id))).runtimeStatus,

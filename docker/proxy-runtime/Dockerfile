@@ -39,6 +39,8 @@ RUN apt-get update \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
+    && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_upstream \
+    && /usr/bin/caddy list-modules | grep -Fx admin.api.rentnerproxy \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \

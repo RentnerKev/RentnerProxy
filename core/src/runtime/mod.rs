@@ -25,6 +25,7 @@ mod state;
 mod task;
 mod tls;
 mod trusted_cas;
+pub(crate) mod upstream_health;
 
 use crate::models::ValidatedProxyConfig;
 use certificates::StagedCertificate;
@@ -178,6 +179,7 @@ pub(crate) struct ProxyRuntime {
     binary_version_admission: Semaphore,
     dns_assistant_admission: Semaphore,
     diagnostics_admission: Semaphore,
+    upstream_health_admission: Semaphore,
     diagnostics_active: domain_diagnostics::ActiveChecks,
 }
 
@@ -256,6 +258,7 @@ impl ProxyRuntime {
             binary_version_admission: Semaphore::new(1),
             dns_assistant_admission: Semaphore::new(2),
             diagnostics_admission: Semaphore::new(2),
+            upstream_health_admission: Semaphore::new(8),
             diagnostics_active: domain_diagnostics::ActiveChecks::default(),
         })
     }

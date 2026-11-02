@@ -1767,7 +1767,8 @@
                 "duplicateUpstream": "Cada destino debe tener una combinación única de host y puerto.",
                 "upstreamPoolPrimary": "El destino primario debe coincidir con el primer miembro del grupo.",
                 "upstreamMembersRequired": "Añade al menos un destino de origen.",
-                "upstreamMembersLimit": "Añade como máximo 16 destinos de origen."
+                "upstreamMembersLimit": "Añade como máximo 16 destinos de origen.",
+                "upstreamFailover": "Revisa la configuración y los límites de las sondas y la conmutación."
             },
             "config": {
                 "open": "Configuración de Caddy",
@@ -1967,6 +1968,42 @@
                 "moveUpLabel": "Subir destino {{number}}",
                 "moveDownLabel": "Bajar destino {{number}}",
                 "summary": "{{count}} destinos · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Comprobaciones y conmutación",
+                "active": "Sondas activas",
+                "passive": "Registro pasivo de fallos",
+                "retries": "Reintentos de conexión seguros",
+                "activeHint": "Comprueba cada destino con una ruta GET. Intervalo: 5–300 s; espera: 1–30 s, nunca mayor que el intervalo. Los fallos y éxitos consecutivos cambian la disponibilidad de enrutamiento.",
+                "passiveHint": "Recuerda conexiones fallidas durante 1–300 s y excluye destinos al alcanzar el umbral. Al desactivarlo también se eliminan los reintentos.",
+                "retriesHint": "Requiere registro pasivo. Los intentos adicionales de conmutación solo repiten solicitudes que aún no se han procesado. La ventana se comprueba entre intentos; no es un límite total estricto. En modo ordenado, el número debe alcanzar el umbral pasivo. Activar los reintentos desactiva la reutilización de conexiones al servidor para evitar escrituras duplicadas implícitas.",
+                "path": "Ruta de sonda",
+                "intervalSeconds": "Intervalo (segundos, 5–300)",
+                "timeoutSeconds": "Espera de sonda (segundos, 1–30)",
+                "fails": "Fallos para excluir (1–10)",
+                "passes": "Éxitos para restablecer (1–10)",
+                "expectedStatus": "Estado HTTP esperado (200–399)",
+                "failDurationSeconds": "Memoria de fallos (segundos, 1–300)",
+                "maxFails": "Umbral de fallos (1–10)",
+                "maxRetries": "Reintentos máximos (1–15)",
+                "tryDurationSeconds": "Ventana de reintento (segundos, 1–30)",
+                "tryIntervalMilliseconds": "Pausa entre reintentos (ms, 100–5000)"
+            },
+            "upstreamHealth": {
+                "title": "Disponibilidad de enrutamiento",
+                "available": "Disponible para enrutamiento",
+                "all_unavailable": "Todos los destinos no disponibles",
+                "unknown": "Desconocida",
+                "hint": "Refleja las decisiones actuales del proxy, no un historial de monitorización. Los destinos empiezan disponibles; las sondas activas actualizan el estado.",
+                "disabledHint": "Host desactivado; disponibilidad desconocida.",
+                "loadingHint": "Cargando disponibilidad.",
+                "errorHint": "No se pudo actualizar. Los destinos antes disponibles se muestran como desconocidos.",
+                "unknownHint": "No hay una observación reciente y coincidente.",
+                "member": {
+                    "available": "Disponible",
+                    "unavailable": "No disponible",
+                    "unknown": "Desconocida"
+                }
             }
         },
         "redirectHosts": {

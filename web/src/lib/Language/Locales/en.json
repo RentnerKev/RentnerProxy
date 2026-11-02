@@ -1765,7 +1765,8 @@
                 "duplicateUpstream": "Each target must have a unique host and port.",
                 "upstreamPoolPrimary": "The primary target must match the first pool member.",
                 "upstreamMembersRequired": "Add at least one upstream target.",
-                "upstreamMembersLimit": "Add no more than 16 upstream targets."
+                "upstreamMembersLimit": "Add no more than 16 upstream targets.",
+                "upstreamFailover": "Check health-check and failover settings and their limits."
             },
             "config": {
                 "open": "Caddy config",
@@ -1965,6 +1966,42 @@
                 "moveUpLabel": "Move target {{number}} up",
                 "moveDownLabel": "Move target {{number}} down",
                 "summary": "{{count}} targets · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Health checks & failover",
+                "active": "Active probes",
+                "passive": "Passive failure tracking",
+                "retries": "Safe connection retries",
+                "activeHint": "Probe each target using a GET path. Interval: 5–300 s; timeout: 1–30 s, no longer than the interval. Consecutive failures and successes change routing availability.",
+                "passiveHint": "Remember failed connections for 1–300 s and exclude targets after the failure threshold. Turning this off also removes retries.",
+                "retriesHint": "Requires passive tracking. Additional failover attempts only repeat requests that have not been processed. The time window is checked between attempts, not a hard request deadline. In ordered mode, retry count must reach the passive failure threshold. Enabling retries disables upstream connection reuse to avoid implicit duplicate writes.",
+                "path": "Probe path",
+                "intervalSeconds": "Probe interval (seconds, 5–300)",
+                "timeoutSeconds": "Probe timeout (seconds, 1–30)",
+                "fails": "Failures to exclude (1–10)",
+                "passes": "Successes to restore (1–10)",
+                "expectedStatus": "Expected HTTP status (200–399)",
+                "failDurationSeconds": "Failure memory (seconds, 1–300)",
+                "maxFails": "Failure threshold (1–10)",
+                "maxRetries": "Maximum retries (1–15)",
+                "tryDurationSeconds": "Retry window (seconds, 1–30)",
+                "tryIntervalMilliseconds": "Delay between retries (ms, 100–5000)"
+            },
+            "upstreamHealth": {
+                "title": "Routing availability",
+                "available": "Available for routing",
+                "all_unavailable": "All targets unavailable",
+                "unknown": "Unknown",
+                "hint": "This reflects the proxy’s current routing decisions, not monitoring history. Targets initially count as available; active probe results evolve over time.",
+                "disabledHint": "Host disabled; routing availability is unknown.",
+                "loadingHint": "Loading routing availability.",
+                "errorHint": "Routing availability could not be refreshed. Previously available targets are now shown as unknown.",
+                "unknownHint": "No fresh, matching routing observation is available.",
+                "member": {
+                    "available": "Available",
+                    "unavailable": "Unavailable",
+                    "unknown": "Unknown"
+                }
             }
         },
         "redirectHosts": {

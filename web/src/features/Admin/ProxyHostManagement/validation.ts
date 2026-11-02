@@ -8,6 +8,13 @@ import {
     proxyUpstreamPoolSchema,
     upstreamTlsRequiresServerName,
     validateUniqueUpstreamMembers,
+    proxyUpstreamActiveHealthSchema,
+    proxyUpstreamPassiveHealthSchema,
+    proxyUpstreamRetriesSchema,
+    validateActiveHealth,
+    validateRetries,
+    validateFailover,
+    validatePoolRetries,
 } from '@/lib/ProxyRuntime/upstreamPool.ts'
 import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 export { proxyUpstreamPoolSchema } from '@/lib/ProxyRuntime/upstreamPool.ts'
@@ -167,6 +174,45 @@ const formPortSchema = z
     .regex(/^\d{1,5}$/u, 'admin.proxyHosts.validation.port')
     .transform(Number)
     .pipe(proxyForwardPortSchema)
+
+function formInteger(schema: z.ZodNumber) {
+    return z
+        .string()
+        .trim()
+        .regex(/^\d{1,6}$/u, 'admin.proxyHosts.validation.upstreamFailover')
+        .transform(Number)
+        .pipe(schema)
+}
+const formActiveHealthSchema = z
+    .strictObject({
+        path: proxyUpstreamActiveHealthSchema.shape.path,
+        intervalSeconds: formInteger(proxyUpstreamActiveHealthSchema.shape.intervalSeconds),
+        timeoutSeconds: formInteger(proxyUpstreamActiveHealthSchema.shape.timeoutSeconds),
+        fails: formInteger(proxyUpstreamActiveHealthSchema.shape.fails),
+        passes: formInteger(proxyUpstreamActiveHealthSchema.shape.passes),
+        expectedStatus: formInteger(proxyUpstreamActiveHealthSchema.shape.expectedStatus),
+    })
+    .superRefine(validateActiveHealth)
+const formPassiveHealthSchema = z.strictObject({
+    failDurationSeconds: formInteger(proxyUpstreamPassiveHealthSchema.shape.failDurationSeconds),
+    maxFails: formInteger(proxyUpstreamPassiveHealthSchema.shape.maxFails),
+})
+const formRetriesSchema = z
+    .strictObject({
+        maxRetries: formInteger(proxyUpstreamRetriesSchema.shape.maxRetries),
+        tryDurationSeconds: formInteger(proxyUpstreamRetriesSchema.shape.tryDurationSeconds),
+        tryIntervalMilliseconds: formInteger(
+            proxyUpstreamRetriesSchema.shape.tryIntervalMilliseconds,
+        ),
+    })
+    .superRefine(validateRetries)
+const formFailoverSchema = z
+    .strictObject({
+        active: formActiveHealthSchema.optional(),
+        passive: formPassiveHealthSchema.optional(),
+        retries: formRetriesSchema.optional(),
+    })
+    .superRefine(validateFailover)
 const formUpstreamPoolSchema = z
     .strictObject({
         policy: z.enum(PROXY_UPSTREAM_POLICIES),
@@ -174,8 +220,10 @@ const formUpstreamPoolSchema = z
             .array(proxyUpstreamMemberSchema.extend({ port: formPortSchema }))
             .min(1, 'admin.proxyHosts.validation.upstreamMembersRequired')
             .max(MAX_PROXY_UPSTREAM_MEMBERS, 'admin.proxyHosts.validation.upstreamMembersLimit'),
+        failover: formFailoverSchema.optional(),
     })
     .superRefine(validateUniqueUpstreamMembers)
+    .superRefine(validatePoolRetries)
 
 const createProxyHostFieldsSchema = proxyHostInputSchema.extend({
     verifyUpstreamTls: z.boolean().default(true),

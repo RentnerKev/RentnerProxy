@@ -14,6 +14,7 @@ import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.t
 import { formatProxyHostForward } from '@/lib/Admin/ProxyHostManagement/proxyHostTableCells.ts'
 import CaddyConfigCodeBlock from '../CaddyConfigCodeBlock/index.tsx'
 import useProxyConfigEditorLogic from './Hooks/useProxyConfigEditorLogic.ts'
+import UpstreamAvailability from './Components/UpstreamAvailability.tsx'
 import type { ProxyConfigEditorModalProps } from '../../Types/proxy-config-editor.types.ts'
 
 const FIELDS = [
@@ -314,6 +315,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                             host={props.proxyHost}
                             t={t}
                         />
+                        <UpstreamAvailability host={props.proxyHost} open={props.open} />
                         {!state.data.enabled ? (
                             <p className="m-0 rounded-xl border border-border bg-surface-subtle px-3 py-2 text-sm text-muted">
                                 {t('admin.proxyHosts.config.disabledHost')}

@@ -761,6 +761,11 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     for request in [
         request_with_method(
             "GET",
+            "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/upstreams",
+            Body::empty(),
+        ),
+        request_with_method(
+            "GET",
             "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config",
             Body::empty(),
         ),
@@ -913,6 +918,7 @@ async fn encoded_path_traversal_is_rejected_by_resource_routes() {
         "%00",
     ];
     let routes = [
+        ("GET", "/internal/v1/proxy/hosts/", "/upstreams"),
         ("GET", "/internal/v1/proxy/hosts/", "/config"),
         ("POST", "/internal/v1/proxy/hosts/", "/config/preview"),
         ("GET", "/internal/v1/certificates/", ""),

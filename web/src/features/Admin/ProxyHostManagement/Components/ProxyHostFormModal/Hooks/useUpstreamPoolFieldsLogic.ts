@@ -20,7 +20,7 @@ export default function useUpstreamPoolFieldsLogic({
     const updateMembers = (members: UpstreamPoolFormMember[]) => {
         const current = form.getFieldValue('upstreamPool')
         if (!current || !members[0]) return
-        form.setFieldValue('upstreamPool', { policy: current.policy, members })
+        form.setFieldValue('upstreamPool', { ...current, members })
         form.setFieldValue('forwardHost', members[0].host)
         form.setFieldValue('forwardPort', members[0].port)
         revalidate()
@@ -42,6 +42,7 @@ export default function useUpstreamPoolFieldsLogic({
                 if (value !== 'round_robin' && value !== 'first') return
                 const current = form.getFieldValue('upstreamPool')
                 form.setFieldValue('upstreamPool', {
+                    ...current,
                     policy: value,
                     members: current?.members ?? [
                         {

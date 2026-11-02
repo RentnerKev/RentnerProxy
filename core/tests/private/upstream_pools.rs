@@ -22,6 +22,7 @@ fn pooled_host() -> ProxyHost {
     );
     target.upstream_pool = Some(UpstreamPool {
         policy: UpstreamSelectionPolicy::RoundRobin,
+        failover: None,
         members: vec![
             UpstreamMember {
                 host: "backend.internal".into(),
@@ -52,8 +53,10 @@ fn pool_proxies(json: &Value) -> Vec<&Value> {
     let mut proxies = Vec::new();
     match json {
         Value::Object(object) => {
-            if object.get("handler") == Some(&json!("reverse_proxy"))
-                && object.contains_key("load_balancing")
+            if matches!(
+                object.get("handler").and_then(Value::as_str),
+                Some("reverse_proxy" | "rentnerproxy_upstream")
+            ) && object.contains_key("load_balancing")
             {
                 proxies.push(json);
             }
@@ -245,4 +248,144 @@ fn verified_pool_uses_each_dns_identity_and_requires_explicit_name_for_any_ip() 
     );
     target.upstream_tls.as_mut().unwrap().server_name = Some("backend.internal".into());
     assert!(validate_proxy_config(request(vec![target])).is_ok());
+}
+
+fn with_failover() -> ProxyHost {
+    use crate::models::{
+        ActiveUpstreamHealth, PassiveUpstreamHealth, UpstreamFailover, UpstreamRetries,
+    };
+    let mut target = pooled_host();
+    target.upstream_pool.as_mut().unwrap().failover = Some(UpstreamFailover {
+        active: Some(ActiveUpstreamHealth {
+            path: "/health".into(),
+            interval_seconds: 10,
+            timeout_seconds: 2,
+            fails: 2,
+            passes: 2,
+            expected_status: 200,
+        }),
+        passive: Some(PassiveUpstreamHealth {
+            fail_duration_seconds: 30,
+            max_fails: 1,
+        }),
+        retries: Some(UpstreamRetries {
+            max_retries: 2,
+            try_duration_seconds: 5,
+            try_interval_milliseconds: 250,
+        }),
+    });
+    target
+}
+
+#[test]
+fn failover_revision_matches_web_and_runtime_uses_actual_health_without_replays() {
+    let target = with_failover();
+    let request = request(vec![target]);
+    assert_eq!(request.version, 9);
+    assert_eq!(
+        request.revision,
+        "sha256:f3228530e6b0bc0b0c2aa22c401dc2b5358e809fbb2eb03fbc47abf2111aa22b"
+    );
+    let configuration = validate_proxy_config(request).unwrap();
+    let value: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let proxies = pool_proxies(&value);
+    assert!(!proxies.is_empty());
+    for proxy in proxies {
+        assert_eq!(proxy["handler"], "rentnerproxy_upstream");
+        assert_eq!(proxy["host_id"], configuration.proxy_hosts[0].id);
+        assert_eq!(proxy["revision"], configuration.revision);
+        assert_eq!(
+            proxy["health_checks"]["active"],
+            json!({"uri":"/health","interval":"10s","timeout":"2s","fails":2,"passes":2,"expect_status":200,"max_size":4096})
+        );
+        assert_eq!(
+            proxy["health_checks"]["passive"],
+            json!({"fail_duration":"30s","max_fails":1,"unhealthy_status":[502,503,504]})
+        );
+        assert_eq!(proxy["load_balancing"]["retries"], 2);
+        assert_eq!(proxy["load_balancing"]["try_duration"], "5s");
+        assert_eq!(proxy["load_balancing"]["try_interval"], "250ms");
+        assert_eq!(
+            proxy["load_balancing"]["retry_match"],
+            json!([{"not":[{}]}])
+        );
+        assert_eq!(proxy["transport"]["keep_alive"], json!({"enabled":false}));
+        assert!(proxy.get("request_buffers").is_none());
+    }
+}
+
+#[test]
+fn failover_validation_rejects_unbounded_unsafe_or_inconsistent_controls() {
+    let valid = serde_json::to_value(with_failover()).unwrap();
+    for path in [
+        "https://elsewhere/health",
+        "//elsewhere/health",
+        "/path#fragment",
+        "/path with spaces",
+        "/%GG",
+        "/bad\\path",
+        "/{env.SECRET}",
+        "",
+    ] {
+        let mut value = valid.clone();
+        value["upstreamPool"]["failover"]["active"]["path"] = json!(path);
+        let target = serde_json::from_value(value).unwrap();
+        assert!(
+            validate_proxy_config(request(vec![target])).is_err(),
+            "{path:?}"
+        );
+    }
+    for (block, field, value) in [
+        ("active", "intervalSeconds", 4),
+        ("active", "intervalSeconds", 301),
+        ("active", "timeoutSeconds", 11),
+        ("active", "fails", 0),
+        ("active", "passes", 11),
+        ("active", "expectedStatus", 500),
+        ("passive", "maxFails", 0),
+        ("passive", "failDurationSeconds", 301),
+        ("retries", "maxRetries", 16),
+        ("retries", "tryDurationSeconds", 31),
+        ("retries", "tryIntervalMilliseconds", 99),
+    ] {
+        let mut invalid = valid.clone();
+        invalid["upstreamPool"]["failover"][block][field] = json!(value);
+        assert!(
+            validate_proxy_config(request(vec![serde_json::from_value(invalid).unwrap()])).is_err(),
+            "{block}.{field}"
+        );
+    }
+    let mut target = with_failover();
+    let pool = target.upstream_pool.as_mut().unwrap();
+    pool.policy = UpstreamSelectionPolicy::First;
+    pool.failover
+        .as_mut()
+        .unwrap()
+        .passive
+        .as_mut()
+        .unwrap()
+        .max_fails = 3;
+    assert!(validate_proxy_config(request(vec![target.clone()])).is_err());
+    target
+        .upstream_pool
+        .as_mut()
+        .unwrap()
+        .failover
+        .as_mut()
+        .unwrap()
+        .passive = None;
+    assert!(validate_proxy_config(request(vec![target.clone()])).is_err());
+    target.upstream_pool.as_mut().unwrap().failover = Some(crate::models::UpstreamFailover {
+        active: None,
+        passive: None,
+        retries: None,
+    });
+    assert!(validate_proxy_config(request(vec![target])).is_err());
+    let mut wrong_version = request(vec![with_failover()]);
+    wrong_version.version = 8;
+    assert_eq!(
+        validate_proxy_config(wrong_version),
+        Err(ProxyValidationError::InvalidConfiguration)
+    );
 }

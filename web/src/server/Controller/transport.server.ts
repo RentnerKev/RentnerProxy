@@ -46,6 +46,7 @@ export async function controllerRequest(
         | `/internal/v1/proxy/access-logs${string}`
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
+        | `/internal/v1/proxy/hosts/${string}/upstreams`
         | `/internal/v1/proxy/hosts/${string}/config`
         | `/internal/v1/proxy/hosts/${string}/config/preview`
         | '/internal/v1/certificates'

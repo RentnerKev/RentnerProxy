@@ -18,6 +18,7 @@ use crate::models::{
 
 use forward_auth::has_valid_forward_auth;
 pub(crate) use forward_auth::parse_forward_auth_endpoint;
+pub(crate) use revision::is_revision;
 #[cfg(test)]
 pub(crate) use revision::revision_for_configuration;
 #[cfg(test)]
@@ -26,7 +27,7 @@ pub(crate) use revision::revision_for_configuration_with_redirects;
 pub(crate) use revision::revision_for_configuration_with_trusted_cas;
 #[cfg(test)]
 pub(crate) use revision::revision_for_hosts;
-use revision::{canonical_hosts, canonical_redirect_hosts, canonical_trusted_cas, is_revision};
+use revision::{canonical_hosts, canonical_redirect_hosts, canonical_trusted_cas};
 pub(crate) use revision::{revision_for_full_configuration, revision_from_config};
 pub(crate) use trusted_ca::{
     MAX_TRUSTED_CA_PEM_BYTES, TrustedCaValidationRequest, validate_trusted_ca,

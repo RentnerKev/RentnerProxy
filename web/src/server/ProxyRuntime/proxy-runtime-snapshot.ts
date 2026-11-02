@@ -384,7 +384,11 @@ export function createProxyRuntimeSnapshot(
     })
     const normalizedDefaultSite = defaultSiteSettingsSchema.parse(defaultSite)
     const snapshot = {
-        version: proxyHosts.some((host) => host.upstreamPool !== undefined) ? 8 : 7,
+        version: proxyHosts.some((host) => host.upstreamPool?.failover !== undefined)
+            ? 9
+            : proxyHosts.some((host) => host.upstreamPool !== undefined)
+              ? 8
+              : 7,
         proxyHosts,
         redirectHosts,
         httpSettings: normalizedSettings,

@@ -36,7 +36,7 @@ const PORTABLE_SCHEMA = 'rentnerproxy-portable-v1'
 const recordSchema = z.record(z.string(), z.unknown())
 const documentSchema = z.strictObject({
     format: z.literal('rentnerproxy-portable-config'),
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     exportedAt: z.iso.datetime(),
     policies: z.array(recordSchema).max(MAX_OBJECTS),
     proxyHosts: z.array(recordSchema).max(MAX_OBJECTS),
@@ -96,7 +96,11 @@ export function buildPortableDocument(
     }
     return {
         format: 'rentnerproxy-portable-config' as const,
-        version: proxies.some((host) => host.upstreamPool != null) ? (2 as const) : (1 as const),
+        version: proxies.some((host) => host.upstreamPool?.failover !== undefined)
+            ? (3 as const)
+            : proxies.some((host) => host.upstreamPool != null)
+              ? (2 as const)
+              : (1 as const),
         exportedAt: new Date().toISOString(),
         policies: policies.map((policy) => ({
             id: policy.id,
@@ -187,7 +191,7 @@ export async function readPortableSource(path: string): Promise<z.infer<typeof d
         !parsed ||
         typeof parsed !== 'object' ||
         (parsed as Record<string, unknown>).format !== 'rentnerproxy-portable-config' ||
-        ![1, 2].includes(Number((parsed as Record<string, unknown>).version))
+        ![1, 2, 3].includes(Number((parsed as Record<string, unknown>).version))
     ) {
         throw new PortableSourceError('unsupported_schema')
     }
@@ -267,7 +271,13 @@ export function buildPortablePlan(
         const label = Array.isArray(raw.domains)
             ? raw.domains.join(', ').slice(0, 250)
             : `Proxy #${sourceId}`
-        if (!parsed.success || (source.version === 1 && raw.upstreamPool !== undefined))
+        if (
+            !parsed.success ||
+            (source.version === 1 && raw.upstreamPool !== undefined) ||
+            (source.version < 3 &&
+                parsed.success &&
+                parsed.data.upstreamPool?.failover !== undefined)
+        )
             return manual('proxy-host', sourceId, label, 'invalid_host_settings')
         const host = parsed.data
         const accessListId = host.accessPolicyId ? policyIds.get(host.accessPolicyId) : undefined
@@ -343,7 +353,11 @@ export function buildPortablePlan(
     })
     return finalizeImportPlan(
         fingerprint,
-        source.version === 2 ? 'rentnerproxy-portable-v2' : PORTABLE_SCHEMA,
+        source.version === 3
+            ? 'rentnerproxy-portable-v3'
+            : source.version === 2
+              ? 'rentnerproxy-portable-v2'
+              : PORTABLE_SCHEMA,
         [...policies, ...proxies, ...redirects],
         existingDomains,
     )

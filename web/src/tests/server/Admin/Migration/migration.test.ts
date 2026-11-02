@@ -1,3 +1,4 @@
+import { UPSTREAM_FAILOVER_DEFAULTS } from '@/config/upstream-pools.config.ts'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -578,4 +579,48 @@ test('portable v2 round-trips ordered pools while single-target documents stay v
     expect(
         buildPortablePlan({ ...source, version: 1 }, 'd'.repeat(64), new Map()).items[0]?.status,
     ).toBe('manual')
+})
+
+test('portable v3 round-trips failover while older versions reject it instead of losing options', async () => {
+    const id = randomUUID()
+    const upstreamPool = {
+        policy: 'first' as const,
+        members: [
+            { host: 'primary.internal', port: 8080 },
+            { host: 'secondary.internal', port: 8081 },
+        ],
+        failover: UPSTREAM_FAILOVER_DEFAULTS,
+    }
+    const host = {
+        id,
+        forwardScheme: 'http' as const,
+        forwardHost: 'primary.internal',
+        forwardPort: 8080,
+        enabled: true,
+        forceHttps: false,
+        verifyUpstreamTls: true,
+        upstreamTlsServerName: null,
+        accessPolicyId: null,
+        certificateId: null,
+        trustedCaId: null,
+        upstreamPool,
+    }
+    const document = buildPortableDocument(
+        [],
+        [host],
+        [],
+        [{ domain: 'failover.test', proxyHostId: id, redirectHostId: null }],
+    )
+    expect(document.version).toBe(3)
+    const source = await readPortableSource(
+        await fixture('failover.json', JSON.stringify(document)),
+    )
+    const plan = buildPortablePlan(source, 'd'.repeat(64), new Map())
+    expect(plan.sourceSchema).toBe('rentnerproxy-portable-v3')
+    expect(plan.items[0]?.status).toBe('ready')
+    expect(plan.items[0]?.proxyInput?.upstreamPool).toEqual(upstreamPool)
+    for (const version of [1, 2] as const)
+        expect(
+            buildPortablePlan({ ...source, version }, 'd'.repeat(64), new Map()).items[0]?.status,
+        ).toBe('manual')
 })

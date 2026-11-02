@@ -201,6 +201,8 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_response_cache \
+    && /usr/bin/caddy list-modules | grep -Fx http.handlers.rentnerproxy_upstream \
+    && /usr/bin/caddy list-modules | grep -Fx admin.api.rentnerproxy \
     && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.2-3d369d64eb3e9ba770ed39aedc83ffd3170aef4c' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \

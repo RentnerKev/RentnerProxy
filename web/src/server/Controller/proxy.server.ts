@@ -1,3 +1,5 @@
+import { proxyHostUpstreamHealthSchema } from '@/lib/ProxyRuntime/upstreamHealth.ts'
+import type { ProxyHostUpstreamHealth } from '@/lib/ProxyRuntime/Types/upstream-health.types.ts'
 import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
@@ -167,4 +169,22 @@ export async function previewProxyHostConfiguration(
         })
         .safeParse(payload)
     return result.success && result.data.revision === snapshot.revision ? result.data : null
+}
+
+export async function getProxyHostUpstreamHealth(
+    proxyHostId: string,
+): Promise<ProxyHostUpstreamHealth | null> {
+    const id = z.uuid().safeParse(proxyHostId)
+    if (!id.success) return null
+    const payload = await controllerRequest(
+        `/internal/v1/proxy/hosts/${id.data.toLowerCase()}/upstreams`,
+        {
+            timeoutMs: 4_000,
+            privileged: true,
+            responseLimit: 16 * 1_024,
+            allowNotFound: true,
+        },
+    )
+    const parsed = proxyHostUpstreamHealthSchema.safeParse(payload)
+    return parsed.success && parsed.data.hostId === id.data.toLowerCase() ? parsed.data : null
 }

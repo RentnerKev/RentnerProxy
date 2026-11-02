@@ -206,6 +206,7 @@ impl ProxyRuntime {
             self.settings.public_https_port,
             Some(&upstream_tls),
             &self.settings.trusted_proxy_cidrs,
+            &config.revision,
         )
         .map_err(|_| RuntimeError::ApplyFailed)?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {

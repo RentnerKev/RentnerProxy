@@ -1781,7 +1781,8 @@
                 "duplicateUpstream": "Cada destino deve ter uma combinação única de host e porta.",
                 "upstreamPoolPrimary": "O destino primário deve corresponder ao primeiro membro do conjunto.",
                 "upstreamMembersRequired": "Adicione pelo menos um destino upstream.",
-                "upstreamMembersLimit": "Adicione no máximo 16 destinos upstream."
+                "upstreamMembersLimit": "Adicione no máximo 16 destinos upstream.",
+                "upstreamFailover": "Verifique as definições e os limites das sondas e do failover."
             },
             "config": {
                 "open": "Configuração do Caddy",
@@ -1981,6 +1982,42 @@
                 "moveUpLabel": "Subir destino {{number}}",
                 "moveDownLabel": "Descer destino {{number}}",
                 "summary": "{{count}} destinos · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Verificações e failover",
+                "active": "Sondas ativas",
+                "passive": "Registo passivo de falhas",
+                "retries": "Novas tentativas de ligação seguras",
+                "activeHint": "Verifique cada destino com um caminho GET. Intervalo: 5–300 s; tempo limite: 1–30 s, nunca superior ao intervalo. Falhas e sucessos consecutivos alteram a disponibilidade de encaminhamento.",
+                "passiveHint": "Recorde ligações falhadas durante 1–300 s e exclua destinos no limiar de falhas. Desativar também remove as novas tentativas.",
+                "retriesHint": "Requer registo passivo. As tentativas adicionais de failover repetem apenas pedidos que ainda não foram processados. A janela é verificada entre tentativas e não é um prazo total rígido. No modo ordenado, o número deve atingir o limiar passivo. Ativar novas tentativas desativa a reutilização de ligações upstream para evitar escritas duplicadas implícitas.",
+                "path": "Caminho da sonda",
+                "intervalSeconds": "Intervalo (segundos, 5–300)",
+                "timeoutSeconds": "Tempo limite (segundos, 1–30)",
+                "fails": "Falhas para excluir (1–10)",
+                "passes": "Sucessos para restaurar (1–10)",
+                "expectedStatus": "Estado HTTP esperado (200–399)",
+                "failDurationSeconds": "Memória de falhas (segundos, 1–300)",
+                "maxFails": "Limiar de falhas (1–10)",
+                "maxRetries": "Máximo de tentativas (1–15)",
+                "tryDurationSeconds": "Janela de tentativas (segundos, 1–30)",
+                "tryIntervalMilliseconds": "Pausa entre tentativas (ms, 100–5000)"
+            },
+            "upstreamHealth": {
+                "title": "Disponibilidade de encaminhamento",
+                "available": "Disponível para encaminhamento",
+                "all_unavailable": "Todos os destinos indisponíveis",
+                "unknown": "Desconhecida",
+                "hint": "Reflete as decisões atuais do proxy, não o histórico de monitorização. Os destinos começam disponíveis; as sondas ativas atualizam o estado ao longo do tempo.",
+                "disabledHint": "Host desativado; disponibilidade desconhecida.",
+                "loadingHint": "A carregar disponibilidade.",
+                "errorHint": "Não foi possível atualizar. Os destinos antes disponíveis são agora desconhecidos.",
+                "unknownHint": "Nenhuma observação recente e correspondente disponível.",
+                "member": {
+                    "available": "Disponível",
+                    "unavailable": "Indisponível",
+                    "unknown": "Desconhecida"
+                }
             }
         },
         "redirectHosts": {
