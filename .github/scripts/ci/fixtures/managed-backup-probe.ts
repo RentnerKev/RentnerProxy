@@ -2,7 +2,17 @@
 import assert from 'node:assert/strict'
 import { createCipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
-import { chmod, chown, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import {
+    chmod,
+    chown,
+    lstat,
+    mkdir,
+    readFile,
+    readdir,
+    rename,
+    stat,
+    writeFile,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { notificationStateSchema } from '../../../../web/src/server/Notifications/notification-state.validation.ts'
@@ -18,6 +28,7 @@ import {
     managedBackupStatusSchema,
 } from '../../../../web/src/lib/Backups/validation.ts'
 import { verifyPublishedBackup } from '../../../../scripts/backup/publication.ts'
+import type { ManagedBackupStatus } from '../../../../web/src/lib/Backups/Types/backups.types.ts'
 import {
     OPAQUE_TOKEN_BYTES,
     OPAQUE_TOKEN_PATTERN,
@@ -53,6 +64,7 @@ const probeModes = [
     'seed',
     'markers',
     'status',
+    'settled',
     'configure',
     'concurrent',
     'start',
@@ -80,6 +92,19 @@ async function status() {
     const response = await call('/status')
     assert.equal(response.status, 200)
     return managedBackupStatusSchema.parse(response.body)
+}
+
+/** Require the agent's post-tick control cleanup, since succeeded is visible before retention finishes. */
+export function managedBackupFixtureSettled(
+    snapshot: ManagedBackupStatus,
+    controlPending: boolean,
+): boolean {
+    return (
+        !controlPending &&
+        !snapshot.jobs.some((job) => job.state === 'queued' || job.state === 'running') &&
+        snapshot.maintenance?.state !== 'queued' &&
+        snapshot.maintenance?.state !== 'running'
+    )
 }
 
 async function psql(sql: string) {
@@ -123,6 +148,7 @@ async function denied(operation: () => Promise<unknown>) {
     throw new Error('private backup resource was accessible')
 }
 
+/** Dispatches private fixture actions; settled observes the agent's post-maintenance control cleanup. */
 async function run(mode: (typeof probeModes)[number]) {
     if (mode === 'web-isolation') {
         assert.equal(process.getuid?.(), 10002)
@@ -204,6 +230,22 @@ async function run(mode: (typeof probeModes)[number]) {
         return { ok: true }
     }
     if (mode === 'status') return await status()
+    if (mode === 'settled') {
+        const current = await status()
+        const controls = await Promise.all(
+            ['active.json', 'request.json', 'result.json'].map(async (name) => {
+                try {
+                    await lstat(join('/run/rentnerproxy/backups', name))
+                    return true
+                } catch (error) {
+                    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+                        return false
+                    throw error
+                }
+            }),
+        )
+        return { settled: managedBackupFixtureSettled(current, controls.some(Boolean)) }
+    }
     if (mode === 'configure') {
         const current = await status()
         const response = await call('/config', 'PUT', {
