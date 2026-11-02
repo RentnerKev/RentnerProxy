@@ -1,5 +1,4 @@
 import '@tanstack/react-start/server-only'
-import { getRequestIP } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { MFA_CHALLENGE_COOKIE_NAME, SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import {
@@ -15,6 +14,7 @@ import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.
 import { isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { beginOidcLoginService, completeOidcLoginService } from './oidc-login.service.ts'
+import { getOidcClientIp } from './oidc-request-ip.server.ts'
 import type { OidcHttpHandlerDependencies } from './Types/oidc-response.types.ts'
 
 const forbiddenCallbackKeys = new Set([
@@ -218,7 +218,7 @@ export const oidcHttpHandlers = createOidcHttpHandlers({
     begin: beginOidcLoginService,
     complete: completeOidcLoginService,
     limit: async () => {
-        await consumeRateLimit({ ...OIDC_RATE_LIMIT, identifier: getRequestIP() ?? 'unknown' })
+        await consumeRateLimit({ ...OIDC_RATE_LIMIT, identifier: getOidcClientIp() })
     },
     signedIn: async () => Boolean(await getCurrentSessionService()),
 })

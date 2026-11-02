@@ -250,8 +250,8 @@
     "auth": {
         "moreSignInOptions": "Autres méthodes de connexion",
         "twoFactor": {
-            "expired": "Cette demande d’authentification a expiré. Recommence la connexion.",
-            "unavailable": "Le service d’authentification est temporairement indisponible. Réessaie."
+            "expired": "Cette demande d’authentification a expiré. Recommencez la connexion.",
+            "unavailable": "Le service d’authentification est temporairement indisponible. Réessayez."
         },
         "oidc": {
             "signInWith": "Se connecter avec {{provider}}",

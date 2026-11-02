@@ -250,12 +250,12 @@
     "auth": {
         "moreSignInOptions": "Mais opções de início de sessão",
         "twoFactor": {
-            "expired": "Este pedido de autenticação expirou. Inicia a sessão novamente.",
-            "unavailable": "O serviço de autenticação está temporariamente indisponível. Tenta novamente."
+            "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
+            "unavailable": "O serviço de autenticação está temporariamente indisponível. Tente novamente."
         },
         "oidc": {
             "signInWith": "Iniciar sessão com {{provider}}",
-            "failed": "Não foi possível iniciar sessão. Tenta novamente ou usa a tua conta local."
+            "failed": "Não foi possível iniciar sessão. Tente novamente ou use a sua conta local."
         },
         "logoutFailed": "Não foi possível terminar sessão. Verifique a ligação e tente novamente.",
         "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
