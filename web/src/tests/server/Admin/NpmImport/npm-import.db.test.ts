@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,10 +28,20 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
     applyNpmImportService,
+    applyImportService,
+    previewImportService,
     NpmImportError,
     previewNpmImportService,
 } from '@/server/Admin/NpmImport/npm-import.service.ts'
-import { createProxyHostService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
+import {
+    createProxyHostService,
+    deleteProxyHostService,
+    getProxyHostsService,
+} from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
+import {
+    exportPortableConfiguration,
+    readPortableSource,
+} from '@/server/Admin/Migration/portable.ts'
 import { NPM_216_MIGRATIONS } from '@/server/Admin/NpmImport/npm-source.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
 
@@ -378,3 +388,73 @@ describe('NPM import with PostgreSQL', () => {
         expect(JSON.stringify(failedRuns[0]?.result)).toContain('preview_changed')
     })
 })
+
+integrationTest.each(['first', 'round_robin'] as const)(
+    'portable v2 applies exported %s pools through the real import transaction without reordering members',
+    async (policy) => {
+        const owner = await createUser(SYSTEM_ROLES.OWNER)
+        const domain = `portable-pool-${randomUUID().slice(0, 12)}${SUFFIX}`
+        const upstreamPool = {
+            policy,
+            members: [
+                { host: 'z-primary.internal', port: 8080 },
+                { host: '2001:db8::9', port: 9443 },
+                { host: 'a-secondary.internal', port: 8081 },
+            ],
+        }
+        const original = await runAsUser(owner, () =>
+            createProxyHostService({
+                domains: [domain],
+                enabled: true,
+                forwardScheme: 'http',
+                forwardHost: upstreamPool.members[0]!.host,
+                forwardPort: upstreamPool.members[0]!.port,
+                upstreamPool,
+            }),
+        )
+        const exported = await runAsUser(owner, exportPortableConfiguration)
+        const directory = await mkdtemp(join(tmpdir(), 'rp-portable-pool-integration-'))
+        testDirectories.push(directory)
+        const path = join(directory, 'portable.json')
+        await writeFile(path, exported, 'utf8')
+        expect((await readPortableSource(path)).version).toBe(2)
+        const fingerprint = createHash('sha256').update(exported).digest('hex')
+        await runAsUser(owner, () => deleteProxyHostService(original.id))
+        const preview = await runAsUser(owner, () =>
+            previewImportService(path, fingerprint, 'rentnerproxy', PERMISSIONS.MIGRATION),
+        )
+        expect(preview.sourceSchema).toBe('rentnerproxy-portable-v2')
+        expect(preview.counts.ready).toBe(1)
+        const applied = await runAsUser(owner, () =>
+            applyImportService(
+                path,
+                fingerprint,
+                preview.fingerprint,
+                preview.planFingerprint,
+                'rentnerproxy',
+                PERMISSIONS.MIGRATION,
+            ),
+        )
+        expect(applied).toMatchObject({ status: 'completed', imported: 1, skipped: 0, failed: 0 })
+        const importedId = applied.items.find((item) => item.kind === 'proxy-host')?.targetId
+        expect(importedId).toBeDefined()
+        expect(importedId).not.toBe(original.id)
+        const imported = (await runAsUser(owner, getProxyHostsService)).find(
+            (host) => host.id === importedId,
+        )
+        expect(imported).toMatchObject({
+            domains: [domain],
+            forwardScheme: 'http',
+            forwardHost: 'z-primary.internal',
+            forwardPort: 8080,
+            upstreamPool,
+        })
+        expect(imported?.upstreamPool?.policy).toBe(policy)
+        expect(imported?.upstreamPool?.members).toEqual(upstreamPool.members)
+        const stored = await getAuthDatabase()
+            .select({ pool: proxyHosts.upstreamPool })
+            .from(proxyHosts)
+            .where(eq(proxyHosts.id, importedId!))
+        expect(stored[0]?.pool).toEqual(upstreamPool)
+    },
+)
