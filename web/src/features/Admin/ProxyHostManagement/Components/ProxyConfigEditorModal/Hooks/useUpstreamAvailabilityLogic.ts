@@ -2,18 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { getProxyHostUpstreamHealthHandler } from '../../../middleware.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { formatProxyHostForward } from '@/lib/Admin/ProxyHostManagement/proxyHostTableCells.ts'
-import {
-    UPSTREAM_HEALTH_OBSERVATION_MAX_AGE_MS,
-    UPSTREAM_HEALTH_OBSERVATION_FUTURE_TOLERANCE_MS,
-} from '@/config/upstream-pools.config.ts'
 import type {
     UpstreamAvailabilityLogicResult,
     UpstreamAvailabilityProps,
 } from '../Types/upstream-availability.types.ts'
 
 /**
- * Polls only open, enabled pooled hosts and accepts fresh observations matching the complete target order.
- * Initial pending loads, stale or mismatched observations and failed refreshes expose unknown availability.
+ * Polls open, enabled pooled hosts and matches target order while the server validates observation age.
+ * Browser query staleness, initial pending loads, mismatches and failed refreshes expose unknown availability.
+ * Controller timestamps are parsed without comparing the independent browser and appliance clocks.
  */
 export default function useUpstreamAvailabilityLogic({
     host,
@@ -49,8 +46,6 @@ export default function useUpstreamAvailabilityLogic({
         !query.isStale &&
         Boolean(data?.revision) &&
         Number.isFinite(observedAt) &&
-        query.dataUpdatedAt - observedAt >= -UPSTREAM_HEALTH_OBSERVATION_FUTURE_TOLERANCE_MS &&
-        query.dataUpdatedAt - observedAt < UPSTREAM_HEALTH_OBSERVATION_MAX_AGE_MS &&
         sameMembers &&
         data?.hostId === host.id
     const availability = fresh ? data!.state : 'unknown'

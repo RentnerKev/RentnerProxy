@@ -77,6 +77,9 @@ impl FakeCaddy {
     }
 }
 impl ProxyEngine for FakeCaddy {
+    /// Captures a fake observation before optionally blocking its delivery and signals
+    /// when sampling starts. Tests can then change the active revision while the old
+    /// payload is in flight, without timing sleeps or mutating the captured response.
     fn upstream_observations<'a>(
         &'a self,
         _: &'a str,
@@ -838,6 +841,8 @@ async fn startup_accepts_legacy_v7_and_rejects_obsolete_recovery_snapshots() {
     }
 }
 
+/// Restarts from the persisted active snapshot for both plain v8 and failover v9
+/// pools, preserving member order, selection policy and health options across recovery.
 #[tokio::test]
 async fn restart_restores_versioned_pool_order_policy_and_failover() {
     use crate::models::{
@@ -892,6 +897,9 @@ async fn restart_restores_versioned_pool_order_policy_and_failover() {
     }
 }
 
+/// Samples verified active instances without reloading Caddy, then changes the
+/// configuration while a gated observation is in flight. The stale response and a
+/// stopped engine must return unknown instead of reusing the earlier healthy sample.
 #[tokio::test]
 async fn pool_health_samples_verified_instances_and_rejects_stale_or_unavailable_observations() {
     use crate::models::{UpstreamMember, UpstreamPool, UpstreamSelectionPolicy};

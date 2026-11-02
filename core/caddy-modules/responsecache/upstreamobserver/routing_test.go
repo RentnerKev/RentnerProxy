@@ -92,6 +92,8 @@ func TestBodylessIdempotencyKeyWriteOnWarmedUpstream(t *testing.T) {
 	}
 }
 
+// unusedAddress releases an ephemeral loopback listener for a subsequent Caddy
+// bind or a refused-dial fixture; it does not reserve the address after returning.
 func unusedAddress(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -105,6 +107,9 @@ func unusedAddress(t *testing.T) string {
 	return address
 }
 
+// routingHandler reproduces the finite production retry policy with a shorter
+// passive expiry. The always-false matcher blocks post-connect replay while
+// Caddy's separate dial-error path can still retry an unsent request.
 func routingHandler(addresses ...string) map[string]any {
 	h := testHandler(testHost, addresses[0])
 	upstreams := make([]any, 0, len(addresses))
@@ -121,6 +126,9 @@ func routingHandler(addresses ...string) map[string]any {
 	return h
 }
 
+// startRouting provisions the actual registered wrapper and owns its Caddy
+// lifecycle through test cleanup. Disabling client reuse isolates frontend
+// connections without changing the upstream transport policy under test.
 func startRouting(t *testing.T, handler map[string]any) (string, *http.Client) {
 	t.Helper()
 	address := unusedAddress(t)
@@ -146,6 +154,8 @@ func startRouting(t *testing.T, handler map[string]any) (string, *http.Client) {
 	return "http://" + address, &http.Client{Transport: transport, Timeout: 2 * time.Second}
 }
 
+// requestStatus drains and closes the frontend response so subsequent assertions
+// observe a completed exchange rather than an unread or abandoned response body.
 func requestStatus(t *testing.T, client *http.Client, method, url string, body io.Reader) int {
 	t.Helper()
 	req, err := http.NewRequest(method, url, body)
@@ -161,6 +171,8 @@ func requestStatus(t *testing.T, client *http.Client, method, url string, body i
 	return response.StatusCode
 }
 
+// waitMember waits on the observer's real handler-local state without probing or
+// reloading Caddy itself, and reports the final observations if convergence fails.
 func waitMember(t *testing.T, index int, healthy bool) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -176,6 +188,9 @@ func waitMember(t *testing.T, index int, healthy bool) {
 	}
 }
 
+// TestActiveThresholdsAllDownAndRecoveryWithoutReload gates probe responses to
+// distinguish one result from the configured two-result threshold. All-down
+// routing must terminate, and recovery must retain the original handler token.
 func TestActiveThresholdsAllDownAndRecoveryWithoutReload(t *testing.T) {
 	started := make(chan struct{}, 1)
 	status := make(chan int)
@@ -251,6 +266,9 @@ func TestActiveThresholdsAllDownAndRecoveryWithoutReload(t *testing.T) {
 	}
 }
 
+// TestPassiveEjectionAndRecoveryWithoutReload verifies that a received 503 is
+// returned once, ejects the primary for later requests, and expires naturally
+// without replacing the handler or requiring an active health checker.
 func TestPassiveEjectionAndRecoveryWithoutReload(t *testing.T) {
 	var failed atomic.Bool
 	failed.Store(true)
@@ -291,6 +309,9 @@ func TestPassiveEjectionAndRecoveryWithoutReload(t *testing.T) {
 	}
 }
 
+// TestDialFailureCanRetryUnsentPostOnce permits failover only before a connection
+// exists: a refused primary dial must leave the POST body intact and deliver it
+// exactly once to the secondary despite the always-false replay matcher.
 func TestDialFailureCanRetryUnsentPostOnce(t *testing.T) {
 	var calls atomic.Int32
 	payload := "exactly one body survives a failed connection"
@@ -314,6 +335,8 @@ func TestDialFailureCanRetryUnsentPostOnce(t *testing.T) {
 	}
 }
 
+// TestRoundRobinUsesBothHealthyMembers checks that observing upstream pointers
+// leaves Caddy's configured selection policy and ordered pool membership intact.
 func TestRoundRobinUsesBothHealthyMembers(t *testing.T) {
 	var calls [2]atomic.Int32
 	addresses := make([]string, 0, 2)
@@ -336,6 +359,9 @@ func TestRoundRobinUsesBothHealthyMembers(t *testing.T) {
 	}
 }
 
+// TestAcceptedRequestsAndStreamsAreNeverReplayed closes a backend after request
+// acceptance or stream commitment. Writes, streamed GETs, and WebSocket upgrades
+// must reach that backend once and never fall through to the healthy secondary.
 func TestAcceptedRequestsAndStreamsAreNeverReplayed(t *testing.T) {
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodGet, "GET_RESPONSE_STREAM", "WEBSOCKET"} {
 		t.Run(method, func(t *testing.T) {

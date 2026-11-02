@@ -2061,15 +2061,65 @@ describe('upstream routing availability', () => {
         expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
     }, 8_000)
 
-    test.each(['missing', 'stale', 'mismatch'] as const)(
+    test.each([
+        ['ahead', 120_000],
+        ['behind', -120_000],
+    ] as const)(
+        'accepts server-approved health when the browser clock is %s',
+        async (_direction, browserClockOffset) => {
+            const serverApproved: ProxyHostUpstreamHealth = {
+                ...observation('available'),
+                observedAt: new Date(Date.now() - browserClockOffset).toISOString(),
+            }
+            getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(serverApproved)
+            await render(withQueryClient(<UpstreamAvailability host={host} open />))
+            await waitFor(
+                () => document.querySelector('[data-upstream-availability="available"]') !== null,
+            )
+            expect(
+                document.querySelectorAll('[data-upstream-member-state="available"]'),
+            ).toHaveLength(2)
+        },
+    )
+
+    test('keeps stale cached health unknown until a deferred refresh completes', async () => {
+        let finish: ((value: ProxyHostUpstreamHealth) => void) | undefined
+        getProxyHostUpstreamHealthHandlerMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const content = withQueryClient(<UpstreamAvailability host={host} open />)
+        activeQueryClient!.setQueryData(
+            proxyHostManagementQueryKeys.upstreamHealth(host.id),
+            observation('available'),
+            { updatedAt: Date.now() - 60_000 },
+        )
+        await render(content)
+        await waitFor(() => getProxyHostUpstreamHealthHandlerMock.mock.calls.length === 1)
+        expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            0,
+        )
+        await act(async () => {
+            finish!(observation('available'))
+        })
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="available"]') !== null,
+        )
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            2,
+        )
+    })
+
+    test.each(['missing', 'invalid-time', 'mismatch'] as const)(
         'keeps %s observations unknown instead of claiming availability',
         async (kind) => {
             const data: ProxyHostUpstreamHealth = {
                 ...observation('available'),
                 ...(kind === 'missing' ? { revision: null, observedAt: null } : {}),
-                ...(kind === 'stale'
-                    ? { observedAt: new Date(Date.now() - 60_000).toISOString() }
-                    : {}),
+                ...(kind === 'invalid-time' ? { observedAt: 'invalid-timestamp' } : {}),
                 ...(kind === 'mismatch' ? { members: [] } : {}),
             }
             getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(data)

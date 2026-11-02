@@ -23,6 +23,8 @@ fn unknown() -> PoolHealth {
     )
 }
 
+/// Builds independently identified Caddy-instance observations over the same DNS/IPv6
+/// member tuples, so tests can vary agreement without changing the desired pool.
 fn observation(states: &[[bool; 2]]) -> Value {
     json!({
         "host_id":"018f2f52-7c1b-7cc0-9f3c-6a9952c54019", "revision":format!("sha256:{}", "a".repeat(64)),
@@ -36,6 +38,8 @@ fn observation(states: &[[bool; 2]]) -> Value {
     })
 }
 
+/// Requires instance agreement per member rather than treating partial or conflicting
+/// samples as healthy/all-down; one agreed available member still makes the pool usable.
 #[test]
 fn routing_availability_requires_agreement_for_each_member() {
     for (states, expected, members) in [
@@ -75,6 +79,9 @@ fn routing_availability_requires_agreement_for_each_member() {
     }
 }
 
+/// Rejects stale identities, incomplete tuples and ambiguous/oversized instance sets.
+/// Invalid samples must retain unknown members and no observation timestamp, preventing
+/// malformed telemetry from being presented as a current availability decision.
 #[test]
 fn missing_stale_ambiguous_or_malformed_observations_never_report_all_down_or_healthy() {
     let valid = observation(&[[true, false]]);
@@ -123,6 +130,8 @@ fn missing_stale_ambiguous_or_malformed_observations_never_report_all_down_or_he
     assert_eq!(health.state, PoolState::Unknown);
 }
 
+/// Distinguishes routing capacity from probe health: a healthy but unavailable member
+/// cannot make an otherwise unavailable pool appear capable of accepting a request.
 #[test]
 fn capacity_is_unavailable_even_while_caddy_considers_a_member_healthy() {
     let mut raw = observation(&[[true, false]]);
@@ -132,6 +141,8 @@ fn capacity_is_unavailable_even_while_caddy_considers_a_member_healthy() {
     assert_eq!(health.state, PoolState::AllUnavailable);
 }
 
+/// Exhausts all observation permits before lookup to prove concurrent polling is
+/// rejected as busy instead of consuming unbounded controller or Caddy resources.
 #[tokio::test]
 async fn polling_admission_is_bounded() {
     let runtime = ProxyRuntime::new(

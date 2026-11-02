@@ -18,6 +18,8 @@ const testHost = "01234567-89ab-cdef-0123-456789abcdef"
 
 var testRevision = "sha256:" + strings.Repeat("a", 64)
 
+// observedConfig builds real Caddy routes without exposing an admin listener or
+// persisting fixture configuration into the developer's Caddy data directory.
 func observedConfig(t *testing.T, handlers ...map[string]any) []byte {
 	t.Helper()
 	routes := make([]any, 0, len(handlers))
@@ -36,6 +38,8 @@ func testHandler(host, address string) map[string]any {
 	return map[string]any{"handler": "rentnerproxy_upstream", "host_id": host, "revision": testRevision, "upstreams": []any{map[string]any{"dial": address}}}
 }
 
+// query exercises the admin handler's JSON contract directly, keeping health
+// assertions independent of listener setup and Caddy's separate admin transport.
 func query(t *testing.T, host, revision string) response {
 	t.Helper()
 	w := httptest.NewRecorder()
@@ -50,6 +54,9 @@ func query(t *testing.T, host, revision string) response {
 	return result
 }
 
+// TestActualHandlerLifecycleAndHealthIsolation checks that handlers sharing a dial
+// address retain distinct active health and route instances. Reloads and failures
+// before or after Host acquisition must preserve only the live instance's token.
 func TestActualHandlerLifecycleAndHealthIsolation(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/bad" {
@@ -136,6 +143,8 @@ func TestActualHandlerLifecycleAndHealthIsolation(t *testing.T) {
 	}
 }
 
+// TestAdminQueryValidation distinguishes malformed or ambiguous requests from a
+// valid revision with no observations, which callers must treat as unknown health.
 func TestAdminQueryValidation(t *testing.T) {
 	valid := "/rentnerproxy/upstreams?host_id=" + testHost + "&revision=" + testRevision
 	for _, target := range []string{"/rentnerproxy/upstreams", valid + "&host_id=" + testHost, valid + "&extra=x", strings.Replace(valid, "sha256:", "SHA256:", 1), valid + "&x=%zz", strings.Replace(valid, testHost, strings.ToUpper(testHost), 1), "/rentnerproxy/upstreams/other?host_id=" + testHost + "&revision=" + testRevision} {
@@ -153,6 +162,8 @@ func TestAdminQueryValidation(t *testing.T) {
 	}
 }
 
+// TestMetadataAndFlattenedStockConfiguration protects the embedded stock JSON
+// layout and rejects invalid observation metadata before Caddy resources exist.
 func TestMetadataAndFlattenedStockConfiguration(t *testing.T) {
 	var handler Handler
 	data := []byte(`{"host_id":"` + testHost + `","revision":"` + testRevision + `","upstreams":[{"dial":"127.0.0.1:80"}],"flush_interval":-1,"load_balancing":{"retries":2}}`)
@@ -193,6 +204,8 @@ func TestMetadataAndFlattenedStockConfiguration(t *testing.T) {
 	}
 }
 
+// TestAdminResponseByteLimit accounts for JSON escaping: bounded member counts
+// and raw address lengths must not allow an oversized successful admin response.
 func TestAdminResponseByteLimit(t *testing.T) {
 	h := &Handler{HostID: testHost, Revision: testRevision}
 	for i := 0; i < maxMembers; i++ {
@@ -211,6 +224,9 @@ func TestAdminResponseByteLimit(t *testing.T) {
 	}
 }
 
+// TestRegistryBoundsAndConcurrentCleanup checks explicit capacity failures and
+// races snapshots against token removal without retaining expired observations.
+// Cleanup must also tolerate repeated calls on a never-provisioned handler.
 func TestRegistryBoundsAndConcurrentCleanup(t *testing.T) {
 	s := registry{entries: make(map[uint64]entry)}
 	h := &Handler{HostID: testHost, Revision: testRevision, Handler: reverseproxy.Handler{Upstreams: reverseproxy.UpstreamPool{&reverseproxy.Upstream{Host: new(reverseproxy.Host), Dial: "127.0.0.1:80"}}}}

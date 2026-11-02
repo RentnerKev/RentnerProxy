@@ -49,6 +49,8 @@ fn settings() -> RenderSettings {
     }
 }
 
+/// Finds pool handlers throughout nested rendered routes, including the observer
+/// wrapper, so security and retry assertions cannot silently skip the new handler.
 fn pool_proxies(json: &Value) -> Vec<&Value> {
     let mut proxies = Vec::new();
     match json {
@@ -250,6 +252,8 @@ fn verified_pool_uses_each_dns_identity_and_requires_explicit_name_for_any_ip() 
     assert!(validate_proxy_config(request(vec![target])).is_ok());
 }
 
+/// Constructs the shared TypeScript/Rust v9 revision vector with explicit health
+/// and retry options; its fixed values make serialization drift observable.
 fn with_failover() -> ProxyHost {
     use crate::models::{
         ActiveUpstreamHealth, PassiveUpstreamHealth, UpstreamFailover, UpstreamRetries,
@@ -277,6 +281,9 @@ fn with_failover() -> ProxyHost {
     target
 }
 
+/// Pins the cross-language v9 hash and native Caddy health/retry representation.
+/// Observer identity, fixed passive statuses and the always-false retry matcher must
+/// survive rendering without buffering or enabling post-connect request replays.
 #[test]
 fn failover_revision_matches_web_and_runtime_uses_actual_health_without_replays() {
     let target = with_failover();
@@ -315,6 +322,8 @@ fn failover_revision_matches_web_and_runtime_uses_actual_health_without_replays(
     }
 }
 
+/// Rejects unsafe probe targets, excessive budgets and contradictory retry settings
+/// at the Rust boundary, including attempts to carry failover inside a v8 envelope.
 #[test]
 fn failover_validation_rejects_unbounded_unsafe_or_inconsistent_controls() {
     let valid = serde_json::to_value(with_failover()).unwrap();
