@@ -58,6 +58,15 @@ describe('audit event validation', () => {
     })
 
     test('bounds metadata and query filters', () => {
+        expect(
+            auditMetadataSchema.safeParse({
+                authenticationMethod: 'oidc',
+                localAuthenticationMethod: 'totp',
+            }).success,
+        ).toBe(true)
+        expect(
+            auditMetadataSchema.safeParse({ localAuthenticationMethod: 'provider-amr' }).success,
+        ).toBe(false)
         expect(auditMetadataSchema.safeParse({ count: 10_001 }).success).toBe(false)
         expect(auditEventsQuerySchema.safeParse({ from: '2026-02-30T00:00:00Z' }).success).toBe(
             false,

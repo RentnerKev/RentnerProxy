@@ -29,6 +29,10 @@ import {
 } from './oidc-settings.server.ts'
 import type { OidcProviderDependencies, StoredOidcProvider } from './Types/oidc-provider.types.ts'
 import type { OidcClientConfiguration } from './Types/oidc.types.ts'
+import {
+    lockOidcAccountPolicyInTransaction,
+    validateOidcAccountPoliciesInTransaction,
+} from './oidc-accounts.service.ts'
 
 /** Rechecks local owner access and recent authentication under the active-user lock. */
 export async function authorizeOidcOwnerInTransaction(
@@ -54,7 +58,8 @@ export function createOidcProvidersService(dependencies: OidcProviderDependencie
                     .filter(
                         (provider) =>
                             provider.enabled &&
-                            provider.bindings.length > 0 &&
+                            (provider.bindings.length > 0 ||
+                                provider.accountPolicy?.provisioning === true) &&
                             !!provider.clientSecret,
                     )
                     .map(({ id, name }) => ({ id, name }))
@@ -134,8 +139,14 @@ export const { getOidcProvidersService, saveOidcProvidersService, getPublicOidcP
                 throw new OidcDomainError('identity_not_allowed')
         },
         read: readStoredOidcSettings,
-        lock: lockStoredOidcSettings,
-        write: writeStoredOidcSettings,
+        lock: async (transaction) => {
+            await lockOidcAccountPolicyInTransaction(transaction)
+            return lockStoredOidcSettings(transaction)
+        },
+        write: async (transaction, settings) => {
+            await validateOidcAccountPoliciesInTransaction(transaction, settings.providers)
+            await writeStoredOidcSettings(transaction, settings)
+        },
         build: buildStoredOidcSettings,
         limit: async (identifier) => {
             await consumeRateLimit({ ...OIDC_CONFIGURATION_RATE_LIMIT, identifier })
@@ -187,5 +198,6 @@ export async function getOidcClientConfigurationService(
         tokenEndpointAuthMethod: provider.tokenEndpointAuthMethod,
         allowedEndpointOrigins: provider.allowedEndpointOrigins,
         allowedPrivateCidrs: provider.allowedPrivateCidrs,
+        ...(provider.accountPolicy ? { groupClaim: provider.accountPolicy.groupClaim } : {}),
     }
 }

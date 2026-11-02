@@ -15,6 +15,7 @@ import {
 import { rentnerProxySchema } from './base.ts'
 import { bytea } from './columns.ts'
 import { users } from './users.ts'
+import type { OidcSessionProof } from '../../lib/Auth/Oidc/Types/oidc-provider.types.ts'
 
 export const sessions = rentnerProxySchema.table(
     'sessions',
@@ -26,6 +27,11 @@ export const sessions = rentnerProxySchema.table(
             .notNull()
             .references(() => users.id, { onDelete: 'cascade' }),
         tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+        // Existing sessions have unknown origin: an invalid sentinel forces one-time reauthentication.
+        // New local sessions explicitly write NULL; OIDC sessions always carry verified provenance.
+        oidcProof: jsonb('oidc_proof')
+            .$type<OidcSessionProof>()
+            .default(sql`'{}'::jsonb`),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),

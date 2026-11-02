@@ -21,3 +21,14 @@ export interface OidcProvidersSummary {
     readonly revision: number
     readonly providers: OidcProviderSummary[]
 }
+
+/** Durable session provenance contains no tokens, credentials or group claims. */
+export interface OidcSessionProof {
+    readonly providerId: string
+    readonly providerRevision: number
+    readonly bindingGeneration?: number | undefined
+    readonly issuer: string
+    readonly subject: string
+    readonly userId: string
+    readonly expiresAt: number
+}

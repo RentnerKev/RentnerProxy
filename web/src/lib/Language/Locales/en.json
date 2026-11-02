@@ -2646,6 +2646,7 @@
             },
             "metadata": {
                 "authenticationMethod": "Authentication method",
+                "localAuthenticationMethod": "Local second factor",
                 "reason": "Reason",
                 "failureCode": "Failure code",
                 "changedFields": "Changed fields",

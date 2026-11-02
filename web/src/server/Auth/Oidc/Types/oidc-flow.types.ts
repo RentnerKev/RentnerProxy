@@ -13,7 +13,16 @@ export interface OidcFlow {
     readonly redirectUri: string
     readonly nonce: string
     readonly codeVerifier: string
+    readonly link?: OidcLinkTarget | undefined
 }
+
+export interface OidcLinkTarget {
+    readonly userId: string
+    readonly sessionId: string
+    readonly expectedRevision: number
+}
+
+export type OidcFlowCompletion = LoginResult | { readonly success: true; readonly linked: true }
 
 export interface OidcFlowStore {
     issue(flow: OidcFlow): Promise<{ state: string; browserToken: string; expiresAt: Date }>
@@ -52,5 +61,10 @@ export interface OidcFlowDependencies {
         configuration: OidcClientConfiguration,
         identity: OidcVerifiedIdentity,
     ) => Promise<LoginResult>
+    readonly link?: (
+        configuration: OidcClientConfiguration,
+        identity: OidcVerifiedIdentity,
+        target: OidcLinkTarget,
+    ) => Promise<void>
     readonly failed: () => Promise<void>
 }

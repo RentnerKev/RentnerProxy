@@ -39,6 +39,7 @@ export const auditMetadataSchema = z.strictObject({
     enabled: z.boolean().optional(),
     pausedAfterRestore: z.boolean().optional(),
     authenticationMethod: z.enum(AUDIT_AUTHENTICATION_METHODS).optional(),
+    localAuthenticationMethod: z.enum(['totp', 'recovery-code']).optional(),
     reason: z.literal('authentication_failed').optional(),
     failureCode: z.enum(AUDIT_FAILURE_CODES).optional(),
     changedFields: z

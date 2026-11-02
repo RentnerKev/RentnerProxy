@@ -103,7 +103,11 @@ async function restoreProviders() {
 }
 
 async function challenge() {
-    const result = await authenticateOidcIdentityService(configuration, { issuer, subject })
+    const result = await authenticateOidcIdentityService(configuration, {
+        issuer,
+        subject,
+        expiresAt: Date.now() + 120_000,
+    })
     if (!result.success || !result.requiresTwoFactor)
         throw new Error('Expected a local MFA challenge.')
     challengeIds.add(result.challenge.id)
@@ -257,12 +261,13 @@ afterAll(async () => {
 
 describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () => {
     integrationTest(
-        'uses an existing account and hashed local session, preserves expiry, freshness and logout',
+        'uses an existing account and hashed session, bounds expiry by verified proof and preserves local recovery',
         async () => {
             const startedAt = Date.now()
             const identity = {
                 issuer,
                 subject,
+                expiresAt: Date.now() + 120_000,
                 email: 'untrusted@example.test',
                 roles: ['owner'],
                 groups: ['owner'],
@@ -276,12 +281,18 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
             expect(stored?.tokenHash).toBe(await hashOpaqueToken(result.session.token))
             expect(stored?.tokenHash).not.toBe(result.session.token)
             expect(stored?.reauthenticatedAt.getTime()).toBe(0)
-            expect(result.session.expiresAt.getTime()).toBeGreaterThanOrEqual(
-                startedAt + SESSION_DURATION_MS,
-            )
+            expect(result.session.expiresAt.getTime()).toBe(identity.expiresAt)
+            expect(result.session.expiresAt.getTime()).toBeGreaterThan(startedAt)
             expect(result.session.expiresAt.getTime()).toBeLessThanOrEqual(
                 Date.now() + SESSION_DURATION_MS,
             )
+            expect(stored?.oidcProof).toMatchObject({
+                providerId,
+                subject,
+                userId,
+                expiresAt: identity.expiresAt,
+            })
+            expect(stored?.oidcProof).not.toHaveProperty('groups')
             const current = await getSessionByTokenService(result.session.token)
             if (!current) throw new Error('Stored OIDC session was not resolved.')
             expect(isSessionRecentlyAuthenticated(current)).toBeFalse()
@@ -313,6 +324,7 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
             const identity = {
                 issuer,
                 subject: 'unbound-subject',
+                expiresAt: Date.now() + 120_000,
                 email,
                 email_verified: true,
                 groups: ['owner'],
@@ -348,9 +360,18 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
                     .where(eq(users.id, userId))
             if (invalidation === 'permission-revoked')
                 await getAuthDatabase().delete(userRoles).where(eq(userRoles.userId, userId))
-            await expect(
-                authenticateOidcIdentityService(configuration, { issuer, subject }),
-            ).rejects.toMatchObject({ code: 'user_not_active' })
+            const result = authenticateOidcIdentityService(configuration, {
+                issuer,
+                subject,
+                expiresAt: Date.now() + 120_000,
+            })
+            if (invalidation === 'provider-disabled' || invalidation === 'revision-changed')
+                await expect(result).rejects.toMatchObject({ code: 'identity_not_allowed' })
+            else
+                await expect(result).resolves.toEqual({
+                    success: false,
+                    code: 'invalid_credentials',
+                })
             expect(await fixtureSessions()).toHaveLength(0)
         })
     }
@@ -400,6 +421,10 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
                     .where(eq(userRecoveryCodes.userId, userId))
                 if (method === 'totp') expect(stored?.lastUsedCounter).toBeGreaterThan(0)
                 else expect(recovery?.usedAt).toBeInstanceOf(Date)
+                const [mfaSession] = await fixtureSessions()
+                expect(mfaSession?.oidcProof).toMatchObject({ providerId, subject, userId })
+                await changeProvider((provider) => ({ ...provider, enabled: false }))
+                expect(await getSessionByTokenService(result.session.token)).toBeNull()
             },
         )
     }

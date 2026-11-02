@@ -103,6 +103,7 @@ export async function issueInviteService(input: {
                     displayName: users.displayName,
                     id: users.id,
                     status: users.status,
+                    oidcProviderId: users.oidcProviderId,
                 })
                 .from(users)
                 .where(eq(sql<string>`lower(${users.email})`, email))
@@ -114,7 +115,7 @@ export async function issueInviteService(input: {
             let currentRoleKeys: Array<string> = []
 
             if (existingUser) {
-                if (existingUser.status !== 'pending') {
+                if (existingUser.status !== 'pending' || existingUser.oidcProviderId) {
                     throw new AuthDomainError('email_conflict', 'Email address is already in use.')
                 }
 
@@ -252,14 +253,18 @@ export async function acceptInviteService(input: {
                 }
 
                 const userRows = await transaction
-                    .select({ id: users.id, status: users.status })
+                    .select({
+                        id: users.id,
+                        status: users.status,
+                        oidcProviderId: users.oidcProviderId,
+                    })
                     .from(users)
                     .where(eq(users.id, invite.userId))
                     .limit(1)
                     .for('update')
                 const user = userRows.at(0)
 
-                if (!user || user.status !== 'pending') {
+                if (!user || user.status !== 'pending' || user.oidcProviderId) {
                     return { success: false as const, code: 'invalid_or_expired_token' as const }
                 }
 

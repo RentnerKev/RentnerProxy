@@ -2627,6 +2627,7 @@
             },
             "metadata": {
                 "authenticationMethod": "Authenticatiemethode",
+                "localAuthenticationMethod": "Lokale tweede factor",
                 "reason": "Reden",
                 "failureCode": "Foutcode",
                 "changedFields": "Gewijzigde velden",

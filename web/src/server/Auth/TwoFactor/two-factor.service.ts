@@ -450,8 +450,11 @@ export async function createOidcLoginMfaChallengeService(
                 kind: 'oidc',
                 providerId: input.providerId,
                 providerRevision: input.providerRevision,
+                bindingGeneration: input.bindingGeneration ?? 0,
                 issuer: input.issuer,
                 subject: input.subject,
+                expiresAt: input.expiresAt,
+                ...(input.groups === undefined ? {} : { groups: input.groups }),
             },
         },
         LOGIN_MFA_CHALLENGE_DURATION_MS,
@@ -472,10 +475,17 @@ async function completeLoginMfaTransaction(
                     consumed.firstFactor.passwordFingerprint,
                 )
             } else {
-                await requireOidcAuthenticationInTransaction(transaction, {
-                    ...consumed.firstFactor,
-                    userId: consumed.userId,
-                })
+                try {
+                    await requireOidcAuthenticationInTransaction(transaction, {
+                        ...consumed.firstFactor,
+                        userId: consumed.userId,
+                    })
+                } catch (error) {
+                    // Commit synchronized role removals and revocations even when they remove access.
+                    if (error instanceof AuthDomainError && error.code === 'user_not_active')
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    throw error
+                }
             }
             const factor = await getLoginMfaFactorInTransaction(transaction, consumed.userId)
 
@@ -516,6 +526,10 @@ async function completeLoginMfaTransaction(
                 transaction,
                 consumed.userId,
                 proof.kind,
+                new Date(),
+                consumed.firstFactor.kind === 'oidc'
+                    ? { ...consumed.firstFactor, userId: consumed.userId }
+                    : undefined,
             )
             return {
                 session: {

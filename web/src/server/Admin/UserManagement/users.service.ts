@@ -39,6 +39,7 @@ async function loadUserForUpdate(transaction: AuthTransaction, userId: string) {
             displayName: users.displayName,
             email: users.email,
             id: users.id,
+            oidcProviderId: users.oidcProviderId,
             profileImageVersion: users.profileImageVersion,
             status: users.status,
             updatedAt: users.updatedAt,
@@ -218,6 +219,11 @@ export async function updateUserService(input: {
                     selectedRoles,
                 )
                 nextRoleKeys = selectedRoles.map((role) => role.key)
+                if (user.oidcProviderId && hasOwnerRole(nextRoleKeys))
+                    throw new AuthDomainError(
+                        'permission_denied',
+                        'External accounts cannot be owners.',
+                    )
             }
 
             assertOwnerManagementAllowed(transactionActor.roles, currentRoleKeys, nextRoleKeys)
@@ -416,7 +422,7 @@ export async function enableUserService(userId: string): Promise<UserSummary> {
             const updatedRows = await transaction
                 .update(users)
                 .set({
-                    status: sql`(case when ${users.passwordHash} is null then 'pending' else 'active' end)::"rentnerproxy"."user_status"`,
+                    status: sql`(case when ${users.passwordHash} is null and ${users.oidcProviderId} is null then 'pending' else 'active' end)::"rentnerproxy"."user_status"`,
                     updatedAt: new Date(),
                 })
                 .where(and(eq(users.id, user.id), eq(users.status, 'disabled')))

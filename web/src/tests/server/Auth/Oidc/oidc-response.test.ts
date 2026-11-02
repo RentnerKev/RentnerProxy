@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { Window } from 'happy-dom'
-import { OIDC_FLOW_COOKIE_NAME, OIDC_DEVELOPMENT_FLOW_COOKIE_NAME } from '@/config/oidc.config.ts'
+import {
+    OIDC_FLOW_COOKIE_NAME,
+    OIDC_DEVELOPMENT_FLOW_COOKIE_NAME,
+    OIDC_LINK_FLOW_COOKIE_NAME,
+    OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME,
+} from '@/config/oidc.config.ts'
 import { SESSION_COOKIE_NAME, MFA_CHALLENGE_COOKIE_NAME } from '@/config/auth.config.ts'
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { createOidcHttpHandlers } from '@/server/Auth/Oidc/oidc-response.server.ts'
-import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts'
+import type { OidcFlowCompletion } from '@/server/Auth/Oidc/Types/oidc-flow.types.ts'
 
 const providerId = '0194f777-4074-7000-8000-000000000001'
 function fixture(
@@ -12,13 +17,16 @@ function fixture(
     authorizationUrl = new URL('https://identity.example.test/authorize?state=opaque'),
 ) {
     const browserToken = createOpaqueToken()
+    const linkBrowserToken = createOpaqueToken()
     const state = createOpaqueToken()
     const sessionToken = createOpaqueToken()
     let begins = 0
     let completes = 0
+    let linkBegins = 0
+    const completionIntents: boolean[] = []
     let signedIn = false
     let fail = false
-    let result: Extract<LoginResult, { success: true }> = {
+    let result: OidcFlowCompletion = {
         success: true,
         requiresTwoFactor: false,
         user: {
@@ -47,11 +55,22 @@ function fixture(
                 expiresAt: new Date(Date.now() + 60_000),
             }
         },
-        complete: async (url, token) => {
+        beginLink: async (id) => {
+            expect(id).toBe(providerId)
+            linkBegins += 1
+            return {
+                state,
+                browserToken: linkBrowserToken,
+                authorizationUrl,
+                expiresAt: new Date(Date.now() + 60_000),
+            }
+        },
+        complete: async (url, token, linking = false) => {
+            completionIntents.push(linking)
             completes += 1
             expect(url.origin).toBe(origin)
             expect(url.pathname).toBe('/api/auth/oidc/callback')
-            expect(token).toBe(browserToken)
+            expect(token).toBe(linking ? linkBrowserToken : browserToken)
             if (fail) throw new Error('provider-raw-token-payload')
             return result
         },
@@ -77,15 +96,21 @@ function fixture(
         start,
         callback,
         browserToken,
+        linkBrowserToken,
         sessionToken,
         state,
         begins: () => begins,
+        linkBegins: () => linkBegins,
+        completionIntents,
         completes: () => completes,
         signedIn: () => {
             signedIn = true
         },
         fail: () => {
             fail = true
+        },
+        linked: () => {
+            result = { success: true, linked: true }
         },
         mfa: () => {
             result = {
@@ -122,6 +147,99 @@ async function parseNavigationBridge(response: Response) {
 }
 
 describe('OIDC raw HTTP endpoints', () => {
+    for (const origin of ['https://proxy.example.test', 'http://localhost:5173']) {
+        test(`starts explicit linking in a separate cookie at ${origin}`, async () => {
+            const value = fixture(origin)
+            value.signedIn()
+            const request = new Request(`${origin}/api/auth/oidc/start`, {
+                method: 'POST',
+                headers: {
+                    origin,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    cookie: `${SESSION_COOKIE_NAME}=existing-session; ${MFA_CHALLENGE_COOKIE_NAME}=existing-mfa; ${OIDC_FLOW_COOKIE_NAME}=pending-login`,
+                },
+                body: new URLSearchParams({ providerId, intent: 'link' }),
+            })
+            const response = await value.handlers.start(request)
+            expect(response.status).toBe(200)
+            expect(value.linkBegins()).toBe(1)
+            expect(value.begins()).toBe(0)
+            const cookies = response.headers.getSetCookie()
+            const linkCookie = origin.startsWith('https:')
+                ? OIDC_LINK_FLOW_COOKIE_NAME
+                : OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME
+            expect(cookies).toHaveLength(1)
+            expect(cookies[0]).toStartWith(`${linkCookie}=${value.linkBrowserToken};`)
+            expect(cookies[0]!.includes('Secure')).toBe(origin.startsWith('https:'))
+        })
+    }
+    test('rejects unauthenticated link consent without issuing cookies or starting a login', async () => {
+        const value = fixture()
+        const request = new Request('https://proxy.example.test/api/auth/oidc/start', {
+            method: 'POST',
+            headers: {
+                origin: 'https://proxy.example.test',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ providerId, intent: 'link' }),
+        })
+        const response = await value.handlers.start(request)
+        expect(response.headers.get('location')).toBe('/login?oidcError=failed')
+        expect(response.headers.getSetCookie()).toHaveLength(0)
+        expect(value.linkBegins()).toBe(0)
+        expect(value.begins()).toBe(0)
+    })
+    test('link completion preserves permanent session, MFA and pending login cookies', async () => {
+        const value = fixture()
+        value.signedIn()
+        value.linked()
+        const response = await value.handlers.callback(
+            value.callback(
+                undefined,
+                `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}; ${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}; ${SESSION_COOKIE_NAME}=existing-session; ${MFA_CHALLENGE_COOKIE_NAME}=existing-mfa`,
+            ),
+        )
+        expect(response.headers.get('location')).toBe('/account')
+        expect(value.completionIntents).toEqual([true])
+        const cookies = response.headers.getSetCookie()
+        expect(cookies).toHaveLength(1)
+        expect(cookies[0]).toStartWith(`${OIDC_LINK_FLOW_COOKIE_NAME}=;`)
+        expect(cookies[0]).toContain('1970')
+        expect(await response.text()).toBe('')
+    })
+    test('anonymous login uses its own proof when a pending link cookie is also present', async () => {
+        const value = fixture()
+        const response = await value.handlers.callback(
+            value.callback(
+                undefined,
+                `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}; ${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}`,
+            ),
+        )
+        expect(response.headers.get('location')).toBe('/')
+        expect(value.completionIntents).toEqual([false])
+        expect(
+            response.headers
+                .getSetCookie()
+                .some((cookie) => cookie.startsWith(`${OIDC_LINK_FLOW_COOKIE_NAME}=`)),
+        ).toBe(false)
+    })
+    for (const cookieHeader of ['development', 'duplicate', 'login-only'] as const) {
+        test(`signed-in callback rejects or ignores ${cookieHeader} link proof without overwriting auth cookies`, async () => {
+            const value = fixture()
+            value.signedIn()
+            value.linked()
+            const cookies =
+                cookieHeader === 'development'
+                    ? `${OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}`
+                    : cookieHeader === 'duplicate'
+                      ? `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}; ${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}`
+                      : `${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}`
+            const response = await value.handlers.callback(value.callback(undefined, cookies))
+            expect(value.completes()).toBe(0)
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+            expect(response.headers.get('location')).toBe('/')
+        })
+    }
     test('starts with a no-store HTML navigation bridge and host-only browser binding under form-action self', async () => {
         const value = fixture()
         const response = await value.handlers.start(value.start())

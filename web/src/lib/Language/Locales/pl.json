@@ -2674,6 +2674,7 @@
             },
             "metadata": {
                 "authenticationMethod": "Metoda uwierzytelniania",
+                "localAuthenticationMethod": "Lokalny drugi składnik",
                 "reason": "Przyczyna",
                 "failureCode": "Kod niepowodzenia",
                 "changedFields": "Zmienione pola",

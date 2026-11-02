@@ -2672,6 +2672,7 @@
             },
             "metadata": {
                 "authenticationMethod": "Método de autenticação",
+                "localAuthenticationMethod": "Segundo fator local",
                 "reason": "Motivo",
                 "failureCode": "Código de falha",
                 "changedFields": "Campos alterados",

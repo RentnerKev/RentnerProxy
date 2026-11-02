@@ -40,8 +40,46 @@ export const oidcBindingSchema = z
     .object({
         subject: z.string().regex(/^[\x21-\x7e]{1,255}$/u),
         userId: z.uuid(),
+        roleSource: z.enum(['local', 'provider']).optional(),
+        generation: z
+            .number()
+            .int()
+            .min(0)
+            .max(Number.MAX_SAFE_INTEGER - 1)
+            .optional(),
     })
     .strict()
+
+export const oidcAccountPolicySchema = z
+    .object({
+        provisioning: z.boolean(),
+        groupClaim: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,127}$/u),
+        defaultRoleKeys: z.array(z.string().trim().min(1).max(100)).max(OIDC_LIMITS.roleKeys),
+        groupRoleMappings: z
+            .array(
+                z
+                    .object({
+                        group: z.string().min(1).max(OIDC_LIMITS.groupLength),
+                        roleKeys: z
+                            .array(z.string().trim().min(1).max(100))
+                            .max(OIDC_LIMITS.roleKeys),
+                    })
+                    .strict(),
+            )
+            .max(OIDC_LIMITS.groupMappings),
+    })
+    .strict()
+    .superRefine((policy, context) => {
+        if (
+            new Set(policy.groupRoleMappings.map((entry) => entry.group)).size !==
+                policy.groupRoleMappings.length ||
+            [
+                policy.defaultRoleKeys,
+                ...policy.groupRoleMappings.map((entry) => entry.roleKeys),
+            ].some((keys) => new Set(keys).size !== keys.length)
+        )
+            context.addIssue({ code: 'custom', message: 'Duplicate group or role key.' })
+    })
 
 export const oidcProviderSchema = z
     .object({
@@ -57,6 +95,7 @@ export const oidcProviderSchema = z
             .max(OIDC_LIMITS.endpointOrigins),
         allowedPrivateCidrs: z.array(z.string().min(1).max(64)).max(OIDC_LIMITS.privateCidrs),
         bindings: z.array(oidcBindingSchema).max(OIDC_LIMITS.bindings),
+        accountPolicy: oidcAccountPolicySchema.optional(),
     })
     .strict()
     .superRefine((value, context) => {

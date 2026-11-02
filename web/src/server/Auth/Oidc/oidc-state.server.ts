@@ -23,6 +23,17 @@ const flowSchema = z.strictObject({
     redirectUri: z.string().max(OIDC_LIMITS.urlLength),
     nonce: z.string().refine(isValidOpaqueToken),
     codeVerifier: z.string().refine(isValidOpaqueToken),
+    link: z
+        .strictObject({
+            userId: z.uuid(),
+            sessionId: z.uuid(),
+            expectedRevision: z
+                .number()
+                .int()
+                .min(0)
+                .max(Number.MAX_SAFE_INTEGER - 1),
+        })
+        .optional(),
 })
 const envelopeSchema = z.strictObject({
     version: z.literal(1),

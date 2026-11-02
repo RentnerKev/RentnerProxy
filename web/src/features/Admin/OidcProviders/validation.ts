@@ -16,6 +16,9 @@ export function providerDraft(provider?: OidcProviderSummary): ProviderDraft {
         tokenEndpointAuthMethod: provider?.tokenEndpointAuthMethod ?? 'client_secret_basic',
         endpointOrigins: provider?.allowedEndpointOrigins.join('\n') ?? '',
         privateCidrs: provider?.allowedPrivateCidrs.join('\n') ?? '',
+        ...(provider?.accountPolicy
+            ? { accountPolicy: structuredClone(provider.accountPolicy) }
+            : {}),
         bindings:
             provider?.bindings.map((binding) => ({ ...binding, rowId: createOidcProviderId() })) ??
             [],

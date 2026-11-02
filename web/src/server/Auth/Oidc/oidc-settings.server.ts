@@ -86,6 +86,8 @@ export function parseStoredOidcSettings(input: unknown): StoredOidcSettings {
         })
         for (const provider of parsed.providers) {
             if (provider.revision > parsed.revision) throw new Error('revision')
+            if (provider.bindings.some((binding) => (binding.generation ?? 0) > parsed.revision))
+                throw new Error('generation')
             validateDestinations(provider)
             const iv = decodeBase64Url(provider.clientSecret.iv)
             const ciphertext = decodeBase64Url(provider.clientSecret.ciphertext)
@@ -191,6 +193,19 @@ export async function buildStoredOidcSettings(
                 }
             }
             if (!encrypted) throw new OidcDomainError('invalid_input')
+            provider.bindings = provider.bindings.map((binding) => {
+                const retained =
+                    previous?.issuer === provider.issuer
+                        ? previous.bindings.find(
+                              (saved) =>
+                                  saved.subject === binding.subject &&
+                                  saved.userId === binding.userId,
+                          )
+                        : undefined
+                return Object.assign({}, binding, {
+                    generation: retained ? (retained.generation ?? 0) : revision,
+                })
+            })
             return Object.assign(provider, { revision, clientSecret: encrypted })
         }),
     )
