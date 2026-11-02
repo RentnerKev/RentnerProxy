@@ -1,22 +1,6 @@
 name: Runtime Reliability
 
 on:
-    pull_request:
-        paths:
-            - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/**'
-            - 'core/**'
-            - 'docker/**'
-            - 'docker-compose.yml'
-            - 'scripts/**'
-            - 'web/**'
-            - '.dockerignore'
-            - 'package.json'
-            - 'bun.lock'
-            - 'bunfig.toml'
-            - 'drizzle.config.ts'
-            - 'vite.config.ts'
-            - 'tsconfig*.json'
     push:
         branches:
             - main

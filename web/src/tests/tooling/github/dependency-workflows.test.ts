@@ -92,7 +92,9 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(
         workflow.jobs['locked-source']?.steps?.some((step) => step.run?.includes('audit-bun.sh')),
     ).toBe(true)
-    expect(workflow.jobs['production-candidate']?.if).toBe("github.event_name != 'schedule'")
+    expect(workflow.jobs['production-candidate']?.if).toBe(
+        "github.event_name != 'schedule' && github.event_name != 'pull_request'",
+    )
     expect(
         workflow.jobs['production-candidate']?.steps?.some((step) =>
             step.run?.includes('scan-image.sh'),
@@ -193,4 +195,107 @@ test('audits exact source with base-revision automation outside PR configuration
     expect(scan.run).toBe(
         'REVISION="$(git -C source rev-parse HEAD)" bash automation/.github/scripts/security/scan-image.sh',
     )
+})
+
+test('PR production audit scans the same-run OCI with trusted base automation and fails when its producer fails', async () => {
+    const source = await readFile(resolve(root, '.github/workflows/production-smokes.yml'), 'utf8')
+    const workflow = Bun.YAML.parse(source) as {
+        permissions: Record<string, string>
+        jobs: Record<
+            string,
+            {
+                name?: string
+                needs?: string
+                if?: string
+                steps: {
+                    uses?: string
+                    with?: Record<string, unknown>
+                    env?: Record<string, string>
+                    run?: string
+                    'working-directory'?: string
+                }[]
+            }
+        >
+    }
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(source).not.toContain('pull_request_target:')
+    expect(source).not.toContain('workflow_run:')
+    expect(source).not.toMatch(/\$\{\{[^}]*\bsecrets(?:\s*\[|\.)/u)
+    const audit = workflow.jobs['production-candidate']!
+    expect(audit.name).toBe(
+        "${{ github.event_name == 'pull_request' && 'Production image dependency audit' || 'PR image dependency audit (inactive)' }}",
+    )
+    expect(audit.needs).toBe('build-runtime-images')
+    expect(audit.if).toBe("${{ !cancelled() && github.event_name == 'pull_request' }}")
+    expect(audit.steps[0]?.env?.IMAGE_BUILD_RESULT).toBe('${{ needs.build-runtime-images.result }}')
+    expect(audit.steps[0]?.run).toBe('test "$IMAGE_BUILD_RESULT" = success')
+    const checkouts = audit.steps.filter((step) => step.uses?.startsWith('actions/checkout@'))
+    expect(checkouts.find((step) => step.with?.path === 'automation')?.with).toEqual({
+        'persist-credentials': false,
+        path: 'automation',
+        ref: '${{ github.event.pull_request.base.sha || github.workflow_sha }}',
+    })
+    expect(checkouts.find((step) => step.with?.path === 'source')?.with).toEqual({
+        'persist-credentials': false,
+        path: 'source',
+        ref: '${{ github.sha }}',
+    })
+    for (const step of audit.steps) {
+        expect(step['working-directory']).toBeUndefined()
+        if (!step.run) continue
+        expect(step.run).not.toContain('source/.github/scripts')
+        expect(step.run).not.toMatch(/\bcd\s+source\b/u)
+        expect(step.run).not.toMatch(/\b(?:bun|npm|pnpm|yarn)\s+(?:install|run)\b/u)
+        expect(step.run).not.toMatch(/\bcargo\s+(?:build|run|test|install)\b/u)
+    }
+    expect(
+        audit.steps.some((step) => step.uses?.startsWith('docker/build-push-action@')),
+    ).toBeFalse()
+    const download = audit.steps.find((step) =>
+        step.uses?.startsWith('actions/download-artifact@'),
+    )!
+    expect(download.with?.name).toBe(
+        'runtime-appliance-${{ needs.build-runtime-images.outputs.scope }}',
+    )
+    expect(download.with?.['run-id']).toBeUndefined()
+    expect(download.with?.['github-token']).toBeUndefined()
+    const verify = audit.steps.find((step) => step.run?.includes('sha256sum --check --strict'))!
+    expect(verify.env).toEqual({
+        EXPECTED_ARCHIVE_SHA256:
+            '${{ needs.build-runtime-images.outputs.appliance_archive_sha256 }}',
+        EXPECTED_IDENTITY_SHA256:
+            '${{ needs.build-runtime-images.outputs.appliance_identity_sha256 }}',
+        IMAGE_SCOPE: '${{ needs.build-runtime-images.outputs.scope }}',
+        REVISION: '${{ github.sha }}',
+    })
+    expect(verify.run).toContain('.revision == $revision and .scope == $scope')
+    expect(verify.run).toContain('.kind == "appliance" and .platform == "linux/amd64"')
+    expect(verify.run).toContain('.Digest == $identity[0].manifestDigest')
+    for (const label of [
+        'org.opencontainers.image.revision',
+        'io.rentnerproxy.smoke-source',
+        'io.rentnerproxy.smoke-run',
+        'io.rentnerproxy.smoke-image',
+    ])
+        expect(verify.run).toContain('.Labels["' + label + '"]')
+    const scan = audit.steps.find((step) => step.run?.includes('scan-image.sh'))!
+    expect(audit.steps.indexOf(verify)).toBeLessThan(audit.steps.indexOf(scan))
+    expect(scan.env?.AUTOMATION_DIRECTORY).toBe('automation')
+    expect(scan.env?.IMAGE_SOURCE).toBe(
+        'oci-archive:${{ runner.temp }}/runtime-appliance/image.tar',
+    )
+    expect(scan.run).toBe(
+        'REVISION="$(git -C source rev-parse HEAD)" bash automation/.github/scripts/security/scan-image.sh',
+    )
+    const standalone = Bun.YAML.parse(
+        await readFile(resolve(root, '.github/workflows/dependency-security.yml'), 'utf8'),
+    ) as { jobs: Record<string, { name?: string; if?: string }> }
+    expect(standalone.jobs['production-candidate']?.if).toBe(
+        "github.event_name != 'schedule' && github.event_name != 'pull_request'",
+    )
+    expect(standalone.jobs['production-candidate']?.name).toBe(
+        "${{ github.event_name == 'pull_request' && 'Standalone image audit (inactive)' || 'Production image dependency audit' }}",
+    )
+    expect(JSON.stringify(audit)).not.toContain('continue-on-error')
+    expect(JSON.stringify(audit)).not.toContain('result == 3')
 })

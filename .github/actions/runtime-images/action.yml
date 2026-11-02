@@ -1,0 +1,182 @@
+name: Build runtime verification images
+description: Build exact committed OCI images once and bind same-run artifacts to their hashes.
+inputs:
+    include_proxy_runtime:
+        description: Build and share the proxy-runtime image on the same builder.
+        required: false
+        default: 'false'
+outputs:
+    scope:
+        description: Producer run and attempt owning the images.
+        value: ${{ steps.scope.outputs.scope }}
+    appliance_archive_sha256:
+        description: Appliance OCI archive SHA-256.
+        value: ${{ steps.appliance.outputs.archive_sha256 }}
+    appliance_identity_sha256:
+        description: Appliance identity SHA-256.
+        value: ${{ steps.appliance.outputs.identity_sha256 }}
+    http3_archive_sha256:
+        description: HTTP3 client OCI archive SHA-256.
+        value: ${{ steps.http3.outputs.archive_sha256 }}
+    http3_identity_sha256:
+        description: HTTP3 client identity SHA-256.
+        value: ${{ steps.http3.outputs.identity_sha256 }}
+    proxy_archive_sha256:
+        description: Proxy-runtime OCI archive SHA-256.
+        value: ${{ steps.proxy.outputs.archive_sha256 }}
+    proxy_identity_sha256:
+        description: Proxy-runtime identity SHA-256.
+        value: ${{ steps.proxy.outputs.identity_sha256 }}
+runs:
+    using: composite
+    steps:
+        - name: Prepare exact committed build context
+          id: scope
+          shell: bash
+          env:
+              IMAGE_SCOPE: ${{ github.run_id }}-${{ github.run_attempt }}
+              INCLUDE_PROXY_RUNTIME: ${{ inputs.include_proxy_runtime }}
+          run: |
+              test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+              mkdir -p "$RUNNER_TEMP/runtime-image-source" "$RUNNER_TEMP/runtime-appliance" "$RUNNER_TEMP/runtime-http3-client"
+              if [ "$INCLUDE_PROXY_RUNTIME" = true ]; then mkdir -p "$RUNNER_TEMP/runtime-proxy-runtime"; fi
+              git archive HEAD | tar -x -C "$RUNNER_TEMP/runtime-image-source"
+              printf 'scope=%s\n' "$IMAGE_SCOPE" >> "$GITHUB_OUTPUT"
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+          with:
+              buildkitd-config-inline: |
+                  [worker.oci]
+                    max-parallelism = 2
+
+        - name: Build exact production OCI candidate
+          uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+          env:
+              DOCKER_BUILD_SUMMARY: 'false'
+              DOCKER_BUILD_RECORD_UPLOAD: 'false'
+          with:
+              context: ${{ runner.temp }}/runtime-image-source
+              file: ${{ runner.temp }}/runtime-image-source/docker/production/Dockerfile
+              platforms: linux/amd64
+              push: false
+              provenance: mode=max
+              sbom: true
+              tags: rentnerproxy-smoke-${{ steps.scope.outputs.scope }}:appliance
+              labels: |
+                  org.opencontainers.image.revision=${{ github.sha }}
+                  io.rentnerproxy.smoke-run=${{ steps.scope.outputs.scope }}
+                  io.rentnerproxy.smoke-source=${{ github.sha }}
+                  io.rentnerproxy.smoke-image=appliance
+              outputs: type=oci,dest=${{ runner.temp }}/runtime-appliance/image.tar
+              cache-from: |
+                  type=gha,version=2,scope=production-smokes-appliance-v1,timeout=2m
+                  type=gha,version=2,scope=runtime-reliability-appliance-v1,timeout=2m
+                  type=gha,version=2,scope=dependency-audit-appliance-amd64-v1,timeout=2m
+              cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,version=2,scope=production-smokes-appliance-v1,mode=max,timeout=2m,ignore-error=true' || '' }}
+
+        - name: Build exact proxy-runtime OCI image
+          if: inputs.include_proxy_runtime == 'true'
+          uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+          env:
+              DOCKER_BUILD_SUMMARY: 'false'
+              DOCKER_BUILD_RECORD_UPLOAD: 'false'
+          with:
+              context: ${{ runner.temp }}/runtime-image-source
+              file: ${{ runner.temp }}/runtime-image-source/docker/proxy-runtime/Dockerfile
+              platforms: linux/amd64
+              push: false
+              tags: rentnerproxy-smoke-${{ steps.scope.outputs.scope }}:proxy-runtime
+              labels: |
+                  org.opencontainers.image.revision=${{ github.sha }}
+                  io.rentnerproxy.smoke-run=${{ steps.scope.outputs.scope }}
+                  io.rentnerproxy.smoke-source=${{ github.sha }}
+                  io.rentnerproxy.smoke-image=proxy-runtime
+              outputs: type=oci,dest=${{ runner.temp }}/runtime-proxy-runtime/image.tar
+              cache-from: type=gha,version=2,scope=production-smokes-proxy-runtime-v1,timeout=2m
+              cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,version=2,scope=production-smokes-proxy-runtime-v1,mode=max,timeout=2m,ignore-error=true' || '' }}
+
+        - name: Build HTTP3 client OCI image
+          uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+          env:
+              DOCKER_BUILD_SUMMARY: 'false'
+              DOCKER_BUILD_RECORD_UPLOAD: 'false'
+          with:
+              context: ${{ runner.temp }}/runtime-image-source
+              file: ${{ runner.temp }}/runtime-image-source/scripts/smoke/http3/Dockerfile
+              platforms: linux/amd64
+              push: false
+              tags: rentnerproxy-smoke-${{ steps.scope.outputs.scope }}:http3-client
+              labels: |
+                  org.opencontainers.image.revision=${{ github.sha }}
+                  io.rentnerproxy.smoke-run=${{ steps.scope.outputs.scope }}
+                  io.rentnerproxy.smoke-source=${{ github.sha }}
+                  io.rentnerproxy.smoke-image=http3-client
+              outputs: type=oci,dest=${{ runner.temp }}/runtime-http3-client/image.tar
+              cache-from: type=gha,version=2,scope=production-smokes-http3-client-v1,timeout=2m
+              cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,version=2,scope=production-smokes-http3-client-v1,mode=max,timeout=2m,ignore-error=true' || '' }}
+
+        - name: Install OCI transport
+          shell: bash
+          run: |
+              sudo apt-get update
+              sudo apt-get install --yes --no-install-recommends skopeo
+
+        - name: Bind production image identity
+          id: appliance
+          shell: bash
+          env:
+              RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
+              RENTNERPROXY_SMOKE_RUN: ${{ steps.scope.outputs.scope }}
+              RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-appliance
+              RUNTIME_IMAGE_KIND: appliance
+          run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts pack
+
+        - name: Bind HTTP3 client identity
+          id: http3
+          shell: bash
+          env:
+              RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
+              RENTNERPROXY_SMOKE_RUN: ${{ steps.scope.outputs.scope }}
+              RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-http3-client
+              RUNTIME_IMAGE_KIND: http3-client
+          run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts pack
+
+        - name: Bind proxy-runtime identity
+          if: inputs.include_proxy_runtime == 'true'
+          id: proxy
+          shell: bash
+          env:
+              RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
+              RENTNERPROXY_SMOKE_RUN: ${{ steps.scope.outputs.scope }}
+              RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-proxy-runtime
+              RUNTIME_IMAGE_KIND: proxy-runtime
+          run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts pack
+
+        - name: Store production OCI artifact
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          with:
+              name: runtime-appliance-${{ steps.scope.outputs.scope }}
+              path: ${{ runner.temp }}/runtime-appliance
+              if-no-files-found: error
+              retention-days: 1
+              compression-level: 0
+
+        - name: Store HTTP3 client OCI artifact
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          with:
+              name: runtime-http3-client-${{ steps.scope.outputs.scope }}
+              path: ${{ runner.temp }}/runtime-http3-client
+              if-no-files-found: error
+              retention-days: 1
+              compression-level: 0
+
+        - name: Store proxy-runtime OCI artifact
+          if: inputs.include_proxy_runtime == 'true'
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          with:
+              name: runtime-proxy-runtime-${{ steps.scope.outputs.scope }}
+              path: ${{ runner.temp }}/runtime-proxy-runtime
+              if-no-files-found: error
+              retention-days: 1
+              compression-level: 0

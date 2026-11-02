@@ -3,6 +3,7 @@ import type { CiGetJson, ReleaseCiJob, ReleaseCiRun } from './Types/exact-revisi
 
 export const CI_GATE_ERROR = 'Exact release revision CI verification failed.'
 export const REQUIRED_CI_JOBS = [
+    'Caddy Change Detection',
     'Format',
     'Lint',
     'Script Typecheck',
