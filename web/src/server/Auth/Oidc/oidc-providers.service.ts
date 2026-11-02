@@ -1,7 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { OIDC_CONFIGURATION_RATE_LIMIT } from '@/config/oidc.config.ts'
-import { OIDC_SETTINGS_KEY } from '@/config/oidc.config.ts'
 import type { SaveOidcProvidersInput } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import { saveOidcProvidersSchema } from '@/lib/Auth/Oidc/validation.ts'
 import { requireSessionService } from '@/server/Auth/Access/authorization.service.ts'
@@ -142,7 +141,7 @@ export const { getOidcProvidersService, saveOidcProvidersService, getPublicOidcP
                 actorKind: 'user',
                 action: 'update',
                 resource: 'security-settings',
-                targetId: OIDC_SETTINGS_KEY,
+                targetId: null,
                 result: 'success',
                 metadata: { changedFields: ['oidcProviders'] },
             }),

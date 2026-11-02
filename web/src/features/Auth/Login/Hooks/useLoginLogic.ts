@@ -24,6 +24,7 @@ export default function useLoginLogic() {
     const search = useSearch({ strict: false })
     const [isOidcPending, setIsOidcPending] = useState(false)
     useEffect(() => {
+        /** Restores submission after Back returns from the provider through the browser's page cache. */
         const restoreLogin = (event: PageTransitionEvent) => {
             if (event.persisted) setIsOidcPending(false)
         }
@@ -106,6 +107,7 @@ export default function useLoginLogic() {
             oidcFailed: !!search && 'oidcError' in search && search.oidcError === 'failed',
         },
         handler: {
+            /** Submits local credentials only while no other sign-in exchange owns the form. */
             handleSubmit: (event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -115,6 +117,7 @@ export default function useLoginLogic() {
             validateEmail: ({ value }) => getValidationMessage(emailSchema, value),
             validatePassword: ({ value }) => getValidationMessage(credentialPasswordSchema, value),
 
+            /** Starts the passkey ceremony only when local and provider sign-in are idle. */
             handlePasskeyLogin: async () => {
                 if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
                 passkeyMutation.reset()
@@ -123,6 +126,7 @@ export default function useLoginLogic() {
                     await passkeyMutation.mutateAsync()
                 } catch {}
             },
+            /** Allows one native provider navigation and blocks competing submissions until restoration. */
             handleOidcSubmit: (event) => {
                 if (isOidcPending || mutation.isPending || passkeyMutation.isPending) {
                     event.preventDefault()
