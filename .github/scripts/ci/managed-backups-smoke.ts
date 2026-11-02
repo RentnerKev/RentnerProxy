@@ -79,6 +79,7 @@ async function wait(check: () => Promise<boolean>, operation: string, timeoutMs 
     throw new Error('Managed backup smoke deadline exceeded: ' + operation)
 }
 
+/** Exercises isolated backup admission, retention and recovery, then cleans up only its owned resources. */
 export async function runManagedBackupsSmoke(): Promise<number> {
     const runId = randomUUID().replaceAll('-', '').slice(0, 12)
     const scope = smokeRunScope() ?? 'local-' + runId
@@ -293,6 +294,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         )
         return managedBackupStatusSchema.parse(await probe(container, 'status'))
     }
+    /** Requires post-tick control cleanup and verifies the artifact before returning a fresh retention view. */
     async function completed(container: string, jobId: string) {
         let latest: ManagedBackupStatus | undefined
         await wait(
@@ -301,7 +303,12 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 const job = latest.jobs.find((entry) => entry.id === jobId)
                 if (job && ['failed', 'interrupted'].includes(job.state))
                     assert.fail('backup did not succeed: ' + job.state)
-                return job?.state === 'succeeded' && job.retained
+                if (job?.state !== 'succeeded' || !job.retained) return false
+                // The agent removes its control files only after tick() finishes
+                // retention and releases execution admission; success alone is earlier.
+                return z
+                    .strictObject({ settled: z.boolean() })
+                    .parse(await probe(container, 'settled')).settled
             },
             'successful managed backup',
             300_000,
@@ -309,7 +316,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         assert.ok(latest)
         assert.equal(latest.jobs.find((entry) => entry.id === jobId)?.state, 'succeeded')
         await probe(container, 'verify', jobId)
-        return latest
+        return await status(container)
     }
     try {
         await writeFile(envFile, '', { mode: 0o600 })
