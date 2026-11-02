@@ -17,7 +17,10 @@ describe('OIDC provider and editor row identifiers', () => {
 
     test('retains UUIDv4 validity and provider identity without the secure-context helper', () => {
         const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID')
-        Object.defineProperty(crypto, 'randomUUID', { value: undefined })
+        Object.defineProperty(crypto, 'randomUUID', {
+            ...(descriptor ? {} : { configurable: true }),
+            value: undefined,
+        })
         try {
             const values = Array.from({ length: 64 }, createOidcProviderId)
             expect(new Set(values).size).toBe(64)
@@ -40,5 +43,6 @@ describe('OIDC provider and editor row identifiers', () => {
             if (descriptor) Object.defineProperty(crypto, 'randomUUID', descriptor)
             else Reflect.deleteProperty(crypto, 'randomUUID')
         }
+        expect(typeof crypto.randomUUID).toBe('function')
     })
 })
