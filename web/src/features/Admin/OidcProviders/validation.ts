@@ -33,10 +33,11 @@ export function providerInput(draft: ProviderDraft) {
     try {
         issuerOrigin = new URL(draft.issuer).origin
     } catch {}
+    const origins = lines(endpointOrigins)
     return {
         ...provider,
         bindings: bindings.map(({ rowId: _rowId, ...binding }) => binding),
-        allowedEndpointOrigins: lines(endpointOrigins || issuerOrigin),
+        allowedEndpointOrigins: origins.length > 0 ? origins : lines(issuerOrigin),
         allowedPrivateCidrs: lines(privateCidrs),
         ...(clientSecret ? { clientSecret } : {}),
     }

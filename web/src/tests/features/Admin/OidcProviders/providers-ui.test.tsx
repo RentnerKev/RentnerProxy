@@ -400,6 +400,7 @@ describe('OIDC provider setup UI', () => {
         await render()
         await click(button('Edit provider'))
         expect((document.getElementById('oidc-client-secret') as HTMLInputElement).value).toBe('')
+        await fill('oidc-endpointOrigins', ' \t\n ')
         let release!: () => void
         pendingSave = new Promise((resolve) => {
             release = resolve
