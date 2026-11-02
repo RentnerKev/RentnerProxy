@@ -86,6 +86,11 @@ function proxyHostActionSuccess(
     }
 }
 
+/**
+ * Exposes validated, VIEW-authorized upstream observations through an uncached GET.
+ * The service reauthorizes and checks desired-state consistency before returning
+ * availability; authorization/load errors use the existing localized query boundary.
+ */
 export const getProxyHostUpstreamHealthHandler = createServerFn({ method: 'GET' })
     .validator(proxyHostIdInputSchema)
     .handler(async ({ data }) => {

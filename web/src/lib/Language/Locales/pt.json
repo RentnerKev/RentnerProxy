@@ -2001,7 +2001,8 @@
                 "maxFails": "Limiar de falhas (1–10)",
                 "maxRetries": "Máximo de tentativas (1–15)",
                 "tryDurationSeconds": "Janela de tentativas (segundos, 1–30)",
-                "tryIntervalMilliseconds": "Pausa entre tentativas (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pausa entre tentativas (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Disponibilidade de encaminhamento",

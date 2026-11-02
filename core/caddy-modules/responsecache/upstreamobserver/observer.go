@@ -53,6 +53,7 @@ func (*Handler) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{ID: "http.handlers.rentnerproxy_upstream", New: func() caddy.Module { return new(Handler) }}
 }
 
+// Provision registers fully initialized stock upstream pointers with an instance-specific cleanup token.
 func (h *Handler) Provision(ctx caddy.Context) error {
 	if !hostPattern.MatchString(h.HostID) || !revisionPattern.MatchString(h.Revision) || len(h.Upstreams) < 1 || len(h.Upstreams) > maxMembers || h.DynamicUpstreamsRaw != nil || h.DynamicUpstreams != nil {
 		return errors.New("invalid observed upstream configuration")
@@ -94,6 +95,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	return h.Handler.ServeHTTP(w, r, next)
 }
 
+// Cleanup unregisters only this instance and releases stock resources once, including partial failures.
 func (h *Handler) Cleanup() error {
 	h.cleanupOnce.Do(func() {
 		instances.remove(h.token)
@@ -113,6 +115,7 @@ type registry struct {
 	entries map[uint64]entry
 }
 
+// add retains the handler's own upstream pointers without copying live state or exceeding capacity.
 func (s *registry) add(token uint64, h *Handler) error {
 	s.Lock()
 	defer s.Unlock()
@@ -141,6 +144,7 @@ type response struct {
 	Observations []observation `json:"observations"`
 }
 
+// snapshot samples only the requested revision and preserves separate route instances for honest aggregation.
 func (s *registry) snapshot(hostID, revision string) (response, error) {
 	s.RLock()
 	defer s.RUnlock()
@@ -171,6 +175,8 @@ func (admin) CaddyModule() caddy.ModuleInfo {
 func (a admin) Routes() []caddy.AdminRoute {
 	return []caddy.AdminRoute{{Pattern: "/rentnerproxy/upstreams", Handler: caddy.AdminHandlerFunc(a.handle)}}
 }
+
+// handle serves bounded, non-cacheable observations exclusively on Caddy's private admin API.
 func (admin) handle(w http.ResponseWriter, r *http.Request) error {
 	apiError := func(status int, message string) error {
 		return caddy.APIError{HTTPStatus: status, Err: errors.New(message)}
@@ -200,6 +206,7 @@ func (admin) handle(w http.ResponseWriter, r *http.Request) error {
 	return err
 }
 
+// parseQuery requires exactly one canonical host ID and revision, rejecting extra or ambiguous parameters.
 func parseQuery(r *http.Request) ([2]string, error) {
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {

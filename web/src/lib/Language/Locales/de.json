@@ -1985,7 +1985,8 @@
                 "maxFails": "Fehlerschwellwert (1–10)",
                 "maxRetries": "Maximale Wiederholungen (1–15)",
                 "tryDurationSeconds": "Zeitfenster (Sekunden, 1–30)",
-                "tryIntervalMilliseconds": "Pause zwischen Versuchen (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pause zwischen Versuchen (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Routing-Verfügbarkeit",

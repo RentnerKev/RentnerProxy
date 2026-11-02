@@ -1994,7 +1994,8 @@
                 "maxFails": "Soglia errori (1–10)",
                 "maxRetries": "Tentativi massimi (1–15)",
                 "tryDurationSeconds": "Finestra tentativi (secondi, 1–30)",
-                "tryIntervalMilliseconds": "Pausa tra tentativi (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pausa tra tentativi (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Disponibilità di instradamento",

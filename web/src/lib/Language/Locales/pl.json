@@ -2003,7 +2003,8 @@
                 "maxFails": "Próg błędów (1–10)",
                 "maxRetries": "Maksimum ponowień (1–15)",
                 "tryDurationSeconds": "Okno ponowień (sekundy, 1–30)",
-                "tryIntervalMilliseconds": "Odstęp ponowień (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Odstęp ponowień (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Dostępność routingu",

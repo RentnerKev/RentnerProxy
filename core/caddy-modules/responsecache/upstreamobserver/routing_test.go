@@ -17,6 +17,8 @@ import (
 	"github.com/caddyserver/caddy/v2"
 )
 
+// TestBodylessIdempotencyKeyWriteOnWarmedUpstream demonstrates the stock HTTP/1 replay
+// and verifies that disabling reuse prevents it while retaining actual HTTP/2 negotiation.
 func TestBodylessIdempotencyKeyWriteOnWarmedUpstream(t *testing.T) {
 	type connectionKey struct{}
 	for _, test := range []struct {

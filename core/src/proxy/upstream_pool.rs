@@ -6,6 +6,7 @@ use super::is_valid_forward_host;
 
 pub(crate) const MAX_UPSTREAM_MEMBERS: usize = 16;
 
+/// Checks ordered, unique targets, their legacy primary mirror and bounded failover controls.
 pub(super) fn has_valid_upstream_pool(host: &ProxyHost) -> bool {
     let Some(pool) = &host.upstream_pool else {
         return true;
@@ -34,6 +35,7 @@ pub(super) fn has_valid_upstream_pool(host: &ProxyHost) -> bool {
     })
 }
 
+/// Uses v9 for failover and v8 for pools while preserving legacy v7 canonical bytes.
 pub(crate) fn configuration_version(hosts: &[ProxyHost]) -> u8 {
     if hosts.iter().any(|host| {
         host.upstream_pool
@@ -48,6 +50,7 @@ pub(crate) fn configuration_version(hosts: &[ProxyHost]) -> u8 {
     }
 }
 
+/// Requires finite health/retry limits and enough first-policy retries to eject a failed primary.
 fn has_valid_failover(pool: &UpstreamPool) -> bool {
     let Some(failover) = &pool.failover else {
         return true;
@@ -87,6 +90,7 @@ fn has_valid_failover(pool: &UpstreamPool) -> bool {
     true
 }
 
+/// Accepts a bounded ASCII request target without authorities, fragments or Caddy placeholders.
 fn valid_health_path(path: &str) -> bool {
     if path.is_empty()
         || path.len() > 2048

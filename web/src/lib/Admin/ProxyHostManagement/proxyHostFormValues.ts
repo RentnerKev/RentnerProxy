@@ -5,6 +5,7 @@ import type {
 import type { ProxyHostSummary } from './Types/proxy-hosts.types.ts'
 import type { ProxyUpstreamFailover } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 
+/** Copies enabled failover sections into independent string-valued editor drafts, preserving absent features. */
 export function getUpstreamFailoverFormValues(
     failover: ProxyUpstreamFailover,
 ): NonNullable<NonNullable<ProxyHostEditorFormValues['upstreamPool']>['failover']> {

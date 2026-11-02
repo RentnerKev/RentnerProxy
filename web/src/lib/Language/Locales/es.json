@@ -1987,7 +1987,8 @@
                 "maxFails": "Umbral de fallos (1–10)",
                 "maxRetries": "Reintentos máximos (1–15)",
                 "tryDurationSeconds": "Ventana de reintento (segundos, 1–30)",
-                "tryIntervalMilliseconds": "Pausa entre reintentos (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pausa entre reintentos (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Disponibilidad de enrutamiento",

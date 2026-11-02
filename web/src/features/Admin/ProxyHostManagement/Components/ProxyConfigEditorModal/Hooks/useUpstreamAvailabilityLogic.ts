@@ -11,6 +11,10 @@ import type {
     UpstreamAvailabilityProps,
 } from '../Types/upstream-availability.types.ts'
 
+/**
+ * Polls only open, enabled pooled hosts and accepts fresh observations matching the complete target order.
+ * Initial pending loads, stale or mismatched observations and failed refreshes expose unknown availability.
+ */
 export default function useUpstreamAvailabilityLogic({
     host,
     open,

@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { MAX_PROXY_UPSTREAM_MEMBERS } from '@/config/upstream-pools.config.ts'
 import type { ProxyHostUpstreamHealth } from './Types/upstream-health.types.ts'
+/**
+ * Validates the bounded controller observation shape without trusting its meaning.
+ * Desired revision, exact ordered member tuples, aggregate state and observation
+ * freshness are checked separately by the authorized health reader.
+ */
 export const proxyHostUpstreamHealthSchema = z.strictObject({
     hostId: z.uuid().transform((value) => value.toLowerCase()),
     revision: z

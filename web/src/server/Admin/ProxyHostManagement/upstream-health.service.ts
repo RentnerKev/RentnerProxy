@@ -21,6 +21,11 @@ import type {
     UpstreamHealthReaderDependencies,
 } from './Types/upstream-health.types.ts'
 
+/**
+ * Builds an unknown view from desired members without retaining an old observation.
+ * Null revision/timestamp and unknown member states prevent a failed or stale read
+ * from looking like a current healthy sample.
+ */
 function unknownHealth(desired: UpstreamHealthDesiredState): ProxyHostUpstreamHealth {
     return {
         hostId: desired.hostId,
@@ -36,6 +41,13 @@ function unknownHealth(desired: UpstreamHealthDesiredState): ProxyHostUpstreamHe
     }
 }
 
+/**
+ * Creates an uncached reader that authorizes before loading desired state and
+ * re-reads it after controller I/O. Observations must match the current full
+ * revision and every ordered index/host/port tuple, have a consistent aggregate
+ * state, and be at most 30 seconds old or 5 seconds ahead. Failures and mismatches
+ * return desired-member unknown views; permission errors remain errors.
+ */
 export function createProxyHostUpstreamHealthReader(
     dependencies: UpstreamHealthReaderDependencies,
 ) {
@@ -84,6 +96,11 @@ export function createProxyHostUpstreamHealthReader(
     }
 }
 
+/**
+ * Binds health reads to VIEW permission, without requiring edit permission.
+ * Each desired-state read reauthorizes inside a repeatable-read transaction and
+ * pairs host settings with the full desired runtime revision from that snapshot.
+ */
 export const getProxyHostUpstreamHealthService = createProxyHostUpstreamHealthReader({
     authorize: async () => (await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)).id,
     readDesired: (id, actorId) =>

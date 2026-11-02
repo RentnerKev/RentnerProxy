@@ -77,6 +77,7 @@ pub(super) fn challenge_route(controller_addr: SocketAddr, forwarded_proto: &str
     }
 }
 
+/// Binds pooled traffic handlers to the verified revision while preserving access-policy routing.
 pub(super) fn host_routes(
     host: &ProxyHost,
     public_https_port: u16,
@@ -100,6 +101,7 @@ pub(super) fn host_routes(
     Ok(routes)
 }
 
+/// Wraps only pooled proxies, including nested policy routes; auth and challenge proxies stay native.
 fn observe_routes(routes: &mut [Route], host_id: &str, revision: &str) {
     for route in routes {
         route.handle = std::mem::take(&mut route.handle)
@@ -131,6 +133,7 @@ fn observe_routes(routes: &mut [Route], host_id: &str, revision: &str) {
     }
 }
 
+/// Builds the existing HTTP/HTTPS and trusted-termination paths before attaching observation metadata.
 fn unobserved_host_routes(
     host: &ProxyHost,
     public_https_port: u16,
@@ -356,6 +359,7 @@ impl HostSourceRoutes {
     }
 }
 
+/// Produces per-host source with the same revision and routing behavior as the complete configuration.
 pub(crate) fn render_host_config_for_runtime(
     host: &ProxyHost,
     defaults: &ProxyHttpSettings,
@@ -394,6 +398,7 @@ pub(crate) fn render_host_config_for_runtime(
     serde_json::to_string(&source).map_err(|_| RenderError::ConfigTooLarge)
 }
 
+/// Builds bounded per-host source views without changing member order or effective TLS policy.
 pub(crate) fn render_host_sources_for_runtime(
     configuration: &ValidatedProxyConfig,
     public_https_port: u16,

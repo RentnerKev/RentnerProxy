@@ -2,6 +2,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useUpstreamAvailabilityLogic from '../Hooks/useUpstreamAvailabilityLogic.ts'
 import type { UpstreamAvailabilityProps } from '../Types/upstream-availability.types.ts'
 
+/** Displays current per-target routing availability with explicit unknown/error states rather than monitoring history. */
 export default function UpstreamAvailability(props: UpstreamAvailabilityProps) {
     const { t } = useTranslationStore()
     const { state } = useUpstreamAvailabilityLogic(props)

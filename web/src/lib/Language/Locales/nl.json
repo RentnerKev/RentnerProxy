@@ -1966,7 +1966,8 @@
                 "maxFails": "Foutdrempel (1–10)",
                 "maxRetries": "Maximum herhalingen (1–15)",
                 "tryDurationSeconds": "Tijdvenster (seconden, 1–30)",
-                "tryIntervalMilliseconds": "Pauze tussen pogingen (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pauze tussen pogingen (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Beschikbaarheid voor routering",

@@ -81,7 +81,8 @@ export class PortableSourceError extends Error {
 }
 
 /**
- * Exports complete ordered pools in portable v2, retaining v1 for single targets.
+ * Selects portable v1 for single targets, v2 for plain pools and v3 for failover,
+ * preserving member order and every configured health/retry block.
  * Credentials and certificate/CA material remain excluded; dependent hosts carry
  * review indicators so imports cannot silently recreate unsupported security state.
  */
@@ -184,7 +185,7 @@ export async function exportPortableConfiguration(): Promise<string> {
 }
 
 /**
- * Reads a size-bounded portable v1 or v2 document with bounded object counts.
+ * Reads a size-bounded portable v1, v2 or v3 document with bounded object counts.
  * Individual host and policy records are validated when constructing the import
  * plan so invalid entries can be reported for review without trusting their shape.
  */
@@ -229,9 +230,9 @@ function manual(
 }
 
 /**
- * Builds validated import actions while preserving v2 pool policy and member order.
- * Pool fields in v1 entries are rejected rather than discarded, and certificate,
- * trust or policy dependencies remain explicit review requirements.
+ * Builds validated actions preserving v2 pools and v3 health/retry settings.
+ * Pool fields in v1 and failover fields before v3 are rejected rather than lost.
+ * Certificate, trust and policy dependencies remain explicit review requirements.
  */
 export function buildPortablePlan(
     source: Awaited<ReturnType<typeof readPortableSource>>,

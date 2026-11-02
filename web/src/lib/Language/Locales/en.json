@@ -1985,7 +1985,8 @@
                 "maxFails": "Failure threshold (1–10)",
                 "maxRetries": "Maximum retries (1–15)",
                 "tryDurationSeconds": "Retry window (seconds, 1–30)",
-                "tryIntervalMilliseconds": "Delay between retries (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Delay between retries (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Routing availability",

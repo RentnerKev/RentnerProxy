@@ -80,6 +80,7 @@ pub(in crate::server) async fn read_proxy_host_config(
     }))
 }
 
+/// Exposes no-store pool availability behind the existing internal authentication middleware.
 pub(in crate::server) async fn read_proxy_host_upstreams(
     Path(host_id): Path<String>,
     state: AppState,

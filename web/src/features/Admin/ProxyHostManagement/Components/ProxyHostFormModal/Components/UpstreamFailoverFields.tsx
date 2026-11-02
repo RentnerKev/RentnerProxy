@@ -4,6 +4,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useUpstreamFailoverFieldsLogic from '../Hooks/useUpstreamFailoverFieldsLogic.ts'
 import type { UpstreamFailoverFieldsProps } from '../Types/upstream-failover-fields.types.ts'
 
+/** Presents opt-in probes, passive tracking and dependent retries with editable numeric drafts and schema errors. */
 export default function UpstreamFailoverFields(props: UpstreamFailoverFieldsProps) {
     const { form, formId, isPending } = props
     const { t } = useTranslationStore()
@@ -65,8 +66,10 @@ export default function UpstreamFailoverFields(props: UpstreamFailoverFieldsProp
                                                 name={field.name}
                                                 value={field.state.value ?? ''}
                                                 disabled={isPending}
-                                                maxLength={1024}
-                                                placeholder="/health"
+                                                maxLength={2048}
+                                                placeholder={t(
+                                                    'admin.proxyHosts.upstreamFailover.pathPlaceholder',
+                                                )}
                                                 autoCapitalize="none"
                                                 autoCorrect="off"
                                                 spellCheck={false}

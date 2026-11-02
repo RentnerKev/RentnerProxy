@@ -100,6 +100,7 @@ pub(crate) trait ProxyEngine: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
         Box::pin(async { Err(EngineError::Unavailable) })
     }
+    /// Reads handler-local observations; engines without this capability remain honestly unknown.
     fn upstream_observations<'a>(
         &'a self,
         _host_id: &'a str,
@@ -504,6 +505,7 @@ impl ProxyEngine for CaddyProcess {
             Ok(response.body)
         })
     }
+    /// Queries the private admin socket with validated metadata and a bounded response/deadline.
     fn upstream_observations<'a>(
         &'a self,
         host_id: &'a str,

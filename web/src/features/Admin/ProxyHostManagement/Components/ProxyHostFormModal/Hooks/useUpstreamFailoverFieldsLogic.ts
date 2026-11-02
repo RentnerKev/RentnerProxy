@@ -7,11 +7,16 @@ import type {
     UpstreamFailoverNumberField,
 } from '../Types/upstream-failover-fields.types.ts'
 
+/**
+ * Owns optional failover controls while retaining incomplete numeric strings until schema validation.
+ * Existing pool targets and policy survive feature changes; retries require passive tracking.
+ */
 export default function useUpstreamFailoverFieldsLogic({
     form,
     isPending,
 }: Pick<UpstreamFailoverFieldsProps, 'form' | 'isPending'>): UpstreamFailoverFieldsLogicResult {
     const failover = useStore(form.store, (state) => state.values.upstreamPool?.failover)
+    /** Refreshes dependent field errors after a submission attempt without validating untouched initial drafts. */
     const revalidate = () => {
         if (form.state.submissionAttempts > 0) void form.validate('submit')
     }
@@ -115,6 +120,7 @@ export default function useUpstreamFailoverFieldsLogic({
             ],
         },
         handler: {
+            /** Adds fresh feature defaults, removes disabled options and drops retries when passive tracking turns off. */
             handleToggle: (feature, enabled) => {
                 const pool = form.getFieldValue('upstreamPool')
                 if (!pool || isPending || (feature === 'retries' && !pool.failover?.passive)) return
@@ -134,10 +140,12 @@ export default function useUpstreamFailoverFieldsLogic({
                 form.setFieldValue('upstreamPool', nextPool)
                 revalidate()
             },
+            /** Preserves blank or intermediate numeric input and refreshes cross-field retry/probe constraints. */
             handleNumberChange: (name, value) => {
                 form.setFieldValue(name, value)
                 revalidate()
             },
+            /** Updates the probe path draft without normalizing or discarding invalid input before correction. */
             handlePathChange: (value) => {
                 form.setFieldValue('upstreamPool.failover.active.path', value)
                 revalidate()

@@ -1987,7 +1987,8 @@
                 "maxFails": "Seuil d’échec (1–10)",
                 "maxRetries": "Tentatives maximales (1–15)",
                 "tryDurationSeconds": "Fenêtre de tentative (secondes, 1–30)",
-                "tryIntervalMilliseconds": "Pause entre tentatives (ms, 100–5000)"
+                "tryIntervalMilliseconds": "Pause entre tentatives (ms, 100–5000)",
+                "pathPlaceholder": "/health"
             },
             "upstreamHealth": {
                 "title": "Disponibilité du routage",

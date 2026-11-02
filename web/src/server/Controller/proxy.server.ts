@@ -171,6 +171,12 @@ export async function previewProxyHostConfiguration(
     return result.success && result.data.revision === snapshot.revision ? result.data : null
 }
 
+/**
+ * Fetches one UUID-scoped observation through authenticated controller transport
+ * with a four-second timeout and 16 KiB response limit. Invalid, missing or
+ * mismatched-host responses return null; desired-state freshness is checked by
+ * the caller after this wire-shape validation.
+ */
 export async function getProxyHostUpstreamHealth(
     proxyHostId: string,
 ): Promise<ProxyHostUpstreamHealth | null> {

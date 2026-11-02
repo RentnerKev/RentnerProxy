@@ -185,6 +185,11 @@ const formPortSchema = z
     .transform(Number)
     .pipe(proxyForwardPortSchema)
 
+/**
+ * Converts decimal form drafts into bounded API integers using the supplied schema.
+ * Blank, fractional and exponent drafts remain invalid instead of coercing to zero
+ * or silently accepting a different numeric representation.
+ */
 function formInteger(schema: z.ZodNumber) {
     return z
         .string()
@@ -244,8 +249,9 @@ export const createProxyHostInputSchema =
     createProxyHostFieldsSchema.superRefine(validateUpstreamTlsInput)
 
 /**
- * Validates form drafts with decimal-string ports, producing numeric API ports.
- * Pool members retain their order; null explicitly selects a single target.
+ * Validates decimal-string ports and failover settings, producing numeric API
+ * values while preserving omitted health/retry blocks. Pool members retain their
+ * order; null explicitly selects a single target.
  */
 export const proxyHostFormSchema = createProxyHostFieldsSchema
     .extend({

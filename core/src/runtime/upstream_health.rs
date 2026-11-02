@@ -65,6 +65,7 @@ struct Member {
 }
 
 impl PoolHealth {
+    /// Retains configured target identities without inventing observations for missing runtime data.
     fn unknown(host_id: &str, revision: &str, pool: &UpstreamPool) -> Self {
         Self {
             host_id: host_id.to_owned(),
@@ -85,6 +86,8 @@ impl PoolHealth {
         }
     }
 
+    /// Accepts only complete, bounded observations for this exact revision and membership.
+    /// Conflicting handler instances yield unknown; all-down requires unanimous unavailability.
     fn observe(&mut self, bytes: &[u8]) {
         let Ok(raw) = serde_json::from_slice::<Observations>(bytes) else {
             return;
@@ -155,6 +158,8 @@ impl PoolHealth {
 }
 
 impl ProxyRuntime {
+    /// Samples Caddy's actual routing state without probes, reloads or persistent monitoring history.
+    /// Concurrent configuration changes and stopped engines invalidate the entire observation.
     pub(crate) async fn upstream_health(&self, host_id: &str) -> Result<PoolHealth, RuntimeError> {
         let _permit = self
             .upstream_health_admission
@@ -198,6 +203,7 @@ impl ProxyRuntime {
         Ok(health)
     }
 
+    /// Requires both the verified configuration and runtime status to still identify this revision.
     async fn health_revision_is_active(&self, revision: &str) -> bool {
         let same_configuration = self
             .active_configuration
