@@ -93,6 +93,7 @@ fn pool_revision_matches_web_and_preserves_order() {
     assert_ne!(revision_for_hosts(&[reordered]), revision);
 }
 
+/// Rejects malformed pools before activation, including duplicate canonical IP spellings.
 #[test]
 fn pool_contract_rejects_wrong_version_unknown_fields_and_invalid_members() {
     let target = pooled_host();
@@ -174,6 +175,7 @@ fn pool_contract_rejects_wrong_version_unknown_fields_and_invalid_members() {
     );
 }
 
+/// Protects target priority, IPv6 dialing and the existing header/draining contract for both policies.
 #[test]
 fn pool_renders_ordered_dials_and_native_selection_without_changing_headers_or_streams() {
     for policy in [
@@ -210,6 +212,7 @@ fn pool_renders_ordered_dials_and_native_selection_without_changing_headers_or_s
     }
 }
 
+/// Verifies automatic per-DNS TLS identity and the stricter explicit-name rule for any IP member.
 #[test]
 fn verified_pool_uses_each_dns_identity_and_requires_explicit_name_for_any_ip() {
     let mut target = pooled_host();
