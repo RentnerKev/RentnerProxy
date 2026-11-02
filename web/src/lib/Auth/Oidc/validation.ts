@@ -1,38 +1,41 @@
 import { z } from 'zod'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 
-export const oidcHttpsUrlSchema = z
-    .string()
-    .max(OIDC_LIMITS.urlLength)
-    .refine((value) => {
-        try {
-            const url = new URL(value)
-            return (
-                value.startsWith('https://') &&
-                !/[\s\\]/u.test(value) &&
-                !Array.from(value).some(
-                    (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
-                ) &&
-                !value.includes('?') &&
-                !value.includes('#') &&
-                !value.split('://')[1]?.split('/')[0]?.includes('@') &&
-                url.protocol === 'https:' &&
-                !!url.hostname &&
-                !url.username &&
-                !url.password
-            )
-        } catch {
-            return false
-        }
-    })
+/** Rejects hidden URL delimiters and credentials before parsing can normalize provider trust input. */
+function isOidcHttpsUrl(value: string): boolean {
+    try {
+        const url = new URL(value)
+        return (
+            value.startsWith('https://') &&
+            !/[\s\\]/u.test(value) &&
+            !Array.from(value).some(
+                (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+            ) &&
+            !value.includes('?') &&
+            !value.includes('#') &&
+            !value.split('://')[1]?.split('/')[0]?.includes('@') &&
+            url.protocol === 'https:' &&
+            !!url.hostname &&
+            !url.username &&
+            !url.password
+        )
+    } catch {
+        return false
+    }
+}
 
-export const oidcEndpointOriginSchema = oidcHttpsUrlSchema.refine((value) => {
+/** Requires an exact serialized origin so paths and normalization cannot widen an endpoint allowlist. */
+function isOidcEndpointOrigin(value: string): boolean {
     try {
         return new URL(value).origin === value
     } catch {
         return false
     }
-})
+}
+
+export const oidcHttpsUrlSchema = z.string().max(OIDC_LIMITS.urlLength).refine(isOidcHttpsUrl)
+
+export const oidcEndpointOriginSchema = oidcHttpsUrlSchema.refine(isOidcEndpointOrigin)
 export const oidcBindingSchema = z
     .object({
         subject: z.string().regex(/^[\x21-\x7e]{1,255}$/u),

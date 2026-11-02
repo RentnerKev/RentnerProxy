@@ -35,9 +35,9 @@ export default function useLoginLogic() {
         queryKey: ['auth', 'oidc-providers'],
         queryFn: () => getPublicOidcProvidersHandler(),
         retry: false,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
-        staleTime: Infinity,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
+        staleTime: 30_000,
     })
     const mutation = useMutation({
         mutationFn: (values: LoginFormValues) => loginHandler({ data: values }),

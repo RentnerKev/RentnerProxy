@@ -231,22 +231,69 @@ describe('OIDC protocol with real signed tokens', () => {
             client.buildAuthorizationUrl(configuration, authorization),
         ).rejects.toMatchObject({ code: 'provider_unavailable', message: 'provider_unavailable' })
     })
-    test('cache is capped and changed trust policy cannot reuse earlier discovery', async () => {
+    test('revision churn retains current availability while evicting oldest discovery at the cache cap', async () => {
         const provider = fixture()
-        await Promise.all(
-            Array.from({ length: 32 }, (_, index) =>
-                provider.client.buildAuthorizationUrl(
-                    { ...configuration, revision: index + 1 },
-                    authorization,
-                ),
-            ),
-        )
-        await expect(
-            provider.client.buildAuthorizationUrl(
-                { ...configuration, revision: 33 },
+        for (let revision = 1; revision <= 40; revision++) {
+            // eslint-disable-next-line no-await-in-loop -- Simulate completed provider revisions in insertion order.
+            const url = await provider.client.buildAuthorizationUrl(
+                { ...configuration, revision },
                 authorization,
-            ),
-        ).rejects.toMatchObject({ code: 'provider_unavailable' })
+            )
+            expect(url.origin).toBe(configuration.issuer)
+        }
+        expect(provider.calls).toHaveLength(40)
+        await provider.client.buildAuthorizationUrl(
+            { ...configuration, revision: 40 },
+            authorization,
+        )
+        expect(provider.calls).toHaveLength(40)
+        await provider.client.buildAuthorizationUrl(configuration, authorization)
+        expect(provider.calls).toHaveLength(41)
+        // Rediscovering revision 1 evicts revision 9, the oldest of the remaining 32 entries.
+        await provider.client.buildAuthorizationUrl(
+            { ...configuration, revision: 9 },
+            authorization,
+        )
+        expect(provider.calls).toHaveLength(42)
+    })
+    test('an evicted discovery failure cannot delete a newer entry with the same fingerprint', async () => {
+        const provider = fixture()
+        let rejectOld!: (reason: Error) => void
+        let oldStarted!: () => void
+        const started = new Promise<void>((resolve) => {
+            oldStarted = resolve
+        })
+        let sameFingerprintDiscoveries = 0
+        const client = createOidcProtocolClient({
+            fetch: (current) => async (url, init) => {
+                if (current.revision === 1) {
+                    sameFingerprintDiscoveries++
+                    if (sameFingerprintDiscoveries === 1) {
+                        oldStarted()
+                        return new Promise<Response>((_resolve, reject) => {
+                            rejectOld = reject
+                        })
+                    }
+                }
+                return provider.fetch(url, init)
+            },
+        })
+        const old = client
+            .buildAuthorizationUrl(configuration, authorization)
+            .catch((error: unknown) => error)
+        await started
+        for (let revision = 2; revision <= 33; revision++) {
+            // eslint-disable-next-line no-await-in-loop -- Evict the pending oldest entry through completed later revisions.
+            await client.buildAuthorizationUrl({ ...configuration, revision }, authorization)
+        }
+        await client.buildAuthorizationUrl(configuration, authorization)
+        expect(sameFingerprintDiscoveries).toBe(2)
+        rejectOld(new Error('fixture old request failure'))
+        expect(await old).toMatchObject({ code: 'provider_unavailable' })
+        await client.buildAuthorizationUrl(configuration, authorization)
+        expect(sameFingerprintDiscoveries).toBe(2)
+    })
+    test('changed trust policy cannot reuse earlier discovery', async () => {
         const fresh = fixture()
         await fresh.client.buildAuthorizationUrl(configuration, authorization)
         await expect(

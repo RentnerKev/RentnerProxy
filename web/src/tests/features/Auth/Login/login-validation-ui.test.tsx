@@ -1,6 +1,11 @@
 import { afterEach, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+    focusManager,
+    onlineManager,
+    QueryClient,
+    QueryClientProvider,
+} from '@tanstack/react-query'
 import { InputProvider } from '@rentnerkev/inputs'
 import { TooltipProvider } from '@rentnerkev/tooltips/tooltip'
 import type { ReactNode } from 'react'
@@ -11,6 +16,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const login = mock(async (_input: unknown) => ({ success: false, message: 'Invalid credentials.' }))
 let providerListAvailable = false
+let providerListFailsClosed = false
+let providerCatalogDelay: Promise<void> | undefined
+let providerCatalogRequests = 0
 mock.module('@/features/Auth/Login/middleware.ts', () => ({
     loginHandler: login,
     beginPasskeyLoginHandler: async () => ({ success: false, message: 'Unavailable.' }),
@@ -18,8 +26,11 @@ mock.module('@/features/Auth/Login/middleware.ts', () => ({
 }))
 mock.module('@/features/Auth/Oidc/middleware.ts', () => ({
     getPublicOidcProvidersHandler: async () => {
+        providerCatalogRequests += 1
+        await providerCatalogDelay
         if (providerListAvailable)
             return [{ id: '0194f777-4074-7000-8000-000000000003', name: 'Office' }]
+        if (providerListFailsClosed) return []
         throw new Error('Provider list unavailable')
     },
 }))
@@ -74,8 +85,94 @@ afterEach(async () => {
     state = undefined
     login.mockClear()
     providerListAvailable = false
+    providerListFailsClosed = false
+    providerCatalogDelay = undefined
+    providerCatalogRequests = 0
+    focusManager.setFocused(undefined)
+    onlineManager.setOnline(true)
     document.body.replaceChildren()
 })
+
+test.each(['focus', 'reconnect'] as const)(
+    'recovers an empty outage catalog on stale %s without blocking local login or clearing fields',
+    async (event) => {
+        providerListFailsClosed = true
+        onlineManager.setOnline(true)
+        focusManager.setFocused(true)
+        const container = document.createElement('div')
+        document.body.append(container)
+        root = createRoot(container)
+        client = new QueryClient({
+            defaultOptions: {
+                queries: { refetchOnWindowFocus: false },
+                mutations: { retry: false },
+            },
+        })
+        await act(async () => {
+            root!.render(
+                <QueryClientProvider client={client!}>
+                    <TooltipProvider>
+                        <InputProvider locale="en">
+                            <LoginHarness />
+                        </InputProvider>
+                    </TooltipProvider>
+                </QueryClientProvider>,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(providerCatalogRequests).toBe(1)
+        expect(state!.state.oidcProviders).toEqual([])
+        expect(container.querySelector('form[action="/api/auth/oidc/start"]')).toBeNull()
+        await act(async () => {
+            state!.form.setFieldValue('email', 'owner@example.test')
+            state!.form.setFieldValue('password', 'valid password')
+            client!.setQueryData(['auth', 'oidc-providers'], [], { updatedAt: Date.now() - 31_000 })
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        const localSubmit = container.querySelector<HTMLButtonElement>(
+            'form button[type="submit"]',
+        )!
+        const passkey = [
+            ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
+        ].find((button) => button.textContent === 'Sign in with passkey')!
+        let releaseCatalog: (() => void) | undefined
+        providerCatalogDelay = new Promise<void>((resolve) => {
+            releaseCatalog = resolve
+        })
+        providerListAvailable = true
+        await act(async () => {
+            if (event === 'focus') {
+                focusManager.setFocused(false)
+                focusManager.setFocused(true)
+            } else {
+                onlineManager.setOnline(false)
+                onlineManager.setOnline(true)
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(providerCatalogRequests).toBe(2)
+        expect(client!.isFetching({ queryKey: ['auth', 'oidc-providers'] })).toBe(1)
+        expect([localSubmit.disabled, passkey.disabled]).toEqual([false, false])
+        await act(async () => {
+            localSubmit.click()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(login).toHaveBeenCalledTimes(1)
+        await act(async () => {
+            releaseCatalog!()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(
+            container.querySelector('form[action="/api/auth/oidc/start"] button')?.textContent,
+        ).toBe('Sign in with Office')
+        expect(state!.form.state.values).toEqual({
+            email: 'owner@example.test',
+            password: 'valid password',
+        })
+        expect([localSubmit.disabled, passkey.disabled]).toEqual([false, false])
+        expect(providerCatalogRequests).toBe(2)
+    },
+)
 
 test('restoring login from BFCache unlocks OIDC pending controls and cleans up its listener', async () => {
     providerListAvailable = true

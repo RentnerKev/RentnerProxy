@@ -30,8 +30,10 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
         for (const [key, value] of cache) if (value.expires <= now()) cache.delete(key)
         const existing = cache.get(fingerprint)
         if (existing) return existing.pending
-        if (cache.size >= OIDC_LIMITS.cacheEntries)
-            throw new OidcDomainError('provider_unavailable')
+        if (cache.size >= OIDC_LIMITS.cacheEntries) {
+            const oldest = cache.keys().next().value
+            if (oldest !== undefined) cache.delete(oldest)
+        }
         const expires = now() + OIDC_LIMITS.discoveryCacheMs
         const pending = (async () => {
             const fetch = (options.fetch ?? createOidcHttpFetch)(configuration)
@@ -135,7 +137,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
         try {
             return await pending
         } catch {
-            cache.delete(fingerprint)
+            if (cache.get(fingerprint)?.pending === pending) cache.delete(fingerprint)
             throw new OidcDomainError('provider_unavailable')
         }
     }
