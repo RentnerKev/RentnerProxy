@@ -2,7 +2,10 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import type { ProxyHostUpstreamHealth } from '../../../web/src/lib/ProxyRuntime/Types/upstream-health.types.ts'
-import type { UpstreamFailoverSmokeOptions } from './Types/upstream-failover.types.ts'
+import type {
+    UpstreamFailoverCleanup,
+    UpstreamFailoverSmokeOptions,
+} from './Types/upstream-failover.types.ts'
 
 /** Polls asynchronous routing transitions with a fixed deadline and no hidden assertion retries. */
 async function waitFor(check: () => Promise<boolean>, label: string): Promise<void> {
@@ -12,6 +15,46 @@ async function waitFor(check: () => Promise<boolean>, label: string): Promise<vo
         await Bun.sleep(150)
     }
     throw new Error('Timed out waiting for upstream failover smoke: ' + label)
+}
+
+/** Attempts every cleanup phase and preserves the original body rejection, including undefined. */
+export async function withUpstreamFailoverCleanup(
+    body: () => Promise<void>,
+    cleanup: UpstreamFailoverCleanup,
+): Promise<void> {
+    let bodyFailed = false
+    let bodyError: unknown
+    try {
+        await body()
+    } catch (error) {
+        bodyFailed = true
+        bodyError = error
+    }
+    const failedPhases: string[] = []
+    for (const [phase, action] of [
+        ['restore-runtime', cleanup.restoreRuntime],
+        ['delete-host', cleanup.deleteHost],
+        ['stop-primary', cleanup.stopPrimary],
+        ['stop-secondary', cleanup.stopSecondary],
+    ] as const) {
+        try {
+            await action()
+        } catch {
+            failedPhases.push(phase)
+        }
+    }
+    const message = 'Upstream failover smoke cleanup failed: ' + failedPhases.join(', ')
+    if (bodyFailed) {
+        if (failedPhases.length > 0) {
+            try {
+                console.error(message)
+            } catch {
+                /* Diagnostics must not replace the body failure. */
+            }
+        }
+        throw bodyError
+    }
+    if (failedPhases.length > 0) throw new Error(message)
 }
 
 /** Verifies actual failover, safe write counts and restart recovery without reloading on health changes. */
@@ -60,7 +103,8 @@ export async function runUpstreamFailoverSmoke(
     let hostId: string | undefined
     let runtimeStopped = false
 
-    try {
+    /** Runs routing assertions while cleanup callbacks retain the latest fixture handles. */
+    const runScenario = async () => {
         second = startBackend(secondary)
         const members = [
             { host: options.forwardHost, port: first.port! },
@@ -108,7 +152,11 @@ export async function runUpstreamFailoverSmoke(
             assert.equal(health.hostId, created.id)
             assert.deepEqual(
                 health.members.map(({ index, host, port }) => ({ index, host, port })),
-                members.map((member, index) => ({ index, host: member.host, port: member.port })),
+                members.map((member, index) => ({
+                    index,
+                    host: member.host,
+                    port: member.port,
+                })),
             )
             if (health.state !== 'unknown') {
                 assert.equal(health.revision, snapshot.revision)
@@ -237,13 +285,11 @@ export async function runUpstreamFailoverSmoke(
         options.passed(
             'failover settings persist across runtime restart; offline health is unknown and restarted observations are fresh',
         )
-    } finally {
-        // Restore the fixture before deleting its host, even after a failed assertion.
-        try {
-            if (runtimeStopped) await options.startRuntime()
-            if (hostId) await options.deleteHost(hostId)
-        } finally {
-            await Promise.all([first.stop(true), second?.stop(true)])
-        }
     }
+    await withUpstreamFailoverCleanup(runScenario, {
+        restoreRuntime: () => (runtimeStopped ? options.startRuntime() : undefined),
+        deleteHost: () => (hostId ? options.deleteHost(hostId) : undefined),
+        stopPrimary: () => first.stop(true),
+        stopSecondary: () => second?.stop(true),
+    })
 }

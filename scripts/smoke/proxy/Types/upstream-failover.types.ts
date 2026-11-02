@@ -20,3 +20,10 @@ export interface UpstreamFailoverSmokeOptions {
     readonly startRuntime: () => Promise<void>
     readonly passed: (label: string) => void
 }
+
+export interface UpstreamFailoverCleanup {
+    readonly restoreRuntime: () => unknown
+    readonly deleteHost: () => unknown
+    readonly stopPrimary: () => unknown
+    readonly stopSecondary: () => unknown
+}
