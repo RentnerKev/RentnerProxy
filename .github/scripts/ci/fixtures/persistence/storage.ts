@@ -93,14 +93,25 @@ function parseJsonRecord(value: string, label: string): PersistenceSnapshot {
 }
 
 export function canonicalPersistenceSnapshot(snapshot: PersistenceSnapshot): PersistenceSnapshot {
-    const host = snapshot.proxyHost
-    if (!host || typeof host !== 'object' || Array.isArray(host)) return snapshot
+    let canonical = snapshot
+    const user = snapshot.user
+    if (user && typeof user === 'object' && !Array.isArray(user)) {
+        const fields = user as Readonly<Record<string, unknown>>
+        // Legacy local accounts lack this column; only the additive NULL has identical meaning.
+        // Retain actual provider ownership and every other account field for strict comparison.
+        if (fields.oidc_provider_id === null) {
+            const { oidc_provider_id: _localAccount, ...localUser } = fields
+            canonical = { ...canonical, user: localUser }
+        }
+    }
+    const host = canonical.proxyHost
+    if (!host || typeof host !== 'object' || Array.isArray(host)) return canonical
     const fields = host as Readonly<Record<string, unknown>>
     // Published single-target schemas lack the additive nullable pool column.
     // Preserve actual pools and every other field so data changes still fail.
-    if (fields.upstream_pool !== null) return snapshot
+    if (fields.upstream_pool !== null) return canonical
     const { upstream_pool: _emptyPool, ...singleTargetHost } = fields
-    return { ...snapshot, proxyHost: singleTargetHost }
+    return { ...canonical, proxyHost: singleTargetHost }
 }
 
 export async function readPersistenceSnapshot(

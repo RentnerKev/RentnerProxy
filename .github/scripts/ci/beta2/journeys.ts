@@ -54,6 +54,18 @@ import type { Beta2JourneyInput } from './Types/journeys.types.ts'
 
 const backendSchema = z.object({ backend: z.enum(['a', 'b', 'tls']) })
 
+/** Owns each probe connection across Caddy reloads instead of reusing a retiring idle socket. */
+export async function requestBeta2Proxy(httpPort: number, domain = 'h0.beta2.test') {
+    const response = await fetch(`http://127.0.0.1:${httpPort}/`, {
+        headers: { host: domain, connection: 'close' },
+        signal: AbortSignal.timeout(8_000),
+        redirect: 'manual',
+    })
+    const body: { backend?: 'a' | 'b' | 'tls' } =
+        response.status === 200 ? backendSchema.parse(await response.json()) : {}
+    return { status: response.status, body, headers: response.headers }
+}
+
 async function synchronized() {
     assert.equal(await reconcileProxyConfigurationService(), 'applied')
     const snapshot = await getProxyRuntimeSnapshotService()
@@ -84,14 +96,7 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
     const ddns = () => authorized(getDdnsStatusService)
     const discovery = () => authorized(getDiscoveryOverviewService)
     async function http(domain = 'h0.beta2.test') {
-        const response = await fetch(`http://127.0.0.1:${httpPort}/`, {
-            headers: { host: domain },
-            signal: AbortSignal.timeout(8_000),
-            redirect: 'manual',
-        })
-        const body: { backend?: 'a' | 'b' | 'tls' } =
-            response.status === 200 ? backendSchema.parse(await response.json()) : {}
-        return { status: response.status, body, headers: response.headers }
+        return requestBeta2Proxy(httpPort, domain)
     }
     async function traffic(trafficRoutes: ScaleResult['traffic']) {
         await verifyConcurrentTraffic(
