@@ -1,3 +1,4 @@
+import useValidationFeedback from '@/shared/Forms/Hooks/useValidationFeedback.ts'
 import {
     credentialPasswordSchema,
     emailSchema,
@@ -19,6 +20,7 @@ import type { LoginFormValues } from '../Types/login-form.types.ts'
 import { getPublicOidcProvidersHandler } from '@/features/Auth/Oidc/middleware.ts'
 /** Coordinates local sign-in and native provider navigation, including restoration after browser Back. */
 export default function useLoginLogic() {
+    const feedback = useValidationFeedback()
     const navigate = useNavigate()
     const router = useRouter()
     const { t } = useTranslationStore()
@@ -119,6 +121,10 @@ export default function useLoginLogic() {
     const form = useForm({
         defaultValues: { email: '', password: '' } satisfies LoginFormValues,
         validators: { onSubmit: loginInputSchema },
+        listeners: {
+            onBlur: ({ fieldApi }) => feedback.handler.handleValidationCompleted([fieldApi.name]),
+        },
+        onSubmitInvalid: () => feedback.handler.handleValidationCompleted(['email', 'password']),
         onSubmit: async ({ value }) => {
             mutation.reset()
 
@@ -182,6 +188,7 @@ export default function useLoginLogic() {
             isPending: mutation.isPending || isOidcPending,
             isPasskeyPending: passkeyMutation.isPending,
             alternativeSignInItems,
+            validationEpochs: feedback.state.validationEpochs,
         },
         handler: {
             handleSubmit,

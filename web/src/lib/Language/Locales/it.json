@@ -250,6 +250,7 @@
     "auth": {
         "moreSignInOptions": "Altre opzioni di accesso",
         "twoFactor": {
+            "showStatus": "Mostra stato di accesso",
             "expired": "Questa richiesta di autenticazione è scaduta. Ricomincia l’accesso.",
             "unavailable": "Il servizio di autenticazione è temporaneamente non disponibile. Riprova."
         },

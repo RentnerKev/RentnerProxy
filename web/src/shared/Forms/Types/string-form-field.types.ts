@@ -20,4 +20,5 @@ export interface StringFormFieldProps {
     readonly showPasswordStrength?: boolean
     readonly labelAction?: ReactNode
     readonly errorFeedback?: 'inline' | 'toast'
+    readonly validationEpoch?: number | undefined
 }

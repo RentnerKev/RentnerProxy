@@ -250,6 +250,7 @@
     "auth": {
         "moreSignInOptions": "Más opciones de inicio de sesión",
         "twoFactor": {
+            "showStatus": "Mostrar estado de inicio de sesión",
             "expired": "Esta solicitud de autenticación ha caducado. Vuelve a iniciar sesión.",
             "unavailable": "El servicio de autenticación no está disponible temporalmente. Inténtalo de nuevo."
         },

@@ -95,7 +95,7 @@ test('an expired second-factor request has an actionable sign-in link', async ()
     expect(warningToast.mock.calls[0]?.[0]).toContain('expired')
     expect(document.querySelector('[role="alert"], output')).toBeNull()
     expect(document.querySelector('a[href="/login"]')?.textContent).toBe('Back to sign in')
-    expect(document.querySelector('button')).toBeNull()
+    expect(document.querySelector('button')?.textContent).toBe('Show sign-in status')
 })
 
 test('a failed second-factor status check reports availability and offers a working retry', async () => {
@@ -160,5 +160,45 @@ test('an invalid second-factor credential uses toast feedback and retains invali
     expect(document.querySelector('input[name="credential"]')?.getAttribute('aria-invalid')).toBe(
         'true',
     )
-    expect(document.querySelector('[id$="-error"], [role="alert"], output')).toBeNull()
+    expect(
+        document.querySelector('[id$="-error"]:not(.sr-only), [role="alert"], output'),
+    ).toBeNull()
+    const input = document.querySelector<HTMLInputElement>('input[name="credential"]')!
+    await act(async () => input.focus())
+    expect(document.activeElement === input).toBeTrue()
+    const description = document.getElementById(input.getAttribute('aria-describedby')!)!
+    expect(description.classList.contains('sr-only')).toBeTrue()
+    expect(description.textContent?.length).toBeGreaterThan(0)
+    expect(description.hasAttribute('role')).toBeFalse()
 })
+
+test.each(['expired', 'unavailable'] as const)(
+    'the keyboard-focusable status action replays %s feedback without a new request',
+    async (kind) => {
+        if (kind === 'unavailable')
+            status.mockRejectedValueOnce(new Error('private transport diagnostic'))
+        await mount(<TwoFactorLoginPage />)
+        const feedback = kind === 'expired' ? warningToast : errorToast
+        await until(() => feedback.mock.calls.length === 1)
+        const replay = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+            (button) => button.textContent === 'Show sign-in status',
+        )!
+        feedback.mockClear()
+        await act(async () => {
+            replay.focus()
+            replay.click()
+        })
+        expect(document.activeElement === replay).toBeTrue()
+        expect(feedback.mock.calls.length).toBe(1)
+        expect(feedback.mock.calls[0]?.[0]).toContain(
+            kind === 'expired' ? 'expired' : 'temporarily unavailable',
+        )
+        expect(JSON.stringify(feedback.mock.calls)).not.toContain('private transport diagnostic')
+        expect(status).toHaveBeenCalledTimes(1)
+        expect(document.querySelector('[role="alert"], output')).toBeNull()
+        expect(document.body.textContent).not.toContain(
+            kind === 'expired' ? 'expired' : 'temporarily unavailable',
+        )
+        expect(document.querySelector('a[href="/login"]')).not.toBeNull()
+    },
+)

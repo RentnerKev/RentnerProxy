@@ -1,6 +1,7 @@
 import { describe, expect, setSystemTime, test } from 'bun:test'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import type { CustomFetch } from 'openid-client'
+import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import { createOidcProtocolClient } from '@/server/Auth/Oidc/oidc-client.server.ts'
 import type { OidcClientConfiguration } from '@/server/Auth/Oidc/Types/oidc.types.ts'
 
@@ -230,6 +231,133 @@ describe('OIDC protocol with real signed tokens', () => {
         await expect(
             client.buildAuthorizationUrl(configuration, authorization),
         ).rejects.toMatchObject({ code: 'provider_unavailable', message: 'provider_unavailable' })
+    })
+    test.each([0, 1])(
+        'refreshes before code redemption at or inside the complete exchange budget, offset %s',
+        async (offset) => {
+            const provider = fixture()
+            let now = 0
+            const client = createOidcProtocolClient({ fetch: () => provider.fetch, now: () => now })
+            await client.buildAuthorizationUrl(configuration, authorization)
+            now = OIDC_LIMITS.discoveryCacheMs - 2 * OIDC_LIMITS.requestTimeoutMs + offset
+
+            expect(
+                await client.exchangeAuthorizationCode(configuration, authorization, callback()),
+            ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+            expect(provider.calls.map((url) => new URL(url).pathname)).toEqual([
+                '/.well-known/openid-configuration',
+                '/.well-known/openid-configuration',
+                '/token',
+                '/jwks',
+            ])
+        },
+    )
+    test('reuses discovery outside the two-request exchange safety window', async () => {
+        const provider = fixture()
+        let now = 0
+        const client = createOidcProtocolClient({ fetch: () => provider.fetch, now: () => now })
+        await client.buildAuthorizationUrl(configuration, authorization)
+        now = OIDC_LIMITS.discoveryCacheMs - 2 * OIDC_LIMITS.requestTimeoutMs - 1
+
+        expect(
+            await client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        expect(provider.calls.filter((url) => url.includes('well-known'))).toHaveLength(1)
+        expect(provider.calls.filter((url) => url.endsWith('/token'))).toHaveLength(1)
+    })
+    test('refreshes before one token POST and deferred JWKS cross the old metadata deadline', async () => {
+        const provider = fixture()
+        let now = 0
+        const tokenStarted = Promise.withResolvers<void>()
+        const releaseToken = Promise.withResolvers<void>()
+        const jwksStarted = Promise.withResolvers<void>()
+        const releaseJwks = Promise.withResolvers<void>()
+        const calls: string[] = []
+        const client = createOidcProtocolClient({
+            now: () => now,
+            fetch: () => async (url, init) => {
+                calls.push(new URL(url).pathname)
+                if (url.endsWith('/token')) {
+                    expect(init.method).toBe('POST')
+                    tokenStarted.resolve()
+                    await releaseToken.promise
+                } else if (url.endsWith('/jwks')) {
+                    jwksStarted.resolve()
+                    await releaseJwks.promise
+                }
+                return provider.fetch(url, init)
+            },
+        })
+        await client.buildAuthorizationUrl(configuration, authorization)
+        now = OIDC_LIMITS.discoveryCacheMs - OIDC_LIMITS.requestTimeoutMs
+        const exchange = client.exchangeAuthorizationCode(configuration, authorization, callback())
+        await tokenStarted.promise
+        expect(calls).toEqual([
+            '/.well-known/openid-configuration',
+            '/.well-known/openid-configuration',
+            '/token',
+        ])
+
+        now += OIDC_LIMITS.requestTimeoutMs - 1
+        releaseToken.resolve()
+        await jwksStarted.promise
+        now += OIDC_LIMITS.requestTimeoutMs - 1
+        expect(now).toBeGreaterThan(OIDC_LIMITS.discoveryCacheMs)
+        releaseJwks.resolve()
+
+        expect(await exchange).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        expect(calls.filter((path) => path === '/token')).toHaveLength(1)
+        expect(calls.filter((path) => path === '/jwks')).toHaveLength(1)
+    })
+    test('keeps the refreshed configuration absolute expiry strict without retrying a token POST', async () => {
+        const provider = fixture()
+        let now = 0
+        let refreshedAt = 0
+        const client = createOidcProtocolClient({
+            now: () => now,
+            fetch: () => async (url, init) => {
+                if (url.includes('well-known')) refreshedAt = now
+                const response = await provider.fetch(url, init)
+                if (url.endsWith('/token')) now = refreshedAt + OIDC_LIMITS.discoveryCacheMs
+                return response
+            },
+        })
+        await client.buildAuthorizationUrl(configuration, authorization)
+        now = OIDC_LIMITS.discoveryCacheMs - 1
+
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        expect(provider.calls.filter((url) => url.includes('well-known'))).toHaveLength(2)
+        expect(provider.calls.filter((url) => url.endsWith('/token'))).toHaveLength(1)
+        expect(provider.calls.filter((url) => url.endsWith('/jwks'))).toHaveLength(0)
+    })
+    test('checks the complete exchange budget again after pending discovery resolves', async () => {
+        const provider = fixture()
+        let now = 0
+        const started = Promise.withResolvers<void>()
+        const releaseDiscovery = Promise.withResolvers<void>()
+        const client = createOidcProtocolClient({
+            now: () => now,
+            fetch: () => async (url, init) => {
+                if (url.includes('well-known')) {
+                    started.resolve()
+                    await releaseDiscovery.promise
+                }
+                return provider.fetch(url, init)
+            },
+        })
+        const discovery = client.buildAuthorizationUrl(configuration, authorization)
+        await started.promise
+        const exchange = client
+            .exchangeAuthorizationCode(configuration, authorization, callback())
+            .catch((error: unknown) => error)
+        now = OIDC_LIMITS.discoveryCacheMs - 2 * OIDC_LIMITS.requestTimeoutMs
+        releaseDiscovery.resolve()
+
+        await discovery
+        expect(await exchange).toMatchObject({ code: 'provider_unavailable' })
+        expect(provider.calls.filter((url) => url.endsWith('/token'))).toHaveLength(0)
     })
     test('revision churn retains current availability while evicting oldest discovery at the cache cap', async () => {
         const provider = fixture()

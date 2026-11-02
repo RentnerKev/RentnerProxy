@@ -22,14 +22,21 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
     const cache = new Map<string, { expires: number; pending: Promise<oidc.Configuration> }>()
     const validUntil = new WeakMap<oidc.Configuration, number>()
 
-    /** Coalesces discovery per trust fingerprint and discards expired or failed cache entries. */
+    /** Reserves the caller's request budget without extending the metadata's absolute trust lifetime. */
     async function getConfiguration(
         configuration: OidcClientConfiguration,
+        minimumLifetimeMs = 0,
     ): Promise<oidc.Configuration> {
         const fingerprint = createHash('sha256').update(JSON.stringify(configuration)).digest('hex')
-        for (const [key, value] of cache) if (value.expires <= now()) cache.delete(key)
+        for (const [key, value] of cache)
+            if (value.expires <= now() + minimumLifetimeMs) cache.delete(key)
         const existing = cache.get(fingerprint)
-        if (existing) return existing.pending
+        if (existing) {
+            const client = await existing.pending
+            if ((validUntil.get(client) ?? 0) <= now() + minimumLifetimeMs)
+                throw new OidcDomainError('provider_unavailable')
+            return client
+        }
         if (cache.size >= OIDC_LIMITS.cacheEntries) {
             const oldest = cache.keys().next().value
             if (oldest !== undefined) cache.delete(oldest)
@@ -141,7 +148,10 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
         })()
         cache.set(fingerprint, { expires, pending })
         try {
-            return await pending
+            const client = await pending
+            if (expires <= now() + minimumLifetimeMs)
+                throw new OidcDomainError('provider_unavailable')
+            return client
         } catch {
             if (cache.get(fingerprint)?.pending === pending) cache.delete(fingerprint)
             throw new OidcDomainError('provider_unavailable')
@@ -172,7 +182,8 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
             request: OidcAuthorizationRequest,
             callbackUrl: URL,
         ): Promise<OidcVerifiedIdentity> {
-            const client = await getConfiguration(configuration)
+            // Refresh before redeeming a one-use code if token POST plus JWKS GET could outlive trust.
+            const client = await getConfiguration(configuration, 2 * OIDC_LIMITS.requestTimeoutMs)
             try {
                 const callbackBase = new URL(callbackUrl)
                 callbackBase.search = ''

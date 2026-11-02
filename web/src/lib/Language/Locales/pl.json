@@ -252,6 +252,7 @@
     "auth": {
         "moreSignInOptions": "Więcej sposobów logowania",
         "twoFactor": {
+            "showStatus": "Pokaż stan logowania",
             "expired": "To żądanie uwierzytelnienia wygasło. Rozpocznij logowanie ponownie.",
             "unavailable": "Usługa uwierzytelniania jest tymczasowo niedostępna. Spróbuj ponownie."
         },

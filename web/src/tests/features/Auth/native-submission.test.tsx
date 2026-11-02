@@ -143,7 +143,7 @@ test('valid client login still sends credentials through the existing handler af
     expect(submit).toHaveBeenCalledWith({
         data: { email: 'owner@example.test', password: 'test password' },
     })
-    expect(container.querySelector('[id$="-error"]')).toBeNull()
+    expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
 })
 
 for (const [label, Form, fields] of [
@@ -185,7 +185,7 @@ for (const [label, Form, fields] of [
         expect(event.defaultPrevented).toBeTrue()
         expect(submit).not.toHaveBeenCalled()
         if (label === 'login' || label === 'two-factor verification') {
-            expect(container.querySelector('[id$="-error"]')).toBeNull()
+            expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
             expect(container.querySelector('input[aria-invalid="true"]')).not.toBeNull()
         } else {
             expect(

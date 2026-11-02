@@ -250,6 +250,7 @@
     "auth": {
         "moreSignInOptions": "Autres méthodes de connexion",
         "twoFactor": {
+            "showStatus": "Afficher l’état de connexion",
             "expired": "Cette demande d’authentification a expiré. Recommencez la connexion.",
             "unavailable": "Le service d’authentification est temporairement indisponible. Réessayez."
         },

@@ -250,6 +250,7 @@
     "auth": {
         "moreSignInOptions": "Mais opções de início de sessão",
         "twoFactor": {
+            "showStatus": "Mostrar estado do início de sessão",
             "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
             "unavailable": "O serviço de autenticação está temporariamente indisponível. Tente novamente."
         },

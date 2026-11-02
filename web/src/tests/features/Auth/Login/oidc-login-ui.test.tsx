@@ -20,6 +20,7 @@ afterEach(async () => {
 
 const providerId = '0194f777-4074-7000-8000-000000000003'
 const initialState: AlternativeLoginMethodsProps['state'] = {
+    validationEpochs: {},
     isPending: false,
     isPasskeyPending: false,
     alternativeSignInItems: [

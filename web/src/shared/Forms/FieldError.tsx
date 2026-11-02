@@ -1,11 +1,24 @@
 import useFieldErrorLogic from './Hooks/useFieldErrorLogic.ts'
 import type { FieldErrorProps } from './Types/form-component-props.types.ts'
 
-export default function FieldError({ errors, id, feedback = 'inline' }: FieldErrorProps) {
-    const { state } = useFieldErrorLogic({ errors, id, feedback })
+export default function FieldError({
+    errors,
+    id,
+    feedback = 'inline',
+    validationEpoch,
+}: FieldErrorProps) {
+    const { state } = useFieldErrorLogic({ errors, id, feedback, validationEpoch })
 
-    if (!state.message || feedback === 'toast') {
+    if (!state.message) {
         return null
+    }
+
+    if (feedback === 'toast') {
+        return (
+            <span id={id} className="sr-only">
+                {state.message}
+            </span>
+        )
     }
 
     return (

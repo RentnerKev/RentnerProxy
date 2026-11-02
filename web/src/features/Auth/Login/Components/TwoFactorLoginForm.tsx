@@ -55,12 +55,18 @@ export default function TwoFactorLoginForm({
                                             normalizeCredential(mode, event.target.value),
                                         )
                                     }
+                                    aria-describedby={
+                                        field.state.meta.errors.length > 0
+                                            ? `${field.name}-error`
+                                            : undefined
+                                    }
                                     aria-invalid={field.state.meta.errors.length > 0}
                                 />
                                 <FieldError
                                     id={`${field.name}-error`}
                                     errors={field.state.meta.errors}
                                     feedback="toast"
+                                    validationEpoch={state.validationEpoch}
                                 />
                             </div>
                         )}

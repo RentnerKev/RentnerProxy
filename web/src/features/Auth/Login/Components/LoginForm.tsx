@@ -23,6 +23,7 @@ export default function LoginForm({ state, form, handler }: LoginFormProps) {
                         autoComplete="username"
                         maxLength={254}
                         errorFeedback="toast"
+                        validationEpoch={state.validationEpochs.email ?? 0}
                     />
                 )}
             </form.Field>
@@ -36,6 +37,7 @@ export default function LoginForm({ state, form, handler }: LoginFormProps) {
                         autoComplete="current-password"
                         maxLength={256}
                         errorFeedback="toast"
+                        validationEpoch={state.validationEpochs.password ?? 0}
                         labelAction={<Link to="/forgot-password">Forgot password?</Link>}
                     />
                 )}

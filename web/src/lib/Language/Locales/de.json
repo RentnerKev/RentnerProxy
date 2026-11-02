@@ -248,6 +248,7 @@
     "auth": {
         "moreSignInOptions": "Weitere Anmeldemöglichkeiten",
         "twoFactor": {
+            "showStatus": "Anmeldestatus anzeigen",
             "expired": "Diese Anmeldeanfrage ist abgelaufen. Starte die Anmeldung erneut.",
             "unavailable": "Der Anmeldedienst ist vorübergehend nicht verfügbar. Versuche es erneut."
         },

@@ -229,6 +229,7 @@
     "auth": {
         "moreSignInOptions": "Meer aanmeldmogelijkheden",
         "twoFactor": {
+            "showStatus": "Aanmeldstatus tonen",
             "expired": "Dit authenticatieverzoek is verlopen. Begin opnieuw met aanmelden.",
             "unavailable": "De authenticatiedienst is tijdelijk niet beschikbaar. Probeer het opnieuw."
         },

@@ -248,6 +248,7 @@
     "auth": {
         "moreSignInOptions": "More sign-in options",
         "twoFactor": {
+            "showStatus": "Show sign-in status",
             "expired": "This authentication request has expired. Start again.",
             "unavailable": "Authentication service temporarily unavailable. Try again."
         },

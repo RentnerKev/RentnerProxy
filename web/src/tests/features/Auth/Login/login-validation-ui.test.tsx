@@ -372,11 +372,14 @@ test('login validation toasts errors, retains invalid marking and clears after c
     for (const input of inputs) {
         expect(input.getAttribute('aria-invalid')).toBe('true')
         expect(container.querySelector(`label[for="${input.id}"]`)).not.toBeNull()
-        expect(document.getElementById(`${input.id}-error`)).toBeNull()
+        expect(
+            document.getElementById(`${input.id}-error`)?.classList.contains('sr-only'),
+        ).toBeTrue()
+        expect(input.getAttribute('aria-describedby')).toBe(`${input.id}-error`)
     }
 
     expect(errorToast.mock.calls.length).toBeGreaterThan(0)
-    expect(container.querySelector('[id$="-error"]')).toBeNull()
+    expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
     await act(async () => {
         state!.form.setFieldValue('email', 'owner@example.test')
         state!.form.setFieldValue('password', 'valid password')

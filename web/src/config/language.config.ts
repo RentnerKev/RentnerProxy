@@ -66,6 +66,7 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'auth.logoutFailed': 'Could not sign out. Check your connection and try again.',
     'auth.moreSignInOptions': 'More sign-in options',
     'auth.twoFactor.unavailable': 'Authentication service temporarily unavailable. Try again.',
+    'auth.twoFactor.showStatus': 'Show sign-in status',
     'auth.twoFactor.expired': 'This authentication request has expired. Start again.',
     'auth.logoutRevocationFailed':
         'Signed out in this browser, but the server session could not be revoked.',
