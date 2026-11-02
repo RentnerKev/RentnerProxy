@@ -19,6 +19,7 @@ import type { OidcProviderTestDependencies } from './Types/oidc-provider-test.ty
 
 /** Holds no database locks during network requests and repeats trust and owner checks before success. */
 export function createOidcProviderTestService(dependencies: OidcProviderTestDependencies) {
+    /** Probes public provider metadata, then rejects success if saved trust changed meanwhile. */
     return async function testOidcProviderService(
         input: TestOidcProviderInput,
     ): Promise<OidcProviderTestResult> {

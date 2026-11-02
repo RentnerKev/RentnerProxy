@@ -159,6 +159,7 @@ afterEach(async () => {
 })
 async function waitFor(condition: () => boolean) {
     const deadline = Date.now() + 2500
+    /** Polls under React act until the UI condition holds or its bounded deadline expires. */
     async function poll(): Promise<void> {
         if (condition()) return
         if (Date.now() > deadline)
@@ -188,6 +189,7 @@ async function render() {
     )
     await waitFor(() => document.body.textContent?.includes('Company SSO') === true)
 }
+/** Resolves a button by its visible label within the requested scope. */
 function button(label: string, scope: ParentNode = document) {
     const result = [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
         (item) => item.textContent?.trim() === label,

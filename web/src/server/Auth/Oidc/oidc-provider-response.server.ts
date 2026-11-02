@@ -38,6 +38,7 @@ export function oidcProviderFailure(error: unknown, headers: Headers): Response 
 
 /** Exposes the canonical owner services through a bounded JSON API without requiring an admin UI. */
 export function createOidcProviderResponseHandler(dependencies: OidcProviderResponseDependencies) {
+    /** Adds the canonical callback URL to a credential-free provider summary. */
     function withCallback(summary: Awaited<ReturnType<typeof dependencies.get>>) {
         const origin = dependencies.origin()
         return { ...summary, callbackUrl: origin ? new URL(OIDC_CALLBACK_PATH, origin).href : null }

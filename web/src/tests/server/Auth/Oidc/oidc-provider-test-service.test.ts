@@ -56,6 +56,7 @@ function fixture(overrides: Partial<OidcProviderTestDependencies> = {}) {
             calls.push('lock')
             return structuredClone(settings)
         },
+        /** Records each authorization recheck so tests can verify it runs around network work. */
         authorize: async () => {
             calls.push('authorize')
         },
@@ -116,6 +117,7 @@ test.each(['revision', 'trust', 'removed'] as const)(
     async (change) => {
         let reads = 0
         const { service } = fixture({
+            /** Changes the second locked snapshot to simulate concurrent revision or trust edits. */
             lock: async () => {
                 const current = structuredClone(settings)
                 if (++reads === 2) {

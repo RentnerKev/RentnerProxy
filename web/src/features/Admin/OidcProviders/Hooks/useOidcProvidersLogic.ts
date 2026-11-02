@@ -89,6 +89,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     )
     const query = useQuery({
         queryKey: key,
+        /** Reports authorization and revision failures before the query enters its error state. */
         queryFn: async () => {
             try {
                 return await request(providersResponseSchema)
@@ -322,6 +323,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             reauthPending: reauthentication.state.isPending,
         },
         handler: {
+            /** Starts a draft only while an owner snapshot is available and current. */
             handleCreate: () => {
                 if (!query.data || query.isError || busy.current) return
                 resetDraft(providerDraft())
@@ -330,6 +332,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 setConflict(false)
                 setEditorOpen(true)
             },
+            /** Copies the provider configuration into an isolated draft at the loaded revision. */
             handleEdit: (provider) => {
                 if (busy.current) return
                 resetDraft(providerDraft(provider))
@@ -342,6 +345,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             handleSave,
             handleRefresh: refresh,
             handleTest,
+            /** Copies the canonical callback URL, reporting clipboard failures to the user. */
             handleCopy: async () => {
                 try {
                     if (query.data?.callbackUrl) {
@@ -352,6 +356,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                     toast.error(t('oidc.errors.copy'))
                 }
             },
+            /** Captures a delete target and its base revision for the confirmation flow. */
             handleDelete: (provider) => {
                 if (!busy.current) {
                     setDeleteTarget(provider)
@@ -363,6 +368,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             handleReauthenticate: reauthenticate,
             handleReloadConfirm: setReloadConfirm,
             handleReload: reload,
+            /** Clears local credentials and closes reauthentication only when no challenge is running. */
             handleReauthClose: () => {
                 if (!reauthBusy.current) {
                     reauthentication.handler.reset()

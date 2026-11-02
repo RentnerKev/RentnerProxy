@@ -12,6 +12,7 @@ import type { OidcProviderTestResponseDependencies } from './Types/oidc-provider
 export function createOidcProviderTestResponseHandler(
     dependencies: OidcProviderTestResponseDependencies,
 ) {
+    /** Authenticates and validates the saved-provider test request before invoking the probe. */
     return async function handle(request: Request): Promise<Response> {
         const headers = new Headers({
             'Cache-Control': 'private, no-store',

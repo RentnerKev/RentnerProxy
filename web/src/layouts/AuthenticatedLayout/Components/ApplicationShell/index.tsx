@@ -15,6 +15,7 @@ import useApplicationShellLogic from './Hooks/useApplicationShellLogic.ts'
 import QuickSearch from '@/features/QuickSearch/index.tsx'
 import type { AuthenticatedShellProps } from './Types/application-shell.types.ts'
 
+/** Renders navigation, account controls, and route content inside the authenticated application shell. */
 export default function AuthenticatedShell({
     children,
     isLoggingOut,
