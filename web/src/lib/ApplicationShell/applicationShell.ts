@@ -1,4 +1,4 @@
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { SYSTEM_ROLES, PERMISSIONS } from '@/config/permissions.config.ts'
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import type {
     ApplicationShellViewModel,
@@ -6,12 +6,15 @@ import type {
 } from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Types/application-shell.types.ts'
 
 export default function getApplicationShellViewModel(
-    user: Pick<ApplicationUserSummary, 'permissions'>,
+    user: Pick<ApplicationUserSummary, 'permissions' | 'roles'>,
     t: Translate,
 ): ApplicationShellViewModel {
     const permissionSet = new Set(user.permissions)
     const navigationItems: ApplicationShellViewModel['navigationItems'] = [
         { to: '/', label: t('shell.overview'), exact: true },
+        ...(user.roles?.includes(SYSTEM_ROLES.OWNER)
+            ? ([{ to: '/identity-providers', label: t('oidc.title') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.DEFAULT_SITE_VIEW)
             ? ([{ to: '/operations', label: t('operations.page.title') }] as const)
             : []),

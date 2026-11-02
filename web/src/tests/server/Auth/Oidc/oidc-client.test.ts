@@ -457,3 +457,52 @@ describe('OIDC protocol with real signed tokens', () => {
         ).rejects.toMatchObject({ code: 'authentication_failed' })
     })
 })
+
+describe('saved-provider metadata probe', () => {
+    test('uses fresh discovery and JWKS on every probe without token requests', async () => {
+        const { client, calls } = fixture()
+        await client.verifyMetadata({ ...configuration, clientSecret: '' })
+        await client.verifyMetadata({ ...configuration, clientSecret: '' })
+        expect(calls.filter((url) => url.endsWith('/jwks'))).toHaveLength(2)
+        expect(calls.filter((url) => url.includes('well-known'))).toHaveLength(2)
+        expect(calls.some((url) => url.endsWith('/token'))).toBe(false)
+    })
+    test.each([
+        { keys: [] },
+        { keys: [{ kty: 'RSA', n: 'broken', e: 'AQAB' }] },
+        { keys: [{ ...key.publicKey.export({ format: 'jwk' }), use: 'enc' }] },
+        {
+            keys: Array.from({ length: OIDC_LIMITS.jwksKeys + 1 }, () =>
+                key.publicKey.export({ format: 'jwk' }),
+            ),
+        },
+    ])('rejects unusable public keys', async ({ keys }) => {
+        const base = fixture()
+        const client = createOidcProtocolClient({
+            fetch: () => async (url, init) =>
+                url.endsWith('/jwks') ? Response.json({ keys }) : base.fetch(url, init),
+        })
+        await expect(client.verifyMetadata(configuration)).rejects.toMatchObject({
+            code: 'provider_unavailable',
+        })
+    })
+    test('rejects discovery advertising an untrusted private key endpoint before fetching it', async () => {
+        const calls: string[] = []
+        const client = createOidcProtocolClient({
+            fetch: () => async (url) => {
+                calls.push(url)
+                return Response.json({
+                    issuer: configuration.issuer,
+                    authorization_endpoint: configuration.issuer + '/authorize',
+                    token_endpoint: configuration.issuer + '/token',
+                    jwks_uri: 'https://127.0.0.1/jwks',
+                    id_token_signing_alg_values_supported: ['RS256'],
+                })
+            },
+        })
+        await expect(client.verifyMetadata(configuration)).rejects.toMatchObject({
+            code: 'provider_unavailable',
+        })
+        expect(calls).toHaveLength(1)
+    })
+})

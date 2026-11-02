@@ -104,3 +104,14 @@ export const saveOidcProvidersSchema = z
         )
             context.addIssue({ code: 'custom', message: 'Duplicate provider or identity.' })
     })
+
+export const testOidcProviderSchema = z
+    .object({
+        providerId: z.uuid(),
+        expectedRevision: z
+            .number()
+            .int()
+            .min(0)
+            .max(Number.MAX_SAFE_INTEGER - 1),
+    })
+    .strict()

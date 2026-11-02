@@ -1,5 +1,5 @@
 import '@tanstack/react-start/server-only'
-import { createHash } from 'node:crypto'
+import { createHash, createPublicKey } from 'node:crypto'
 import * as oidc from 'openid-client'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import type {
@@ -26,10 +26,13 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
     async function getConfiguration(
         configuration: OidcClientConfiguration,
         minimumLifetimeMs = 0,
+        metadataProbe = false,
+        signal?: AbortSignal,
     ): Promise<oidc.Configuration> {
         const fingerprint = createHash('sha256').update(JSON.stringify(configuration)).digest('hex')
         for (const [key, value] of cache)
             if (value.expires <= now() + minimumLifetimeMs) cache.delete(key)
+        if (metadataProbe) cache.delete(fingerprint)
         const existing = cache.get(fingerprint)
         if (existing) {
             const client = await existing.pending
@@ -52,7 +55,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
             ): Promise<Response> {
                 if (expires <= now()) throw new OidcDomainError('provider_unavailable')
                 validateOidcEndpoint(url, configuration)
-                const response = await fetch(url, init)
+                const response = await fetch(url, { ...init, ...(signal ? { signal } : {}) })
                 if (!response.ok) throw new OidcDomainError('provider_unavailable')
                 // The production transport already bounds reads; enforce the JSON/key
                 // bounds here too so every protocol document has the same policy.
@@ -131,13 +134,15 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                 },
                 configuration.clientId,
                 {
-                    client_secret: configuration.clientSecret,
+                    ...(metadataProbe ? {} : { client_secret: configuration.clientSecret }),
                     id_token_signed_response_alg: 'RS256',
                     [oidc.clockTolerance]: 0,
                 },
-                configuration.tokenEndpointAuthMethod === 'client_secret_basic'
-                    ? oidc.ClientSecretBasic(configuration.clientSecret)
-                    : oidc.ClientSecretPost(configuration.clientSecret),
+                metadataProbe
+                    ? oidc.None()
+                    : configuration.tokenEndpointAuthMethod === 'client_secret_basic'
+                      ? oidc.ClientSecretBasic(configuration.clientSecret)
+                      : oidc.ClientSecretPost(configuration.clientSecret),
             )
             client[oidc.customFetch] = checkedFetch
             client.timeout = OIDC_LIMITS.requestTimeoutMs / 1000
@@ -159,6 +164,54 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
     }
 
     return {
+        /** Probes fresh discovery and public signing keys without redeeming a code or opening credentials. */
+        async verifyMetadata(configuration: OidcClientConfiguration): Promise<void> {
+            const signal = AbortSignal.timeout(2 * OIDC_LIMITS.requestTimeoutMs)
+            try {
+                const client = await getConfiguration(configuration, 0, true, signal)
+                const response = await client[oidc.customFetch]!(
+                    client.serverMetadata().jwks_uri!,
+                    {
+                        method: 'GET',
+                        headers: { accept: 'application/json' },
+                        body: undefined,
+                        redirect: 'manual',
+                        signal,
+                    },
+                )
+                const document: unknown = await response.json()
+                if (
+                    !record(document) ||
+                    !Array.isArray(document.keys) ||
+                    !document.keys.some((key: unknown) => {
+                        if (
+                            !record(key) ||
+                            key.kty !== 'RSA' ||
+                            typeof key.n !== 'string' ||
+                            typeof key.e !== 'string' ||
+                            (key.use !== undefined && key.use !== 'sig') ||
+                            (key.alg !== undefined && key.alg !== 'RS256') ||
+                            (key.key_ops !== undefined &&
+                                (!Array.isArray(key.key_ops) || !key.key_ops.includes('verify')))
+                        )
+                            return false
+                        try {
+                            const publicKey = createPublicKey({
+                                key: { kty: 'RSA', n: key.n, e: key.e },
+                                format: 'jwk',
+                            })
+                            return (publicKey.asymmetricKeyDetails?.modulusLength ?? 0) >= 2048
+                        } catch {
+                            return false
+                        }
+                    }) ||
+                    signal.aborted
+                )
+                    throw new Error()
+            } catch {
+                throw new OidcDomainError('provider_unavailable')
+            }
+        },
         /** Builds a code-only request with fresh browser state, nonce and S256 proof. */
         async buildAuthorizationUrl(
             configuration: OidcClientConfiguration,

@@ -52,11 +52,19 @@ test('GET omits an Origin requirement and POST delegates validated data exactly 
     const { handler, get, save } = fixture()
     const read = await handler(new Request('https://proxy.example.test/api/admin/oidc/providers'))
     expect(read.status).toBe(200)
-    expect(await read.json()).toEqual({ revision: 1, providers: [] })
+    expect(await read.json()).toEqual({
+        revision: 1,
+        providers: [],
+        callbackUrl: 'https://proxy.example.test/api/auth/oidc/callback',
+    })
     expect(get).toHaveBeenCalledTimes(1)
     const written = await handler(request())
     expect(written.status).toBe(200)
-    expect(await written.json()).toEqual({ revision: 1, providers: [] })
+    expect(await written.json()).toEqual({
+        revision: 1,
+        providers: [],
+        callbackUrl: 'https://proxy.example.test/api/auth/oidc/callback',
+    })
     expect(save).toHaveBeenCalledTimes(1)
     expect(get).toHaveBeenCalledTimes(2)
     expect(save.mock.calls[0]?.[0]).toEqual({ expectedRevision: 0, providers: [] })

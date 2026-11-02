@@ -118,6 +118,7 @@ export default function AuthenticatedShell({
                                 key={user.id}
                                 userId={user.id}
                                 permissions={user.permissions}
+                                roles={user.roles}
                                 onNavigate={handler.closeMobileNavigation}
                             />
                         }

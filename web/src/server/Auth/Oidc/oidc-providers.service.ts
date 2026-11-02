@@ -30,6 +30,19 @@ import {
 import type { OidcProviderDependencies, StoredOidcProvider } from './Types/oidc-provider.types.ts'
 import type { OidcClientConfiguration } from './Types/oidc.types.ts'
 
+/** Rechecks local owner access and recent authentication under the active-user lock. */
+export async function authorizeOidcOwnerInTransaction(
+    transaction: AuthTransaction,
+    session: Awaited<ReturnType<typeof requireSessionService>>,
+): Promise<void> {
+    await lockActiveUserForAuthenticationInTransaction(transaction, session.user.id)
+    const user = await resolveActiveUserAccessInTransaction(transaction, session.user.id)
+    if (!user || !user.permissions.includes(PERMISSIONS.APP_ACCESS))
+        throw new AuthDomainError('authentication_required', 'Authentication is required.')
+    if (!hasOwnerRole(user.roles)) throw new AuthDomainError('owner_required', 'Owner is required.')
+    await requireRecentSessionInTransaction(transaction, session)
+}
+
 /** Separates owner-authorized trust mutations from the credential-free public sign-in catalog. */
 export function createOidcProvidersService(dependencies: OidcProviderDependencies) {
     return {
@@ -113,15 +126,7 @@ export const { getOidcProvidersService, saveOidcProvidersService, getPublicOidcP
     createOidcProvidersService({
         session: requireSessionService,
         transaction: (run) => getAuthDatabase().transaction(run),
-        authorize: async (transaction, session) => {
-            await lockActiveUserForAuthenticationInTransaction(transaction, session.user.id)
-            const user = await resolveActiveUserAccessInTransaction(transaction, session.user.id)
-            if (!user || !user.permissions.includes(PERMISSIONS.APP_ACCESS))
-                throw new AuthDomainError('authentication_required', 'Authentication is required.')
-            if (!hasOwnerRole(user.roles))
-                throw new AuthDomainError('owner_required', 'Owner is required.')
-            await requireRecentSessionInTransaction(transaction, session)
-        },
+        authorize: authorizeOidcOwnerInTransaction,
         validateUser: async (transaction, userId) => {
             await lockActiveUserForAuthenticationInTransaction(transaction, userId)
             const user = await resolveActiveUserAccessInTransaction(transaction, userId)

@@ -38,9 +38,10 @@ export function getQuickSearchNavigation(
     permissions: readonly string[],
     query: string,
     t: Translate,
+    roles: readonly string[] = [],
 ): QuickSearchResult[] {
     const pages: QuickSearchResult[] = getApplicationShellViewModel(
-        { permissions },
+        { permissions, roles },
         t,
     ).navigationItems.map((item) => ({
         id: `navigation:${item.to}`,

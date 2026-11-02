@@ -35,6 +35,7 @@ const searchHandlers = {
 export default function useQuickSearchLogic({
     userId,
     permissions,
+    roles = [],
     onNavigate,
 }: QuickSearchProps): QuickSearchLogicResult {
     const { t } = useTranslationStore()
@@ -51,8 +52,8 @@ export default function useQuickSearchLogic({
     const [unavailableScope, setUnavailableScope] = useState<string | null>(null)
     const attempt = useRef(0)
     const scope = useMemo(
-        () => `${userId}:${permissions.toSorted().join(',')}`,
-        [userId, permissions],
+        () => JSON.stringify([userId, permissions.toSorted(), roles.toSorted()]),
+        [userId, permissions, roles],
     )
     const selectionScope = useRef<string | null>(null)
     const isOpening = openingScope === scope
@@ -86,7 +87,7 @@ export default function useQuickSearchLogic({
     })
     const results: QuickSearchResult[] = [
         ...getQuickSearchActions(permissions, term, t),
-        ...getQuickSearchNavigation(permissions, term, t),
+        ...getQuickSearchNavigation(permissions, term, t, roles),
     ]
     let hasErrors = false
     let isLoading = canSearch && isDebouncing

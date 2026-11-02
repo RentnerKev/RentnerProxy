@@ -5,6 +5,7 @@ import type { PreventableEvent } from '@/shared/Modal/Types/modal.types.ts'
 export interface QuickSearchProps {
     readonly userId: string
     readonly permissions: readonly string[]
+    readonly roles?: readonly string[] | undefined
     readonly onNavigate?: (() => void) | undefined
 }
 

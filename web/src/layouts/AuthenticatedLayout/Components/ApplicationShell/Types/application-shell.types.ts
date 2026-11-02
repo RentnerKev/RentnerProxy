@@ -15,6 +15,7 @@ export interface ApplicationHeaderProps {
 }
 
 export interface ApplicationUserSummary {
+    readonly roles?: readonly string[]
     readonly displayName: string
     readonly email: string
     readonly id: string
@@ -44,6 +45,7 @@ export interface ApplicationNavigationItem {
         | '/certificates'
         | '/access-policies'
         | '/providers'
+        | '/identity-providers'
         | '/ddns'
         | '/docker-discovery'
         | '/proxy-access-logs'

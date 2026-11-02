@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import {
     getQuickSearchNavigation,
     matchesQuickSearch,
@@ -12,6 +12,23 @@ const translate = (key: string) =>
         .reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], en) as string
 
 describe('quick search navigation', () => {
+    test('finds identity-provider setup only for the current owner role', () => {
+        expect(
+            getQuickSearchNavigation(Object.values(PERMISSIONS), 'identity providers', translate),
+        ).toEqual([])
+        expect(
+            getQuickSearchNavigation(Object.values(PERMISSIONS), 'identity providers', translate, [
+                SYSTEM_ROLES.ADMIN,
+            ]),
+        ).toEqual([])
+        expect(
+            getQuickSearchNavigation(Object.values(PERMISSIONS), 'identity providers', translate, [
+                SYSTEM_ROLES.OWNER,
+            ]),
+        ).toEqual([
+            expect.objectContaining({ to: '/identity-providers', label: 'Identity providers' }),
+        ])
+    })
     test('matches localized names without casing, accent or whitespace differences', () => {
         expect(matchesQuickSearch(' ZERTIFIKAT ', 'Zertifikate')).toBe(true)
         expect(matchesQuickSearch('reglès accès', 'Règles d’accès')).toBe(true)
