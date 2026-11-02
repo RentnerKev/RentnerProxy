@@ -37,7 +37,7 @@ function failure(error: unknown, headers: Headers): Response {
 /** Exposes the canonical owner services through a bounded JSON API without requiring an admin UI. */
 export function createOidcProviderResponseHandler(dependencies: OidcProviderResponseDependencies) {
     /** Applies same-origin mutation checks and input bounds before delegating exactly once. */
-    return async function handle(request: Request): Promise<Response> {
+    async function handle(request: Request): Promise<Response> {
         const headers = new Headers({
             'Cache-Control': 'private, no-store',
             'X-Content-Type-Options': 'nosniff',
@@ -102,6 +102,7 @@ export function createOidcProviderResponseHandler(dependencies: OidcProviderResp
             return failure(error, headers)
         }
     }
+    return handle
 }
 
 export const handleOidcProviderRequest = createOidcProviderResponseHandler({

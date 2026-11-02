@@ -174,6 +174,92 @@ test.each(['focus', 'reconnect'] as const)(
     },
 )
 
+test('canceled provider navigation recovers controls after its bounded window and cleans up timers', async () => {
+    providerListAvailable = true
+    const container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    await act(async () => {
+        root!.render(
+            <QueryClientProvider client={client!}>
+                <TooltipProvider>
+                    <InputProvider locale="en">
+                        <LoginHarness />
+                    </InputProvider>
+                </TooltipProvider>
+            </QueryClientProvider>,
+        )
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    await act(async () => {
+        state!.form.setFieldValue('email', 'owner@example.test')
+        state!.form.setFieldValue('password', 'valid password')
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    const localSubmit = container.querySelector<HTMLButtonElement>('form button[type="submit"]')!
+    const passkey = [
+        ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
+    ].find((button) => button.textContent === 'Sign in with passkey')!
+    const oidcForm = container.querySelector<HTMLFormElement>(
+        'form[action="/api/auth/oidc/start"]',
+    )!
+    const oidcSubmit = oidcForm.querySelector<HTMLButtonElement>('button')!
+    const scheduled = spyOn(window, 'setTimeout')
+    const cleared = spyOn(window, 'clearTimeout')
+    try {
+        await act(async () => {
+            oidcForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        })
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            true,
+            true,
+            true,
+        ])
+        const duplicate = new Event('submit', { bubbles: true, cancelable: true })
+        await act(async () => {
+            oidcForm.dispatchEvent(duplicate)
+        })
+        expect(duplicate.defaultPrevented).toBeTrue()
+        const index = scheduled.mock.calls.findIndex(([, delay]) => delay === 15_000)
+        const recover = scheduled.mock.calls[index]?.[0]
+        if (typeof recover !== 'function')
+            throw new Error('Missing bounded navigation recovery callback')
+        const recoveryTimer = scheduled.mock.results[index]?.value
+        // Simulate expiry while the original page remains mounted; no pageshow/unload is dispatched.
+        await act(async () => {
+            recover()
+        })
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            false,
+            false,
+            false,
+        ])
+        expect(cleared).toHaveBeenCalledWith(recoveryTimer)
+        expect(state!.form.state.values).toEqual({
+            email: 'owner@example.test',
+            password: 'valid password',
+        })
+        await act(async () => {
+            localSubmit.click()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(login).toHaveBeenCalledTimes(1)
+        await act(async () => {
+            oidcForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        })
+        const lastIndex = scheduled.mock.calls.findLastIndex(([, delay]) => delay === 15_000)
+        expect(lastIndex).toBeGreaterThan(index)
+        const pendingTimer = scheduled.mock.results[lastIndex]?.value
+        await act(async () => root?.unmount())
+        root = null
+        expect(cleared).toHaveBeenCalledWith(pendingTimer)
+    } finally {
+        scheduled.mockRestore()
+        cleared.mockRestore()
+    }
+})
+
 test('restoring login from BFCache unlocks OIDC pending controls and cleans up its listener', async () => {
     providerListAvailable = true
     const added = spyOn(window, 'addEventListener')

@@ -39,7 +39,10 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
             const fetch = (options.fetch ?? createOidcHttpFetch)(configuration)
             const pendingGets = new Map<string, Promise<Response>>()
             /** Validates bounded provider JSON before discovery, token or key data reaches the protocol library. */
-            const readDocument: oidc.CustomFetch = async (url, init) => {
+            async function readDocument(
+                url: Parameters<oidc.CustomFetch>[0],
+                init: Parameters<oidc.CustomFetch>[1],
+            ): Promise<Response> {
                 if (expires <= now()) throw new OidcDomainError('provider_unavailable')
                 validateOidcEndpoint(url, configuration)
                 const response = await fetch(url, init)
@@ -59,7 +62,10 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                 return new Response(text, { status: response.status, headers: response.headers })
             }
             /** Coalesces metadata and key GETs while keeping token POSTs and their responses independent. */
-            const checkedFetch: oidc.CustomFetch = async (url, init) => {
+            async function checkedFetch(
+                url: Parameters<oidc.CustomFetch>[0],
+                init: Parameters<oidc.CustomFetch>[1],
+            ): Promise<Response> {
                 if (init.method !== 'GET') return readDocument(url, init)
                 let pendingGet = pendingGets.get(url)
                 if (!pendingGet) {

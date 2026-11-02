@@ -8,7 +8,7 @@ import { startAuthentication } from '@simplewebauthn/browser'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -31,6 +31,12 @@ export default function useLoginLogic() {
         window.addEventListener('pageshow', restoreLogin)
         return () => window.removeEventListener('pageshow', restoreLogin)
     }, [])
+    useEffect(() => {
+        if (!isOidcPending) return
+        // Browser Stop leaves this document mounted without emitting a restoration event.
+        const timeout = window.setTimeout(() => setIsOidcPending(false), 15_000)
+        return () => window.clearTimeout(timeout)
+    }, [isOidcPending])
     const providers = useQuery({
         queryKey: ['auth', 'oidc-providers'],
         queryFn: () => getPublicOidcProvidersHandler(),
@@ -98,6 +104,31 @@ export default function useLoginLogic() {
             } catch {}
         },
     })
+    /** Submits local credentials only while no other sign-in exchange owns the form. */
+    function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+        event.preventDefault()
+        event.stopPropagation()
+        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
+        void form.handleSubmit()
+    }
+
+    /** Starts the passkey ceremony only when local and provider sign-in are idle. */
+    async function handlePasskeyLogin(): Promise<void> {
+        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
+        passkeyMutation.reset()
+        try {
+            await passkeyMutation.mutateAsync()
+        } catch {}
+    }
+
+    /** Allows one native provider navigation until restoration or bounded cancellation recovery. */
+    function handleOidcSubmit(event: FormEvent<HTMLFormElement>): void {
+        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) {
+            event.preventDefault()
+            return
+        }
+        setIsOidcPending(true)
+    }
     return {
         form,
         state: {
@@ -107,33 +138,12 @@ export default function useLoginLogic() {
             oidcFailed: !!search && 'oidcError' in search && search.oidcError === 'failed',
         },
         handler: {
-            /** Submits local credentials only while no other sign-in exchange owns the form. */
-            handleSubmit: (event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
-                void form.handleSubmit()
-            },
+            handleSubmit,
             validateEmail: ({ value }) => getValidationMessage(emailSchema, value),
             validatePassword: ({ value }) => getValidationMessage(credentialPasswordSchema, value),
 
-            /** Starts the passkey ceremony only when local and provider sign-in are idle. */
-            handlePasskeyLogin: async () => {
-                if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
-                passkeyMutation.reset()
-
-                try {
-                    await passkeyMutation.mutateAsync()
-                } catch {}
-            },
-            /** Allows one native provider navigation and blocks competing submissions until restoration. */
-            handleOidcSubmit: (event) => {
-                if (isOidcPending || mutation.isPending || passkeyMutation.isPending) {
-                    event.preventDefault()
-                    return
-                }
-                setIsOidcPending(true)
-            },
+            handlePasskeyLogin,
+            handleOidcSubmit,
         },
     } satisfies LoginLogicResult<typeof form>
 }

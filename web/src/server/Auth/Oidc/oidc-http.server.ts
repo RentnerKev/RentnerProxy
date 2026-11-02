@@ -42,7 +42,10 @@ export function createOidcHttpFetch(
     options: OidcHttpOptions = {},
 ): CustomFetch {
     /** Applies one deadline across DNS, TLS and bounded response reads without following redirects. */
-    const fetchDocument: CustomFetch = async (input, init) => {
+    async function fetchDocument(
+        input: Parameters<CustomFetch>[0],
+        init: Parameters<CustomFetch>[1],
+    ): Promise<Response> {
         const url = validateOidcEndpoint(input, configuration)
         const controller = new AbortController()
         const cancel = () => controller.abort()
