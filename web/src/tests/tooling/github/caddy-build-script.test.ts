@@ -92,7 +92,7 @@ if(name==='xcaddy'){
                         FIXTURE_MODE: mode,
                         FIXTURE_CALLS: callsPath,
                         CADDY_VERSION: 'v2.11.7',
-                        CADDY_CROWDSEC_BOUNCER_COMMIT: '4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4',
+                        CADDY_CROWDSEC_BOUNCER_VERSION: 'v0.14.2-0.20261030164527-4a6ce1d3094d',
                         CADDY_LAYER4_VERSION: 'v0.1.3-0.20261029145729-f607ccea1b7d',
                     },
                     stdout: 'pipe',
@@ -121,7 +121,7 @@ if(name==='xcaddy'){
                     ])
                     assert.ok(
                         compile.includes(
-                            'github.com/hslatman/caddy-crowdsec-bouncer/http@4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4',
+                            'github.com/hslatman/caddy-crowdsec-bouncer/http@v0.14.2-0.20261030164527-4a6ce1d3094d',
                         ),
                     )
                     assert.ok(

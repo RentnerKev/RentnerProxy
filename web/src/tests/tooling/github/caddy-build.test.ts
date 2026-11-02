@@ -49,7 +49,7 @@ describe('upstream Caddy binary security metadata', () => {
             expect(image).not.toContain('xcaddy build')
             expect(image).toContain('ENV GOTOOLCHAIN=local CGO_ENABLED=0')
             expect(image).toContain(
-                'ARG CADDY_CROWDSEC_BOUNCER_COMMIT=4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4',
+                'ARG CADDY_CROWDSEC_BOUNCER_VERSION=v0.14.2-0.20261030164527-4a6ce1d3094d',
             )
             expect(image).toContain('ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261029145729-f607ccea1b7d')
             expect(image).toContain('COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy')
@@ -62,7 +62,7 @@ describe('upstream Caddy binary security metadata', () => {
         }
         for (const contract of [
             'test "$(go env GOVERSION)" = go1.27.3',
-            '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT}',
+            '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_VERSION:?Caddy builder must pin the upstream CrowdSec module}',
             'go mod verify',
             'go test -mod=readonly ./...',
             '--with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
@@ -108,6 +108,14 @@ describe('upstream Caddy binary security metadata', () => {
                 [validBuildinfo.replace('=>\tgolang.org/x/net', '=>\tlocal/fork'), false],
                 [validBuildinfo.replace('CGO_ENABLED=0', 'CGO_ENABLED=1'), false],
                 [validBuildinfo.replace('v0.14.2-0.20261030164527-4a6ce1d3094d', 'v0.14.1'), false],
+                [validBuildinfo.replace('v0.14.2-0.20261030164527-4a6ce1d3094d', 'v0.15.0'), false],
+                [
+                    validBuildinfo.replace(
+                        '\tdep\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.14.2-0.20261030164527-4a6ce1d3094d',
+                        '\tdep\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.15.0\n\t=>\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.14.2-0.20261030164527-4a6ce1d3094d\th1:reviewed-commit',
+                    ),
+                    true,
+                ],
                 [validBuildinfo.replace('v1.8.2', 'v1.7.0'), false],
                 [validBuildinfo.replace('v0.1.3-0.20261029145729-f607ccea1b7d', 'v0.1.1'), false],
                 [

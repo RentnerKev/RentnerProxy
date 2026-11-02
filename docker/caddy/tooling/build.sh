@@ -7,8 +7,9 @@ GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" go mod download
 go mod verify
 go test -mod=readonly ./...
 cd /tmp/rentnerproxy-caddy
+# A later tag on the same commit must not change the reviewed effective module version.
 GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
-        --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
+        --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_VERSION:?Caddy builder must pin the upstream CrowdSec module} \
         --with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache \
         --replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module} \
         --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.2 \
