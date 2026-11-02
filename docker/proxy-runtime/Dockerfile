@@ -17,7 +17,7 @@ RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
 
-ARG CADDY_CROWDSEC_BOUNCER_COMMIT=4a6ce1d3094dbfd270fecf2a91aaab81663d0cb4
+ARG CADDY_CROWDSEC_BOUNCER_VERSION=v0.14.2-0.20261030164527-4a6ce1d3094d
 ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261029145729-f607ccea1b7d
 COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
