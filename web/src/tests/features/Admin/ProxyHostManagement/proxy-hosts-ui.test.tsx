@@ -1005,6 +1005,24 @@ describe('background certificate job progress', () => {
 })
 
 describe('ProxyHost management table', () => {
+    test('shows pool target count, policy and all ordered targets', async () => {
+        loadProxyHostPageFixture.mockResolvedValue([
+            {
+                ...enabledHost,
+                upstreamPool: {
+                    policy: 'first',
+                    members: [
+                        { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                        { host: '2001:db8::2', port: 8081 },
+                    ],
+                },
+            },
+        ])
+        await renderPage(allManagementPermissions)
+        await waitFor(() => getRows().length === 1)
+        expect(getRows()[0]?.textContent).toContain('2 targets · Primary / secondary (ordered)')
+        expect(getRows()[0]?.textContent).toContain('http://[2001:db8::2]:8081')
+    })
     test('keeps tag assignment and its dropdown mounted through background runtime refreshes', async () => {
         await renderPage(allManagementPermissions)
         await waitFor(() => getRows().length === 2)
@@ -1605,6 +1623,167 @@ function FormHarness({
         />
     )
 }
+
+describe('proxy host upstream pools', () => {
+    const pooledHost: ProxyHostSummary = {
+        ...enabledHost,
+        upstreamPool: {
+            policy: 'first',
+            members: [
+                { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                { host: 'secondary.internal', port: 9090 },
+                { host: 'third.internal', port: 9091 },
+            ],
+        },
+    }
+
+    test('edits, reorders and removes targets while keeping the scalar primary synchronized', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={pooledHost} />))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[1].host"]')!,
+            'edited.internal',
+        )
+        await click(getButton('Move target 2 up'))
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')?.value).toBe(
+            'edited.internal',
+        )
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')?.value).toBe(
+            '9090',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!,
+            '9092',
+        )
+        await click(getButton('Remove target 2'))
+        await chooseSelectOption('Target selection', 'Round robin')
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                forwardHost: 'edited.internal',
+                forwardPort: 9092,
+                upstreamPool: {
+                    policy: 'round_robin',
+                    members: [
+                        { host: 'edited.internal', port: 9092 },
+                        { host: 'third.internal', port: 9091 },
+                    ],
+                },
+            }),
+        })
+        expect(pooledHost.upstreamPool!.members[0]!.host).toBe(enabledHost.forwardHost)
+    })
+
+    test('duplicates a pool with independent domains and preserves its order and settings', async () => {
+        await render(withQueryClient(<FormHarness mode="duplicate" proxyHost={pooledHost} />))
+        expect(document.querySelector<HTMLInputElement>('input[name="domains[0]"]')?.value).toBe('')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'pool-copy.example.com',
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                domains: ['pool-copy.example.com'],
+                upstreamPool: pooledHost.upstreamPool,
+            }),
+        })
+    })
+
+    test('explicitly clears an existing pool when returning to a single target', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={pooledHost} />))
+        await chooseSelectOption('Target selection', 'Single target')
+        expect(document.querySelector('input[name="upstreamPool.members[1].host"]')).toBeNull()
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+            'single.internal',
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                forwardHost: 'single.internal',
+                upstreamPool: null,
+            }),
+        })
+    })
+
+    test('adds targets up to the limit and rejects a duplicate with an inline error', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={enabledHost} />))
+        await chooseSelectOption('Target selection', 'Round robin')
+        await click(getButton('Add target'))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[1].host"]')!,
+            enabledHost.forwardHost,
+        )
+        await click(getButton('Save changes'))
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain('Each target must have a unique host and port.')
+        for (let index = 2; index < 16; index++) {
+            // oxlint-disable-next-line eslint/no-await-in-loop -- Each addition depends on the preceding member count.
+            await click(getButton('Add target'))
+        }
+        expect(getButton('Add target').disabled).toBeTrue()
+        expect(document.querySelectorAll('input[name$=".host"]')).toHaveLength(15)
+    })
+
+    test('reveals pool validation from another tab and permits correcting the target', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={pooledHost} />))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[1].host"]')!,
+            '',
+        )
+        await click(getHostTab('Options'))
+        await click(getButton('Save changes'))
+        expect(getHostTab('Basics').getAttribute('aria-selected')).toBe('true')
+        expect(document.activeElement?.getAttribute('name')).toBe('upstreamPool.members[1].host')
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[1].host"]')!,
+            'fixed.internal',
+        )
+        await blurControl(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[1].host"]')!,
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                upstreamPool: {
+                    policy: 'first',
+                    members: [
+                        { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                        { host: 'fixed.internal', port: 9090 },
+                        { host: 'third.internal', port: 9091 },
+                    ],
+                },
+            }),
+        })
+    })
+    test('clears duplicate member errors after correcting the host', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={pooledHost} />))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[2].host"]')!,
+            'secondary.internal',
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[2].port"]')!,
+            '9090',
+        )
+        await click(getButton('Save changes'))
+        expect(document.body.textContent).toContain('Each target must have a unique host and port.')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[2].host"]')!,
+            'corrected.internal',
+        )
+        await blurControl(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[2].host"]')!,
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+    })
+})
 
 describe('proxy host form tabs', () => {
     test('opens with only required routing fields and defaults to no certificate', async () => {
@@ -3071,6 +3250,13 @@ describe('Caddy proxy host configuration editor', () => {
             forwardScheme: 'https',
             forwardHost: '2001:db8::10',
             forwardPort: 443,
+            upstreamPool: {
+                policy: 'first',
+                members: [
+                    { host: '2001:db8::10', port: 443 },
+                    { host: 'secondary.internal', port: 8443 },
+                ],
+            },
             upstreamTlsServerName: 'backend-with-a-long-name.internal.example',
             trustedCaId: assignableTrustedCa.id,
         }
@@ -3079,6 +3265,8 @@ describe('Caddy proxy host configuration editor', () => {
         const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
         expect(dialog.textContent).toContain(secureHost.domains[0]!)
         expect(dialog.textContent).toContain('https://[2001:db8::10]:443')
+        expect(dialog.textContent).toContain('2 targets · Primary / secondary (ordered)')
+        expect(dialog.textContent).toContain('https://secondary.internal:8443')
         expect(dialog.textContent).toContain('HTTPS · HTTP redirects enabled')
         expect(dialog.textContent).toContain('HTTPS · verified with custom CA')
         expect(dialog.textContent).toContain('backend-with-a-long-name.internal.example')

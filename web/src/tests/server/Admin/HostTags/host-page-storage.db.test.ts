@@ -45,7 +45,7 @@ beforeAll(async () => {
         create schema if not exists rentnerproxy;
         create table if not exists rentnerproxy.proxy_hosts (
             id uuid primary key, forward_scheme text not null, forward_host text not null,
-            forward_port integer not null, enabled boolean not null, certificate_id uuid,
+            forward_port integer not null, upstream_pool jsonb, enabled boolean not null, certificate_id uuid,
             force_https boolean not null default false, verify_upstream_tls boolean not null default true,
             upstream_tls_server_name text, trusted_ca_id uuid, access_policy_id uuid,
             created_at timestamptz not null, updated_at timestamptz not null
@@ -164,6 +164,7 @@ describe('host page storage on isolated PostgreSQL', () => {
                             'forwardHost',
                             'forwardScheme',
                             'forwardPort',
+                            'upstreamPool',
                             'domains',
                         ].toSorted(),
                     )

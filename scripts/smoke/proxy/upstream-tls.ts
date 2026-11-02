@@ -19,6 +19,7 @@ const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const network = 'rentnerproxy-upstream-tls-' + runId
 const runtimeContainer = network + '-runtime'
 const backendContainer = network + '-backend'
+const poolBackendContainer = network + '-backend-pool'
 const stateVolume = network + '-state'
 const runtimeImage = sharedSmokeImage('proxy-runtime') ?? network + ':runtime'
 const token = randomBytes(32).toString('hex')
@@ -64,6 +65,7 @@ function hashRevision(value: unknown): string {
     return 'sha256:' + new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
+/** Matches production field ordering and preserves meaningful pool order for cross-language hashes. */
 function canonicalHost(host: ProxyHost): ProxyHost {
     return {
         id: host.id,
@@ -72,12 +74,15 @@ function canonicalHost(host: ProxyHost): ProxyHost {
         forwardHost: host.forwardHost,
         forwardPort: host.forwardPort,
         ...(host.upstreamTls ? { upstreamTls: host.upstreamTls } : {}),
+        ...(host.accessPolicy ? { accessPolicy: host.accessPolicy } : {}),
+        ...(host.upstreamPool ? { upstreamPool: host.upstreamPool } : {}),
     }
 }
 
+/** Builds a canonical v7 single-target or v8 pool snapshot without upstream TLS material. */
 function createHttpSnapshot(host: ProxyHost): Snapshot {
     const canonical = {
-        version: 7 as const,
+        version: host.upstreamPool ? (8 as const) : (7 as const),
         proxyHosts: [canonicalHost(host)],
         redirectHosts: [],
         httpSettings: {},
@@ -86,9 +91,10 @@ function createHttpSnapshot(host: ProxyHost): Snapshot {
     return { ...canonical, revision: hashRevision(canonical) }
 }
 
+/** Builds the same versioned contract with deterministically ordered explicit CA trust. */
 function createHttpsSnapshot(host: ProxyHost, trustedCas: readonly TrustedCa[] = []): Snapshot {
     const canonical = {
-        version: 7 as const,
+        version: host.upstreamPool ? (8 as const) : (7 as const),
         proxyHosts: [canonicalHost(host)],
         redirectHosts: [],
         httpSettings: {},
@@ -150,12 +156,19 @@ async function createCa(prefix: string, commonName: string): Promise<string> {
     return caPath
 }
 
-async function createBackendCertificate(prefix: string, caPrefix: string): Promise<void> {
+/** Issues isolated certificates for distinct backend identities under the chosen fixture CA. */
+async function createBackendCertificate(
+    prefix: string,
+    caPrefix: string,
+    serverName = 'backend.test',
+): Promise<void> {
     const csr = join(tempDirectory, prefix + '.csr')
     const extensionPath = join(tempDirectory, prefix + '.ext')
     await writeFile(
         extensionPath,
-        '[v3_req]\nsubjectAltName=DNS:backend.test\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n',
+        '[v3_req]\nsubjectAltName=DNS:' +
+            serverName +
+            '\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n',
     )
     await openssl([
         'req',
@@ -168,7 +181,7 @@ async function createBackendCertificate(prefix: string, caPrefix: string): Promi
         '-out',
         csr,
         '-subj',
-        '/CN=backend.test',
+        '/CN=' + serverName,
     ])
     await openssl([
         'x509',
@@ -243,19 +256,20 @@ async function writeBackendConfig(prefix: string): Promise<string> {
     return path
 }
 
-async function startBackend(configPath: string): Promise<void> {
+async function startBackend(
+    configPath: string,
+    container = backendContainer,
+    aliases = ['backend-tls', 'backend.test'],
+): Promise<void> {
     await command([
         'docker',
         'run',
         '--detach',
         '--name',
-        backendContainer,
+        container,
         '--network',
         network,
-        '--network-alias',
-        'backend-tls',
-        '--network-alias',
-        'backend.test',
+        ...aliases.flatMap((alias) => ['--network-alias', alias]),
         '--volume',
         tempDirectory + ':/certs:ro',
         '--entrypoint',
@@ -268,13 +282,10 @@ async function startBackend(configPath: string): Promise<void> {
     let loggedBackendFailure = false
     await waitFor(async () => {
         const running =
-            (await command(['docker', 'inspect', '-f', '{{.State.Running}}', backendContainer])) ===
-            'true'
+            (await command(['docker', 'inspect', '-f', '{{.State.Running}}', container])) === 'true'
         if (!running && !loggedBackendFailure) {
             loggedBackendFailure = true
-            await command(['docker', 'logs', backendContainer], { inherit: true }).catch(
-                () => undefined,
-            )
+            await command(['docker', 'logs', container], { inherit: true }).catch(() => undefined)
         }
         return running
     }, 'HTTPS backend')
@@ -369,6 +380,7 @@ async function validateCa(pem: string): Promise<TrustedCa> {
     }
 }
 
+/** Verifies real upstream TLS identity, trust changes and mixed-DNS pool routing with isolated fixtures. */
 async function runSmoke(): Promise<void> {
     let caOnePath = ''
     let caTwoPath = ''
@@ -395,8 +407,10 @@ async function runSmoke(): Promise<void> {
         caTwoPath = await createCa('ca-two', 'RentnerProxy upstream smoke CA two')
         await createBackendCertificate('backend-one', 'ca-one')
         await createBackendCertificate('backend-two', 'ca-two')
+        await createBackendCertificate('backend-pool', 'ca-one', 'backend-secondary.test')
         const backendOneConfig = await writeBackendConfig('backend-one')
         const backendTwoConfig = await writeBackendConfig('backend-two')
+        const poolBackendConfig = await writeBackendConfig('backend-pool')
         await command([
             'docker',
             'run',
@@ -428,6 +442,7 @@ async function runSmoke(): Promise<void> {
             'controller',
         )
         await startBackend(backendOneConfig)
+        await startBackend(poolBackendConfig, poolBackendContainer, ['backend-secondary.test'])
         const backendIp = await command([
             'docker',
             'inspect',
@@ -553,6 +568,79 @@ async function runSmoke(): Promise<void> {
             tlsCode: 'tls_verified',
         })
         passed('domain diagnostics pin the configured DNS target while using its TLS identity')
+
+        const dnsPoolHost: ProxyHost = {
+            ...automaticDnsHost,
+            domains: ['dns-pool-upstream.test'],
+            upstreamPool: {
+                policy: 'round_robin',
+                members: [
+                    { host: 'backend.test', port: 8443 },
+                    { host: 'backend-secondary.test', port: 8443 },
+                ],
+            },
+        }
+        const dnsPoolSnapshot = createHttpsSnapshot(dnsPoolHost, [caOne])
+        assert.equal(dnsPoolSnapshot.version, 8)
+        assert.deepEqual(
+            createProxyRuntimeSnapshot([{ ...dnsPoolHost, enabled: true }], {}, [caOne]),
+            dnsPoolSnapshot,
+        )
+        assert.equal((await apply(dnsPoolSnapshot)).httpStatus, 200)
+        await waitForRevision(dnsPoolSnapshot.revision)
+        const observedDnsMembers = new Set<string>()
+        // Each backend has a distinct certificate SAN signed by the same configured CA.
+        // Reaching both with verification enabled exercises identity selection per dial.
+        const dnsPoolResponses = await Promise.all(
+            Array.from({ length: 8 }, () => proxyRequest('dns-pool-upstream.test')),
+        )
+        for (const response of dnsPoolResponses) {
+            assert.equal(response.status, 200)
+            if (/backend-backend-one\b/u.test(response.body)) {
+                assert.match(response.body, /sni=backend\.test\b/u)
+                observedDnsMembers.add('primary')
+            } else {
+                assert.match(response.body, /backend-backend-pool.*sni=backend-secondary\.test\b/u)
+                observedDnsMembers.add('secondary')
+            }
+        }
+        assert.deepEqual([...observedDnsMembers].toSorted(), ['primary', 'secondary'])
+        passed(
+            'mixed DNS HTTPS pool verifies both distinct certificates with automatic per-member SNI and one shared custom CA',
+        )
+
+        const ipPoolHost: ProxyHost = {
+            ...dnsPoolHost,
+            upstreamPool: {
+                policy: 'round_robin',
+                members: [
+                    { host: 'backend.test', port: 8443 },
+                    { host: backendIp, port: 8443 },
+                ],
+            },
+        }
+        assert.equal((await apply(createHttpsSnapshot(ipPoolHost, [caOne]))).httpStatus, 422)
+        assert.equal(
+            (await controllerJson('/internal/v1/proxy/status')).activeRevision,
+            dnsPoolSnapshot.revision,
+        )
+        const explicitIpPool = {
+            ...ipPoolHost,
+            upstreamTls: { verify: true, serverName: 'backend.test', trustedCaId: caOne.id },
+        }
+        const explicitIpSnapshot = createHttpsSnapshot(explicitIpPool, [caOne])
+        assert.equal((await apply(explicitIpSnapshot)).httpStatus, 200)
+        await waitForRevision(explicitIpSnapshot.revision)
+        const ipPoolResponses = await Promise.all(
+            Array.from({ length: 4 }, () => proxyRequest('dns-pool-upstream.test')),
+        )
+        for (const response of ipPoolResponses) {
+            assert.equal(response.status, 200)
+            assert.match(response.body, /backend-backend-one.*sni=backend\.test\b/u)
+        }
+        passed(
+            'secondary IP pool member requires explicit shared DNS identity and verifies when configured',
+        )
 
         const wrongNameSnapshot = createHttpsSnapshot(
             {
@@ -781,6 +869,7 @@ async function runSmoke(): Promise<void> {
 
         console.log('Real HTTPS upstream TLS integration: ' + assertions + ' checks passed.')
     } finally {
+        await command(['docker', 'rm', '--force', poolBackendContainer]).catch(() => undefined)
         await command(['docker', 'rm', '--force', backendContainer]).catch(() => undefined)
         await command(['docker', 'rm', '--force', '--volumes', runtimeContainer]).catch(
             () => undefined,

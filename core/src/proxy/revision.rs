@@ -53,6 +53,7 @@ pub(crate) fn revision_for_configuration_with_redirects(
     )
 }
 
+/// Hashes the canonical versioned configuration without sorting a pool's ordered member list.
 pub(crate) fn revision_for_full_configuration(
     hosts: &[ProxyHost],
     redirect_hosts: &[RedirectHost],
@@ -61,7 +62,7 @@ pub(crate) fn revision_for_full_configuration(
     default_site: &DefaultSite,
 ) -> String {
     hash_snapshot(&CanonicalSnapshot {
-        version: 7,
+        version: super::configuration_version(hosts),
         proxy_hosts: canonical_hosts(hosts),
         redirect_hosts: canonical_redirect_hosts(redirect_hosts),
         http_settings,

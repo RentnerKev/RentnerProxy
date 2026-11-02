@@ -783,7 +783,7 @@ async fn child_exit_lowers_readiness_and_automatically_recovers() {
 }
 
 #[tokio::test]
-async fn startup_accepts_only_v7_recovery_snapshots() {
+async fn startup_accepts_legacy_v7_and_rejects_obsolete_recovery_snapshots() {
     let engine = FakeCaddy::new();
     let (first, settings) = runtime(Some(engine));
     first.initialize().await;
@@ -810,6 +810,43 @@ async fn startup_accepts_only_v7_recovery_snapshots() {
         assert!(runtime.is_ready().await);
         runtime.shutdown().await;
     }
+}
+
+#[tokio::test]
+async fn restart_restores_v8_pool_order_and_policy() {
+    use crate::models::{UpstreamMember, UpstreamPool, UpstreamSelectionPolicy};
+    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    runtime.initialize().await;
+    let mut configuration = configuration(4000);
+    let target = &mut configuration.proxy_hosts[0];
+    target.upstream_pool = Some(UpstreamPool {
+        policy: UpstreamSelectionPolicy::First,
+        members: vec![
+            UpstreamMember {
+                host: target.forward_host.clone(),
+                port: target.forward_port,
+            },
+            UpstreamMember {
+                host: "secondary.internal".into(),
+                port: 4001,
+            },
+        ],
+    });
+    configuration.revision =
+        revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
+    runtime.apply(configuration.clone()).await.unwrap();
+    let snapshot: ProxyConfigRequest = serde_json::from_slice(
+        &std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(snapshot.version, 8);
+    assert_eq!(validate_proxy_config(snapshot).unwrap(), configuration);
+    let active = runtime.active_config().await.unwrap();
+    runtime.shutdown().await;
+    let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
+    restarted.initialize().await;
+    assert_eq!(restarted.active_config().await.unwrap(), active);
+    restarted.shutdown().await;
 }
 
 #[tokio::test]

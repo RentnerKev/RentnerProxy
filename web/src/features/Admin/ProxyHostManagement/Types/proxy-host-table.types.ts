@@ -65,6 +65,7 @@ export interface ProxyHostDomainChipProps {
 }
 
 export interface ProxyHostForwardCellProps {
+    readonly upstreamPool?: ProxyHostSummary['upstreamPool']
     readonly forwardScheme: ProxyHostSummary['forwardScheme']
     readonly verifyUpstreamTls?: boolean
     readonly forwardHost: string

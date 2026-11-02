@@ -1,4 +1,7 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 export type ProxyHostRow = {
+    upstreamPool?: ProxyUpstreamPool | null | undefined
+
     id: string
     forwardScheme: 'http' | 'https'
     forwardHost: string

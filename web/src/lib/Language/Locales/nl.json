@@ -1742,7 +1742,11 @@
                 "port": "Voer een geheel poortnummer van 1 tot 65535 in.",
                 "upstreamTlsServerName": "Voer een DNS-servernaam in zonder URL, poort, IP-adres of wildcard.",
                 "trustedCaRequiresVerification": "Aangepaste vertrouwde CA’s vereisen certificaatverificatie van de upstreamserver.",
-                "upstreamTlsIpNameRequired": "Voer de DNS-naam op het upstreamcertificaat in als je verbinding maakt met een IP-adres."
+                "upstreamTlsIpNameRequired": "Voer de DNS-naam op het upstreamcertificaat in als je verbinding maakt met een IP-adres.",
+                "duplicateUpstream": "Elk doel moet een unieke combinatie van host en poort hebben.",
+                "upstreamPoolPrimary": "Het primaire doel moet overeenkomen met het eerste poollid.",
+                "upstreamMembersRequired": "Voeg minimaal één upstreamdoel toe.",
+                "upstreamMembersLimit": "Voeg maximaal 16 upstreamdoelen toe."
             },
             "config": {
                 "open": "Caddy-configuratie",
@@ -1923,6 +1927,25 @@
                 "ttl": "Maximale levensduur in seconden (1–3600)",
                 "hint": "Alleen geslaagde openbare CSS-, JavaScript-, afbeeldings- en lettertypeantwoorden. Cookies, inloggegevens, queryparameters, streams en beschermde hosts omzeilen de cache. Grenzen: 1 MiB per antwoord, 64 MiB gedeeld en 1024 items.",
                 "invalid": "Gebruik 1–16 unieke padprefixen zoals /assets/ en een levensduur van 1 tot 3600 seconden."
+            },
+            "upstreamPool": {
+                "title": "Upstreamdoelen",
+                "policy": "Doelselectie",
+                "single": "Eén doel",
+                "round_robin": "Round robin",
+                "first": "Primair / secundair (op volgorde)",
+                "hint": "Doel 1 gebruikt de host en poort hierboven. Voeg maximaal 16 doelen op volgorde toe. Round robin wisselt doelen af; de geordende modus gebruikt het eerste beschikbare doel.",
+                "tlsHint": "Alle doelen delen protocol, TLS-controle en vertrouwde CA. DNS-doelen gebruiken hun eigen TLS-naam tenzij overschreven. Een IP-doel met geverifieerde HTTPS vereist één vervangende DNS-naam voor alle doelen.",
+                "primary": "Doel 1 (host en poort hierboven)",
+                "member": "Doel {{number}}",
+                "add": "Doel toevoegen",
+                "remove": "Verwijderen",
+                "moveUp": "Omhoog",
+                "moveDown": "Omlaag",
+                "removeLabel": "Doel {{number}} verwijderen",
+                "moveUpLabel": "Doel {{number}} omhoog",
+                "moveDownLabel": "Doel {{number}} omlaag",
+                "summary": "{{count}} doelen · {{policy}}"
             }
         },
         "redirectHosts": {

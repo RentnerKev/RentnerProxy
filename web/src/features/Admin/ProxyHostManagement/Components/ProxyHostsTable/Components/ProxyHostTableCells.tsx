@@ -95,10 +95,12 @@ export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostD
     )
 }
 
+/** Displays the primary route, pool policy/count and remaining targets in their configured order. */
 export function ProxyHostForwardCell({
     forwardHost,
     forwardPort,
     forwardScheme,
+    upstreamPool,
     verifyUpstreamTls,
 }: ProxyHostForwardCellProps) {
     const { t } = useTranslationStore()
@@ -107,6 +109,24 @@ export function ProxyHostForwardCell({
             <span className="block max-w-64 wrap-anywhere font-mono text-[0.72rem] text-muted">
                 {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
             </span>
+            {upstreamPool ? (
+                <>
+                    <span className="text-xs font-bold text-ink-soft">
+                        {t('admin.proxyHosts.upstreamPool.summary', {
+                            count: upstreamPool.members.length,
+                            policy: t(`admin.proxyHosts.upstreamPool.${upstreamPool.policy}`),
+                        })}
+                    </span>
+                    {upstreamPool.members.slice(1).map((member) => (
+                        <span
+                            key={`${member.host}:${member.port}`}
+                            className="block max-w-64 wrap-anywhere font-mono text-[0.72rem] text-muted"
+                        >
+                            {formatProxyHostForward(forwardScheme, member.host, member.port)}
+                        </span>
+                    ))}
+                </>
+            ) : null}
             {forwardScheme === 'https' && verifyUpstreamTls === false ? (
                 <span className="inline-flex max-w-64 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-bold text-ink-soft">
                     {t('admin.proxyHosts.upstreamTls.verificationDisabled')}

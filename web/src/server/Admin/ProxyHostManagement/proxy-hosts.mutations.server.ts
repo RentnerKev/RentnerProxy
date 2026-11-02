@@ -7,7 +7,7 @@ import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
 import { assignHostTagsInTransaction } from '@/server/Admin/HostTags/host-tags.storage.server.ts'
 
-import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, ne, or, sql } from 'drizzle-orm'
 import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -40,6 +40,10 @@ function invalidInput(): ProxyHostDomainError {
     return new ProxyHostDomainError('invalid_input', 'Proxy host input is invalid.')
 }
 
+/**
+ * Projects stored routing state while retaining the complete ordered pool.
+ * SQL-null pools stay absent in legacy summaries rather than adding a new field.
+ */
 export function toProxyHostSummary(
     proxyHost: ProxyHostRow,
     domains: ReadonlyArray<string>,
@@ -56,6 +60,7 @@ export function toProxyHostSummary(
         accessPolicyId: proxyHost.accessPolicyId ?? null,
         forwardHost: proxyHost.forwardHost,
         forwardPort: proxyHost.forwardPort,
+        ...(proxyHost.upstreamPool ? { upstreamPool: proxyHost.upstreamPool } : {}),
         forwardScheme: proxyHost.forwardScheme,
         id: proxyHost.id,
         updatedAt: proxyHost.updatedAt,
@@ -135,6 +140,11 @@ export function parseUpdateProxyHostInput(input: UpdateProxyHostInput) {
     return parsed.data
 }
 
+/**
+ * Validates, authorizes and persists a host within the supplied transaction.
+ * Ordered pools share the host's scheme and TLS policy; absent or null pools
+ * retain single-target behavior. Native JSONB binding stores pools as objects.
+ */
 export async function createProxyHostInTransaction(
     transaction: AuthTransaction,
     actorId: string,
@@ -191,6 +201,8 @@ export async function createProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
+            // Bun SQL encodes the object; bypass the Drizzle JSON string encoder.
+            upstreamPool: parsedInput.upstreamPool ? sql`${parsedInput.upstreamPool}` : null,
             forwardScheme: parsedInput.forwardScheme,
         })
         .returning(proxyHostSummaryColumns)
@@ -268,6 +280,12 @@ export async function createProxyHostInTransaction(
     }
 }
 
+/**
+ * Updates authorized desired state while preserving an omitted pool and clearing
+ * an explicitly null pool. Replacement and retained pools must match the scalar
+ * primary target; member order and shared TLS policy remain part of routing state.
+ * Routing changes also invalidate the host's monitoring observations.
+ */
 export async function updateProxyHostInTransaction(
     transaction: AuthTransaction,
     actorId: string,
@@ -307,7 +325,18 @@ export async function updateProxyHostInTransaction(
             ? proxyHost.certificateId
             : (parsedInput.certificateId?.toLowerCase() ?? null)
     const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
-    const upstreamTls = normalizeUpstreamTlsSettings(parsedInput, proxyHost)
+    const upstreamPool =
+        parsedInput.upstreamPool === undefined
+            ? (proxyHost.upstreamPool ?? null)
+            : parsedInput.upstreamPool
+    const firstMember = upstreamPool?.members[0]
+    if (
+        firstMember &&
+        (firstMember.host !== parsedInput.forwardHost ||
+            firstMember.port !== parsedInput.forwardPort)
+    )
+        throw invalidInput()
+    const upstreamTls = normalizeUpstreamTlsSettings({ ...parsedInput, upstreamPool }, proxyHost)
     const accessPolicyId =
         parsedInput.accessPolicyId === undefined
             ? proxyHost.accessPolicyId
@@ -351,6 +380,7 @@ export async function updateProxyHostInTransaction(
         parsedInput.forwardScheme !== proxyHost.forwardScheme ||
         parsedInput.forwardHost !== proxyHost.forwardHost ||
         parsedInput.forwardPort !== proxyHost.forwardPort ||
+        JSON.stringify(upstreamPool) !== JSON.stringify(proxyHost.upstreamPool ?? null) ||
         JSON.stringify(previousDomains.map(({ domain }) => domain).toSorted()) !==
             JSON.stringify(domains) ||
         (parsedInput.forwardScheme === 'https' &&
@@ -367,6 +397,7 @@ export async function updateProxyHostInTransaction(
             accessPolicyId,
             forwardHost: parsedInput.forwardHost,
             forwardPort: parsedInput.forwardPort,
+            upstreamPool: upstreamPool ? sql`${upstreamPool}` : null,
             forwardScheme: parsedInput.forwardScheme,
             updatedAt: new Date(),
         })

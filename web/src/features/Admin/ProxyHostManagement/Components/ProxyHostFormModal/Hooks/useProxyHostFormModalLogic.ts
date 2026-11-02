@@ -39,6 +39,11 @@ import type { CertificateJobActionResult } from '@/lib/CertificateJobs/Types/cer
 import { proxyHostFormSchema } from '../../../validation.ts'
 import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHostFormValues.ts'
 
+/**
+ * Owns create/edit/duplicate drafts, validation, certificate requests and save/disable confirmation.
+ * Ordinary single-target saves omit pool data; changing an existing pool to single sends explicit null.
+ * Pending disable confirmation retains a deep copy so later draft edits cannot alter the reviewed submission.
+ */
 export default function useProxyHostFormModalLogic({
     initialGuideOpen = false,
     canConfigureCompression = false,
@@ -137,6 +142,8 @@ export default function useProxyHostFormModalLogic({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
             const submittedData = { ...data }
+            if (submittedData.upstreamPool === null && (isCreate || !proxyHost?.upstreamPool))
+                delete submittedData.upstreamPool
             if (!canAssignPolicies) delete submittedData.accessPolicyId
             if (!canConfigureBrowserCache) delete submittedData.browserCache
             if (!canConfigureCompression) delete submittedData.responseCompression
@@ -241,7 +248,7 @@ export default function useProxyHostFormModalLogic({
                 }
             }
             if (mode === 'edit' && proxyHost?.enabled && !value.enabled) {
-                setPendingDisableValues({ ...value, domains: [...value.domains] })
+                setPendingDisableValues(structuredClone(value))
                 return
             }
             await mutation.mutateAsync(value).catch(() => undefined)

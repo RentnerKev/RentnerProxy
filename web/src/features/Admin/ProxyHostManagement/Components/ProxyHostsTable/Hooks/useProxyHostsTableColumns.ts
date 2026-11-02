@@ -18,6 +18,7 @@ import ProxyHostMonitoringCell from '../Components/ProxyHostMonitoringCell.tsx'
 
 const dateFilter = createDateRangeFilter<ProxyHostSummary>()
 
+/** Builds permission-aware host columns, retaining scheme filtering while forwarding cells expose full pools. */
 export default function useProxyHostsTableColumns({
     canDelete,
     canDisable,
@@ -92,6 +93,7 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostForwardCell, {
                         forwardHost: row.original.forwardHost,
+                        upstreamPool: row.original.upstreamPool,
                         forwardPort: row.original.forwardPort,
                         forwardScheme: row.original.forwardScheme,
                         verifyUpstreamTls: row.original.verifyUpstreamTls,

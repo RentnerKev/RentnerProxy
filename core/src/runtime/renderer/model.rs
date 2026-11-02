@@ -284,6 +284,8 @@ pub(super) struct RequestBody {
 #[derive(Serialize)]
 pub(super) struct ReverseProxy {
     pub(super) upstreams: Vec<Upstream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) load_balancing: Option<LoadBalancing>,
     pub(super) headers: RequestHeaders,
     pub(super) transport: HttpTransport,
     pub(super) stream_close_delay: String,
@@ -291,6 +293,16 @@ pub(super) struct ReverseProxy {
     pub(super) rewrite: Option<ProxyRewrite>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(super) handle_response: Vec<ProxyResponseHandler>,
+}
+
+#[derive(Serialize)]
+pub(super) struct LoadBalancing {
+    pub(super) selection_policy: SelectionPolicy,
+}
+
+#[derive(Serialize)]
+pub(super) struct SelectionPolicy {
+    pub(super) policy: crate::models::UpstreamSelectionPolicy,
 }
 
 #[derive(Serialize)]

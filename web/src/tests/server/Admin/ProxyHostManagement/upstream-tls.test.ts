@@ -1,3 +1,4 @@
+import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
 import { MAX_TRUSTED_CA_PEM_BYTES } from '@/config/trusted-cas.config.ts'
 import { createTrustedCaInputSchema } from '@/features/Admin/TrustedCaManagement/validation.ts'
 import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
@@ -34,6 +35,7 @@ const CA_ONE: ProxyRuntimeTrustedCa = {
 }
 
 type FormInput = {
+    readonly upstreamPool?: ProxyUpstreamPool | null
     readonly domains: string[]
     readonly forwardScheme: ProxyHostForwardScheme
     readonly forwardHost: string
@@ -480,3 +482,36 @@ await import('@/features/Admin/TrustedCaManagement/middleware.ts')
         )
     },
 )
+
+test('TLS normalization checks secondary pool targets and retains the shared trust policy', () => {
+    const pool: ProxyUpstreamPool = {
+        policy: 'first',
+        members: [
+            { host: 'backend.example', port: 8443 },
+            { host: '192.0.2.4', port: 8443 },
+        ],
+    }
+    expect(() => normalizeTls(formInput({ upstreamPool: pool }))).toThrow()
+    expect(
+        normalizeTls(formInput({ upstreamPool: pool }), {
+            forwardScheme: 'https',
+            verifyUpstreamTls: true,
+            upstreamTlsServerName: 'shared.example',
+            trustedCaId: CA_ID,
+        }),
+    ).toEqual({
+        verifyUpstreamTls: true,
+        upstreamTlsServerName: 'shared.example',
+        trustedCaId: CA_ID,
+    })
+    expect(
+        normalizeTls(
+            formInput({
+                upstreamPool: {
+                    ...pool,
+                    members: [pool.members[0]!, { host: 'other.example', port: 8443 }],
+                },
+            }),
+        ),
+    ).toEqual({ verifyUpstreamTls: true, upstreamTlsServerName: null, trustedCaId: null })
+})

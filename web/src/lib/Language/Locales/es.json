@@ -1763,7 +1763,11 @@
                 "port": "Introduce un número de puerto entero entre 1 y 65535.",
                 "upstreamTlsServerName": "Introduce un nombre DNS sin URL, puerto, dirección IP ni comodín.",
                 "trustedCaRequiresVerification": "Las CA personalizadas requieren verificar el certificado del servidor de destino.",
-                "upstreamTlsIpNameRequired": "Al conectar a una dirección IP, introduce el nombre DNS del certificado del servidor de destino."
+                "upstreamTlsIpNameRequired": "Al conectar a una dirección IP, introduce el nombre DNS del certificado del servidor de destino.",
+                "duplicateUpstream": "Cada destino debe tener una combinación única de host y puerto.",
+                "upstreamPoolPrimary": "El destino primario debe coincidir con el primer miembro del grupo.",
+                "upstreamMembersRequired": "Añade al menos un destino de origen.",
+                "upstreamMembersLimit": "Añade como máximo 16 destinos de origen."
             },
             "config": {
                 "open": "Configuración de Caddy",
@@ -1944,6 +1948,25 @@
                 "ttl": "Duración máxima en segundos (1–3600)",
                 "hint": "Solo respuestas públicas correctas de CSS, JavaScript, imágenes y fuentes. Cookies, credenciales, consultas, flujos y hosts protegidos omiten la caché. Límites: 1 MiB por respuesta, 64 MiB compartidos y 1024 entradas.",
                 "invalid": "Usa 1–16 prefijos únicos como /assets/ y una duración de 1 a 3600 segundos."
+            },
+            "upstreamPool": {
+                "title": "Destinos de origen",
+                "policy": "Selección de destinos",
+                "single": "Un solo destino",
+                "round_robin": "Turnos rotatorios",
+                "first": "Primario / secundario (ordenado)",
+                "hint": "El destino 1 usa el host y puerto anteriores. Añade hasta 16 destinos en orden. Los turnos alternan destinos; el modo ordenado usa el primero disponible.",
+                "tlsHint": "Todos comparten protocolo, verificación TLS y CA de confianza. Cada destino DNS usa su nombre TLS salvo sustitución. Un destino IP con HTTPS verificado exige un nombre DNS común de sustitución.",
+                "primary": "Destino 1 (host y puerto anteriores)",
+                "member": "Destino {{number}}",
+                "add": "Añadir destino",
+                "remove": "Eliminar",
+                "moveUp": "Subir",
+                "moveDown": "Bajar",
+                "removeLabel": "Eliminar destino {{number}}",
+                "moveUpLabel": "Subir destino {{number}}",
+                "moveDownLabel": "Bajar destino {{number}}",
+                "summary": "{{count}} destinos · {{policy}}"
             }
         },
         "redirectHosts": {

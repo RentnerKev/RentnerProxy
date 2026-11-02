@@ -7,6 +7,7 @@ export const proxyHostRoutingColumns = {
     forwardScheme: proxyHosts.forwardScheme,
     forwardHost: proxyHosts.forwardHost,
     forwardPort: proxyHosts.forwardPort,
+    upstreamPool: proxyHosts.upstreamPool,
     certificateId: proxyHosts.certificateId,
     forceHttps: proxyHosts.forceHttps,
     verifyUpstreamTls: proxyHosts.verifyUpstreamTls,

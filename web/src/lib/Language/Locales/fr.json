@@ -1763,7 +1763,11 @@
                 "port": "Saisissez un numéro de port entier entre 1 et 65535.",
                 "upstreamTlsServerName": "Saisissez un nom DNS sans URL, port, adresse IP ni caractère générique.",
                 "trustedCaRequiresVerification": "Les AC personnalisées nécessitent la vérification du certificat du serveur en amont.",
-                "upstreamTlsIpNameRequired": "Pour une connexion à une adresse IP, saisissez le nom DNS figurant sur le certificat du serveur en amont."
+                "upstreamTlsIpNameRequired": "Pour une connexion à une adresse IP, saisissez le nom DNS figurant sur le certificat du serveur en amont.",
+                "duplicateUpstream": "Chaque cible doit avoir un hôte et un port uniques.",
+                "upstreamPoolPrimary": "La cible primaire doit correspondre au premier membre du pool.",
+                "upstreamMembersRequired": "Ajoutez au moins une cible en amont.",
+                "upstreamMembersLimit": "Ajoutez au maximum 16 cibles en amont."
             },
             "config": {
                 "open": "Configuration Caddy",
@@ -1944,6 +1948,25 @@
                 "ttl": "Durée maximale en secondes (1–3600)",
                 "hint": "Uniquement les réponses publiques réussies CSS, JavaScript, images et polices. Cookies, identifiants, requêtes, flux et hôtes protégés contournent le cache. Limites : 1 MiB par réponse, 64 MiB partagés et 1024 entrées.",
                 "invalid": "Utilisez 1 à 16 préfixes uniques tels que /assets/ et une durée de 1 à 3600 secondes."
+            },
+            "upstreamPool": {
+                "title": "Cibles en amont",
+                "policy": "Sélection des cibles",
+                "single": "Cible unique",
+                "round_robin": "Tourniquet",
+                "first": "Primaire / secondaire (ordonné)",
+                "hint": "La cible 1 utilise l’hôte et le port ci-dessus. Ajoutez jusqu’à 16 cibles dans l’ordre voulu. Le tourniquet alterne les cibles ; le mode ordonné utilise la première disponible.",
+                "tlsHint": "Les cibles partagent le protocole, la vérification TLS et l’AC de confiance. Chaque cible DNS utilise son nom TLS sauf remplacement. Une cible IP en HTTPS vérifié exige un nom DNS de remplacement commun.",
+                "primary": "Cible 1 (hôte et port ci-dessus)",
+                "member": "Cible {{number}}",
+                "add": "Ajouter une cible",
+                "remove": "Supprimer",
+                "moveUp": "Monter",
+                "moveDown": "Descendre",
+                "removeLabel": "Supprimer la cible {{number}}",
+                "moveUpLabel": "Monter la cible {{number}}",
+                "moveDownLabel": "Descendre la cible {{number}}",
+                "summary": "{{count}} cibles · {{policy}}"
             }
         },
         "redirectHosts": {

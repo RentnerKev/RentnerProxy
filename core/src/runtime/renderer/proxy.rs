@@ -7,8 +7,8 @@ use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost};
 use super::{
     RenderError, UpstreamTlsRenderSettings,
     model::{
-        CaSource, HeaderOps, HttpTransport, RequestHeaders, ReverseProxy, TrustedProxies, Upstream,
-        UpstreamTls,
+        CaSource, HeaderOps, HttpTransport, LoadBalancing, RequestHeaders, ReverseProxy,
+        SelectionPolicy, TrustedProxies, Upstream, UpstreamTls,
     },
 };
 
@@ -24,6 +24,8 @@ pub(super) fn rendered_ranges(ranges: &[String]) -> Vec<String> {
     }
     rendered
 }
+/// Renders ordered native selection with unchanged headers, stream draining and shared trust policy.
+/// Pools without an explicit TLS identity verify each selected DNS member's own name.
 pub(super) fn reverse_proxy(
     upstream: &str,
     host: Option<&ProxyHost>,
@@ -77,10 +79,7 @@ pub(super) fn reverse_proxy(
                 .as_ref()
                 .ok_or(RenderError::MissingUpstreamTlsPolicy)?;
             let server_name = policy.server_name.clone().or_else(|| {
-                host.forward_host
-                    .parse::<IpAddr>()
-                    .ok()
-                    .is_none()
+                (host.upstream_pool.is_none() && host.forward_host.parse::<IpAddr>().ok().is_none())
                     .then(|| host.forward_host.clone())
             });
             let (ca, insecure) = if policy.verify {
@@ -109,10 +108,29 @@ pub(super) fn reverse_proxy(
             });
         }
     }
+    let pool = host.and_then(|host| host.upstream_pool.as_ref());
+    let upstreams = pool.map_or_else(
+        || {
+            vec![Upstream {
+                dial: upstream.to_owned(),
+            }]
+        },
+        |pool| {
+            pool.members
+                .iter()
+                .map(|member| Upstream {
+                    dial: upstream_dial(&member.host, member.port),
+                })
+                .collect()
+        },
+    );
     Ok(ReverseProxy {
-        upstreams: vec![Upstream {
-            dial: upstream.to_owned(),
-        }],
+        upstreams,
+        load_balancing: pool.map(|pool| LoadBalancing {
+            selection_policy: SelectionPolicy {
+                policy: pool.policy,
+            },
+        }),
         headers: RequestHeaders {
             request: HeaderOps {
                 set,

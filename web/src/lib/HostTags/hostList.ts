@@ -1,6 +1,9 @@
 import type { HostListQuery, HostPage, HostTag, HostListEntry } from './Types/host-tags.types.ts'
 
-/** Matches normalized search text; callers supply their existing extra search terms. */
+/**
+ * Matches normalized text against domains, transport and every ordered pool target's host and port.
+ * Redirects retain destination/status matching; callers provide localized status and extra search terms.
+ */
 export function matchesHostSearch(
     host: HostListEntry,
     search: string,
@@ -13,7 +16,15 @@ export function matchesHostSearch(
         ...host.domains,
         statusLabel,
         ...('forwardHost' in host
-            ? [host.forwardHost, host.forwardScheme, String(host.forwardPort)]
+            ? [
+                  host.forwardHost,
+                  host.forwardScheme,
+                  String(host.forwardPort),
+                  ...(host.upstreamPool?.members.flatMap((member) => [
+                      member.host,
+                      String(member.port),
+                  ]) ?? []),
+              ]
             : [host.destination, String(host.statusCode)]),
         ...additionalValues,
     ].some((value) => value.toLocaleLowerCase(locale).includes(search))

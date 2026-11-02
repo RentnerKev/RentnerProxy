@@ -18,7 +18,7 @@ export type ProxyExportRow = Pick<
     | 'accessPolicyId'
     | 'certificateId'
     | 'trustedCaId'
->
+> & { readonly upstreamPool?: typeof proxyHosts.$inferSelect.upstreamPool }
 
 export type RedirectExportRow = Pick<
     typeof redirectHosts.$inferSelect,

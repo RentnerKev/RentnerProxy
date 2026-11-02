@@ -383,6 +383,11 @@ export function disableProxyHostService(proxyHostId: string): Promise<ProxyHostM
     return setProxyHostEnabledService(proxyHostId, false)
 }
 
+/**
+ * Reauthorizes the caller before a bounded lookup by ID or literal search text.
+ * Domain and target searches include secondary pool members through bound,
+ * escaped ILIKE parameters; results expose only lightweight primary-target labels.
+ */
 export async function searchProxyHostsService(
     actor: AuthenticatedUser,
     input: QuickSearchInput,
@@ -409,7 +414,7 @@ export async function searchProxyHostsService(
         .where(
             parsed.data.id
                 ? eq(proxyHosts.id, parsed.data.id)
-                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or (${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}) ilike ${pattern} escape '\\'`,
+                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or (${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}) ilike ${pattern} escape '\\' or exists (select 1 from jsonb_array_elements(coalesce(${proxyHosts.upstreamPool}->'members', '[]'::jsonb)) member where (${proxyHosts.forwardScheme} || '://' || (member->>'host') || ':' || (member->>'port')) ilike ${pattern} escape '\\')`,
         )
         .orderBy(asc(proxyHosts.id))
         .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)

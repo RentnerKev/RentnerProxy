@@ -17,7 +17,7 @@ import { readHostTags, writeHostTags } from '@/server/Admin/HostTags/host-tags.s
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { createServerEntry } from '@tanstack/react-start/server-entry'
-import { eq, inArray, like, notLike } from 'drizzle-orm'
+import { eq, inArray, like, notLike, sql } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSION_REGISTRY, PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
@@ -2686,6 +2686,111 @@ describe('combined performance settings persistence', () => {
                 responseCache: cacheChanged,
                 httpSettings: { responseCompression: 'off', browserCache: browserChanged },
             })
+            await runAsUser(owner.id, () => deleteProxyHostService(created.id))
+        },
+    )
+})
+
+describe('ordered upstream pool persistence', () => {
+    integrationTest(
+        'preserves pools through reads, ordinary updates, enable toggles and runtime snapshots until explicitly removed',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('upstream-pool')
+            const upstreamPool = {
+                policy: 'first' as const,
+                members: [
+                    { host: input.forwardHost, port: input.forwardPort },
+                    { host: 'secondary.internal', port: 8081 },
+                ],
+            }
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService({ ...input, upstreamPool }),
+            )
+            expect(created.upstreamPool).toEqual(upstreamPool)
+            const storedType = await getAuthDatabase()
+                .select({ type: sql<string>`jsonb_typeof(${proxyHosts.upstreamPool})` })
+                .from(proxyHosts)
+                .where(eq(proxyHosts.id, created.id))
+            expect(storedType[0]?.type).toBe('object')
+            const listed = await runAsUser(owner.id, getProxyHostsService)
+            expect(listed.find((host) => host.id === created.id)?.upstreamPool).toEqual(
+                upstreamPool,
+            )
+            const updated = await runAsUser(owner.id, () =>
+                updateProxyHostService({ ...input, proxyHostId: created.id }),
+            )
+            expect(updated.upstreamPool).toEqual(upstreamPool)
+            await expect(
+                runAsUser(owner.id, () =>
+                    updateProxyHostService({
+                        ...input,
+                        proxyHostId: created.id,
+                        forwardPort: 9099,
+                    }),
+                ),
+            ).rejects.toBeInstanceOf(ProxyHostDomainError)
+            expect(
+                (await runAsUser(owner.id, () => disableProxyHostService(created.id))).upstreamPool,
+            ).toEqual(upstreamPool)
+            expect(
+                (await runAsUser(owner.id, () => enableProxyHostService(created.id))).upstreamPool,
+            ).toEqual(upstreamPool)
+            const snapshot = await getAuthDatabase().transaction(readProxyRuntimeSnapshot)
+            expect(snapshot.version).toBe(8)
+            expect(
+                snapshot.proxyHosts.find((host) => host.id === created.id)?.upstreamPool,
+            ).toEqual(upstreamPool)
+            const removed = await runAsUser(owner.id, () =>
+                updateProxyHostService({ ...input, proxyHostId: created.id, upstreamPool: null }),
+            )
+            expect(removed.upstreamPool).toBeUndefined()
+            const legacySnapshot = await getAuthDatabase().transaction(readProxyRuntimeSnapshot)
+            expect(
+                legacySnapshot.proxyHosts.find((host) => host.id === created.id)?.upstreamPool,
+            ).toBeUndefined()
+            await runAsUser(owner.id, () => deleteProxyHostService(created.id))
+        },
+    )
+    integrationTest(
+        'rejects inconsistent and malformed stored pool members at the schema boundary',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('upstream-pool-constraint')
+            const created = await runAsUser(owner.id, () => createProxyHostService(input))
+            const invalidMembers = [
+                [{ host: 'other.internal', port: input.forwardPort }],
+                [
+                    { host: input.forwardHost, port: input.forwardPort },
+                    { host: 'second.internal', port: 0 },
+                ],
+                [{ host: input.forwardHost, port: input.forwardPort, protocol: 'http' }],
+            ]
+            const primary = { host: input.forwardHost, port: input.forwardPort }
+            const invalidPools = [
+                ...invalidMembers.map((members) => ({ policy: 'first', members })),
+                { policy: null, members: [primary] },
+                { policy: 'first', members: null },
+                { policy: 'first', members: [null] },
+                { policy: 'first', members: [{ host: null, port: input.forwardPort }] },
+                { policy: 'first', members: [{ host: input.forwardHost, port: null }] },
+                { policy: 'first', members: [primary, { host: null, port: 8080 }] },
+                { policy: 'first', members: [primary, { host: 'secondary.internal', port: null }] },
+                null,
+            ]
+            await Promise.all(
+                invalidPools.map(async (pool) =>
+                    expect(
+                        getAuthDatabase()
+                            .update(proxyHosts)
+                            .set({
+                                upstreamPool: pool === null ? sql`'null'::jsonb` : sql`${pool}`,
+                            })
+                            .where(eq(proxyHosts.id, created.id))
+                            .execute(),
+                    ).rejects.toBeDefined(),
+                ),
+            )
             await runAsUser(owner.id, () => deleteProxyHostService(created.id))
         },
     )

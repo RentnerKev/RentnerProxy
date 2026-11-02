@@ -119,6 +119,7 @@ impl Fixture {
             force_https: false,
             upstream_tls: None,
             access_policy: None,
+            upstream_pool: None,
         };
         *runtime.active_configuration.lock().await = Some(ValidatedProxyConfig {
             default_site: DefaultSite::default(),

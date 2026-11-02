@@ -156,6 +156,13 @@ describe('bounded authorized entity search', () => {
             expect(Object.keys(outcome.result[0]!)).toEqual(['id', 'label', 'detail'])
             expect(outcome.selected).toEqual(outcome.result)
         }
+        const proxyCondition = output.queries[0]!.condition
+        expect(proxyCondition.sql).toContain('jsonb_array_elements')
+        expect(proxyCondition.sql).toContain('upstream_pool')
+        expect(proxyCondition.sql).toContain("member->>'host'")
+        expect(proxyCondition.sql).toContain("member->>'port'")
+        expect(proxyCondition.params).toHaveLength(3)
+        expect(proxyCondition.sql).not.toContain('%\\%')
         for (const [index, query] of output.queries.entries()) {
             expect(query.fields).toEqual(['id', 'label', 'detail'])
             expect(query.order).toHaveLength(1)

@@ -1770,7 +1770,11 @@
                 "port": "Inserisci un numero intero di porta compreso tra 1 e 65535.",
                 "upstreamTlsServerName": "Inserisci un nome DNS del server senza URL, porta, indirizzo IP o wildcard.",
                 "trustedCaRequiresVerification": "Le CA attendibili personalizzate richiedono la verifica del certificato upstream.",
-                "upstreamTlsIpNameRequired": "Inserisci il nome DNS riportato sul certificato upstream quando ti connetti a un indirizzo IP."
+                "upstreamTlsIpNameRequired": "Inserisci il nome DNS riportato sul certificato upstream quando ti connetti a un indirizzo IP.",
+                "duplicateUpstream": "Ogni destinazione deve avere una combinazione univoca di host e porta.",
+                "upstreamPoolPrimary": "La destinazione primaria deve corrispondere al primo membro del pool.",
+                "upstreamMembersRequired": "Aggiungi almeno una destinazione upstream.",
+                "upstreamMembersLimit": "Aggiungi al massimo 16 destinazioni upstream."
             },
             "config": {
                 "open": "Configurazione Caddy",
@@ -1951,6 +1955,25 @@
                 "ttl": "Durata massima in secondi (1–3600)",
                 "hint": "Solo risposte pubbliche riuscite CSS, JavaScript, immagini e caratteri. Cookie, credenziali, parametri, flussi e host protetti ignorano la cache. Limiti: 1 MiB per risposta, 64 MiB condivisi e 1024 voci.",
                 "invalid": "Usa 1–16 prefissi unici come /assets/ e una durata da 1 a 3600 secondi."
+            },
+            "upstreamPool": {
+                "title": "Destinazioni upstream",
+                "policy": "Selezione destinazioni",
+                "single": "Destinazione singola",
+                "round_robin": "Round robin",
+                "first": "Primaria / secondaria (ordinate)",
+                "hint": "La destinazione 1 usa host e porta sopra. Aggiungi fino a 16 destinazioni in ordine. Round robin alterna le destinazioni; la modalità ordinata usa la prima disponibile.",
+                "tlsHint": "Tutte condividono protocollo, verifica TLS e CA attendibile. Ogni destinazione DNS usa il proprio nome TLS salvo sostituzione. Un IP con HTTPS verificato richiede un nome DNS sostitutivo comune.",
+                "primary": "Destinazione 1 (host e porta sopra)",
+                "member": "Destinazione {{number}}",
+                "add": "Aggiungi destinazione",
+                "remove": "Rimuovi",
+                "moveUp": "Sposta su",
+                "moveDown": "Sposta giù",
+                "removeLabel": "Rimuovi destinazione {{number}}",
+                "moveUpLabel": "Sposta su destinazione {{number}}",
+                "moveDownLabel": "Sposta giù destinazione {{number}}",
+                "summary": "{{count}} destinazioni · {{policy}}"
             }
         },
         "redirectHosts": {

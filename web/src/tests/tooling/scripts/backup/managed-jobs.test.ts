@@ -1,11 +1,14 @@
 /* eslint-disable no-await-in-loop -- Each backup must finish before the next admission. */
 import { describe, expect, test } from 'bun:test'
+import { join } from 'node:path'
 import {
     createManagedBackupEngine,
     ManagedBackupError,
 } from '../../../../../../scripts/backup/managed-jobs.ts'
 import type { ManagedBackupDependencies } from '../../../../../../scripts/backup/Types/managed-jobs.types.ts'
 import { BACKUP_AUDIT_POLICY } from '../../../../config/backups.config.ts'
+import { managedBackupFixtureSettled } from '../../../../../../.github/scripts/ci/fixtures/managed-backup-probe.ts'
+import { reconcileBackupControl } from '../../../../../../docker/production/backups/agent.ts'
 import type { ManagedBackupState } from '../../../../lib/Backups/Types/backups.types.ts'
 import {
     managedBackupConfigurationUpdateSchema,
@@ -77,6 +80,57 @@ function remoteReceipt(jobId: string) {
 }
 
 describe('managed off-host backup replication', () => {
+    test('smoke completion waits beyond succeeded for pruning and post-tick control cleanup', async () => {
+        const f = fixture()
+        const engine = await createManagedBackupEngine(f.dependencies)
+        await engine.updateConfiguration({ ...f.config(), enabled: false })
+        const original = await engine.start(f.request())
+        await engine.tick()
+        const entered = gate()
+        const finish = gate()
+        f.dependencies.remove = async (job) => {
+            entered.release()
+            await finish.promise
+            f.removed.push(job.id)
+        }
+        const replacement = await engine.start(f.request())
+        expect(managedBackupFixtureSettled(await engine.status(), false)).toBe(false)
+        const controlRoot = '/run/rentnerproxy/backups'
+        const controls = new Map<string, unknown>([
+            [join(controlRoot, 'active.json'), { id: replacement.id }],
+            [join(controlRoot, 'result.json'), { id: replacement.id, success: true }],
+        ])
+        const running = engine.tick()
+        try {
+            await entered.promise
+            const early = await engine.status()
+            expect(early.jobs.find((job) => job.id === replacement.id)).toMatchObject({
+                state: 'succeeded',
+                retained: true,
+            })
+            expect(early.jobs.find((job) => job.id === original.id)?.retained).toBe(true)
+            expect(managedBackupFixtureSettled(early, controls.size > 0)).toBe(false)
+            await expect(engine.start(f.request())).rejects.toMatchObject({ code: 'busy' })
+        } finally {
+            finish.release()
+            await running
+        }
+        const pruned = await engine.status()
+        expect(pruned.jobs.find((job) => job.id === original.id)?.retained).toBe(false)
+        expect(managedBackupFixtureSettled(pruned, controls.size > 0)).toBe(false)
+        await reconcileBackupControl(pruned.jobs, 'runtime', {
+            read: async (path) => controls.get(path) ?? null,
+            remove: async (path) => {
+                controls.delete(path)
+            },
+        })
+        const fresh = await engine.status()
+        expect(controls.size).toBe(0)
+        expect(managedBackupFixtureSettled(fresh, false)).toBe(true)
+        expect(fresh.jobs.find((job) => job.id === original.id)?.retained).toBe(false)
+        await expect(engine.start(f.request())).resolves.toMatchObject({ state: 'queued' })
+    })
+
     test('replication failure without a remote-verified local point applies ordinary local retention', async () => {
         const f = fixture()
         const engine = await createManagedBackupEngine(f.dependencies)

@@ -1,7 +1,7 @@
 import type { UpstreamTlsSettings, ExistingProxyHost } from './Types/upstream-tls.types.ts'
 import '@tanstack/react-start/server-only'
 
-import { isIP } from 'node:net'
+import { upstreamTlsRequiresServerName } from '@/lib/ProxyRuntime/upstreamPool.ts'
 
 import type {
     CreateProxyHostInput,
@@ -9,6 +9,12 @@ import type {
 } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
 
+/**
+ * Resolves one TLS policy for every effective upstream member.
+ * Omitted HTTPS settings inherit existing values, while HTTP resets stale TLS
+ * options. Verified IP members require a shared DNS name, and custom trust may
+ * never bypass certificate verification.
+ */
 export function normalizeUpstreamTlsSettings(
     input: CreateProxyHostInput | UpdateProxyHostInput,
     existing?: ExistingProxyHost,
@@ -29,7 +35,13 @@ export function normalizeUpstreamTlsSettings(
             : (input.trustedCaId?.toLowerCase() ?? null)
 
     if (trustedCaId !== null && !verifyUpstreamTls) throw invalidInput()
-    if (verifyUpstreamTls && isIP(input.forwardHost) !== 0 && upstreamTlsServerName === null)
+    if (
+        verifyUpstreamTls &&
+        upstreamTlsRequiresServerName(
+            input.upstreamPool?.members.map((member) => member.host) ?? [input.forwardHost],
+        ) &&
+        upstreamTlsServerName === null
+    )
         throw invalidInput()
     return { verifyUpstreamTls, upstreamTlsServerName, trustedCaId }
 }

@@ -30,6 +30,7 @@ describe('proxy host form drafts', () => {
             forwardScheme: 'https',
             forwardHost: source.forwardHost,
             forwardPort: '8443',
+            upstreamPool: null,
             enabled: false,
             certificateId: source.certificateId,
             forceHttps: true,
@@ -50,5 +51,33 @@ describe('proxy host form drafts', () => {
         expect(editing.domains).not.toBe(source.domains)
         expect(getProxyHostFormValues('create', source)).toEqual(getProxyHostFormValues('create'))
         expect(getProxyHostFormValues('create').forwardHost).toBe('')
+    })
+    test('edit and duplicate preserve ordered pools without sharing member objects', () => {
+        const pooled: ProxyHostSummary = {
+            ...source,
+            upstreamPool: {
+                policy: 'first',
+                members: [
+                    { host: 'primary.internal', port: 8080 },
+                    { host: 'secondary.internal', port: 9090 },
+                ],
+            },
+        }
+        for (const mode of ['edit', 'duplicate'] as const) {
+            const draft = getProxyHostFormValues(mode, pooled)
+            expect(draft.forwardHost).toBe('primary.internal')
+            expect(draft.forwardPort).toBe('8080')
+            expect(draft.upstreamPool).toEqual({
+                policy: 'first',
+                members: [
+                    { host: 'primary.internal', port: '8080' },
+                    { host: 'secondary.internal', port: '9090' },
+                ],
+            })
+            draft.upstreamPool!.members[0]!.host = 'changed.internal'
+            draft.upstreamPool!.members.reverse()
+            expect(pooled.upstreamPool!.members[0]!.host).toBe('primary.internal')
+        }
+        expect(getProxyHostFormValues('create', pooled).upstreamPool).toBeNull()
     })
 })

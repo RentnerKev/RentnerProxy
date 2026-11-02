@@ -1761,7 +1761,11 @@
                 "port": "Gib eine ganze Portnummer von 1 bis 65535 ein.",
                 "upstreamTlsServerName": "Gib einen DNS-Servernamen ohne URL, Port, IP-Adresse oder Platzhalter ein.",
                 "trustedCaRequiresVerification": "Eigene vertrauenswürdige CAs erfordern die Upstream-Zertifikatsprüfung.",
-                "upstreamTlsIpNameRequired": "Gib bei einer Verbindung über eine IP-Adresse den DNS-Namen aus dem Upstream-Zertifikat ein."
+                "upstreamTlsIpNameRequired": "Gib bei einer Verbindung über eine IP-Adresse den DNS-Namen aus dem Upstream-Zertifikat ein.",
+                "duplicateUpstream": "Jedes Ziel benötigt eine eindeutige Kombination aus Host und Port.",
+                "upstreamPoolPrimary": "Das primäre Ziel muss dem ersten Pool-Mitglied entsprechen.",
+                "upstreamMembersRequired": "Füge mindestens ein Upstream-Ziel hinzu.",
+                "upstreamMembersLimit": "Füge höchstens 16 Upstream-Ziele hinzu."
             },
             "config": {
                 "open": "Caddy-Konfiguration",
@@ -1942,6 +1946,25 @@
                 "ttl": "Maximale Lebensdauer in Sekunden (1–3600)",
                 "hint": "Standardmäßig aus. Nur erfolgreiche öffentliche CSS-, JavaScript-, Bild- und Schriftantworten in diesen Pfaden werden gespeichert. Cookies, Zugangsdaten, Query-Parameter, Streams und geschützte Hosts umgehen den Cache. Grenzen: 1 MiB je Antwort, 64 MiB gemeinsames Nutzdatenbudget und 1024 Einträge.",
                 "invalid": "1–16 eindeutige Pfadpräfixe wie /assets/ und eine Lebensdauer von 1 bis 3600 Sekunden angeben."
+            },
+            "upstreamPool": {
+                "title": "Upstream-Ziele",
+                "policy": "Zielauswahl",
+                "single": "Einzelnes Ziel",
+                "round_robin": "Round Robin",
+                "first": "Primär / Sekundär (geordnet)",
+                "hint": "Ziel 1 verwendet Host und Port von oben. Bis zu 16 Ziele; die Reihenfolge bleibt erhalten. Round Robin wechselt zwischen den Zielen. Im geordneten Modus wird das erste verfügbare Ziel verwendet.",
+                "tlsHint": "Alle Ziele teilen Schema, TLS-Prüfung und vertrauenswürdige CA. DNS-Ziele verwenden ihren eigenen TLS-Namen, sofern kein Ersatzname gesetzt ist. Verifiziertes HTTPS mit einer IP als Ziel benötigt einen DNS-Ersatznamen für alle Ziele.",
+                "primary": "Ziel 1 (Host und Port von oben)",
+                "member": "Ziel {{number}}",
+                "add": "Ziel hinzufügen",
+                "remove": "Entfernen",
+                "moveUp": "Nach oben",
+                "moveDown": "Nach unten",
+                "removeLabel": "Ziel {{number}} entfernen",
+                "moveUpLabel": "Ziel {{number}} nach oben verschieben",
+                "moveDownLabel": "Ziel {{number}} nach unten verschieben",
+                "summary": "{{count}} Ziele · {{policy}}"
             }
         },
         "redirectHosts": {
