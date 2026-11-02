@@ -66,6 +66,7 @@ export async function requireAuthenticatedRoute() {
     return { user: state.user, sessionId: state.sessionId }
 }
 
+/** Redirects non-owners based on role membership, independent of broad owner permissions. */
 export function requireOwnerRoute({ context }: PermissionRouteContext) {
     if (!context.user.roles.includes(SYSTEM_ROLES.OWNER)) throw redirect({ to: '/' })
 }

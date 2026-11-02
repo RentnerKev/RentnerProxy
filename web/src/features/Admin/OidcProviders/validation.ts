@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import { oidcProviderSchema } from '@/lib/Auth/Oidc/validation.ts'
+import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import type { ProviderDraft } from './Types/oidc-providers.types.ts'
 
+/** Copies editable policy into an isolated draft; stored credentials never populate the form. */
 export function providerDraft(provider?: OidcProviderSummary): ProviderDraft {
     return {
-        id: provider?.id ?? crypto.randomUUID(),
+        id: provider?.id ?? createOidcProviderId(),
         name: provider?.name ?? '',
         enabled: provider?.enabled ?? false,
         issuer: provider?.issuer ?? '',
@@ -15,7 +17,8 @@ export function providerDraft(provider?: OidcProviderSummary): ProviderDraft {
         endpointOrigins: provider?.allowedEndpointOrigins.join('\n') ?? '',
         privateCidrs: provider?.allowedPrivateCidrs.join('\n') ?? '',
         bindings:
-            provider?.bindings.map((binding) => ({ ...binding, rowId: crypto.randomUUID() })) ?? [],
+            provider?.bindings.map((binding) => ({ ...binding, rowId: createOidcProviderId() })) ??
+            [],
     }
 }
 const lines = (value: string) =>
@@ -23,6 +26,7 @@ const lines = (value: string) =>
         .split(/[,\n]/u)
         .map((line) => line.trim())
         .filter(Boolean)
+/** Removes UI row identities and omits blank secrets so unchanged provider trust retains its credential. */
 export function providerInput(draft: ProviderDraft) {
     const { endpointOrigins, privateCidrs, clientSecret, bindings, ...provider } = draft
     let issuerOrigin = ''

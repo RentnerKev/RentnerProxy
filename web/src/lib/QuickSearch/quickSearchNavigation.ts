@@ -34,6 +34,7 @@ export function matchesQuickSearch(query: string, text: string): boolean {
         .every((term) => normalize(text).includes(term))
 }
 
+/** Filters navigation and account destinations without dropping the caller's owner role. */
 export function getQuickSearchNavigation(
     permissions: readonly string[],
     query: string,

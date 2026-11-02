@@ -32,6 +32,7 @@ const searchHandlers = {
     accessPolicies: searchAccessPoliciesHandler,
 }
 
+/** Searches permitted resources and rechecks the active scope before accepting a selection. */
 export default function useQuickSearchLogic({
     userId,
     permissions,
@@ -138,6 +139,7 @@ export default function useQuickSearchLogic({
             setHighlightedId(null)
         }
     }, [])
+    /** Revalidates entity access and selection scope before navigation or action handoff. */
     const select = async (result: QuickSearchResult) => {
         if (isOpening) return
         const source = QUICK_SEARCH_CATEGORIES.find((item) => item.category === result.category)
@@ -173,6 +175,7 @@ export default function useQuickSearchLogic({
             }
         }
     }
+    /** Moves the highlighted result cyclically when the list can accept keyboard movement. */
     const move = (direction: number) => {
         if (isOpening || results.length === 0) return
         const index = active ? results.indexOf(active) : 0

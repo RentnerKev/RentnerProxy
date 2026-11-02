@@ -10,6 +10,7 @@ import {
 } from '../../../middleware.ts'
 import type { SerializedAuthenticationResponse } from '../../../Types/security.types.ts'
 
+/** Coordinates password and passkey checks while keeping assertion material out of mutation caches. */
 export default function useReauthentication() {
     const queryClient = useQueryClient()
     const [credential, setCredential] = useState('')
@@ -17,6 +18,7 @@ export default function useReauthentication() {
         challengeId: string
         response: SerializedAuthenticationResponse
     } | null>(null)
+    /** Refreshes account security status after a successful authentication confirmation. */
     const refreshStatus = () => invalidateSecurityStatusCache(queryClient)
     const passwordMutation = useMutation({
         mutationFn: () => reauthenticatePasswordHandler({ data: { credential } }),
@@ -32,6 +34,7 @@ export default function useReauthentication() {
         gcTime: 0,
     })
     const passkeyFinishMutation = useMutation({
+        /** Consumes the pending assertion once and clears it even if server verification fails. */
         mutationFn: async () => {
             const input = passkeyInput.current
             if (!input) throw new Error('Passkey assertion unavailable')

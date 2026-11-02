@@ -1,10 +1,12 @@
 import { TextInput, PasswordInput, Textarea, CheckboxInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
+import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
 
+/** Edits endpoint trust and explicit subject-to-local-user bindings in one provider draft. */
 export default function ProviderEditor({ state, handler, form }: OidcProvidersLogicResult) {
     const { t } = useTranslationStore()
     return (
@@ -224,7 +226,7 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                                     disabled={state.isPending || field.state.value.length >= 128}
                                     onClick={() =>
                                         field.pushValue({
-                                            rowId: crypto.randomUUID(),
+                                            rowId: createOidcProviderId(),
                                             subject: '',
                                             userId: '',
                                         })

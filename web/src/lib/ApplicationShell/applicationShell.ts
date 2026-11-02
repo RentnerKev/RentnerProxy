@@ -5,6 +5,7 @@ import type {
     ApplicationUserSummary,
 } from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Types/application-shell.types.ts'
 
+/** Builds permission-based navigation and keeps identity-provider setup owner-only. */
 export default function getApplicationShellViewModel(
     user: Pick<ApplicationUserSummary, 'permissions' | 'roles'>,
     t: Translate,

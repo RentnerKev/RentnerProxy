@@ -21,6 +21,8 @@ import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
 
 class ProviderRequestError extends Error {}
 class ProviderSecretRequiredError extends Error {}
+
+/** Disables response caching and validates provider API data before it enters the UI. */
 async function request<T>(schema: z.ZodType<T>, path = '', body?: unknown): Promise<T> {
     const response = await fetch(`/api/admin/oidc/providers${path}`, {
         method: body === undefined ? 'GET' : 'POST',
@@ -41,6 +43,8 @@ async function request<T>(schema: z.ZodType<T>, path = '', body?: unknown): Prom
     return parsed.data
 }
 const key = ['admin', 'oidc-providers'] as const
+
+/** Coordinates revisioned provider edits, explicit reloads, and fresh-owner authentication. */
 export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
@@ -55,6 +59,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const busy = useRef(false)
     const reauthBusy = useRef(false)
     const reauthentication = useReauthentication()
+    /** Maps server error codes to safe UI feedback and opens the recovery state when needed. */
     const report = useCallback(
         (error: unknown) => {
             if (error instanceof ProviderSecretRequiredError) {
@@ -109,6 +114,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     }, [users.error, roles.error, t])
     const [defaultValues, setDefaultValues] = useState(providerDraft)
     const form = useOidcProviderForm(defaultValues, handleSave)
+    /** Resets both draft state and TanStack Form state so modal sessions cannot inherit secrets. */
     function resetDraft(values: typeof defaultValues) {
         setDefaultValues(values)
         form.reset(values)
@@ -120,6 +126,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         },
         [],
     )
+    /** Closes an idle editor and clears its draft, conflict, and reauthentication state. */
     function close() {
         if (busy.current) return
         resetDraft(providerDraft())
@@ -129,6 +136,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         reauthentication.handler.reset()
     }
     const mutation = useMutation({
+        /** Builds a revisioned full snapshot while requiring secrets for new or changed trust. */
         mutationFn: async (operation: 'save' | 'delete') => {
             if (conflict) throw new ProviderRequestError('configuration_conflict')
             if (!query.data || query.isError || baseRevision === null)
@@ -176,6 +184,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         retry: false,
         gcTime: 0,
     })
+    /** Applies a save or delete once, then clears transient form and mutation state. */
     async function run(operation: 'save' | 'delete') {
         if (busy.current || conflict) return
         busy.current = true
@@ -198,6 +207,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     async function handleSave() {
         await run('save')
     }
+    /** Refreshes configuration while preserving an open draft for explicit conflict handling. */
     async function refresh() {
         if (busy.current) return
         if (conflict && (editorOpen || deleteTarget)) {
@@ -207,6 +217,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         const result = await query.refetch()
         if (result.data && !editorOpen && !deleteTarget) setBaseRevision(result.data.revision)
     }
+    /** Replaces the draft only after an explicit reload confirms the latest server revision. */
     async function reload() {
         if (busy.current) return
         const result = await query.refetch()
@@ -221,6 +232,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         setReloadConfirm(false)
         reauthentication.handler.reset()
     }
+    /** Tests the selected provider against the current server revision without changing its draft. */
     async function handleTest(provider: OidcProviderSummary) {
         if (busy.current || !query.data || query.isError) return
         busy.current = true
@@ -238,6 +250,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             setTesting(false)
         }
     }
+    /** Reauthenticates with a password or passkey, then reloads the authorized provider snapshot. */
     async function reauthenticate(passkey = false) {
         if (reauthBusy.current) return
         reauthBusy.current = true

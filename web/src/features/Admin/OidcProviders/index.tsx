@@ -6,6 +6,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ProviderEditor from './Components/ProviderEditor.tsx'
 import useOidcProvidersLogic from './Hooks/useOidcProvidersLogic.ts'
 
+/** Presents the provider snapshot with explicit edit, conflict reload, and reauthentication actions. */
 export default function OidcProvidersPage() {
     const { state, handler, form } = useOidcProvidersLogic()
     const { t } = useTranslationStore()
