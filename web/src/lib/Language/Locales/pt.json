@@ -248,6 +248,11 @@
         "user_not_active": "Esta conta não está ativa."
     },
     "auth": {
+        "moreSignInOptions": "Mais opções de início de sessão",
+        "twoFactor": {
+            "expired": "Este pedido de autenticação expirou. Inicia a sessão novamente.",
+            "unavailable": "O serviço de autenticação está temporariamente indisponível. Tenta novamente."
+        },
         "oidc": {
             "signInWith": "Iniciar sessão com {{provider}}",
             "failed": "Não foi possível iniciar sessão. Tenta novamente ou usa a tua conta local."

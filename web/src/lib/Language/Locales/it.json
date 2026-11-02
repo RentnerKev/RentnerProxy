@@ -248,6 +248,11 @@
         "user_not_active": "Questo account non è attivo."
     },
     "auth": {
+        "moreSignInOptions": "Altre opzioni di accesso",
+        "twoFactor": {
+            "expired": "Questa richiesta di autenticazione è scaduta. Ricomincia l’accesso.",
+            "unavailable": "Il servizio di autenticazione è temporaneamente non disponibile. Riprova."
+        },
         "oidc": {
             "signInWith": "Accedi con {{provider}}",
             "failed": "Accesso non riuscito. Riprova o usa il tuo account locale."

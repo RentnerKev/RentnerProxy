@@ -248,6 +248,11 @@
         "user_not_active": "Ce compte n’est pas actif."
     },
     "auth": {
+        "moreSignInOptions": "Autres méthodes de connexion",
+        "twoFactor": {
+            "expired": "Cette demande d’authentification a expiré. Recommence la connexion.",
+            "unavailable": "Le service d’authentification est temporairement indisponible. Réessaie."
+        },
         "oidc": {
             "signInWith": "Se connecter avec {{provider}}",
             "failed": "La connexion a échoué. Réessayez ou utilisez votre compte local."

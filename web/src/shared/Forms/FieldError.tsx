@@ -1,18 +1,16 @@
-import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import getFieldErrorMessage from '@/lib/Forms/fieldErrors.ts'
+import useFieldErrorLogic from './Hooks/useFieldErrorLogic.ts'
 import type { FieldErrorProps } from './Types/form-component-props.types.ts'
 
-export default function FieldError({ errors, id }: FieldErrorProps) {
-    const { authenticated, t } = useTranslationStore()
-    const message = getFieldErrorMessage(errors, authenticated ? t : undefined)
+export default function FieldError({ errors, id, feedback = 'inline' }: FieldErrorProps) {
+    const { state } = useFieldErrorLogic({ errors, id, feedback })
 
-    if (!message) {
+    if (!state.message || feedback === 'toast') {
         return null
     }
 
     return (
         <p id={id} role="alert" className="m-0 text-[0.76rem] leading-[1.45] text-danger-text">
-            {message}
+            {state.message}
         </p>
     )
 }

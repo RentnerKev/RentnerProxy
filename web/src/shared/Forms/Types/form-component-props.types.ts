@@ -1,6 +1,7 @@
 export interface FieldErrorProps {
     readonly errors: readonly unknown[]
     readonly id: string
+    readonly feedback?: 'inline' | 'toast'
 }
 
 export interface FormMessageProps {

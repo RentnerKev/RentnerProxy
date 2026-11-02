@@ -19,17 +19,8 @@ export default function TwoFactorLoginPage() {
                     onToggleMode={handler.toggleMode}
                     normalizeCredential={handler.normalizeCredential}
                 />
-            ) : state.isLoading ? (
-                <output className="mt-4 block text-sm text-muted">
-                    Checking authentication request…
-                </output>
-            ) : (
+            ) : state.isLoading ? null : (
                 <div className="mt-7 grid gap-4">
-                    <p role="alert" className="m-0 text-sm text-danger-text">
-                        {state.isStatusError
-                            ? 'Authentication service temporarily unavailable. Try again.'
-                            : 'This authentication request has expired. Start again.'}
-                    </p>
                     {state.isStatusError ? (
                         <button
                             type="button"

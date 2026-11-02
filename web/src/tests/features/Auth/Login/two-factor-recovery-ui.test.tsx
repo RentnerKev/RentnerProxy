@@ -91,8 +91,9 @@ afterEach(async () => {
 
 test('an expired second-factor request has an actionable sign-in link', async () => {
     await mount(<TwoFactorLoginPage />)
-    await until(() => Boolean(document.querySelector('[role="alert"]')))
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain('expired')
+    await until(() => warningToast.mock.calls.length === 1)
+    expect(warningToast.mock.calls[0]?.[0]).toContain('expired')
+    expect(document.querySelector('[role="alert"], output')).toBeNull()
     expect(document.querySelector('a[href="/login"]')?.textContent).toBe('Back to sign in')
     expect(document.querySelector('button')).toBeNull()
 })
@@ -101,15 +102,16 @@ test('a failed second-factor status check reports availability and offers a work
     status.mockRejectedValueOnce(new Error('private transport diagnostic'))
     await mount(<TwoFactorLoginPage />)
     await until(() => Boolean(document.querySelector('button')))
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
-        'temporarily unavailable',
-    )
+    expect(errorToast.mock.calls[0]?.[0]).toContain('temporarily unavailable')
+    expect(document.querySelector('[role="alert"], output')).toBeNull()
     expect(document.body.textContent).not.toContain('expired')
     expect(document.body.textContent).not.toContain('private transport diagnostic')
     expect(document.querySelector('a[href="/login"]')).not.toBeNull()
     await act(async () => document.querySelector('button')!.click())
-    await until(() =>
-        Boolean(document.querySelector('[role="alert"]')?.textContent?.includes('expired')),
+    await until(() => warningToast.mock.calls.length === 1)
+    expect(warningToast.mock.calls[0]?.[0]).toContain('expired')
+    expect(JSON.stringify([...errorToast.mock.calls, ...warningToast.mock.calls])).not.toContain(
+        'private transport diagnostic',
     )
     expect(status).toHaveBeenCalledTimes(2)
 })
@@ -122,11 +124,41 @@ test('a failed recheck does not keep displaying a previously valid second-factor
     await act(async () => {
         await client!.invalidateQueries({ queryKey: ['auth', 'two-factor-challenge'] })
     })
-    await until(() => Boolean(document.querySelector('[role="alert"]')))
+    await until(() => errorToast.mock.calls.length === 1)
     expect(document.querySelector('input[name="credential"]')).toBeNull()
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
-        'temporarily unavailable',
-    )
+    expect(errorToast.mock.calls[0]?.[0]).toContain('temporarily unavailable')
+    expect(document.querySelector('[role="alert"], output')).toBeNull()
     expect(document.body.textContent).not.toContain('expired')
     expect(document.querySelector('button')?.textContent).toBe('Try again')
+})
+
+test('a retried unavailable challenge notifies again without exposing transport diagnostics', async () => {
+    status.mockRejectedValue(new Error('private transport diagnostic'))
+    await mount(<TwoFactorLoginPage />)
+    await until(() => errorToast.mock.calls.length === 1)
+    await act(async () => document.querySelector('button')!.click())
+    await until(() => errorToast.mock.calls.length === 2)
+    expect(status).toHaveBeenCalledTimes(2)
+    expect(
+        errorToast.mock.calls.every(([message]) => message.includes('temporarily unavailable')),
+    ).toBeTrue()
+    expect(JSON.stringify(errorToast.mock.calls)).not.toContain('private transport diagnostic')
+    expect(document.querySelector('[role="alert"], output')).toBeNull()
+})
+
+test('an invalid second-factor credential uses toast feedback and retains invalid marking', async () => {
+    status.mockResolvedValueOnce({ valid: true, methods: ['totp'] })
+    await mount(<TwoFactorLoginPage />)
+    await until(() => Boolean(document.querySelector('input[name="credential"]')))
+    await act(async () => {
+        document
+            .querySelector<HTMLFormElement>('form')!
+            .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(errorToast.mock.calls.length).toBeGreaterThan(0)
+    expect(document.querySelector('input[name="credential"]')?.getAttribute('aria-invalid')).toBe(
+        'true',
+    )
+    expect(document.querySelector('[id$="-error"], [role="alert"], output')).toBeNull()
 })

@@ -2,6 +2,7 @@ import type { TwoFactorLoginLogicResult } from '../Types/two-factor-login-logic.
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
+import { useEffect, useRef } from 'react'
 
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -13,6 +14,7 @@ import {
     twoFactorLoginFormSchema,
 } from '../validation.ts'
 
+/** Coordinates second-factor verification and toast feedback for each completed status request. */
 export default function useTwoFactorLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()
@@ -21,6 +23,42 @@ export default function useTwoFactorLoginLogic() {
         queryKey: ['auth', 'two-factor-challenge'],
         queryFn: () => getTwoFactorChallengeStatusHandler({ data: {} }),
     })
+    const statusFeedback = status.isFetching
+        ? null
+        : status.isError
+          ? 'unavailable'
+          : status.isSuccess && !status.data.valid
+            ? 'expired'
+            : null
+    const statusFeedbackUpdatedAt = status.isError ? status.errorUpdatedAt : status.dataUpdatedAt
+    const reportedStatus = useRef<{ kind: typeof statusFeedback; updatedAt: number } | null>(null)
+    useEffect(() => {
+        if (statusFeedback === null) {
+            reportedStatus.current = null
+            return
+        }
+        if (
+            reportedStatus.current?.kind === statusFeedback &&
+            reportedStatus.current.updatedAt === statusFeedbackUpdatedAt
+        )
+            return
+        reportedStatus.current = { kind: statusFeedback, updatedAt: statusFeedbackUpdatedAt }
+        if (statusFeedback === 'unavailable') {
+            toast.error(
+                t('auth.twoFactor.unavailable', {
+                    defaultValue: 'Authentication service temporarily unavailable. Try again.',
+                }),
+                { title: t('toast.titles.error') },
+            )
+        } else {
+            toast.warning(
+                t('auth.twoFactor.expired', {
+                    defaultValue: 'This authentication request has expired. Start again.',
+                }),
+                { title: t('toast.titles.warning') },
+            )
+        }
+    }, [statusFeedback, statusFeedbackUpdatedAt, t])
     const mutation = useMutation({
         mutationFn: (value: TwoFactorLoginFormValues) =>
             completeTwoFactorLoginHandler({
@@ -33,6 +71,7 @@ export default function useTwoFactorLoginLogic() {
             if (result.success) {
                 await router.invalidate()
                 await navigate({ to: '/', replace: true })
+                toast.success(t(result.message), { title: t('toast.titles.success') })
                 return
             }
             if ('restartLogin' in result && result.restartLogin) {
@@ -89,6 +128,7 @@ export default function useTwoFactorLoginLogic() {
             normalizeCredential: normalizeTwoFactorCredential,
             toggleMode,
             handleRetryStatus: () => {
+                reportedStatus.current = null
                 void status.refetch()
             },
         },

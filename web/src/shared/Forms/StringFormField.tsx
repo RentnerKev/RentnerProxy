@@ -12,6 +12,7 @@ export default function StringFormField({
     maxLength,
     showPasswordStrength = false,
     labelAction,
+    errorFeedback = 'inline',
 }: StringFormFieldProps) {
     const inputProps = {
         id: field.name,
@@ -22,7 +23,7 @@ export default function StringFormField({
         value: field.state.value,
         onBlur: field.handleBlur,
         onValueChange: field.handleChange,
-        'aria-describedby': `${field.name}-error`,
+        'aria-describedby': errorFeedback === 'toast' ? undefined : `${field.name}-error`,
         'aria-invalid': field.state.meta.errors.length > 0,
     }
     const fieldLabel = (
@@ -48,7 +49,11 @@ export default function StringFormField({
             ) : (
                 <TextInput {...inputProps} />
             )}
-            <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
+            <FieldError
+                id={`${field.name}-error`}
+                errors={field.state.meta.errors}
+                feedback={errorFeedback}
+            />
         </div>
     )
 }

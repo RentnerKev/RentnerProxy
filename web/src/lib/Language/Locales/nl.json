@@ -227,6 +227,11 @@
         "user_not_active": "Dit account is niet actief."
     },
     "auth": {
+        "moreSignInOptions": "Meer aanmeldmogelijkheden",
+        "twoFactor": {
+            "expired": "Dit authenticatieverzoek is verlopen. Begin opnieuw met aanmelden.",
+            "unavailable": "De authenticatiedienst is tijdelijk niet beschikbaar. Probeer het opnieuw."
+        },
         "oidc": {
             "signInWith": "Inloggen met {{provider}}",
             "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account."

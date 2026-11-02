@@ -246,6 +246,11 @@
         "user_not_active": "This account is not active."
     },
     "auth": {
+        "moreSignInOptions": "More sign-in options",
+        "twoFactor": {
+            "expired": "This authentication request has expired. Start again.",
+            "unavailable": "Authentication service temporarily unavailable. Try again."
+        },
         "oidc": {
             "signInWith": "Sign in with {{provider}}",
             "failed": "Sign-in failed. Try again or use your local account."

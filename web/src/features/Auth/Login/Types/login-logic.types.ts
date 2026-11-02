@@ -1,11 +1,11 @@
-import type { FormEventHandler } from 'react'
+import type { FormEventHandler, RefObject } from 'react'
+import type { MenuItem } from '@rentnerkev/menu'
 export interface LoginLogicResult<TForm> {
     form: TForm
     state: {
         isPending: boolean
         isPasskeyPending: boolean
-        oidcProviders: ReadonlyArray<{ id: string; name: string }>
-        oidcFailed: boolean
+        alternativeSignInItems: readonly MenuItem[]
     }
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
@@ -13,5 +13,10 @@ export interface LoginLogicResult<TForm> {
         validatePassword: (context: { value: string }) => string | undefined
         handlePasskeyLogin: () => Promise<void>
         handleOidcSubmit: FormEventHandler<HTMLFormElement>
+        handleAlternativeSignIn: (id: string) => void
+    }
+    refs: {
+        oidcForm: RefObject<HTMLFormElement | null>
+        oidcProviderId: RefObject<HTMLInputElement | null>
     }
 }

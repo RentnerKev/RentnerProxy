@@ -72,7 +72,7 @@ function Login() {
             logic.form.setFieldValue('password', 'test password')
         }
     }, [logic.form])
-    return <LoginForm {...logic} onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()} />
+    return <LoginForm {...logic} />
 }
 function Setup() {
     return <SetupForm {...useSetupLogic()} />
@@ -184,8 +184,13 @@ for (const [label, Form, fields] of [
         expect(form.method).toBe('post')
         expect(event.defaultPrevented).toBeTrue()
         expect(submit).not.toHaveBeenCalled()
-        expect(
-            container.querySelector('[id$="-error"]')?.textContent?.trim().length,
-        ).toBeGreaterThan(0)
+        if (label === 'login' || label === 'two-factor verification') {
+            expect(container.querySelector('[id$="-error"]')).toBeNull()
+            expect(container.querySelector('input[aria-invalid="true"]')).not.toBeNull()
+        } else {
+            expect(
+                container.querySelector('[id$="-error"]')?.textContent?.trim().length,
+            ).toBeGreaterThan(0)
+        }
     })
 }

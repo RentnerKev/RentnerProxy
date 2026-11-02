@@ -250,6 +250,11 @@
         "user_not_active": "To konto nie jest aktywne."
     },
     "auth": {
+        "moreSignInOptions": "Więcej sposobów logowania",
+        "twoFactor": {
+            "expired": "To żądanie uwierzytelnienia wygasło. Rozpocznij logowanie ponownie.",
+            "unavailable": "Usługa uwierzytelniania jest tymczasowo niedostępna. Spróbuj ponownie."
+        },
         "oidc": {
             "signInWith": "Zaloguj się przez {{provider}}",
             "failed": "Logowanie nie powiodło się. Spróbuj ponownie lub użyj konta lokalnego."
