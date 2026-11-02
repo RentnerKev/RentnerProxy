@@ -223,6 +223,11 @@ async fn isolated(test: &str) -> Option<Fixture> {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+    assert!(
+        String::from_utf8_lossy(&output.stdout)
+            .contains("test result: ok. 1 passed; 0 failed; 0 ignored;"),
+        "isolated DNS order filter must execute exactly one test"
+    );
     Some(fixture)
 }
 
@@ -481,11 +486,14 @@ async fn delegated_wait_rejects_cancelled_or_invalid_work_without_waiting() {
         .current_operation
         .unwrap()
         .id;
-    let mut intent = runtime
-        .certificate_store
-        .pending_dns_record(ID, &operation)
-        .await
-        .unwrap();
+    let records = match runtime.certificate_store.pending_dns_records(ID).await {
+        Ok(records) => records,
+        Err(_) => panic!("synthetic DNS proof fixture unavailable"),
+    };
+    assert_eq!(records.len(), 1, "expected exactly one synthetic DNS proof");
+    let Some(mut intent) = records.into_iter().next() else {
+        panic!("synthetic DNS proof fixture missing");
+    };
     let binding = intent.delegation.clone().unwrap();
     let mut changed: DnsDelegationBinding = binding.clone();
     changed.target_owner = "changed.validation.example.net".to_owned();
