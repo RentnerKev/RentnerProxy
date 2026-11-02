@@ -5,12 +5,97 @@ import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { createRuntimeFetch } from '../../../../../../docker/web/request-context.ts'
 import {
     createRateLimitKey,
+    consumeRateLimit,
     enforceAuthRateLimit,
     RateLimitError,
 } from '@/server/Valkey/rate-limiter.service.ts'
 import type { ValkeyCommandClient } from '@/server/Valkey/Types/valkey.types.ts'
+import { OIDC_RATE_LIMIT } from '@/config/oidc.config.ts'
+import { getOidcClientIp } from '@/server/Auth/Oidc/oidc-request-ip.server.ts'
+import { createOidcHttpHandlers } from '@/server/Auth/Oidc/oidc-response.server.ts'
+import { withRequestAbortHandling } from '@/server/request-abort.server.ts'
 
 describe('production request peer addresses', () => {
+    test.each([undefined, 'false', 'true', 'TRUE'])(
+        'enforces OIDC limits through the raw route context with forwarding trust %j',
+        async (configuredTrust) => {
+            const originalTrust = process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
+            if (configuredTrust === undefined) delete process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
+            else process.env.RENTNERPROXY_TRUST_PROXY_HEADERS = configuredTrust
+            const trustProxyHeaders = configuredTrust === 'true'
+            const counts = new Map<string, number>()
+            const windows = new Set<string>()
+            const client: ValkeyCommandClient = {
+                ping: async () => 'PONG',
+                send: async (_command, args) => {
+                    const key = args[2]!
+                    const count = (counts.get(key) ?? 0) + 1
+                    counts.set(key, count)
+                    windows.add(args[3]!)
+                    return [count, 60_000]
+                },
+            }
+            const handlers = createOidcHttpHandlers({
+                origin: () => 'https://proxy.example.test',
+                limit: async () => {
+                    await consumeRateLimit(
+                        { ...OIDC_RATE_LIMIT, identifier: getOidcClientIp() },
+                        { getClient: () => client },
+                    )
+                },
+                signedIn: async () => true,
+                begin: async () => {
+                    throw new Error('unexpected OIDC exchange')
+                },
+                complete: async () => {
+                    throw new Error('unexpected OIDC exchange')
+                },
+            })
+            const handler = withRequestAbortHandling(
+                createServerEntry({ fetch: () => handlers.callback(getRequest()) }).fetch,
+            )
+            const runtimeFetch = createRuntimeFetch({ fetch: (request) => handler(request, {}) })
+            const attempt = (address: string) =>
+                runtimeFetch(
+                    new Request('http://internal:3000/api/auth/oidc/callback', {
+                        headers: { 'x-forwarded-for': `192.0.2.99, ${address}` },
+                    }),
+                    { requestIP: () => ({ address: '127.0.0.1' }) },
+                )
+
+            try {
+                const responses = await Promise.all([
+                    ...Array.from({ length: 21 }, () => attempt('198.51.100.8')),
+                    attempt('198.51.100.9'),
+                ])
+                expect(
+                    responses
+                        .slice(0, 21)
+                        .filter((response) => response.headers.get('location') === '/'),
+                ).toHaveLength(20)
+                expect(responses[20]?.headers.get('location')).toBe('/login?oidcError=failed')
+                expect(responses[21]?.headers.get('location')).toBe(
+                    trustProxyHeaders ? '/' : '/login?oidcError=failed',
+                )
+                expect(windows).toEqual(new Set(['60000']))
+                expect(counts.size).toBe(trustProxyHeaders ? 2 : 1)
+                expect(
+                    counts.get(
+                        createRateLimitKey(
+                            'oidc-login',
+                            trustProxyHeaders ? '198.51.100.8' : '127.0.0.1',
+                        ),
+                    ),
+                ).toBe(trustProxyHeaders ? 21 : 22)
+                expect(counts.has(createRateLimitKey('oidc-login', '192.0.2.99'))).toBeFalse()
+                expect(counts.has(createRateLimitKey('oidc-login', 'unknown'))).toBeFalse()
+            } finally {
+                if (originalTrust === undefined) delete process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
+                else process.env.RENTNERPROXY_TRUST_PROXY_HEADERS = originalTrust
+            }
+        },
+    )
+
     test('makes the Bun connection address available inside the TanStack request context', async () => {
         const application = {
             fetch: createServerEntry({

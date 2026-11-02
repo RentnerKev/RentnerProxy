@@ -248,6 +248,16 @@
         "user_not_active": "Ce compte n’est pas actif."
     },
     "auth": {
+        "moreSignInOptions": "Autres méthodes de connexion",
+        "twoFactor": {
+            "showStatus": "Afficher l’état de connexion",
+            "expired": "Cette demande d’authentification a expiré. Recommencez la connexion.",
+            "unavailable": "Le service d’authentification est temporairement indisponible. Réessayez."
+        },
+        "oidc": {
+            "signInWith": "Se connecter avec {{provider}}",
+            "failed": "La connexion a échoué. Réessayez ou utilisez votre compte local."
+        },
         "logoutFailed": "Impossible de vous déconnecter. Vérifiez votre connexion et réessayez.",
         "logoutRevocationFailed": "Vous êtes déconnecté dans ce navigateur, mais la session sur le serveur n’a pas pu être révoquée."
     },

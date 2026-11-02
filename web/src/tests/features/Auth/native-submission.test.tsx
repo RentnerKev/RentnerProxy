@@ -17,6 +17,9 @@ mock.module('@/features/Auth/Login/middleware.ts', () => ({
     completeTwoFactorLoginHandler: submit,
     getTwoFactorChallengeStatusHandler: async () => ({ valid: true, methods: ['totp'] }),
 }))
+mock.module('@/features/Auth/Oidc/middleware.ts', () => ({
+    getPublicOidcProvidersHandler: async () => [],
+}))
 mock.module('@/features/Auth/Setup/middleware.ts', () => ({ setupOwnerHandler: submit }))
 mock.module('@/features/Auth/ForgotPassword/middleware.ts', () => ({
     requestPasswordResetHandler: submit,
@@ -24,6 +27,7 @@ mock.module('@/features/Auth/ForgotPassword/middleware.ts', () => ({
 mock.module('@/features/Auth/PasswordReset/middleware.ts', () => ({ resetPasswordHandler: submit }))
 mock.module('@/features/Auth/AcceptInvite/middleware.ts', () => ({ acceptInviteHandler: submit }))
 mock.module('@tanstack/react-router', () => ({
+    useSearch: () => ({}),
     useNavigate: () => async () => {},
     useRouter: () => ({ invalidate: async () => {} }),
     useRouterState: () => undefined,
@@ -68,7 +72,7 @@ function Login() {
             logic.form.setFieldValue('password', 'test password')
         }
     }, [logic.form])
-    return <LoginForm {...logic} onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()} />
+    return <LoginForm {...logic} />
 }
 function Setup() {
     return <SetupForm {...useSetupLogic()} />
@@ -139,7 +143,7 @@ test('valid client login still sends credentials through the existing handler af
     expect(submit).toHaveBeenCalledWith({
         data: { email: 'owner@example.test', password: 'test password' },
     })
-    expect(container.querySelector('[id$="-error"]')).toBeNull()
+    expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
 })
 
 for (const [label, Form, fields] of [
@@ -180,8 +184,13 @@ for (const [label, Form, fields] of [
         expect(form.method).toBe('post')
         expect(event.defaultPrevented).toBeTrue()
         expect(submit).not.toHaveBeenCalled()
-        expect(
-            container.querySelector('[id$="-error"]')?.textContent?.trim().length,
-        ).toBeGreaterThan(0)
+        if (label === 'login' || label === 'two-factor verification') {
+            expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
+            expect(container.querySelector('input[aria-invalid="true"]')).not.toBeNull()
+        } else {
+            expect(
+                container.querySelector('[id$="-error"]')?.textContent?.trim().length,
+            ).toBeGreaterThan(0)
+        }
     })
 }

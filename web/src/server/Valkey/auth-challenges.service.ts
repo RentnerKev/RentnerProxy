@@ -9,6 +9,7 @@ import type {
     IssuedAuthChallenge,
     CodeChallengeVerification,
     AuthChallengeDependencies,
+    LoginFirstFactor,
 } from './Types/auth-challenges.types.ts'
 import '@tanstack/react-start/server-only'
 
@@ -116,6 +117,35 @@ function isChallengeKind(value: unknown): value is AuthChallengeKind {
     )
 }
 
+/** Rejects malformed or mixed first-factor proof before the transaction revalidates its authority. */
+function isLoginFirstFactor(value: unknown): value is LoginFirstFactor {
+    if (!value || typeof value !== 'object') return false
+    const proof = value as Record<string, unknown>
+    if (proof.kind === 'password') {
+        return (
+            Object.keys(proof).length === 2 &&
+            typeof proof.passwordFingerprint === 'string' &&
+            /^[a-f0-9]{64}$/.test(proof.passwordFingerprint)
+        )
+    }
+    return (
+        proof.kind === 'oidc' &&
+        Object.keys(proof).length === 5 &&
+        typeof proof.providerId === 'string' &&
+        proof.providerId.length > 0 &&
+        proof.providerId.length <= 100 &&
+        Number.isSafeInteger(proof.providerRevision) &&
+        Number(proof.providerRevision) >= 1 &&
+        typeof proof.issuer === 'string' &&
+        proof.issuer.length > 0 &&
+        proof.issuer.length <= 2048 &&
+        typeof proof.subject === 'string' &&
+        proof.subject.length > 0 &&
+        proof.subject.length <= 255
+    )
+}
+
+/** Parses only the requested challenge kind and fails closed on obsolete or malformed persisted proof. */
 function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthChallenge | null {
     if (typeof value !== 'string') {
         return null
@@ -142,9 +172,10 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
             case 'login-mfa':
                 return typeof challenge.userId === 'string' &&
                     typeof challenge.factorId === 'string' &&
-                    typeof challenge.passwordFingerprint === 'string' &&
-                    /^[a-f0-9]{64}$/.test(challenge.passwordFingerprint) &&
-                    typeof challenge.attempts === 'number'
+                    !('passwordFingerprint' in challenge) &&
+                    isLoginFirstFactor(challenge.firstFactor) &&
+                    Number.isSafeInteger(challenge.attempts) &&
+                    Number(challenge.attempts) >= 0
                     ? (challenge as LoginMfaChallenge)
                     : null
             case 'totp-setup':
@@ -173,8 +204,12 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
     }
 }
 
+/** Prevents issuing a login challenge that lacks its explicit first-factor binding. */
 function ensureChallengeInput(challenge: AuthChallenge): void {
-    if (!isChallengeKind(challenge.kind) || !challenge.createdAt) {
+    if (
+        !isChallengeKind(challenge.kind) ||
+        !parseChallenge(JSON.stringify(challenge), challenge.kind)
+    ) {
         throw new AuthChallengeStateError()
     }
 }

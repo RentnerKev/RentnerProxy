@@ -248,6 +248,16 @@
         "user_not_active": "Esta conta não está ativa."
     },
     "auth": {
+        "moreSignInOptions": "Mais opções de início de sessão",
+        "twoFactor": {
+            "showStatus": "Mostrar estado do início de sessão",
+            "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
+            "unavailable": "O serviço de autenticação está temporariamente indisponível. Tente novamente."
+        },
+        "oidc": {
+            "signInWith": "Iniciar sessão com {{provider}}",
+            "failed": "Não foi possível iniciar sessão. Tente novamente ou use a sua conta local."
+        },
         "logoutFailed": "Não foi possível terminar sessão. Verifique a ligação e tente novamente.",
         "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
     },

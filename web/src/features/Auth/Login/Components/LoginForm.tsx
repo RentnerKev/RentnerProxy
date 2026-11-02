@@ -3,8 +3,7 @@ import StringFormField from '@/shared/Forms/StringFormField.tsx'
 import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import { Link } from '@tanstack/react-router'
 import type { LoginFormProps } from '../Types/login-component-props.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
-export default function LoginForm({ state, form, handler, onPasskeyLogin }: LoginFormProps) {
+export default function LoginForm({ state, form, handler }: LoginFormProps) {
     const { t } = useTranslationStore()
 
     return (
@@ -23,6 +22,8 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                         kind="email"
                         autoComplete="username"
                         maxLength={254}
+                        errorFeedback="toast"
+                        validationEpoch={state.validationEpochs.email ?? 0}
                     />
                 )}
             </form.Field>
@@ -35,6 +36,8 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                         kind="password"
                         autoComplete="current-password"
                         maxLength={256}
+                        errorFeedback="toast"
+                        validationEpoch={state.validationEpochs.password ?? 0}
                         labelAction={<Link to="/forgot-password">Forgot password?</Link>}
                     />
                 )}
@@ -53,14 +56,6 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                     />
                 )}
             </form.Subscribe>
-            <button
-                type="button"
-                className={buttonClassName('secondary')}
-                onClick={onPasskeyLogin}
-                disabled={state.isPending || state.isPasskeyPending}
-            >
-                {state.isPasskeyPending ? 'Checking passkey…' : 'Sign in with passkey'}
-            </button>
         </form>
     )
 }

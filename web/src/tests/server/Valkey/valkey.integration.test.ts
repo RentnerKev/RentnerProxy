@@ -159,7 +159,7 @@ describe('Valkey integration', () => {
                 {
                     factorId: randomUUID(),
                     kind: 'login-mfa',
-                    passwordFingerprint: 'a'.repeat(64),
+                    firstFactor: { kind: 'password', passwordFingerprint: 'a'.repeat(64) },
                     userId: randomUUID(),
                     attempts: 0,
                     createdAt: new Date().toISOString(),

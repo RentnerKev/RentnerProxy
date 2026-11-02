@@ -4,6 +4,7 @@ import type { normalizeTwoFactorCredential } from '../validation.ts'
 export interface TwoFactorLoginLogicResult<TForm> {
     form: TForm
     state: {
+        validationEpoch: number
         isLoading: boolean
         isStatusError: boolean
         isPending: boolean
@@ -15,6 +16,7 @@ export interface TwoFactorLoginLogicResult<TForm> {
         validateCredential: (context: { value: string }) => string | undefined
         normalizeCredential: typeof normalizeTwoFactorCredential
         toggleMode: () => void
+        handleShowStatus: () => void
         handleRetryStatus: () => void
     }
 }

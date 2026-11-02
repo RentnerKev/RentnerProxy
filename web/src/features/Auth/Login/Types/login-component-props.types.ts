@@ -7,7 +7,12 @@ export interface LoginFormProps {
     readonly handler: LoginLogicResult<unknown>['handler']
     readonly state: LoginLogicResult<unknown>['state']
     readonly form: ReturnType<typeof useLoginLogic>['form']
-    readonly onPasskeyLogin: () => void
+}
+
+export interface AlternativeLoginMethodsProps {
+    readonly state: LoginLogicResult<unknown>['state']
+    readonly handler: LoginLogicResult<unknown>['handler']
+    readonly refs: LoginLogicResult<unknown>['refs']
 }
 
 export interface TwoFactorLoginFormProps {

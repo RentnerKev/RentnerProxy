@@ -1,4 +1,5 @@
 import type { ValkeyCommandClient } from './valkey.types.ts'
+import type { OidcIdentityProof } from '@/server/Auth/Oidc/Types/oidc.types.ts'
 
 export type AuthChallengeKind =
     | 'login-mfa'
@@ -12,11 +13,15 @@ interface BaseChallenge {
     readonly kind: AuthChallengeKind
 }
 
+export type LoginFirstFactor =
+    | { readonly kind: 'password'; readonly passwordFingerprint: string }
+    | ({ readonly kind: 'oidc' } & Omit<OidcIdentityProof, 'userId'>)
+
 export interface LoginMfaChallenge extends BaseChallenge {
     readonly attempts: number
     readonly factorId: string
     readonly kind: 'login-mfa'
-    readonly passwordFingerprint: string
+    readonly firstFactor: LoginFirstFactor
     readonly userId: string
 }
 

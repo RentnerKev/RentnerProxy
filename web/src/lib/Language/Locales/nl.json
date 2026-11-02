@@ -227,6 +227,16 @@
         "user_not_active": "Dit account is niet actief."
     },
     "auth": {
+        "moreSignInOptions": "Meer aanmeldmogelijkheden",
+        "twoFactor": {
+            "showStatus": "Aanmeldstatus tonen",
+            "expired": "Dit authenticatieverzoek is verlopen. Begin opnieuw met aanmelden.",
+            "unavailable": "De authenticatiedienst is tijdelijk niet beschikbaar. Probeer het opnieuw."
+        },
+        "oidc": {
+            "signInWith": "Inloggen met {{provider}}",
+            "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account."
+        },
         "logoutFailed": "Afmelden is mislukt. Controleer je verbinding en probeer het opnieuw.",
         "logoutRevocationFailed": "Je bent afgemeld in deze browser, maar de serversessie kon niet worden ingetrokken."
     },

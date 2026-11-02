@@ -250,6 +250,16 @@
         "user_not_active": "To konto nie jest aktywne."
     },
     "auth": {
+        "moreSignInOptions": "Więcej sposobów logowania",
+        "twoFactor": {
+            "showStatus": "Pokaż stan logowania",
+            "expired": "To żądanie uwierzytelnienia wygasło. Rozpocznij logowanie ponownie.",
+            "unavailable": "Usługa uwierzytelniania jest tymczasowo niedostępna. Spróbuj ponownie."
+        },
+        "oidc": {
+            "signInWith": "Zaloguj się przez {{provider}}",
+            "failed": "Logowanie nie powiodło się. Spróbuj ponownie lub użyj konta lokalnego."
+        },
         "logoutFailed": "Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.",
         "logoutRevocationFailed": "Wylogowano w tej przeglądarce, ale nie udało się unieważnić sesji na serwerze."
     },

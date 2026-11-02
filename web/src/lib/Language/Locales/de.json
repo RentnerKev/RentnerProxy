@@ -246,6 +246,16 @@
         "user_not_active": "Dieses Konto ist nicht aktiv."
     },
     "auth": {
+        "moreSignInOptions": "Weitere Anmeldemöglichkeiten",
+        "twoFactor": {
+            "showStatus": "Anmeldestatus anzeigen",
+            "expired": "Diese Anmeldeanfrage ist abgelaufen. Starte die Anmeldung erneut.",
+            "unavailable": "Der Anmeldedienst ist vorübergehend nicht verfügbar. Versuche es erneut."
+        },
+        "oidc": {
+            "signInWith": "Mit {{provider}} anmelden",
+            "failed": "Anmeldung fehlgeschlagen. Versuche es erneut oder nutze dein lokales Konto."
+        },
         "logoutFailed": "Abmelden fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
         "logoutRevocationFailed": "Du bist in diesem Browser abgemeldet, aber die Sitzung auf dem Server konnte nicht widerrufen werden."
     },
