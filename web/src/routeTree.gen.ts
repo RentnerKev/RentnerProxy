@@ -56,6 +56,7 @@ import { Route as ApiAdminDiagnosticsDomainRouteImport } from './routes/api/admi
 import { Route as ApiAdminMonitoringHistoryRouteImport } from './routes/api/admin/monitoring/history'
 import { Route as ApiAdminMonitoringPolicyRouteImport } from './routes/api/admin/monitoring/policy'
 import { Route as ApiAdminMonitoringSummaryRouteImport } from './routes/api/admin/monitoring/summary'
+import { Route as ApiAdminOidcProvidersRouteImport } from './routes/api/admin/oidc/providers'
 import { Route as ApiAuthOidcCallbackRouteImport } from './routes/api/auth/oidc/callback'
 import { Route as ApiAuthOidcStartRouteImport } from './routes/api/auth/oidc/start'
 import { Route as ApiAdminBackupsJobIdDownloadRouteImport } from './routes/api/admin/backups/$jobId/download'
@@ -303,6 +304,11 @@ const ApiAdminMonitoringSummaryRoute =
     path: '/api/admin/monitoring/summary',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminOidcProvidersRoute = ApiAdminOidcProvidersRouteImport.update({
+  id: '/api/admin/oidc/providers',
+  path: '/api/admin/oidc/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthOidcCallbackRoute = ApiAuthOidcCallbackRouteImport.update({
   id: '/api/auth/oidc/callback',
   path: '/api/auth/oidc/callback',
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
@@ -415,6 +422,7 @@ export interface FileRoutesByTo {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
@@ -468,6 +476,7 @@ export interface FileRoutesById {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/oidc/providers'
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
@@ -569,6 +579,7 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/oidc/providers'
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
@@ -621,6 +632,7 @@ export interface FileRouteTypes {
     | '/api/admin/monitoring/history'
     | '/api/admin/monitoring/policy'
     | '/api/admin/monitoring/summary'
+    | '/api/admin/oidc/providers'
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
@@ -646,6 +658,7 @@ export interface RootRouteChildren {
   ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
   ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
   ApiAdminMonitoringSummaryRoute: typeof ApiAdminMonitoringSummaryRoute
+  ApiAdminOidcProvidersRoute: typeof ApiAdminOidcProvidersRoute
   ApiAuthOidcCallbackRoute: typeof ApiAuthOidcCallbackRoute
   ApiAuthOidcStartRoute: typeof ApiAuthOidcStartRoute
   ApiAdminBackupsJobIdDownloadRoute: typeof ApiAdminBackupsJobIdDownloadRoute
@@ -982,6 +995,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminMonitoringSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/oidc/providers': {
+      id: '/api/admin/oidc/providers'
+      path: '/api/admin/oidc/providers'
+      fullPath: '/api/admin/oidc/providers'
+      preLoaderRoute: typeof ApiAdminOidcProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/oidc/callback': {
       id: '/api/auth/oidc/callback'
       path: '/api/auth/oidc/callback'
@@ -1121,6 +1141,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
   ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,
   ApiAdminMonitoringSummaryRoute: ApiAdminMonitoringSummaryRoute,
+  ApiAdminOidcProvidersRoute: ApiAdminOidcProvidersRoute,
   ApiAuthOidcCallbackRoute: ApiAuthOidcCallbackRoute,
   ApiAuthOidcStartRoute: ApiAuthOidcStartRoute,
   ApiAdminBackupsJobIdDownloadRoute: ApiAdminBackupsJobIdDownloadRoute,

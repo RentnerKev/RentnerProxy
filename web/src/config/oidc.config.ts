@@ -13,6 +13,7 @@ export const OIDC_LIMITS = {
     responseHeaderBytes: 8_192,
     cookieHeaderBytes: 16_384,
     startBodyBytes: 256,
+    configurationBytes: 1_048_576,
     dnsAnswers: 64,
     jwksKeys: 32,
     requestTimeoutMs: 5_000,
