@@ -8,7 +8,7 @@ import { startAuthentication } from '@simplewebauthn/browser'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -22,6 +22,13 @@ export default function useLoginLogic() {
     const { t } = useTranslationStore()
     const search = useSearch({ strict: false })
     const [isOidcPending, setIsOidcPending] = useState(false)
+    useEffect(() => {
+        const restoreLogin = (event: PageTransitionEvent) => {
+            if (event.persisted) setIsOidcPending(false)
+        }
+        window.addEventListener('pageshow', restoreLogin)
+        return () => window.removeEventListener('pageshow', restoreLogin)
+    }, [])
     const providers = useQuery({
         queryKey: ['auth', 'oidc-providers'],
         queryFn: () => getPublicOidcProvidersHandler(),

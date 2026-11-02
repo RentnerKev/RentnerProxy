@@ -1,4 +1,4 @@
-import { afterEach, expect, mock, test } from 'bun:test'
+import { afterEach, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { InputProvider } from '@rentnerkev/inputs'
@@ -10,6 +10,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const login = mock(async (_input: unknown) => ({ success: false, message: 'Invalid credentials.' }))
+let providerListAvailable = false
 mock.module('@/features/Auth/Login/middleware.ts', () => ({
     loginHandler: login,
     beginPasskeyLoginHandler: async () => ({ success: false, message: 'Unavailable.' }),
@@ -17,6 +18,8 @@ mock.module('@/features/Auth/Login/middleware.ts', () => ({
 }))
 mock.module('@/features/Auth/Oidc/middleware.ts', () => ({
     getPublicOidcProvidersHandler: async () => {
+        if (providerListAvailable)
+            return [{ id: '0194f777-4074-7000-8000-000000000003', name: 'Office' }]
         throw new Error('Provider list unavailable')
     },
 }))
@@ -37,6 +40,8 @@ const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: useLoginLogic } = await import('@/features/Auth/Login/Hooks/useLoginLogic.ts')
 const { default: LoginForm } = await import('@/features/Auth/Login/Components/LoginForm.tsx')
+const { default: OidcLoginProviders } =
+    await import('@/features/Auth/Login/Components/OidcLoginProviders.tsx')
 type LoginState = ReturnType<typeof useLoginLogic>
 
 let root: Root | null = null
@@ -49,12 +54,15 @@ function LoginHarness() {
         state = logic
     }, [logic])
     return (
-        <LoginForm
-            state={logic.state}
-            handler={logic.handler}
-            form={logic.form}
-            onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()}
-        />
+        <>
+            <LoginForm
+                state={logic.state}
+                handler={logic.handler}
+                form={logic.form}
+                onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()}
+            />
+            <OidcLoginProviders state={logic.state} onSubmit={logic.handler.handleOidcSubmit} />
+        </>
     )
 }
 
@@ -65,7 +73,99 @@ afterEach(async () => {
     client = null
     state = undefined
     login.mockClear()
+    providerListAvailable = false
     document.body.replaceChildren()
+})
+
+test('restoring login from BFCache unlocks OIDC pending controls and cleans up its listener', async () => {
+    providerListAvailable = true
+    const added = spyOn(window, 'addEventListener')
+    const removed = spyOn(window, 'removeEventListener')
+    try {
+        const container = document.createElement('div')
+        document.body.append(container)
+        root = createRoot(container)
+        client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+        await act(async () => {
+            root!.render(
+                <QueryClientProvider client={client!}>
+                    <TooltipProvider>
+                        <InputProvider locale="en">
+                            <LoginHarness />
+                        </InputProvider>
+                    </TooltipProvider>
+                </QueryClientProvider>,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        await act(async () => {
+            state!.form.setFieldValue('email', 'owner@example.test')
+            state!.form.setFieldValue('password', 'valid password')
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        const localSubmit = container.querySelector<HTMLButtonElement>(
+            'form button[type="submit"]',
+        )!
+        const passkey = [
+            ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
+        ].find((button) => button.textContent === 'Sign in with passkey')!
+        const oidcForm = container.querySelector<HTMLFormElement>(
+            'form[action="/api/auth/oidc/start"]',
+        )!
+        const oidcSubmit = oidcForm.querySelector<HTMLButtonElement>('button')!
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            false,
+            false,
+            false,
+        ])
+        const submit = new Event('submit', { bubbles: true, cancelable: true })
+        await act(async () => {
+            oidcForm.dispatchEvent(submit)
+        })
+        expect(submit.defaultPrevented).toBeFalse()
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            true,
+            true,
+            true,
+        ])
+        const ordinaryPageShow = new Event('pageshow')
+        Object.defineProperty(ordinaryPageShow, 'persisted', { value: false })
+        await act(async () => {
+            window.dispatchEvent(ordinaryPageShow)
+        })
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            true,
+            true,
+            true,
+        ])
+        const restoredPageShow = new Event('pageshow')
+        Object.defineProperty(restoredPageShow, 'persisted', { value: true })
+        await act(async () => {
+            window.dispatchEvent(restoredPageShow)
+        })
+        expect([localSubmit.disabled, passkey.disabled, oidcSubmit.disabled]).toEqual([
+            false,
+            false,
+            false,
+        ])
+        await act(async () => {
+            localSubmit.click()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(login).toHaveBeenCalledTimes(1)
+        const listener = added.mock.calls.find(([event]) => event === 'pageshow')?.[1]
+        expect(listener).toBeDefined()
+        await act(async () => root?.unmount())
+        root = null
+        expect(
+            removed.mock.calls.some(
+                ([event, callback]) => event === 'pageshow' && callback === listener,
+            ),
+        ).toBeTrue()
+    } finally {
+        added.mockRestore()
+        removed.mockRestore()
+    }
 })
 
 test('login errors announce invalid fields, retain descriptions and clear after corrected submission', async () => {

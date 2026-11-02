@@ -173,6 +173,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                 if ((validUntil.get(client) ?? 0) <= now()) throw new Error()
                 const claims = tokens.claims()
                 const seconds = Math.floor(Date.now() / 1000)
+                // Only issuance allows clock skew; strict expiry never extends token validity.
                 if (
                     !claims ||
                     claims.iss !== configuration.issuer ||
@@ -182,7 +183,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                     !/^[\x21-\x7e]+$/.test(claims.sub) ||
                     typeof claims.iat !== 'number' ||
                     !Number.isFinite(claims.iat) ||
-                    claims.iat > seconds ||
+                    claims.iat > seconds + OIDC_LIMITS.issuedAtClockSkewSeconds ||
                     typeof claims.exp !== 'number' ||
                     !Number.isFinite(claims.exp) ||
                     claims.exp <= seconds ||

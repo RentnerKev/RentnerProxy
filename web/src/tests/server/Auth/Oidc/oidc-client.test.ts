@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, setSystemTime, test } from 'bun:test'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import type { CustomFetch } from 'openid-client'
 import { createOidcProtocolClient } from '@/server/Auth/Oidc/oidc-client.server.ts'
@@ -138,6 +138,33 @@ describe('OIDC protocol with real signed tokens', () => {
         await expect(
             client.exchangeAuthorizationCode(configuration, authorization, callback()),
         ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+    test.each([1, 5])('accepts issuance clock skew of %s seconds', async (skew) => {
+        setSystemTime(new Date('2030-01-01T12:00:00.000Z'))
+        try {
+            const { client } = fixture({ iat: Math.floor(Date.now() / 1000) + skew })
+            expect(
+                await client.exchangeAuthorizationCode(configuration, authorization, callback()),
+            ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        } finally {
+            setSystemTime()
+        }
+    })
+    test('rejects issuance beyond five seconds and keeps expiry strict', async () => {
+        setSystemTime(new Date('2030-01-01T12:00:00.000Z'))
+        try {
+            const seconds = Math.floor(Date.now() / 1000)
+            const future = fixture({ iat: seconds + 6 })
+            await expect(
+                future.client.exchangeAuthorizationCode(configuration, authorization, callback()),
+            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            const expired = fixture({ iat: seconds - 10, exp: seconds - 1 })
+            await expect(
+                expired.client.exchangeAuthorizationCode(configuration, authorization, callback()),
+            ).rejects.toMatchObject({ code: 'authentication_failed' })
+        } finally {
+            setSystemTime()
+        }
     })
     test('rejects a forged signature despite valid claims', async () => {
         const { client } = fixture({}, true)

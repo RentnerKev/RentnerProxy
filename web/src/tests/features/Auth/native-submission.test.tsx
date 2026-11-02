@@ -17,6 +17,9 @@ mock.module('@/features/Auth/Login/middleware.ts', () => ({
     completeTwoFactorLoginHandler: submit,
     getTwoFactorChallengeStatusHandler: async () => ({ valid: true, methods: ['totp'] }),
 }))
+mock.module('@/features/Auth/Oidc/middleware.ts', () => ({
+    getPublicOidcProvidersHandler: async () => [],
+}))
 mock.module('@/features/Auth/Setup/middleware.ts', () => ({ setupOwnerHandler: submit }))
 mock.module('@/features/Auth/ForgotPassword/middleware.ts', () => ({
     requestPasswordResetHandler: submit,
@@ -24,6 +27,7 @@ mock.module('@/features/Auth/ForgotPassword/middleware.ts', () => ({
 mock.module('@/features/Auth/PasswordReset/middleware.ts', () => ({ resetPasswordHandler: submit }))
 mock.module('@/features/Auth/AcceptInvite/middleware.ts', () => ({ acceptInviteHandler: submit }))
 mock.module('@tanstack/react-router', () => ({
+    useSearch: () => ({}),
     useNavigate: () => async () => {},
     useRouter: () => ({ invalidate: async () => {} }),
     useRouterState: () => undefined,

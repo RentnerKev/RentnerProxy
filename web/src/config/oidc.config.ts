@@ -16,6 +16,7 @@ export const OIDC_LIMITS = {
     dnsAnswers: 64,
     jwksKeys: 32,
     requestTimeoutMs: 5_000,
+    issuedAtClockSkewSeconds: 5,
     inputTimeoutMs: 2_000,
     flowDurationMs: 5 * 60 * 1_000,
     discoveryCacheMs: 5 * 60 * 1_000,
