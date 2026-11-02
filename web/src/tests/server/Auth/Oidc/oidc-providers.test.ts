@@ -40,6 +40,32 @@ function input(
 }
 
 describe('OIDC provider settings', () => {
+    test('assigns server generations and preserves retained legacy or current identities', async () => {
+        const first = await buildStoredOidcSettings(
+            DEFAULT_OIDC_SETTINGS,
+            input({ bindings: [{ ...provider.bindings[0]!, generation: 900 }] }),
+        )
+        expect(first.providers[0]!.bindings[0]!.generation).toBe(1)
+        const retained = await buildStoredOidcSettings(
+            first,
+            input({ bindings: [{ ...provider.bindings[0]!, generation: 0 }] }, 1),
+        )
+        expect(retained.providers[0]!.bindings[0]!.generation).toBe(1)
+        const legacy = {
+            ...first,
+            providers: first.providers.map((entry) =>
+                Object.assign({}, entry, { bindings: provider.bindings }),
+            ),
+        }
+        const legacyRetained = await buildStoredOidcSettings(legacy, input({}, 1))
+        expect(legacyRetained.providers[0]!.bindings[0]!.generation).toBe(0)
+        const deleted = await buildStoredOidcSettings(retained, input({ bindings: [] }, 2))
+        const relinked = await buildStoredOidcSettings(
+            deleted,
+            input({ bindings: [{ ...provider.bindings[0]!, generation: 1 }] }, 3),
+        )
+        expect(relinked.providers[0]!.bindings[0]!.generation).toBe(4)
+    })
     test('encrypts secrets and exposes credential presence only', async () => {
         const stored = await buildStoredOidcSettings(DEFAULT_OIDC_SETTINGS, input())
         expect(stored.revision).toBe(1)

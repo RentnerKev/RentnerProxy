@@ -11,6 +11,39 @@ const draft = {
 }
 
 describe('OIDC editor endpoint-origin normalization', () => {
+    test('retains account policy and binding generations when editing unrelated provider details', () => {
+        const input = providerInput(draft)
+        const provider = {
+            ...input,
+            revision: 5,
+            credentialConfigured: true,
+            accountPolicy: {
+                provisioning: true,
+                groupClaim: 'groups',
+                defaultRoleKeys: ['viewer'],
+                groupRoleMappings: [{ group: 'Operators', roleKeys: ['admin'] }],
+            },
+            bindings: [
+                {
+                    subject: 'stable-subject',
+                    userId: '0194f777-4074-7000-8000-000000000002',
+                    roleSource: 'provider' as const,
+                    generation: 4,
+                },
+            ],
+        }
+        const editable = providerDraft(provider)
+        editable.name = 'Renamed provider'
+        const updated = providerInput(editable)
+        expect(updated.accountPolicy).toEqual(provider.accountPolicy)
+        expect(updated.accountPolicy).not.toBe(provider.accountPolicy)
+        expect(updated.bindings).toEqual(provider.bindings)
+        expect(updated).not.toHaveProperty('clientSecret')
+        expect(
+            saveOidcProvidersSchema.safeParse({ expectedRevision: 5, providers: [updated] })
+                .success,
+        ).toBeTrue()
+    })
     test.each(['', '\n', ' \t\r\n ', ' , ,\n'])(
         'uses the issuer origin when the list has no nonblank entries: %j',
         (endpointOrigins) => {

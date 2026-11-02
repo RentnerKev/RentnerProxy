@@ -13,13 +13,15 @@ import assert from 'node:assert/strict'
 import { mock } from 'bun:test'
 const events = []
 let recent = true, allowed = true, active = true, auditFailure = false
+let managedProviderId = null
+let storedOidcProof = null
 let updates = 0, transactions = 0
 const userId = '00000000-0000-4000-8000-000000000001'
 const transaction = {
     select(fields) {
         const rows = 'expiresAt' in fields
-            ? [{ id:'session-id', userId, expiresAt:new Date(Date.now()+60_000), reauthenticatedAt:new Date(), lastSeenAt:new Date(Date.now()-(recent ? 0 : 3_600_000)) }]
-            : [{ id:userId, status:active ? 'active' : 'disabled' }]
+            ? [{ id:'session-id', userId, oidcProof:storedOidcProof, oidcProviderId:managedProviderId, expiresAt:new Date(Date.now()+60_000), reauthenticatedAt:new Date(), lastSeenAt:new Date(Date.now()-(recent ? 0 : 3_600_000)) }]
+            : [{ id:userId, oidcProviderId:managedProviderId, status:active ? 'active' : 'disabled' }]
         const query = { from:()=>query, innerJoin:()=>query, where:()=>query, limit:()=>query, for:async()=>rows, then:(resolve)=>Promise.resolve(rows).then(resolve) }
         return query
     },
@@ -29,7 +31,7 @@ const transaction = {
 }
 mock.module('@/server/Auth/Core/database.server.ts',()=>({getAuthDatabase:()=>({transaction:async(run)=>{transactions++;return run(transaction)}})}))
 mock.module('@/server/Auth/Access/cookies.server.ts',()=>({getSessionCookie:()=>null}))
-mock.module('@/server/Auth/Access/rbac.service.ts',()=>({resolveActiveUserAccessInTransaction:async()=>{events.push('access');return {id:userId,permissions:allowed ? ['app.access'] : []}}}))
+mock.module('@/server/Auth/Access/rbac.service.ts',()=>({resolveActiveUserAccessInTransaction:async()=>{events.push('access');return {id:userId,roles:[],permissions:allowed ? ['app.access'] : []}}}))
 mock.module('@/server/Audit/audit.service.ts',()=>({appendAuditEventInTransactionService:async(_tx,event)=>{events.push(event.action);if(auditFailure)throw new Error('fixture audit failure')}}))
 const service = await import('./web/src/server/Auth/Access/sessions.service.ts')
 const { PERMISSIONS } = await import('./web/src/config/permissions.config.ts')
@@ -58,6 +60,15 @@ assert.deepEqual(events,['access','cleanup','login'])
 auditFailure=true;events.length=0
 await assert.rejects(service.createSessionService(userId),/fixture audit failure/)
 assert.deepEqual(events,['access','cleanup','login'])
+auditFailure=false;managedProviderId='00000000-0000-4000-8000-000000000002';events.length=0
+await assert.rejects(service.createSessionService(userId),error=>error.code==='user_not_active')
+assert.deepEqual(events,['access'])
+assert.equal(await service.getSessionByTokenService(token),null)
+events.length=0
+await assert.rejects(service.createSessionService(userId,'oidc'),error=>error.code==='user_not_active')
+assert.deepEqual(events,[])
+managedProviderId=null;storedOidcProof={}
+assert.equal(await service.getSessionByTokenService(token),null)
 console.log('PASS: invalid token stays read-free; recent touch skips UPDATE; denied users skip cleanup; authorized creation cleans once before unchanged audit; audit failure propagates')
 `,
         ],

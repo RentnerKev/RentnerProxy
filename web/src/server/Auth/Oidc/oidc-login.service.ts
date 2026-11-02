@@ -10,14 +10,18 @@ import {
 } from '@/server/Auth/TwoFactor/two-factor.service.ts'
 import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 import { requireOidcAuthenticationInTransaction } from './oidc-authentication.server.ts'
-import {
-    getOidcClientConfigurationService,
-    readOidcProviderService,
-} from './oidc-providers.service.ts'
+import { getOidcClientConfigurationService } from './oidc-providers.service.ts'
 import { oidcProtocolClient } from './oidc-client.server.ts'
 import { oidcFlowStore } from './oidc-state.server.ts'
 import { OidcDomainError } from './oidc.errors.ts'
-import type { OidcFlowDependencies } from './Types/oidc-flow.types.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { resolveOidcAccountInTransaction } from './oidc-accounts.service.ts'
+import type {
+    OidcFlowCompletion,
+    OidcFlowDependencies,
+    OidcLinkTarget,
+} from './Types/oidc-flow.types.ts'
+import { authorizeOidcLinkService, completeOidcLinkService } from './oidc-linking.service.ts'
 import type { OidcClientConfiguration, OidcVerifiedIdentity } from './Types/oidc.types.ts'
 import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts'
 
@@ -42,7 +46,7 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
     }
     return {
         /** Binds a fresh authorization attempt to the provider generation, browser and callback URI. */
-        beginOidcLoginService(providerId: string) {
+        beginOidcLoginService(providerId: string, link?: OidcLinkTarget) {
             return admitted(async () => {
                 const configuration = await dependencies.configuration(providerId)
                 const flow = {
@@ -52,11 +56,12 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
                     redirectUri: redirectUri(),
                     nonce: createOpaqueToken(),
                     codeVerifier: createOpaqueToken(),
+                    ...(link ? { link } : {}),
                 }
                 const issued = await dependencies.state.issue(flow)
                 const authorizationUrl = await dependencies.protocol.buildAuthorizationUrl(
                     configuration,
-                    { ...flow, state: issued.state },
+                    { ...flow, state: issued.state, ...(link ? { prompt: 'login' as const } : {}) },
                 )
                 return { ...issued, authorizationUrl }
             }).catch(() => {
@@ -64,13 +69,18 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
             })
         },
         /** Consumes browser proof before redemption and rechecks trust before local authentication. */
-        completeOidcLoginService(callback: URL, browserToken: string) {
+        completeOidcLoginService(
+            callback: URL,
+            browserToken: string,
+            linking = false,
+        ): Promise<OidcFlowCompletion> {
             return admitted(async () => {
                 try {
                     const state = callback.searchParams.get('state') ?? ''
                     const flow = await dependencies.state.consume(state, browserToken)
                     if (
                         !flow ||
+                        !!flow.link !== linking ||
                         flow.redirectUri !== redirectUri() ||
                         callback.origin + callback.pathname !== flow.redirectUri
                     )
@@ -88,6 +98,11 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
                     )
                     if (identity.issuer !== flow.issuer)
                         throw new OidcDomainError('authentication_failed')
+                    if (flow.link) {
+                        if (!dependencies.link) throw new OidcDomainError('authentication_failed')
+                        await dependencies.link(configuration, identity, flow.link)
+                        return { success: true as const, linked: true as const }
+                    }
                     const result = await dependencies.authenticate(configuration, identity)
                     if (!result.success) throw new OidcDomainError('authentication_failed')
                     return result
@@ -105,19 +120,15 @@ export async function authenticateOidcIdentityService(
     configuration: OidcClientConfiguration,
     identity: OidcVerifiedIdentity,
 ): Promise<LoginResult> {
-    const provider = await readOidcProviderService(configuration.providerId)
-    const binding = provider?.bindings.find((entry) => entry.subject === identity.subject)
-    if (!binding || provider?.issuer !== identity.issuer)
-        throw new OidcDomainError('identity_not_allowed')
-    const proof = {
-        providerId: configuration.providerId,
-        providerRevision: configuration.revision,
-        issuer: identity.issuer,
-        subject: identity.subject,
-        userId: binding.userId,
-    }
     return getAuthDatabase().transaction(async (transaction) => {
-        await requireOidcAuthenticationInTransaction(transaction, proof)
+        const proof = await resolveOidcAccountInTransaction(transaction, configuration, identity)
+        try {
+            await requireOidcAuthenticationInTransaction(transaction, proof)
+        } catch (error) {
+            if (error instanceof AuthDomainError && error.code === 'user_not_active')
+                return { success: false as const, code: 'invalid_credentials' as const }
+            throw error
+        }
         const factor = await getLoginMfaFactorInTransaction(transaction, proof.userId)
         if (factor) {
             const challenge = await createOidcLoginMfaChallengeService({
@@ -131,6 +142,7 @@ export async function authenticateOidcIdentityService(
             proof.userId,
             'oidc',
             new Date(0),
+            proof,
         )
         return {
             success: true as const,
@@ -147,6 +159,7 @@ export const { beginOidcLoginService, completeOidcLoginService } = createOidcLog
     state: oidcFlowStore,
     protocol: oidcProtocolClient,
     authenticate: authenticateOidcIdentityService,
+    link: completeOidcLinkService,
     failed: async () => {
         await recordAuditEventBestEffortService({
             actorUserId: null,
@@ -159,3 +172,9 @@ export const { beginOidcLoginService, completeOidcLoginService } = createOidcLog
         })
     },
 })
+
+/** Requires fresh local consent before issuing an explicit account-link authorization flow. */
+export async function beginOidcLinkService(providerId: string) {
+    const target = await authorizeOidcLinkService(providerId)
+    return beginOidcLoginService(providerId, target)
+}

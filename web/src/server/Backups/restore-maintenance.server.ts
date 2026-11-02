@@ -22,7 +22,11 @@ async function readViewerSessions() {
         SELECT s.token_hash AS "tokenHash", s.expires_at AS "expiresAt"
         FROM rentnerproxy.sessions s
         JOIN rentnerproxy.users u ON u.id = s.user_id
-        WHERE s.expires_at > now() AND u.status = 'active' AND EXISTS (
+        WHERE s.expires_at > now() AND u.status = 'active'
+          -- Provider trust cannot be re-evaluated after the database is quiesced.
+          AND (to_jsonb(s)->>'oidc_proof') IS NULL
+          AND (to_jsonb(u)->>'oidc_provider_id') IS NULL
+          AND EXISTS (
             SELECT 1 FROM rentnerproxy.user_roles ur
             JOIN rentnerproxy.roles r ON r.id = ur.role_id
             LEFT JOIN rentnerproxy.role_permissions rp ON rp.role_id = r.id

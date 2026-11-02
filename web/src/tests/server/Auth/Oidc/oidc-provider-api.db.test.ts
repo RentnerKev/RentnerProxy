@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { SQL } from 'bun'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { and, eq, inArray } from 'drizzle-orm'
 import { OIDC_CONFIGURATION_RATE_LIMIT, OIDC_SETTINGS_KEY } from '@/config/oidc.config.ts'
-import { auditEvents, roles, systemSettings, userRoles, users } from '@/db/schema.ts'
+import { auditEvents, roles, sessions, systemSettings, userRoles, users } from '@/db/schema.ts'
 import { getDatabaseUrl, getValkeyUrl } from '@/server/env.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { hashPassword } from '@/server/Auth/Core/password.server.ts'
@@ -14,6 +15,10 @@ import {
 import type { StoredOidcSettings } from '@/server/Auth/Oidc/Types/oidc-provider.types.ts'
 import { closeValkeyClient, getValkeyClient } from '@/server/Valkey/client.server.ts'
 import { createRateLimitKey } from '@/server/Valkey/rate-limiter.service.ts'
+import {
+    captureRestoreSessionsSql,
+    mergeRestoreSessionsSql,
+} from '../../../../../../scripts/backup/restore-session-continuity.ts'
 
 const enabled =
     process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' &&
@@ -28,7 +33,17 @@ let currentCookie: string | null = null
 mock.module('@/server/Auth/Access/cookies.server.ts', () => ({
     getSessionCookie: () => currentCookie,
 }))
-const { createSessionService } = await import('@/server/Auth/Access/sessions.service.ts')
+const { createSessionService, getSessionByTokenService } =
+    await import('@/server/Auth/Access/sessions.service.ts')
+const {
+    authorizeOidcLinkService,
+    completeOidcLinkService,
+    getOidcConnectionsService,
+    unlinkOidcConnectionService,
+} = await import('@/server/Auth/Oidc/oidc-linking.service.ts')
+const { getOidcClientConfigurationService } =
+    await import('@/server/Auth/Oidc/oidc-providers.service.ts')
+const { authenticateOidcIdentityService } = await import('@/server/Auth/Oidc/oidc-login.service.ts')
 const { handleOidcProviderRequest } =
     await import('@/server/Auth/Oidc/oidc-provider-response.server.ts')
 const { handleOidcProviderTestRequest } =
@@ -68,6 +83,34 @@ async function request(method: 'GET' | 'POST', body?: unknown, requestOrigin = o
 /** Reads durable state independently of the HTTP response and request authorization. */
 async function storedSettings() {
     return getAuthDatabase().transaction((transaction) => readStoredOidcSettings(transaction))
+}
+
+/** Installs a real encrypted provider without assuming any pre-existing external account. */
+async function linkProvider() {
+    const current = await storedSettings()
+    const providerId = randomUUID()
+    const response = await request('POST', {
+        expectedRevision: current.revision,
+        providers: [
+            ...current.providers.map(
+                ({ revision: _revision, clientSecret: _secret, ...provider }) => provider,
+            ),
+            {
+                id: providerId,
+                name: 'Self-service linking',
+                enabled: true,
+                issuer: 'https://linking.example.test',
+                clientId: 'linking-client',
+                clientSecret: 'synthetic-linking-secret',
+                tokenEndpointAuthMethod: 'client_secret_basic',
+                allowedEndpointOrigins: ['https://linking.example.test'],
+                allowedPrivateCidrs: [],
+                bindings: [],
+            },
+        ],
+    })
+    expect(response.status).toBe(200)
+    return getOidcClientConfigurationService(providerId)
 }
 
 /** Restores only the OIDC singleton snapshot while retaining monotonic configuration history. */
@@ -139,8 +182,11 @@ beforeEach(async () => {
     })
     const owner = await createSessionService(ownerId, 'password')
     const viewer = await createSessionService(viewerId, 'password')
-    const staleOwner = await createSessionService(ownerId, 'oidc')
-    expect(staleOwner.reauthenticatedAt.getTime()).toBe(0)
+    const staleOwner = await createSessionService(ownerId, 'password')
+    await getAuthDatabase()
+        .update(sessions)
+        .set({ reauthenticatedAt: new Date(0) })
+        .where(eq(sessions.id, staleOwner.id))
     ownerToken = owner.token
     viewerToken = viewer.token
     staleOwnerToken = staleOwner.token
@@ -188,6 +234,180 @@ afterAll(async () => {
 })
 
 describe('OIDC owner JSON API with actual authorization, settings and audit persistence', () => {
+    integrationTest(
+        'preserves current local sessions across restore without restoring OIDC proof as local authentication',
+        async () => {
+            const configuration = await linkProvider()
+            const identity = {
+                issuer: configuration.issuer,
+                subject: 'restore-subject',
+                expiresAt: Date.now() + 120_000,
+            }
+            await completeOidcLinkService(
+                configuration,
+                identity,
+                await authorizeOidcLinkService(configuration.providerId),
+            )
+            const login = await authenticateOidcIdentityService(configuration, identity)
+            if (!login.success || login.requiresTwoFactor)
+                throw new Error('Fixture OIDC session was not issued.')
+            const client = new SQL(getDatabaseUrl()!, { max: 1 })
+            try {
+                const rows = await client.unsafe(captureRestoreSessionsSql).values()
+                const currentSessionsSnapshot: unknown = rows[0]?.[0]
+                if (typeof currentSessionsSnapshot !== 'string')
+                    throw new Error('Missing captured sessions.')
+                expect(currentSessionsSnapshot).not.toContain(login.session.id)
+                await client.unsafe(mergeRestoreSessionsSql(currentSessionsSnapshot)).simple()
+                expect(await getSessionByTokenService(ownerToken)).not.toBeNull()
+                expect(await getSessionByTokenService(viewerToken)).not.toBeNull()
+                expect(await getSessionByTokenService(login.session.token)).toBeNull()
+                const retained = await getAuthDatabase()
+                    .select({ proof: sessions.oidcProof })
+                    .from(sessions)
+                expect(retained.length).toBeGreaterThanOrEqual(2)
+                expect(retained.every((entry) => entry.proof === null)).toBeTrue()
+            } finally {
+                await client.close()
+            }
+        },
+    )
+
+    integrationTest(
+        'links and unlinks only the consenting local user without invalidating unrelated sessions',
+        async () => {
+            const configuration = await linkProvider()
+            const identity = {
+                issuer: configuration.issuer,
+                subject: 'owner-subject',
+                expiresAt: Date.now() + 120_000,
+            }
+            const ownerTarget = await authorizeOidcLinkService(configuration.providerId)
+            await completeOidcLinkService(configuration, identity, ownerTarget)
+            const first = await authenticateOidcIdentityService(configuration, identity)
+            if (!first.success || first.requiresTwoFactor)
+                throw new Error('Linked owner sign-in failed.')
+            const firstProof = (
+                await getAuthDatabase()
+                    .select()
+                    .from(sessions)
+                    .where(eq(sessions.id, first.session.id))
+            )[0]?.oidcProof
+            expect(firstProof?.bindingGeneration).toBeGreaterThan(0)
+            currentCookie = viewerToken
+            const viewerTarget = await authorizeOidcLinkService(configuration.providerId)
+            rateLimitKeys.add(
+                createRateLimitKey(OIDC_CONFIGURATION_RATE_LIMIT.scope, viewerTarget.userId),
+            )
+            const viewerIdentity = { ...identity, subject: 'viewer-subject' }
+            await completeOidcLinkService(configuration, viewerIdentity, viewerTarget)
+            const viewer = await authenticateOidcIdentityService(configuration, viewerIdentity)
+            if (!viewer.success || viewer.requiresTwoFactor)
+                throw new Error('Linked viewer sign-in failed.')
+            expect(await getSessionByTokenService(first.session.token)).not.toBeNull()
+            expect((await getOidcConnectionsService()).providers).toEqual([
+                {
+                    id: configuration.providerId,
+                    name: 'Self-service linking',
+                    enabled: true,
+                    linked: true,
+                },
+            ])
+
+            currentCookie = ownerToken
+            await unlinkOidcConnectionService({
+                providerId: configuration.providerId,
+                expectedRevision: (await storedSettings()).revision,
+            })
+            expect(await getSessionByTokenService(first.session.token)).toBeNull()
+            expect(await getSessionByTokenService(ownerToken)).not.toBeNull()
+            expect(await getSessionByTokenService(viewer.session.token)).not.toBeNull()
+            const relinkTarget = await authorizeOidcLinkService(configuration.providerId)
+            await completeOidcLinkService(configuration, identity, relinkTarget)
+            const relinked = await authenticateOidcIdentityService(configuration, identity)
+            if (!relinked.success || relinked.requiresTwoFactor)
+                throw new Error('Relink sign-in failed.')
+            expect(await getSessionByTokenService(first.session.token)).toBeNull()
+            expect(await getSessionByTokenService(relinked.session.token)).not.toBeNull()
+            expect(
+                (await storedSettings()).providers.find(
+                    (entry) => entry.id === configuration.providerId,
+                )?.revision,
+            ).toBe(configuration.revision)
+        },
+    )
+
+    integrationTest(
+        'rejects switched sessions and stale local authentication before binding an external identity',
+        async () => {
+            const configuration = await linkProvider()
+            const target = await authorizeOidcLinkService(configuration.providerId)
+            const before = await storedSettings()
+            currentCookie = viewerToken
+            await expect(
+                completeOidcLinkService(
+                    configuration,
+                    {
+                        issuer: configuration.issuer,
+                        subject: 'switched-subject',
+                        expiresAt: Date.now() + 120_000,
+                    },
+                    target,
+                ),
+            ).rejects.toMatchObject({ code: 'authentication_required' })
+            currentCookie = staleOwnerToken
+            await expect(authorizeOidcLinkService(configuration.providerId)).rejects.toMatchObject({
+                code: 'reauthentication_required',
+            })
+            expect(await storedSettings()).toEqual(before)
+        },
+    )
+
+    integrationTest(
+        'serializes concurrent claims of one external subject and invalidates stale linking consent',
+        async () => {
+            const configuration = await linkProvider()
+            const ownerTarget = await authorizeOidcLinkService(configuration.providerId)
+            currentCookie = viewerToken
+            const viewerTarget = await authorizeOidcLinkService(configuration.providerId)
+            rateLimitKeys.add(
+                createRateLimitKey(OIDC_CONFIGURATION_RATE_LIMIT.scope, viewerTarget.userId),
+            )
+            const identity = {
+                issuer: configuration.issuer,
+                subject: 'concurrent-subject',
+                expiresAt: Date.now() + 120_000,
+            }
+            // Capture each request's session synchronously before the first asynchronous database operation.
+            currentCookie = ownerToken
+            const first = completeOidcLinkService(configuration, identity, ownerTarget)
+            currentCookie = viewerToken
+            const second = completeOidcLinkService(configuration, identity, viewerTarget)
+            const results = await Promise.allSettled([first, second])
+            expect(results.filter((entry) => entry.status === 'fulfilled')).toHaveLength(1)
+            expect(results.filter((entry) => entry.status === 'rejected')).toHaveLength(1)
+            const bindings = (await storedSettings()).providers.find(
+                (entry) => entry.id === configuration.providerId,
+            )!.bindings
+            expect(bindings).toHaveLength(1)
+            expect([ownerTarget.userId, viewerTarget.userId]).toContain(bindings[0]!.userId)
+            currentCookie = bindings[0]!.userId === ownerId ? ownerToken : viewerToken
+            const stale = await authorizeOidcLinkService(configuration.providerId)
+            await unlinkOidcConnectionService({
+                providerId: configuration.providerId,
+                expectedRevision: stale.expectedRevision,
+            })
+            await expect(
+                completeOidcLinkService(configuration, identity, stale),
+            ).rejects.toMatchObject({ code: 'configuration_conflict' })
+            expect(
+                (await storedSettings()).providers.find(
+                    (entry) => entry.id === configuration.providerId,
+                )?.bindings,
+            ).toEqual([])
+        },
+    )
+
     integrationTest(
         'protects saved-provider probes with real owner freshness and redacted failure responses',
         async () => {

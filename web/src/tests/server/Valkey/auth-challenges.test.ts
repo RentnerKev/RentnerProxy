@@ -311,8 +311,11 @@ describe('authentication challenge storage', () => {
             kind: 'oidc' as const,
             providerId: 'provider-1',
             providerRevision: 3,
+            bindingGeneration: 7,
             issuer: 'https://identity.example.test',
             subject: 'opaque-subject',
+            expiresAt: Date.now() + 60_000,
+            groups: ['operators'],
         }
         const issued = await createAuthChallenge(
             { ...createLoginChallenge(), firstFactor },
@@ -332,11 +335,19 @@ describe('authentication challenge storage', () => {
         providerRevision: 3,
         issuer: 'https://identity.example.test',
         subject: 'opaque-subject',
+        expiresAt: Date.now() + 60_000,
     }
     for (const firstFactor of [
         { ...oidcProof, providerRevision: -1 },
+        { ...oidcProof, bindingGeneration: -1 },
+        { ...oidcProof, bindingGeneration: 0.5 },
         { ...oidcProof, providerRevision: 1.5 },
         { ...oidcProof, subject: '' },
+        { ...oidcProof, expiresAt: 0 },
+        { ...oidcProof, expiresAt: undefined },
+        { ...oidcProof, groups: ['operators', 42] },
+        { ...oidcProof, groups: ['a'.repeat(256)] },
+        { ...oidcProof, groups: Array.from({ length: 129 }, () => 'operators') },
         { ...oidcProof, passwordFingerprint: 'a'.repeat(64) },
         { ...oidcProof, userId: 'another-user' },
         { kind: 'password', passwordFingerprint: 'not-a-fingerprint' },

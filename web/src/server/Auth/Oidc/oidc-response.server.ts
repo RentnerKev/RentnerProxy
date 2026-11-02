@@ -5,6 +5,8 @@ import {
     OIDC_CALLBACK_PATH,
     OIDC_FLOW_COOKIE_NAME,
     OIDC_DEVELOPMENT_FLOW_COOKIE_NAME,
+    OIDC_LINK_FLOW_COOKIE_NAME,
+    OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME,
     OIDC_LIMITS,
     OIDC_RATE_LIMIT,
 } from '@/config/oidc.config.ts'
@@ -13,7 +15,11 @@ import { getPublicOrigin } from '@/server/env.server.ts'
 import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { consumeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
-import { beginOidcLoginService, completeOidcLoginService } from './oidc-login.service.ts'
+import {
+    beginOidcLoginService,
+    beginOidcLinkService,
+    completeOidcLoginService,
+} from './oidc-login.service.ts'
 import { getOidcClientIp } from './oidc-request-ip.server.ts'
 import type { OidcHttpHandlerDependencies } from './Types/oidc-response.types.ts'
 
@@ -35,15 +41,19 @@ function responseHeaders() {
 }
 
 /** Uses a browser-enforced host-only binding on HTTPS and a distinct development cookie on HTTP. */
-function flowCookieName(origin: string): string {
+function flowCookieName(origin: string, link = false): string {
+    if (link)
+        return new URL(origin).protocol === 'https:'
+            ? OIDC_LINK_FLOW_COOKIE_NAME
+            : OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME
     return new URL(origin).protocol === 'https:'
         ? OIDC_FLOW_COOKIE_NAME
         : OIDC_DEVELOPMENT_FLOW_COOKIE_NAME
 }
 
 /** Rejects duplicate, malformed or oversized browser bindings before any exchange is consumed. */
-function flowCookie(request: Request, origin: string): string | null {
-    const name = flowCookieName(origin)
+function flowCookie(request: Request, origin: string, link = false): string | null {
+    const name = flowCookieName(origin, link)
     const header = request.headers.get('cookie') ?? ''
     if (header.length > OIDC_LIMITS.cookieHeaderBytes) return null
     const matches = header
@@ -113,7 +123,6 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                 return new Response(null, { status: 415, headers })
             try {
                 await dependencies.limit()
-                if (await dependencies.signedIn()) return redirect('/')
                 if (!request.body) throw new Error('invalid_input')
                 const signal = AbortSignal.any([
                     request.signal,
@@ -127,14 +136,25 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                 const body = new URLSearchParams(
                     new TextDecoder('utf-8', { fatal: true }).decode(bytes),
                 )
-                if ([...body.keys()].length !== 1 || body.getAll('providerId').length !== 1)
+                const linking = body.get('intent') === 'link'
+                if (
+                    [...body.keys()].length !== (linking ? 2 : 1) ||
+                    body.getAll('providerId').length !== 1 ||
+                    (linking && body.getAll('intent').length !== 1)
+                )
+                    throw new Error('invalid_input')
+                const signedIn = await dependencies.signedIn()
+                if (signedIn && !linking) return redirect('/')
+                if (linking && (!signedIn || !dependencies.beginLink))
                     throw new Error('invalid_input')
                 const providerId = z.uuid().parse(body.get('providerId'))
-                const result = await dependencies.begin(providerId)
+                const result = linking
+                    ? await dependencies.beginLink!(providerId)
+                    : await dependencies.begin(providerId)
                 headers.append(
                     'Set-Cookie',
                     cookie(
-                        flowCookieName(origin),
+                        flowCookieName(origin, linking),
                         result.browserToken,
                         '/',
                         result.expiresAt,
@@ -154,7 +174,9 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
             if (!origin) return new Response(null, { status: 503, headers })
             try {
                 await dependencies.limit()
-                if (await dependencies.signedIn()) return redirect('/', headers)
+                const signedIn = await dependencies.signedIn()
+                const linkToken = flowCookie(request, origin, true)
+                if (signedIn && !linkToken) return redirect('/', headers)
                 const incoming = new URL(request.url)
                 if (
                     incoming.pathname !== OIDC_CALLBACK_PATH ||
@@ -167,13 +189,22 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                         incoming.searchParams.getAll(key).length !== 1
                     )
                         throw new Error('invalid_input')
-                const browserToken = flowCookie(request, origin)
+                const browserToken = signedIn ? linkToken : flowCookie(request, origin)
                 if (!browserToken) throw new Error('invalid_input')
                 const canonical = new URL(OIDC_CALLBACK_PATH, origin)
                 // Behind Caddy the internal Request origin may differ; only PUBLIC_ORIGIN defines the registered callback.
                 canonical.search = incoming.search
-                const result = await dependencies.complete(canonical, browserToken)
+                const result = await dependencies.complete(canonical, browserToken, signedIn)
                 if (!result.success) throw new Error('authentication_failed')
+                if ('linked' in result) {
+                    if (!signedIn || !linkToken) throw new Error('authentication_failed')
+                    headers.append(
+                        'Set-Cookie',
+                        cookie(flowCookieName(origin, true), '', '/', new Date(0), origin),
+                    )
+                    headers.set('Location', '/account')
+                    return new Response(null, { status: 303, headers })
+                }
                 headers.append(
                     'Set-Cookie',
                     cookie(flowCookieName(origin), '', '/', new Date(0), origin),
@@ -216,6 +247,7 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
 export const oidcHttpHandlers = createOidcHttpHandlers({
     origin: getPublicOrigin,
     begin: beginOidcLoginService,
+    beginLink: beginOidcLinkService,
     complete: completeOidcLoginService,
     limit: async () => {
         await consumeRateLimit({ ...OIDC_RATE_LIMIT, identifier: getOidcClientIp() })

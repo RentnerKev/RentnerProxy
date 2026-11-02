@@ -109,10 +109,10 @@ try {
     await client`create schema rentnerproxy`
     ownedSchema = true
     await client.unsafe(`
-        create table rentnerproxy.users (id uuid primary key, status varchar(20) not null);
+        create table rentnerproxy.users (id uuid primary key, status varchar(20) not null, oidc_provider_id uuid);
         create table rentnerproxy.sessions (
             id uuid primary key default uuidv7(), user_id uuid not null references rentnerproxy.users(id) on delete cascade,
-            token_hash varchar(64) not null, created_at timestamptz not null default now(),
+            token_hash varchar(64) not null, oidc_proof jsonb, created_at timestamptz not null default now(),
             last_seen_at timestamptz not null default now(), reauthenticated_at timestamptz not null default now(),
             expires_at timestamptz not null
         );

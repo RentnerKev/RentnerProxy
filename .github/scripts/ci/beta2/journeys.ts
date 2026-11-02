@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { drainConcurrent, runBoundedTasks } from '../../../../scripts/runtime-scale/control.ts'
+import { runBoundedTasks } from '../../../../scripts/runtime-scale/control.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { verifyConcurrentTraffic } from '../../../../scripts/runtime-scale/traffic.ts'
 import type { ScaleResult } from '../../../../scripts/runtime-scale/Types/control.types.ts'
@@ -50,6 +50,7 @@ import {
     reconcileProxyConfigurationService,
 } from '../../../../web/src/server/ProxyRuntime/proxy-runtime.service.ts'
 import { waitForBeta2 } from './wait.ts'
+import { createBeta2RoundDiagnostics, drainBeta2Round } from './diagnostics.ts'
 import type { Beta2JourneyInput } from './Types/journeys.types.ts'
 
 const backendSchema = z.object({ backend: z.enum(['a', 'b', 'tls']) })
@@ -83,11 +84,15 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
     const hosts = () => authorized(getProxyHostsService)
     const ddns = () => authorized(getDdnsStatusService)
     const discovery = () => authorized(getDiscoveryOverviewService)
+    let roundDiagnostics: ReturnType<typeof createBeta2RoundDiagnostics> | undefined
     async function http(domain = 'h0.beta2.test') {
         const response = await fetch(`http://127.0.0.1:${httpPort}/`, {
             headers: { host: domain },
             signal: AbortSignal.timeout(8_000),
             redirect: 'manual',
+        }).catch((error: unknown) => {
+            roundDiagnostics?.transportFailure(domain, error)
+            throw error
         })
         const body: { backend?: 'a' | 'b' | 'tls' } =
             response.status === 200 ? backendSchema.parse(await response.json()) : {}
@@ -513,27 +518,35 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
             const before = { ...receivers.counters }
             const progress = { done: false }
             let samples = 0
+            const diagnostics = createBeta2RoundDiagnostics(round + 1)
+            roundDiagnostics = diagnostics
             const actions = Promise.allSettled([
                 (async () => {
-                    await bulk(false)
-                    await bulk(true)
+                    await diagnostics.span('bulk-disable', () => bulk(false))
+                    await diagnostics.span('bulk-enable', () => bulk(true))
                 })(),
-                authorized(async () =>
-                    syncDdnsService({ expectedRevision: (await ddns()).configuration!.revision }),
-                ),
-                recreate(),
-                notify(),
-                runBoundedTasks(scaleHosts.slice(8), 4, async (host) =>
-                    authorized(() =>
-                        updateProxyHostService({
-                            proxyHostId: host.id,
-                            domains: host.domains,
-                            enabled: true,
-                            forwardScheme: 'http',
-                            forwardHost: receivers.dockerAddress,
-                            forwardPort:
-                                round % 2 ? receivers.primaryPort : receivers.secondaryPort,
+                diagnostics.span('ddns', () =>
+                    authorized(async () =>
+                        syncDdnsService({
+                            expectedRevision: (await ddns()).configuration!.revision,
                         }),
+                    ),
+                ),
+                diagnostics.span('recreate', recreate),
+                diagnostics.span('notifications', notify),
+                diagnostics.span('updates', () =>
+                    runBoundedTasks(scaleHosts.slice(8), 4, async (host) =>
+                        authorized(() =>
+                            updateProxyHostService({
+                                proxyHostId: host.id,
+                                domains: host.domains,
+                                enabled: true,
+                                forwardScheme: 'http',
+                                forwardHost: receivers.dockerAddress,
+                                forwardPort:
+                                    round % 2 ? receivers.primaryPort : receivers.secondaryPort,
+                            }),
+                        ),
                     ),
                 ),
             ]).finally(() => {
@@ -546,9 +559,10 @@ export async function runBeta2Journeys(input: Beta2JourneyInput) {
                     await new Promise((resolve) => setTimeout(resolve, 5))
                 }
             })()
-            const [operations] = await drainConcurrent([actions, trafficRun] as const)
-            for (const result of operations) {
-                if (result.status === 'rejected') throw result.reason
+            try {
+                await drainBeta2Round(actions, trafficRun)
+            } finally {
+                roundDiagnostics = undefined
             }
             await notify()
             assert.ok(

@@ -19,6 +19,7 @@ import {
 } from '@/config/auth-security.config.ts'
 import { createOpaqueToken, isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { getValkeyClient } from './client.server.ts'
+import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import type { ValkeyCommandClient } from './Types/valkey.types.ts'
 
 const KEY_PREFIX = 'rentnerproxy:auth-challenge'
@@ -130,18 +131,45 @@ function isLoginFirstFactor(value: unknown): value is LoginFirstFactor {
     }
     return (
         proof.kind === 'oidc' &&
-        Object.keys(proof).length === 5 &&
+        Object.keys(proof).every((key) =>
+            [
+                'kind',
+                'providerId',
+                'providerRevision',
+                'bindingGeneration',
+                'issuer',
+                'subject',
+                'expiresAt',
+                'groups',
+            ].includes(key),
+        ) &&
         typeof proof.providerId === 'string' &&
         proof.providerId.length > 0 &&
         proof.providerId.length <= 100 &&
         Number.isSafeInteger(proof.providerRevision) &&
         Number(proof.providerRevision) >= 1 &&
+        (proof.bindingGeneration === undefined ||
+            (Number.isSafeInteger(proof.bindingGeneration) &&
+                Number(proof.bindingGeneration) >= 0)) &&
         typeof proof.issuer === 'string' &&
         proof.issuer.length > 0 &&
         proof.issuer.length <= 2048 &&
         typeof proof.subject === 'string' &&
         proof.subject.length > 0 &&
-        proof.subject.length <= 255
+        proof.subject.length <= 255 &&
+        /^[\x21-\x7e]+$/u.test(proof.subject) &&
+        Number.isSafeInteger(proof.expiresAt) &&
+        Number(proof.expiresAt) > Date.now() &&
+        Number(proof.expiresAt) <= 8_640_000_000_000_000 &&
+        (proof.groups === undefined ||
+            (Array.isArray(proof.groups) &&
+                proof.groups.length <= OIDC_LIMITS.groups &&
+                proof.groups.every(
+                    (group) =>
+                        typeof group === 'string' &&
+                        group.length > 0 &&
+                        group.length <= OIDC_LIMITS.groupLength,
+                )))
     )
 }
 

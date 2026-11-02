@@ -33,6 +33,7 @@ export interface AuditMetadata {
     readonly enabled?: boolean
     readonly pausedAfterRestore?: boolean
     readonly authenticationMethod?: AuditAuthenticationMethod
+    readonly localAuthenticationMethod?: 'totp' | 'recovery-code'
     readonly reason?: 'authentication_failed'
     readonly failureCode?: AuditFailureCode
     readonly changedFields?: readonly AuditChangedField[]

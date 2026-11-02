@@ -19,6 +19,11 @@ import {
     isValidOpaqueToken,
 } from '@/server/Auth/Core/tokens.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import type { OidcSessionProof } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
+import {
+    isOidcSessionValidInTransaction,
+    prepareOidcSessionProof,
+} from '@/server/Auth/Oidc/oidc-session.server.ts'
 
 export function getPasswordAuthenticationFingerprint(passwordHash: string): string {
     // Challenge storage carries a fingerprint, never the password hash itself.
@@ -90,13 +95,21 @@ export async function createSessionInTransaction(
         | 'setup'
         | 'oidc' = 'password',
     reauthenticatedAt = authenticationMethod === 'oidc' ? new Date(0) : new Date(),
+    oidcIdentityProof?: OidcSessionProof,
 ) {
+    if (authenticationMethod === 'oidc' && !oidcIdentityProof)
+        throw new AuthDomainError('user_not_active', 'Authentication state is no longer valid.')
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)
     const now = new Date()
-    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+    const oidcProof = oidcIdentityProof
+        ? prepareOidcSessionProof(oidcIdentityProof, userId, now.getTime())
+        : null
+    const expiresAt = new Date(
+        Math.min(now.getTime() + SESSION_DURATION_MS, oidcProof?.expiresAt ?? Infinity),
+    )
     const userRows = await transaction
-        .select({ id: users.id, status: users.status })
+        .select({ id: users.id, status: users.status, oidcProviderId: users.oidcProviderId })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1)
@@ -107,20 +120,31 @@ export async function createSessionInTransaction(
         throw new AuthDomainError('user_not_active', 'User is not active.')
     }
 
+    const access = await resolveActiveUserAccessInTransaction(transaction, userId)
+    if (
+        !access ||
+        !access.permissions.includes(PERMISSIONS.APP_ACCESS) ||
+        (user.oidcProviderId !== null && !oidcProof) ||
+        (oidcProof &&
+            !(await isOidcSessionValidInTransaction(
+                transaction,
+                oidcProof,
+                userId,
+                user.oidcProviderId,
+                access.roles,
+                now.getTime(),
+            )))
+    )
+        throw new AuthDomainError('user_not_active', 'User is not active.')
+
     const sessionRows = await transaction
         .insert(sessions)
-        .values({ expiresAt, reauthenticatedAt, tokenHash, userId })
+        .values({ expiresAt, reauthenticatedAt, tokenHash, userId, oidcProof })
         .returning({ id: sessions.id })
     const session = sessionRows.at(0)
 
     if (!session) {
         throw new AuthDomainError('service_unavailable', 'Session could not be created.')
-    }
-
-    const access = await resolveActiveUserAccessInTransaction(transaction, userId)
-
-    if (!access || !access.permissions.includes(PERMISSIONS.APP_ACCESS)) {
-        throw new AuthDomainError('user_not_active', 'User is not active.')
     }
 
     await pruneExpiredSessionsInTransaction(transaction, now)
@@ -131,7 +155,13 @@ export async function createSessionInTransaction(
         resource: 'session',
         targetId: session.id,
         result: 'success',
-        metadata: { authenticationMethod },
+        metadata: {
+            authenticationMethod: oidcProof ? 'oidc' : authenticationMethod,
+            ...(oidcProof &&
+            (authenticationMethod === 'totp' || authenticationMethod === 'recovery-code')
+                ? { localAuthenticationMethod: authenticationMethod }
+                : {}),
+        },
     })
     return { id: session.id, token, expiresAt, reauthenticatedAt, user: access }
 }
@@ -163,6 +193,8 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
                 reauthenticatedAt: sessions.reauthenticatedAt,
                 lastSeenAt: sessions.lastSeenAt,
                 userId: sessions.userId,
+                oidcProof: sessions.oidcProof,
+                oidcProviderId: users.oidcProviderId,
             })
             .from(sessions)
             .innerJoin(users, eq(users.id, sessions.userId))
@@ -185,6 +217,20 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
         if (!user || !user.permissions.includes(PERMISSIONS.APP_ACCESS)) {
             return null
         }
+
+        if (
+            (session.oidcProviderId !== null && !session.oidcProof) ||
+            (session.oidcProof &&
+                !(await isOidcSessionValidInTransaction(
+                    transaction,
+                    session.oidcProof,
+                    session.userId,
+                    session.oidcProviderId,
+                    user.roles,
+                    now.getTime(),
+                )))
+        )
+            return null
 
         if (session.lastSeenAt.getTime() <= touchCutoff.getTime())
             await transaction

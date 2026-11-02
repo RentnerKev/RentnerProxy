@@ -10,7 +10,14 @@ export interface ProviderDraft {
     tokenEndpointAuthMethod: 'client_secret_basic' | 'client_secret_post'
     endpointOrigins: string
     privateCidrs: string
-    bindings: { rowId: string; subject: string; userId: string }[]
+    bindings: {
+        rowId: string
+        subject: string
+        userId: string
+        roleSource?: 'local' | 'provider' | undefined
+        generation?: number | undefined
+    }[]
+    accountPolicy?: OidcProviderSummary['accountPolicy']
 }
 export interface OidcProvidersLogicResult {
     state: {

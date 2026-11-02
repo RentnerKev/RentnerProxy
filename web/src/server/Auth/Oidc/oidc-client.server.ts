@@ -10,6 +10,7 @@ import type {
 import type { OidcProtocolOptions } from './Types/oidc-client.types.ts'
 import { OidcDomainError } from './oidc.errors.ts'
 import { createOidcHttpFetch, validateOidcEndpoint } from './oidc-http.server.ts'
+import { readVerifiedOidcClaims } from './oidc-claims.server.ts'
 
 /** Narrows untrusted protocol JSON without accepting arrays or null as metadata objects. */
 function record(value: unknown): value is Record<string, unknown> {
@@ -222,7 +223,8 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                 redirect_uri: request.redirectUri,
                 response_type: 'code',
                 response_mode: 'query',
-                scope: 'openid',
+                scope: configuration.groupClaim ? 'openid profile email' : 'openid',
+                ...(request.prompt ? { prompt: request.prompt } : {}),
                 state: request.state,
                 nonce: request.nonce,
                 code_challenge_method: 'S256',
@@ -272,7 +274,10 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                         claims.azp !== configuration.clientId)
                 )
                     throw new Error()
-                return { issuer: claims.iss, subject: claims.sub }
+                return readVerifiedOidcClaims(
+                    { ...claims, iss: claims.iss, sub: claims.sub, exp: claims.exp },
+                    configuration.groupClaim,
+                )
             } catch {
                 throw new OidcDomainError('authentication_failed')
             }

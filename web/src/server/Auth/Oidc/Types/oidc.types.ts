@@ -1,3 +1,5 @@
+import type { OidcSessionProof } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
+
 export interface OidcClientConfiguration {
     readonly providerId: string
     readonly revision: number
@@ -7,14 +9,11 @@ export interface OidcClientConfiguration {
     readonly tokenEndpointAuthMethod: 'client_secret_basic' | 'client_secret_post'
     readonly allowedEndpointOrigins: readonly string[]
     readonly allowedPrivateCidrs: readonly string[]
+    readonly groupClaim?: string
 }
 
-export interface OidcIdentityProof {
-    readonly providerId: string
-    readonly providerRevision: number
-    readonly issuer: string
-    readonly subject: string
-    readonly userId: string
+export interface OidcIdentityProof extends OidcSessionProof {
+    readonly groups?: readonly string[]
 }
 
 export interface OidcAuthorizationRequest {
@@ -22,9 +21,15 @@ export interface OidcAuthorizationRequest {
     readonly state: string
     readonly nonce: string
     readonly codeVerifier: string
+    readonly prompt?: 'login'
 }
 
 export interface OidcVerifiedIdentity {
     readonly issuer: string
     readonly subject: string
+    readonly expiresAt: number
+    readonly groups?: readonly string[]
+    readonly email?: string
+    readonly emailVerified?: boolean
+    readonly displayName?: string
 }

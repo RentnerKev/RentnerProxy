@@ -9,6 +9,7 @@ import {
     users,
 } from '@/db/schema.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import type { OidcIdentityProof } from '@/server/Auth/Oidc/Types/oidc.types.ts'
 import type {
@@ -36,20 +37,24 @@ let hasAppAccess = true
 let sessionCookie: string | null = null
 const challenges = new Map<string, LoginMfaChallenge>()
 const events: string[] = []
+const loginAudits: AuditEventInput[] = []
+let transactionCommits = 0
+let removeAccessOnSync = false
 let transactionPause: { entered: () => void; resume: Promise<void> } | null = null
 let decryptionPause: { entered: () => void; resume: Promise<void> } | null = null
 const oidcProof: OidcIdentityProof = {
-    providerId: 'provider-1',
+    providerId: '0198f2f0-0000-7000-8000-000000000002',
     providerRevision: 1,
     issuer: 'https://identity.example.test',
     subject: 'opaque-subject',
     userId,
+    expiresAt: Date.now() + 300_000,
 }
 let oidcProvider: {
     enabled: boolean
     revision: number
     issuer: string
-    bindings: { subject: string; userId: string }[]
+    bindings: { subject: string; userId: string; generation?: number }[]
 } | null = null
 
 const access: AuthenticatedUser = {
@@ -99,7 +104,9 @@ const database: AuthenticationTestDatabase = {
             pause.entered()
             await pause.resume
         }
-        return callback(database)
+        const result = await callback(database)
+        transactionCommits += 1
+        return result
     },
     insert: (table) => ({
         values: (value) => ({
@@ -180,6 +187,23 @@ mock.module('@/server/Auth/Oidc/oidc-providers.service.ts', () => ({
         return providerId === oidcProof.providerId ? oidcProvider : null
     },
 }))
+mock.module('@/server/Auth/Oidc/oidc-accounts.service.ts', () => ({
+    lockOidcAccountPolicyInTransaction: async () => undefined,
+    synchronizeOidcAccountInTransaction: async () => {
+        if (removeAccessOnSync) {
+            hasAppAccess = false
+            storedSessions = []
+            events.push('sessions-revoked')
+        }
+    },
+}))
+mock.module('@/server/Auth/Oidc/oidc-settings.server.ts', () => ({
+    readStoredOidcSettings: async () => ({
+        version: 1,
+        revision: oidcProvider?.revision ?? 0,
+        providers: oidcProvider ? [{ ...oidcProvider, id: oidcProof.providerId }] : [],
+    }),
+}))
 mock.module('@/server/Auth/Access/cookies.server.ts', () => ({
     getSessionCookie: () => sessionCookie,
 }))
@@ -193,7 +217,9 @@ mock.module('@/server/Auth/Access/authorization.service.ts', () => ({
     requireSessionPermission: async () => undefined,
 }))
 mock.module('@/server/Audit/audit.service.ts', () => ({
-    appendAuditEventInTransactionService: async () => undefined,
+    appendAuditEventInTransactionService: async (_transaction: unknown, event: AuditEventInput) => {
+        loginAudits.push(event)
+    },
     recordAuditEventBestEffortService: async () => undefined,
 }))
 mock.module('@/server/Mail/mail.service.ts', () => ({
@@ -310,7 +336,13 @@ async function rotatePassword(method: 'reset' | 'change') {
 }
 
 beforeEach(() => {
-    user = { id: userId, email: access.email, status: 'active', passwordHash: currentHash }
+    user = {
+        id: userId,
+        email: access.email,
+        status: 'active',
+        passwordHash: currentHash,
+        oidcProviderId: null,
+    }
     storedSessions = [
         {
             id: 'existing-session',
@@ -318,6 +350,8 @@ beforeEach(() => {
             expiresAt: new Date(Date.now() + 600_000),
             reauthenticatedAt: new Date(),
             lastSeenAt: new Date(),
+            oidcProof: null,
+            oidcProviderId: null,
         },
     ]
     factor = null
@@ -326,6 +360,9 @@ beforeEach(() => {
     sessionCookie = null
     challenges.clear()
     events.length = 0
+    loginAudits.length = 0
+    transactionCommits = 0
+    removeAccessOnSync = false
     transactionPause = null
     decryptionPause = null
     oidcProvider = {
@@ -566,7 +603,7 @@ describe('password authentication state', () => {
 describe('OIDC authentication state and local assurance', () => {
     test('defaults OIDC session freshness to local confirmation required', async () => {
         const session = await getAuthDatabase().transaction((transaction) =>
-            createSessionInTransaction(transaction, userId, 'oidc'),
+            createSessionInTransaction(transaction, userId, 'oidc', undefined, oidcProof),
         )
         expect(session.reauthenticatedAt.getTime()).toBe(0)
     })
@@ -574,7 +611,7 @@ describe('OIDC authentication state and local assurance', () => {
     test('creates an OIDC session without granting recent local authentication', async () => {
         storedSessions = []
         const session = await getAuthDatabase().transaction((transaction) =>
-            createSessionInTransaction(transaction, userId, 'oidc', new Date(0)),
+            createSessionInTransaction(transaction, userId, 'oidc', new Date(0), oidcProof),
         )
         expect(session.reauthenticatedAt.getTime()).toBe(0)
         expect(storedSessions.at(-1)?.reauthenticatedAt).toEqual(new Date(0))
@@ -600,6 +637,11 @@ describe('OIDC authentication state and local assurance', () => {
                           recoveryCode: 'valid-recovery',
                       })
             expect(await complete()).toMatchObject({ success: true })
+            expect(storedSessions.at(-1)?.oidcProof).toEqual({ ...oidcProof, bindingGeneration: 0 })
+            expect(loginAudits.at(-1)?.metadata).toEqual({
+                authenticationMethod: 'oidc',
+                localAuthenticationMethod: secondFactor === 'totp' ? 'totp' : 'recovery-code',
+            })
             expect(events.indexOf('provider-lock')).toBeLessThan(events.indexOf('user-lock:update'))
             expect(events.indexOf('user-lock:update')).toBeLessThan(
                 events.indexOf('session-created'),
@@ -611,11 +653,31 @@ describe('OIDC authentication state and local assurance', () => {
         })
     }
 
+    test('commits synchronized grant removal and session revocation when MFA loses access', async () => {
+        factor = enabledFactor()
+        const issued = await createOidcLoginMfaChallengeService({
+            ...oidcProof,
+            factorId: factor.id,
+        })
+        removeAccessOnSync = true
+        expect(
+            await completeLoginMfaWithRecoveryCodeService({
+                challengeId: issued.id,
+                recoveryCode: 'valid-recovery',
+            }),
+        ).toEqual({ success: false, code: 'authentication_failed' })
+        expect(storedSessions).toHaveLength(0)
+        expect(transactionCommits).toBe(1)
+        expect(events).toContain('sessions-revoked')
+        expect(events).not.toContain('recovery-used')
+    })
+
     for (const change of [
         'disabled',
         'revision',
         'issuer',
         'binding',
+        'binding-generation',
         'removed',
         'user-disabled',
         'permission-removed',
@@ -632,6 +694,8 @@ describe('OIDC authentication state and local assurance', () => {
             if (change === 'issuer') oidcProvider.issuer = 'https://another.example.test'
             if (change === 'binding')
                 oidcProvider.bindings[0] = { subject: oidcProof.subject, userId: 'another-user' }
+            if (change === 'binding-generation')
+                oidcProvider.bindings[0] = { subject: oidcProof.subject, userId, generation: 1 }
             if (change === 'removed') oidcProvider = null
             if (change === 'user-disabled') user.status = 'disabled'
             if (change === 'permission-removed') hasAppAccess = false

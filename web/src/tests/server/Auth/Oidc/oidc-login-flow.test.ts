@@ -10,6 +10,9 @@ function fixture() {
     let origin = 'https://proxy.example.test'
     let accepted = 0
     let failed = 0
+    let linked = 0
+    let exchanges = 0
+    let prompt: string | undefined
     const state = createOpaqueToken()
     const browserToken = createOpaqueToken()
     const configuration: OidcClientConfiguration = {
@@ -39,15 +42,21 @@ function fixture() {
         },
         protocol: {
             buildAuthorizationUrl: async (_configuration, request) => {
+                prompt = request.prompt
                 expect(request.state).toBe(state)
                 expect(request.nonce).toHaveLength(43)
                 expect(request.codeVerifier).toHaveLength(43)
                 return new URL('https://identity.example.test/authorize')
             },
             exchangeAuthorizationCode: async (_configuration, request, callback) => {
+                exchanges += 1
                 expect(callback.searchParams.get('code')).toBe('one-time-fixture-code')
                 expect(request.state).toBe(state)
-                return { issuer: configuration.issuer, subject: 'immutable-subject' }
+                return {
+                    issuer: configuration.issuer,
+                    subject: 'immutable-subject',
+                    expiresAt: Date.now() + 120_000,
+                }
             },
         },
         authenticate: async () => {
@@ -58,11 +67,20 @@ function fixture() {
                 challenge: { id: createOpaqueToken(), expiresAt: new Date(Date.now() + 60_000) },
             }
         },
+        link: async (_configuration, _identity, target) => {
+            expect(target).toEqual(flowTarget)
+            linked += 1
+        },
         failed: async () => {
             failed += 1
         },
     }
     const service = createOidcLoginService(dependencies)
+    const flowTarget = {
+        userId: configuration.providerId,
+        sessionId: '0194f777-4074-7000-8000-000000000002',
+        expectedRevision: 7,
+    }
     const callback = () =>
         new URL(`${origin}/api/auth/oidc/callback?code=one-time-fixture-code&state=${state}`)
     return {
@@ -73,6 +91,11 @@ function fixture() {
         callback,
         accepted: () => accepted,
         failed: () => failed,
+        linked: () => linked,
+        exchanges: () => exchanges,
+        prompt: () => prompt,
+        flow: () => flow,
+        flowTarget,
         changeRevision: () => {
             revision += 1
         },
@@ -83,6 +106,69 @@ function fixture() {
 }
 
 describe('OIDC login orchestration', () => {
+    test('binds explicit linking to fresh local consent and never authenticates a new session', async () => {
+        const value = fixture()
+        await value.service.beginOidcLoginService(value.configuration.providerId, value.flowTarget)
+        expect(value.flow()?.link).toEqual(value.flowTarget)
+        expect(value.prompt()).toBe('login')
+        expect(
+            await value.service.completeOidcLoginService(
+                value.callback(),
+                value.browserToken,
+                true,
+            ),
+        ).toEqual({ success: true, linked: true })
+        expect(value.linked()).toBe(1)
+        expect(value.accepted()).toBe(0)
+        expect(value.exchanges()).toBe(1)
+        await expect(
+            value.service.completeOidcLoginService(value.callback(), value.browserToken, true),
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        expect(value.linked()).toBe(1)
+    })
+    for (const linking of [false, true]) {
+        test(`rejects mixed callback intent linking=${linking} before code redemption`, async () => {
+            const value = fixture()
+            await value.service.beginOidcLoginService(
+                value.configuration.providerId,
+                linking ? undefined : value.flowTarget,
+            )
+            await expect(
+                value.service.completeOidcLoginService(
+                    value.callback(),
+                    value.browserToken,
+                    linking,
+                ),
+            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            expect(value.exchanges()).toBe(0)
+            expect(value.linked()).toBe(0)
+            expect(value.accepted()).toBe(0)
+            expect(value.failed()).toBe(1)
+        })
+    }
+    test('does not fall back to authentication when linking is unavailable or rejected', async () => {
+        for (const unavailable of [true, false]) {
+            const value = fixture()
+            const { link: _link, ...withoutLink } = value.dependencies
+            const service = createOidcLoginService(
+                unavailable
+                    ? withoutLink
+                    : {
+                          ...value.dependencies,
+                          link: async () => {
+                              throw new Error('private-link-details')
+                          },
+                      },
+            )
+            // oxlint-disable-next-line no-await-in-loop -- Independent one-time flow fixtures.
+            await service.beginOidcLoginService(value.configuration.providerId, value.flowTarget)
+            // oxlint-disable-next-line no-await-in-loop -- Independent one-time flow fixtures.
+            await expect(
+                service.completeOidcLoginService(value.callback(), value.browserToken, true),
+            ).rejects.toThrow('authentication_failed')
+            expect(value.accepted()).toBe(0)
+        }
+    })
     test('binds protocol proof to one browser and one local MFA admission', async () => {
         const fixtureValue = fixture()
         await fixtureValue.service.beginOidcLoginService(fixtureValue.configuration.providerId)
@@ -94,13 +180,11 @@ describe('OIDC login orchestration', () => {
         ).rejects.toMatchObject({ code: 'authentication_failed' })
         expect(fixtureValue.accepted()).toBe(0)
         expect(
-            (
-                await fixtureValue.service.completeOidcLoginService(
-                    fixtureValue.callback(),
-                    fixtureValue.browserToken,
-                )
-            ).requiresTwoFactor,
-        ).toBeTrue()
+            await fixtureValue.service.completeOidcLoginService(
+                fixtureValue.callback(),
+                fixtureValue.browserToken,
+            ),
+        ).toMatchObject({ success: true, requiresTwoFactor: true })
         await expect(
             fixtureValue.service.completeOidcLoginService(
                 fixtureValue.callback(),

@@ -44,7 +44,13 @@ export async function issuePasswordResetService(emailInput: string): Promise<Tok
         const userRows = await transaction
             .select({ displayName: users.displayName, email: users.email, id: users.id })
             .from(users)
-            .where(and(eq(sql<string>`lower(${users.email})`, email), eq(users.status, 'active')))
+            .where(
+                and(
+                    eq(sql<string>`lower(${users.email})`, email),
+                    eq(users.status, 'active'),
+                    isNull(users.oidcProviderId),
+                ),
+            )
             .limit(1)
             .for('update')
         const user = userRows.at(0)
@@ -143,14 +149,18 @@ export async function consumePasswordResetService(input: {
                 }
 
                 const userRows = await transaction
-                    .select({ id: users.id, status: users.status })
+                    .select({
+                        id: users.id,
+                        status: users.status,
+                        oidcProviderId: users.oidcProviderId,
+                    })
                     .from(users)
                     .where(eq(users.id, resetToken.userId))
                     .limit(1)
                     .for('update')
                 const user = userRows.at(0)
 
-                if (!user || user.status !== 'active') {
+                if (!user || user.status !== 'active' || user.oidcProviderId) {
                     return { success: false as const, code: 'invalid_or_expired_token' as const }
                 }
 

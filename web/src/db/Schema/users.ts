@@ -32,6 +32,7 @@ export const users = rentnerProxySchema.table(
             mode: 'date',
         }),
         passwordHash: text('password_hash'),
+        oidcProviderId: uuid('oidc_provider_id'),
         profileImageVersion: integer('profile_image_version').notNull().default(0),
         profileImageWebp: bytea('profile_image_webp'),
         status: userStatus('status').notNull().default('pending'),

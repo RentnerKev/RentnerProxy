@@ -27,6 +27,7 @@ const otherKey = generateKeyPairSync('rsa', { modulusLength: 2048 })
 function fixture(overrides: Record<string, unknown> = {}, invalidSignature = false) {
     const calls: string[] = []
     let consumed = false
+    let verifiedExpiresAt = 0
     let activeKey = key
     let kid = 'key'
     const fetch: CustomFetch = async (url, init) => {
@@ -69,6 +70,7 @@ function fixture(overrides: Record<string, unknown> = {}, invalidSignature = fal
                 nonce: authorization.nonce,
                 ...overrides,
             }
+            verifiedExpiresAt = Number(claims.exp) * 1_000
             const input =
                 Buffer.from(JSON.stringify({ alg: 'RS256', kid })).toString('base64url') +
                 '.' +
@@ -92,6 +94,12 @@ function fixture(overrides: Record<string, unknown> = {}, invalidSignature = fal
     return {
         client: createOidcProtocolClient({ fetch: () => fetch }),
         calls,
+        verifiedIdentity: () => ({
+            issuer: configuration.issuer,
+            subject: 'subject',
+            expiresAt: verifiedExpiresAt,
+            groups: [],
+        }),
         fetch,
         rotate: () => {
             activeKey = otherKey
@@ -107,16 +115,28 @@ const callback = () => new URL(authorization.redirectUri + '?code=one-use&state=
 
 describe('OIDC protocol with real signed tokens', () => {
     test('builds only code/S256/openid and verifies signature, nonce and identity', async () => {
-        const { client, calls } = fixture()
+        const provider = fixture({
+            roles: ['owner'],
+            access_token: 'claim-access-token',
+            id_token: 'claim-id-token',
+        })
+        const { client, calls } = provider
         const url = await client.buildAuthorizationUrl(configuration, authorization)
         expect(url.searchParams.get('scope')).toBe('openid')
         expect(url.searchParams.get('response_type')).toBe('code')
         expect(url.searchParams.get('code_challenge_method')).toBe('S256')
         expect(url.searchParams.get('code_challenge')).toHaveLength(43)
         expect(url.searchParams.get('nonce')).toBe('nonce')
-        expect(
-            await client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        const identity = await client.exchangeAuthorizationCode(
+            configuration,
+            authorization,
+            callback(),
+        )
+        expect(identity).toEqual(provider.verifiedIdentity())
+        expect(JSON.stringify(identity)).not.toContain('never-return')
+        expect(JSON.stringify(identity)).not.toContain('claim-access-token')
+        expect(JSON.stringify(identity)).not.toContain('claim-id-token')
+        expect(identity).not.toHaveProperty('roles')
         expect(calls.filter((call) => call.includes('well-known'))).toHaveLength(1)
         await expect(
             client.exchangeAuthorizationCode(configuration, authorization, callback()),
@@ -143,10 +163,14 @@ describe('OIDC protocol with real signed tokens', () => {
     test.each([1, 5])('accepts issuance clock skew of %s seconds', async (skew) => {
         setSystemTime(new Date('2030-01-01T12:00:00.000Z'))
         try {
-            const { client } = fixture({ iat: Math.floor(Date.now() / 1000) + skew })
+            const provider = fixture({ iat: Math.floor(Date.now() / 1000) + skew })
             expect(
-                await client.exchangeAuthorizationCode(configuration, authorization, callback()),
-            ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+                await provider.client.exchangeAuthorizationCode(
+                    configuration,
+                    authorization,
+                    callback(),
+                ),
+            ).toEqual(provider.verifiedIdentity())
         } finally {
             setSystemTime()
         }
@@ -191,7 +215,7 @@ describe('OIDC protocol with real signed tokens', () => {
         now = 300_001
         expect(
             await client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        ).toEqual(provider.verifiedIdentity())
         expect(provider.calls.filter((call) => call.endsWith('/jwks'))).toHaveLength(2)
     })
     test('rejects wrong state before exchanging a code', async () => {
@@ -204,6 +228,15 @@ describe('OIDC protocol with real signed tokens', () => {
             ),
         ).rejects.toMatchObject({ code: 'authentication_failed' })
         expect(calls.some((url) => url.endsWith('/token'))).toBe(false)
+    })
+    test('requests profile/email scopes and login prompt only for configured group claims', async () => {
+        const provider = fixture()
+        const url = await provider.client.buildAuthorizationUrl(
+            { ...configuration, groupClaim: 'departmentGroups' },
+            { ...authorization, prompt: 'login' },
+        )
+        expect(url.searchParams.get('scope')).toBe('openid profile email')
+        expect(url.searchParams.get('prompt')).toBe('login')
     })
     test('discovery expires, coalesces and fails closed on outage', async () => {
         let now = 0
@@ -243,7 +276,7 @@ describe('OIDC protocol with real signed tokens', () => {
 
             expect(
                 await client.exchangeAuthorizationCode(configuration, authorization, callback()),
-            ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+            ).toEqual(provider.verifiedIdentity())
             expect(provider.calls.map((url) => new URL(url).pathname)).toEqual([
                 '/.well-known/openid-configuration',
                 '/.well-known/openid-configuration',
@@ -261,7 +294,7 @@ describe('OIDC protocol with real signed tokens', () => {
 
         expect(
             await client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        ).toEqual(provider.verifiedIdentity())
         expect(provider.calls.filter((url) => url.includes('well-known'))).toHaveLength(1)
         expect(provider.calls.filter((url) => url.endsWith('/token'))).toHaveLength(1)
     })
@@ -305,7 +338,7 @@ describe('OIDC protocol with real signed tokens', () => {
         expect(now).toBeGreaterThan(OIDC_LIMITS.discoveryCacheMs)
         releaseJwks.resolve()
 
-        expect(await exchange).toEqual({ issuer: configuration.issuer, subject: 'subject' })
+        expect(await exchange).toEqual(provider.verifiedIdentity())
         expect(calls.filter((path) => path === '/token')).toHaveLength(1)
         expect(calls.filter((path) => path === '/jwks')).toHaveLength(1)
     })

@@ -89,6 +89,7 @@ export const auditResourceValues = AUDIT_RESOURCES
 
 const metadataKeys: readonly (keyof AuditMetadata)[] = [
     'authenticationMethod',
+    'localAuthenticationMethod',
     'reason',
     'failureCode',
     'changedFields',

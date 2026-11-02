@@ -21,6 +21,8 @@ FROM (
     FROM rentnerproxy.sessions s
     JOIN rentnerproxy.users u ON u.id = s.user_id
     WHERE u.status = 'active' AND s.expires_at > now()
+      AND (to_jsonb(s)->>'oidc_proof') IS NULL
+      AND (to_jsonb(u)->>'oidc_provider_id') IS NULL
     ORDER BY s.id
     LIMIT 10001
 ) current_session;
@@ -50,7 +52,19 @@ FROM jsonb_to_recordset('${json}'::jsonb) AS s(
     last_seen_at timestamptz, reauthenticated_at timestamptz, expires_at timestamptz
 )
 JOIN rentnerproxy.users u ON u.id = s.user_id
-WHERE u.status = 'active' AND s.expires_at > now();
+WHERE u.status = 'active' AND s.expires_at > now()
+  AND (to_jsonb(u)->>'oidc_provider_id') IS NULL;
+DO $restore_session_proof$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'rentnerproxy.sessions'::regclass
+          AND attname = 'oidc_proof' AND NOT attisdropped
+    ) THEN
+        EXECUTE 'UPDATE rentnerproxy.sessions SET oidc_proof = NULL';
+    END IF;
+END;
+$restore_session_proof$;
 COMMIT;
 `
 }

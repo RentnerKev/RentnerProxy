@@ -2,6 +2,8 @@ export const OIDC_SETTINGS_KEY = 'oidc_providers_v1'
 export const OIDC_SECRET_CONTEXT = 'rentnerproxy:oidc:client-secret:'
 export const OIDC_FLOW_COOKIE_NAME = '__Host-rentnerproxy_oidc_flow'
 export const OIDC_DEVELOPMENT_FLOW_COOKIE_NAME = 'rentnerproxy_oidc_flow'
+export const OIDC_LINK_FLOW_COOKIE_NAME = '__Host-rentnerproxy_oidc_link'
+export const OIDC_DEVELOPMENT_LINK_FLOW_COOKIE_NAME = 'rentnerproxy_oidc_link'
 export const OIDC_CALLBACK_PATH = '/api/auth/oidc/callback'
 export const OIDC_LIMITS = {
     providers: 16,
@@ -26,6 +28,11 @@ export const OIDC_LIMITS = {
     cacheEntries: 32,
     callbackBytes: 8_192,
     activeExchanges: 8,
+    groups: 128,
+    groupLength: 255,
+    groupMappings: 32,
+    roleKeys: 32,
+    sessionDurationMs: 15 * 60 * 1_000,
 } as const
 export const OIDC_RATE_LIMIT = {
     scope: 'oidc-login',

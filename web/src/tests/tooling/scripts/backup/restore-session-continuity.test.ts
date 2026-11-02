@@ -19,6 +19,8 @@ describe('restore session continuity SQL', () => {
     test('captures only current active unexpired hashed sessions', () => {
         expect(captureRestoreSessionsSql).toContain("u.status = 'active'")
         expect(captureRestoreSessionsSql).toContain('s.expires_at > now()')
+        expect(captureRestoreSessionsSql).toContain("(to_jsonb(s)->>'oidc_proof') IS NULL")
+        expect(captureRestoreSessionsSql).toContain("(to_jsonb(u)->>'oidc_provider_id') IS NULL")
         expect(captureRestoreSessionsSql).toContain('LIMIT 10001')
         expect(captureRestoreSessionsSql).not.toContain('password_hash')
     })
@@ -34,6 +36,7 @@ describe('restore session continuity SQL', () => {
         expect(sql).toContain('JOIN rentnerproxy.users u ON u.id = s.user_id')
         expect(sql).toContain("u.status = 'active' AND s.expires_at > now()")
         expect(sql).toContain('COMMIT;')
+        expect(sql).toContain("(to_jsonb(u)->>'oidc_provider_id') IS NULL")
         expect(mergeRestoreSessionsSql('[]')).toContain('DELETE FROM rentnerproxy.sessions;')
     })
 
@@ -45,5 +48,18 @@ describe('restore session continuity SQL', () => {
             [{ ...session, expires_at: 'not-a-date' }],
         ])
             expect(() => mergeRestoreSessionsSql(JSON.stringify(value))).toThrow()
+    })
+
+    test('clears the legacy proof sentinel only after replacing archived sessions, when supported', () => {
+        const sql = mergeRestoreSessionsSql(JSON.stringify([session]))
+        const proofUpdate = sql.indexOf(
+            "EXECUTE 'UPDATE rentnerproxy.sessions SET oidc_proof = NULL'",
+        )
+        expect(sql).toContain("attrelid = 'rentnerproxy.sessions'::regclass")
+        expect(sql).toContain("attname = 'oidc_proof' AND NOT attisdropped")
+        expect(sql.indexOf('DELETE FROM rentnerproxy.sessions;')).toBeLessThan(proofUpdate)
+        expect(sql.indexOf('INSERT INTO rentnerproxy.sessions')).toBeLessThan(proofUpdate)
+        expect(sql.indexOf("(to_jsonb(u)->>'oidc_provider_id') IS NULL;")).toBeLessThan(proofUpdate)
+        expect(proofUpdate).toBeLessThan(sql.indexOf('COMMIT;'))
     })
 })

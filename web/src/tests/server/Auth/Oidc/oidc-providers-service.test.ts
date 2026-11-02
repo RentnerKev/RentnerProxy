@@ -194,11 +194,23 @@ describe('owner OIDC provider service', () => {
                     provider,
                     { ...provider, id: 'disabled', enabled: false },
                     { ...provider, id: 'unbound', bindings: [] },
+                    {
+                        ...provider,
+                        id: 'provisioning',
+                        bindings: [],
+                        accountPolicy: {
+                            provisioning: true,
+                            groupClaim: 'groups',
+                            defaultRoleKeys: [],
+                            groupRoleMappings: [],
+                        },
+                    },
                 ],
             }),
         })
         expect(await service.getPublicOidcProvidersService()).toEqual([
             { id: provider.id, name: 'Office' },
+            { id: 'provisioning', name: 'Office' },
         ])
         expect(calls).toEqual([])
     })
