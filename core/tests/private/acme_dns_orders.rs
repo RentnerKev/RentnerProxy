@@ -473,12 +473,19 @@ async fn delegated_wait_rejects_cancelled_or_invalid_work_without_waiting() {
     ca.calls.lock().unwrap().clear();
     let (_, _, _, runtime) =
         run_order_with_dns(&ca, Some((&provider(), DnsValidationMode::Delegated))).await;
-    let mut intent = runtime
+    let operation = runtime
         .certificate_store
-        .pending_dns_records(ID)
+        .get(ID)
         .await
         .unwrap()
-        .remove(0);
+        .current_operation
+        .unwrap()
+        .id;
+    let mut intent = runtime
+        .certificate_store
+        .pending_dns_record(ID, &operation)
+        .await
+        .unwrap();
     let binding = intent.delegation.clone().unwrap();
     let mut changed: DnsDelegationBinding = binding.clone();
     changed.target_owner = "changed.validation.example.net".to_owned();
@@ -498,14 +505,6 @@ async fn delegated_wait_rejects_cancelled_or_invalid_work_without_waiting() {
         .await,
         Err(CertificateError::DnsDelegationInvalid)
     );
-    let operation = runtime
-        .certificate_store
-        .get(ID)
-        .await
-        .unwrap()
-        .current_operation
-        .unwrap()
-        .id;
     runtime
         .certificate_store
         .request_delegated_cancel(ID, &operation)
