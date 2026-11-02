@@ -226,9 +226,10 @@ function compareAscii(left: string, right: string): number {
 
 /**
  * Validates enabled routing state and hashes its deterministic wire representation.
- * Legacy routes keep the exact v7 property order and bytes; enabled pools select
- * v8 and append their canonical field after existing host properties. Member order
- * is meaningful and stays unchanged, while host and domain order is canonicalized.
+ * Legacy routes keep their exact v7 bytes, plain pools retain v8, and explicit
+ * failover selects v9. Pools remain appended after existing host properties, with
+ * failover blocks in canonical order. Member order stays meaningful and unchanged;
+ * host and domain ordering is canonicalized before hashing.
  */
 export function createProxyRuntimeSnapshot(
     hosts: ReadonlyArray<ProxyRuntimeHost & { readonly enabled: boolean }>,
@@ -390,7 +391,11 @@ export function createProxyRuntimeSnapshot(
     })
     const normalizedDefaultSite = defaultSiteSettingsSchema.parse(defaultSite)
     const snapshot = {
-        version: proxyHosts.some((host) => host.upstreamPool !== undefined) ? 8 : 7,
+        version: proxyHosts.some((host) => host.upstreamPool?.failover !== undefined)
+            ? 9
+            : proxyHosts.some((host) => host.upstreamPool !== undefined)
+              ? 8
+              : 7,
         proxyHosts,
         redirectHosts,
         httpSettings: normalizedSettings,

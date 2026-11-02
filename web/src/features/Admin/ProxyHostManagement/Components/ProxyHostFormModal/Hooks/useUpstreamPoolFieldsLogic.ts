@@ -22,11 +22,11 @@ export default function useUpstreamPoolFieldsLogic({
     const revalidate = () => {
         if (form.state.submissionAttempts > 0) void form.validate('submit')
     }
-    /** Replaces a nonempty ordered member list and synchronizes scalar host/port before revalidation. */
+    /** Replaces ordered members while preserving pool options, then synchronizes scalar host/port and errors. */
     const updateMembers = (members: UpstreamPoolFormMember[]) => {
         const current = form.getFieldValue('upstreamPool')
         if (!current || !members[0]) return
-        form.setFieldValue('upstreamPool', { policy: current.policy, members })
+        form.setFieldValue('upstreamPool', { ...current, members })
         form.setFieldValue('forwardHost', members[0].host)
         form.setFieldValue('forwardPort', members[0].port)
         revalidate()
@@ -38,7 +38,7 @@ export default function useUpstreamPoolFieldsLogic({
             canAdd: Boolean(pool && pool.members.length < MAX_PROXY_UPSTREAM_MEMBERS),
         },
         handler: {
-            /** Clears pools for single mode, or seeds a selected pool policy from the current scalar target. */
+            /** Clears single mode, preserves existing pool options, or seeds a new policy from the scalar target. */
             handleModeChange: (value) => {
                 if (value === 'single') {
                     form.setFieldValue('upstreamPool', null)
@@ -49,6 +49,7 @@ export default function useUpstreamPoolFieldsLogic({
                 if (value !== 'round_robin' && value !== 'first') return
                 const current = form.getFieldValue('upstreamPool')
                 form.setFieldValue('upstreamPool', {
+                    ...current,
                     policy: value,
                     members: current?.members ?? [
                         {

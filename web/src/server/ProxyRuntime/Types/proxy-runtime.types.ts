@@ -54,7 +54,7 @@ export interface RedirectRuntimeHost {
 }
 
 export interface ProxyRuntimeSnapshot {
-    readonly version: 7 | 8
+    readonly version: 7 | 8 | 9
     readonly revision: string
     readonly proxyHosts: ReadonlyArray<ProxyRuntimeHost>
     readonly redirectHosts: ReadonlyArray<RedirectRuntimeHost>

@@ -34,6 +34,7 @@ import { certificateJobProgressQueryKeys } from '@/lib/Admin/ProxyHostManagement
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 import { filterHostPage } from '@/lib/HostTags/hostList.ts'
 import { hostListQuerySchema } from '@/features/Admin/HostTags/validation.ts'
+import type { ProxyHostUpstreamHealth } from '@/lib/ProxyRuntime/Types/upstream-health.types.ts'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
@@ -68,6 +69,13 @@ const createProxyHostHandlerMock = mock(
         runtimeStatus: 'applied',
     }),
 )
+const getProxyHostUpstreamHealthHandlerMock = mock(async (): Promise<ProxyHostUpstreamHealth> => ({
+    hostId: enabledHost.id,
+    revision: null,
+    observedAt: null,
+    state: 'unknown',
+    members: [],
+}))
 const updateProxyHostHandlerMock = mock(
     async (_input: unknown): Promise<ProxyHostActionResult> => ({
         success: true,
@@ -169,6 +177,7 @@ const resetProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostAction
 }))
 
 mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
+    getProxyHostUpstreamHealthHandler: getProxyHostUpstreamHealthHandlerMock,
     getProxyConfigEditorHandler: getProxyConfigEditorHandlerMock,
     saveProxyConfigEditorHandler: saveProxyConfigEditorHandlerMock,
     resetProxyConfigEditorHandler: resetProxyConfigEditorHandlerMock,
@@ -361,6 +370,8 @@ const { default: ProxyHostManagementPage } =
     await import('@/features/Admin/ProxyHostManagement/index.tsx')
 const { default: ProxyHostFormModal } =
     await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostFormModal/index.tsx')
+const { default: UpstreamAvailability } =
+    await import('@/features/Admin/ProxyHostManagement/Components/ProxyConfigEditorModal/Components/UpstreamAvailability.tsx')
 const { default: ProxyHostTableActions } =
     await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostsTable/Components/ProxyHostTableActions.tsx')
 const { default: ProxyRuntimeStatusPanel } =
@@ -636,6 +647,13 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    getProxyHostUpstreamHealthHandlerMock.mockReset().mockResolvedValue({
+        hostId: enabledHost.id,
+        revision: null,
+        observedAt: null,
+        state: 'unknown',
+        members: [],
+    })
     getHostMonitoringSummaryMock.mockReset().mockImplementation(async (ids) => ({
         summaries: ids.map((proxyHostId) => ({
             proxyHostId,
@@ -1783,6 +1801,363 @@ describe('proxy host upstream pools', () => {
         await click(getButton('Save changes'))
         await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
     })
+})
+
+function failoverInput(name: string): HTMLInputElement {
+    return document.querySelector<HTMLInputElement>(`input[name="upstreamPool.failover.${name}"]`)!
+}
+
+function RoutingAvailabilityHarness({ host }: { host: ProxyHostSummary }) {
+    const [open, setOpen] = useState(true)
+    return (
+        <>
+            <button type="button" onClick={() => setOpen(false)}>
+                Close routing details
+            </button>
+            <UpstreamAvailability host={host} open={open} />
+        </>
+    )
+}
+
+describe('upstream health and failover form controls', () => {
+    const configured: ProxyHostSummary = {
+        ...enabledHost,
+        upstreamPool: {
+            policy: 'first',
+            members: [
+                { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                { host: 'secondary.internal', port: 9090 },
+            ],
+            failover: {
+                active: {
+                    path: '/ready',
+                    intervalSeconds: 15,
+                    timeoutSeconds: 3,
+                    fails: 3,
+                    passes: 2,
+                    expectedStatus: 204,
+                },
+                passive: { failDurationSeconds: 45, maxFails: 2 },
+                retries: { maxRetries: 3, tryDurationSeconds: 6, tryIntervalMilliseconds: 500 },
+            },
+        },
+    }
+
+    test('offers failover only for pools and saves enabled defaults as numeric API values', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={enabledHost} />))
+        expect(document.querySelector('input[id$="-failover-active"]')).toBeNull()
+        await chooseSelectOption('Target selection', 'Round robin')
+        expect(getCheckbox('Safe connection retries').disabled).toBeTrue()
+        await click(getCheckbox('Active probes'))
+        await click(getCheckbox('Passive failure tracking'))
+        await click(getCheckbox('Safe connection retries'))
+        expect(failoverInput('active.path').placeholder).toBe('/health')
+        expect(failoverInput('active.intervalSeconds').value).toBe('10')
+        expect(failoverInput('retries.tryIntervalMilliseconds').placeholder).toBe('250')
+        expect(document.body.textContent).toContain(
+            'only repeat requests that have not been processed',
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                upstreamPool: expect.objectContaining({
+                    failover: {
+                        active: {
+                            path: '/health',
+                            intervalSeconds: 10,
+                            timeoutSeconds: 2,
+                            fails: 2,
+                            passes: 2,
+                            expectedStatus: 200,
+                        },
+                        passive: { failDurationSeconds: 30, maxFails: 1 },
+                        retries: {
+                            maxRetries: 2,
+                            tryDurationSeconds: 5,
+                            tryIntervalMilliseconds: 250,
+                        },
+                    },
+                }),
+            }),
+        })
+    })
+
+    test('preserves copied failover settings through policy and target edits when duplicating', async () => {
+        await render(withQueryClient(<FormHarness mode="duplicate" proxyHost={configured} />))
+        expect(failoverInput('active.path').value).toBe('/ready')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'failover-copy.example.com',
+        )
+        await click(getButton('Move target 2 up'))
+        await chooseSelectOption('Target selection', 'Round robin')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!,
+            '9091',
+        )
+        await click(getButton('Add target'))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="upstreamPool.members[2].host"]')!,
+            'third.internal',
+        )
+        await click(getButton('Save changes'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                upstreamPool: {
+                    policy: 'round_robin',
+                    members: [
+                        { host: 'secondary.internal', port: 9091 },
+                        { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                        { host: 'third.internal', port: 9091 },
+                    ],
+                    failover: configured.upstreamPool!.failover,
+                },
+            }),
+        })
+        expect(configured.upstreamPool!.members[0]!.host).toBe(enabledHost.forwardHost)
+    })
+
+    test('disabling passive tracking removes retries, and disabling the last feature removes failover', async () => {
+        await render(withQueryClient(<FormHarness mode="edit" proxyHost={configured} />))
+        await click(getCheckbox('Passive failure tracking'))
+        expect(getCheckbox('Safe connection retries').checked).toBeFalse()
+        expect(getCheckbox('Safe connection retries').disabled).toBeTrue()
+        expect(failoverInput('retries.maxRetries')).toBeNull()
+        await click(getCheckbox('Active probes'))
+        await click(getButton('Save changes'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                upstreamPool: {
+                    policy: 'first',
+                    members: configured.upstreamPool!.members,
+                },
+            }),
+        })
+    })
+
+    test.each([
+        ['active.timeoutSeconds', '16', '3'],
+        ['active.path', 'https://external.invalid/health', '/ready'],
+        ['active.intervalSeconds', '', '15'],
+        ['retries.maxRetries', '1', '3'],
+        ['retries.tryIntervalMilliseconds', '5000', '500'],
+    ])(
+        'keeps an invalid %s draft visible and permits correcting it',
+        async (name, invalid, valid) => {
+            await render(withQueryClient(<FormHarness mode="edit" proxyHost={configured} />))
+            if (name === 'retries.tryIntervalMilliseconds')
+                await setControlValue(failoverInput('retries.tryDurationSeconds'), '1')
+            await setControlValue(failoverInput(name), invalid)
+            expect(failoverInput(name).value).toBe(invalid)
+            await click(getButton('Save changes'))
+            expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+            expect(document.body.textContent).toContain(
+                'Check health-check and failover settings and their limits.',
+            )
+            await setControlValue(failoverInput(name), valid)
+            await blurControl(failoverInput(name))
+            await click(getButton('Save changes'))
+            await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        },
+    )
+})
+
+describe('upstream routing availability', () => {
+    const host: ProxyHostSummary = {
+        ...enabledHost,
+        upstreamPool: {
+            policy: 'first',
+            members: [
+                { host: enabledHost.forwardHost, port: enabledHost.forwardPort },
+                { host: 'secondary.internal', port: 9090 },
+            ],
+        },
+    }
+    const observation = (state: 'available' | 'all_unavailable'): ProxyHostUpstreamHealth => ({
+        hostId: host.id,
+        revision: 'sha256:health',
+        observedAt: new Date().toISOString(),
+        state,
+        members: host.upstreamPool!.members.map((member, index) => ({
+            host: member.host,
+            port: member.port,
+            index,
+            state: state === 'available' ? 'available' : 'unavailable',
+        })),
+    })
+
+    test('shows all-unavailable targets honestly and explains initial routing availability', async () => {
+        getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(observation('all_unavailable'))
+        await render(withQueryClient(<UpstreamAvailability host={host} open />))
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="all_unavailable"]') !== null,
+        )
+        expect(
+            document.querySelectorAll('[data-upstream-member-state="unavailable"]'),
+        ).toHaveLength(2)
+        expect(document.body.textContent).toContain('Targets initially count as available')
+        expect(document.body.textContent).toContain('not monitoring history')
+    })
+
+    test('replaces cached available targets with unknown after a refresh error', async () => {
+        getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(observation('available'))
+        await render(withQueryClient(<UpstreamAvailability host={host} open />))
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="available"]') !== null,
+        )
+        getProxyHostUpstreamHealthHandlerMock.mockRejectedValue(new Error('controller offline'))
+        await act(async () => {
+            await activeQueryClient!.invalidateQueries({
+                queryKey: proxyHostManagementQueryKeys.upstreamHealth(host.id),
+            })
+        })
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="unknown"]') !== null,
+        )
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            0,
+        )
+        expect(document.querySelectorAll('[data-upstream-member-state="unknown"]')).toHaveLength(2)
+        expect(document.body.textContent).toContain('could not be refreshed')
+    })
+
+    test('shows unknown while a fresh observation is pending', async () => {
+        let finish: ((value: ProxyHostUpstreamHealth) => void) | undefined
+        getProxyHostUpstreamHealthHandlerMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        await render(withQueryClient(<UpstreamAvailability host={host} open />))
+        expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            0,
+        )
+        expect(document.body.textContent).toContain('Loading routing availability.')
+        await act(async () => {
+            finish!(observation('all_unavailable'))
+        })
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="all_unavailable"]') !== null,
+        )
+    })
+
+    test('polls open routing details and stops after they close', async () => {
+        getProxyHostUpstreamHealthHandlerMock.mockImplementation(async () =>
+            observation('available'),
+        )
+        await render(withQueryClient(<RoutingAvailabilityHarness host={host} />))
+        await waitFor(() => getProxyHostUpstreamHealthHandlerMock.mock.calls.length >= 2, 4_000)
+        await click(getButton('Close routing details'))
+        const callsWhenClosed = getProxyHostUpstreamHealthHandlerMock.mock.calls.length
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 3_200))
+        })
+        expect(getProxyHostUpstreamHealthHandlerMock.mock.calls.length).toBe(callsWhenClosed)
+        expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
+    }, 8_000)
+
+    test.each([
+        ['ahead', 120_000],
+        ['behind', -120_000],
+    ] as const)(
+        'accepts server-approved health when the browser clock is %s',
+        async (_direction, browserClockOffset) => {
+            const serverApproved: ProxyHostUpstreamHealth = {
+                ...observation('available'),
+                observedAt: new Date(Date.now() - browserClockOffset).toISOString(),
+            }
+            getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(serverApproved)
+            await render(withQueryClient(<UpstreamAvailability host={host} open />))
+            await waitFor(
+                () => document.querySelector('[data-upstream-availability="available"]') !== null,
+            )
+            expect(
+                document.querySelectorAll('[data-upstream-member-state="available"]'),
+            ).toHaveLength(2)
+        },
+    )
+
+    test('keeps stale cached health unknown until a deferred refresh completes', async () => {
+        let finish: ((value: ProxyHostUpstreamHealth) => void) | undefined
+        getProxyHostUpstreamHealthHandlerMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const content = withQueryClient(<UpstreamAvailability host={host} open />)
+        activeQueryClient!.setQueryData(
+            proxyHostManagementQueryKeys.upstreamHealth(host.id),
+            observation('available'),
+            { updatedAt: Date.now() - 60_000 },
+        )
+        await render(content)
+        await waitFor(() => getProxyHostUpstreamHealthHandlerMock.mock.calls.length === 1)
+        expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            0,
+        )
+        await act(async () => {
+            finish!(observation('available'))
+        })
+        await waitFor(
+            () => document.querySelector('[data-upstream-availability="available"]') !== null,
+        )
+        expect(document.querySelectorAll('[data-upstream-member-state="available"]')).toHaveLength(
+            2,
+        )
+    })
+
+    test.each(['missing', 'invalid-time', 'mismatch'] as const)(
+        'keeps %s observations unknown instead of claiming availability',
+        async (kind) => {
+            const data: ProxyHostUpstreamHealth = {
+                ...observation('available'),
+                ...(kind === 'missing' ? { revision: null, observedAt: null } : {}),
+                ...(kind === 'invalid-time' ? { observedAt: 'invalid-timestamp' } : {}),
+                ...(kind === 'mismatch' ? { members: [] } : {}),
+            }
+            getProxyHostUpstreamHealthHandlerMock.mockResolvedValue(data)
+            await render(withQueryClient(<UpstreamAvailability host={host} open />))
+            await waitFor(() => getProxyHostUpstreamHealthHandlerMock.mock.calls.length === 1)
+            expect(document.querySelector('[data-upstream-availability="unknown"]')).not.toBeNull()
+            expect(
+                document.querySelectorAll('[data-upstream-member-state="available"]'),
+            ).toHaveLength(0)
+        },
+    )
+
+    test.each(['closed', 'disabled', 'single'] as const)(
+        'does not query a %s host',
+        async (kind) => {
+            const source =
+                kind === 'single'
+                    ? enabledHost
+                    : kind === 'disabled'
+                      ? { ...host, enabled: false }
+                      : host
+            await render(
+                withQueryClient(<UpstreamAvailability host={source} open={kind !== 'closed'} />),
+            )
+            await act(async () => {
+                await activeQueryClient!.invalidateQueries({
+                    queryKey: proxyHostManagementQueryKeys.upstreamHealth(host.id),
+                })
+            })
+            expect(getProxyHostUpstreamHealthHandlerMock).not.toHaveBeenCalled()
+            if (kind === 'single')
+                expect(document.querySelector('[data-upstream-availability]')).toBeNull()
+            else
+                expect(
+                    document.querySelector('[data-upstream-availability="unknown"]'),
+                ).not.toBeNull()
+        },
+    )
 })
 
 describe('proxy host form tabs', () => {

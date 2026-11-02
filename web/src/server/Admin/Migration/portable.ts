@@ -36,7 +36,7 @@ const PORTABLE_SCHEMA = 'rentnerproxy-portable-v1'
 const recordSchema = z.record(z.string(), z.unknown())
 const documentSchema = z.strictObject({
     format: z.literal('rentnerproxy-portable-config'),
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     exportedAt: z.iso.datetime(),
     policies: z.array(recordSchema).max(MAX_OBJECTS),
     proxyHosts: z.array(recordSchema).max(MAX_OBJECTS),
@@ -81,7 +81,8 @@ export class PortableSourceError extends Error {
 }
 
 /**
- * Exports complete ordered pools in portable v2, retaining v1 for single targets.
+ * Selects portable v1 for single targets, v2 for plain pools and v3 for failover,
+ * preserving member order and every configured health/retry block.
  * Credentials and certificate/CA material remain excluded; dependent hosts carry
  * review indicators so imports cannot silently recreate unsupported security state.
  */
@@ -101,7 +102,11 @@ export function buildPortableDocument(
     }
     return {
         format: 'rentnerproxy-portable-config' as const,
-        version: proxies.some((host) => host.upstreamPool != null) ? (2 as const) : (1 as const),
+        version: proxies.some((host) => host.upstreamPool?.failover !== undefined)
+            ? (3 as const)
+            : proxies.some((host) => host.upstreamPool != null)
+              ? (2 as const)
+              : (1 as const),
         exportedAt: new Date().toISOString(),
         policies: policies.map((policy) => ({
             id: policy.id,
@@ -180,7 +185,7 @@ export async function exportPortableConfiguration(): Promise<string> {
 }
 
 /**
- * Reads a size-bounded portable v1 or v2 document with bounded object counts.
+ * Reads a size-bounded portable v1, v2 or v3 document with bounded object counts.
  * Individual host and policy records are validated when constructing the import
  * plan so invalid entries can be reported for review without trusting their shape.
  */
@@ -197,7 +202,7 @@ export async function readPortableSource(path: string): Promise<z.infer<typeof d
         !parsed ||
         typeof parsed !== 'object' ||
         (parsed as Record<string, unknown>).format !== 'rentnerproxy-portable-config' ||
-        ![1, 2].includes(Number((parsed as Record<string, unknown>).version))
+        ![1, 2, 3].includes(Number((parsed as Record<string, unknown>).version))
     ) {
         throw new PortableSourceError('unsupported_schema')
     }
@@ -225,9 +230,9 @@ function manual(
 }
 
 /**
- * Builds validated import actions while preserving v2 pool policy and member order.
- * Pool fields in v1 entries are rejected rather than discarded, and certificate,
- * trust or policy dependencies remain explicit review requirements.
+ * Builds validated actions preserving v2 pools and v3 health/retry settings.
+ * Pool fields in v1 and failover fields before v3 are rejected rather than lost.
+ * Certificate, trust and policy dependencies remain explicit review requirements.
  */
 export function buildPortablePlan(
     source: Awaited<ReturnType<typeof readPortableSource>>,
@@ -282,7 +287,13 @@ export function buildPortablePlan(
         const label = Array.isArray(raw.domains)
             ? raw.domains.join(', ').slice(0, 250)
             : `Proxy #${sourceId}`
-        if (!parsed.success || (source.version === 1 && raw.upstreamPool !== undefined))
+        if (
+            !parsed.success ||
+            (source.version === 1 && raw.upstreamPool !== undefined) ||
+            (source.version < 3 &&
+                parsed.success &&
+                parsed.data.upstreamPool?.failover !== undefined)
+        )
             return manual('proxy-host', sourceId, label, 'invalid_host_settings')
         const host = parsed.data
         const accessListId = host.accessPolicyId ? policyIds.get(host.accessPolicyId) : undefined
@@ -358,7 +369,11 @@ export function buildPortablePlan(
     })
     return finalizeImportPlan(
         fingerprint,
-        source.version === 2 ? 'rentnerproxy-portable-v2' : PORTABLE_SCHEMA,
+        source.version === 3
+            ? 'rentnerproxy-portable-v3'
+            : source.version === 2
+              ? 'rentnerproxy-portable-v2'
+              : PORTABLE_SCHEMA,
         [...policies, ...proxies, ...redirects],
         existingDomains,
     )

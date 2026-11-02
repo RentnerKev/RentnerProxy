@@ -244,6 +244,45 @@ pub(crate) enum UpstreamSelectionPolicy {
 pub(crate) struct UpstreamPool {
     pub(crate) policy: UpstreamSelectionPolicy,
     pub(crate) members: Vec<UpstreamMember>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) failover: Option<UpstreamFailover>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct UpstreamFailover {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) active: Option<ActiveUpstreamHealth>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) passive: Option<PassiveUpstreamHealth>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) retries: Option<UpstreamRetries>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct ActiveUpstreamHealth {
+    pub(crate) path: String,
+    pub(crate) interval_seconds: u16,
+    pub(crate) timeout_seconds: u16,
+    pub(crate) fails: u8,
+    pub(crate) passes: u8,
+    pub(crate) expected_status: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct PassiveUpstreamHealth {
+    pub(crate) fail_duration_seconds: u16,
+    pub(crate) max_fails: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct UpstreamRetries {
+    pub(crate) max_retries: u8,
+    pub(crate) try_duration_seconds: u16,
+    pub(crate) try_interval_milliseconds: u16,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

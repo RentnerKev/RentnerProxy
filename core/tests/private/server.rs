@@ -744,6 +744,9 @@ fn constant_time_comparison_checks_equal_and_unequal_values() {
     assert!(!constant_time_equal(b"abc", b"abcd"));
 }
 
+/// Keeps host source and upstream-observation endpoints behind controller auth.
+/// Preview and active-source checks also protect bounded, uncached, host-scoped
+/// reads from exposing configuration before apply or for an unrelated host.
 #[tokio::test]
 async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     let token = Config::from_values(
@@ -759,6 +762,11 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     .unwrap();
     let protected = test_app(Some(token)).await;
     for request in [
+        request_with_method(
+            "GET",
+            "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/upstreams",
+            Body::empty(),
+        ),
         request_with_method(
             "GET",
             "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config",
@@ -896,6 +904,9 @@ async fn proxy_host_source_endpoint_does_not_expose_redirect_host_fragments() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
+/// Exercises encoded traversal and invalid resource identifiers across privileged
+/// routes, including upstream observations, so new endpoints retain the same UUID
+/// resource boundary instead of interpreting user-controlled paths as storage paths.
 #[tokio::test]
 async fn encoded_path_traversal_is_rejected_by_resource_routes() {
     let token_text = "b".repeat(32);
@@ -913,6 +924,7 @@ async fn encoded_path_traversal_is_rejected_by_resource_routes() {
         "%00",
     ];
     let routes = [
+        ("GET", "/internal/v1/proxy/hosts/", "/upstreams"),
         ("GET", "/internal/v1/proxy/hosts/", "/config"),
         ("POST", "/internal/v1/proxy/hosts/", "/config/preview"),
         ("GET", "/internal/v1/certificates/", ""),

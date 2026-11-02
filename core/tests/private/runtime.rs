@@ -47,6 +47,9 @@ struct FakeCaddy {
     load_started: Notify,
     block_certificate_index: Mutex<Option<std::path::PathBuf>>,
     load_gate: Mutex<Option<Arc<Notify>>>,
+    upstream_response: Mutex<Option<axum::body::Bytes>>,
+    upstream_gate: Mutex<Option<Arc<Notify>>>,
+    upstream_started: Notify,
 }
 impl FakeCaddy {
     fn new() -> Arc<Self> {
@@ -64,6 +67,9 @@ impl FakeCaddy {
             load_started: Notify::new(),
             block_certificate_index: Mutex::new(None),
             load_gate: Mutex::new(None),
+            upstream_response: Mutex::new(None),
+            upstream_gate: Mutex::new(None),
+            upstream_started: Notify::new(),
         })
     }
     async fn next(queue: &Mutex<VecDeque<Result<(), EngineError>>>) -> Result<(), EngineError> {
@@ -71,6 +77,29 @@ impl FakeCaddy {
     }
 }
 impl ProxyEngine for FakeCaddy {
+    /// Captures a fake observation before optionally blocking its delivery and signals
+    /// when sampling starts. Tests can then change the active revision while the old
+    /// payload is in flight, without timing sleeps or mutating the captured response.
+    fn upstream_observations<'a>(
+        &'a self,
+        _: &'a str,
+        _: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<axum::body::Bytes, EngineError>> + Send + 'a>> {
+        Box::pin(async move {
+            let response = self
+                .upstream_response
+                .lock()
+                .await
+                .clone()
+                .ok_or(EngineError::Unavailable)?;
+            let gate = self.upstream_gate.lock().await.take();
+            self.upstream_started.notify_one();
+            if let Some(gate) = gate {
+                gate.notified().await;
+            }
+            Ok(response)
+        })
+    }
     fn start<'a>(&'a self, json: &'a str, _: &'a str) -> EngineFuture<'a> {
         Box::pin(async move {
             self.start_count.fetch_add(1, Ordering::SeqCst);
@@ -812,41 +841,134 @@ async fn startup_accepts_legacy_v7_and_rejects_obsolete_recovery_snapshots() {
     }
 }
 
+/// Restarts from the persisted active snapshot for both plain v8 and failover v9
+/// pools, preserving member order, selection policy and health options across recovery.
 #[tokio::test]
-async fn restart_restores_v8_pool_order_and_policy() {
+async fn restart_restores_versioned_pool_order_policy_and_failover() {
+    use crate::models::{
+        PassiveUpstreamHealth, UpstreamFailover, UpstreamMember, UpstreamPool,
+        UpstreamSelectionPolicy,
+    };
+    for failover in [
+        None,
+        Some(UpstreamFailover {
+            active: None,
+            retries: None,
+            passive: Some(PassiveUpstreamHealth {
+                fail_duration_seconds: 30,
+                max_fails: 2,
+            }),
+        }),
+    ] {
+        let expected_version = if failover.is_some() { 9 } else { 8 };
+        let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+        runtime.initialize().await;
+        let mut configuration = configuration(4000);
+        let target = &mut configuration.proxy_hosts[0];
+        target.upstream_pool = Some(UpstreamPool {
+            policy: UpstreamSelectionPolicy::First,
+            failover,
+            members: vec![
+                UpstreamMember {
+                    host: target.forward_host.clone(),
+                    port: target.forward_port,
+                },
+                UpstreamMember {
+                    host: "secondary.internal".into(),
+                    port: 4001,
+                },
+            ],
+        });
+        configuration.revision =
+            revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
+        runtime.apply(configuration.clone()).await.unwrap();
+        let snapshot: ProxyConfigRequest = serde_json::from_slice(
+            &std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(snapshot.version, expected_version);
+        assert_eq!(validate_proxy_config(snapshot).unwrap(), configuration);
+        let active = runtime.active_config().await.unwrap();
+        runtime.shutdown().await;
+        let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
+        restarted.initialize().await;
+        assert_eq!(restarted.active_config().await.unwrap(), active);
+        restarted.shutdown().await;
+    }
+}
+
+/// Samples verified active instances without reloading Caddy, then changes the
+/// configuration while a gated observation is in flight. The stale response and a
+/// stopped engine must return unknown instead of reusing the earlier healthy sample.
+#[tokio::test]
+async fn pool_health_samples_verified_instances_and_rejects_stale_or_unavailable_observations() {
     use crate::models::{UpstreamMember, UpstreamPool, UpstreamSelectionPolicy};
-    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    use serde_json::{Value, json};
+    let engine = FakeCaddy::new();
+    let (runtime, _) = runtime(Some(engine.clone()));
     runtime.initialize().await;
+    assert!(matches!(
+        runtime.upstream_health(HOST_ID).await,
+        Err(RuntimeError::Unavailable)
+    ));
     let mut configuration = configuration(4000);
+    runtime.apply(configuration.clone()).await.unwrap();
+    assert!(matches!(
+        runtime.upstream_health(HOST_ID).await,
+        Err(RuntimeError::HostConfigNotFound)
+    ));
     let target = &mut configuration.proxy_hosts[0];
     target.upstream_pool = Some(UpstreamPool {
         policy: UpstreamSelectionPolicy::First,
-        members: vec![
-            UpstreamMember {
-                host: target.forward_host.clone(),
-                port: target.forward_port,
-            },
-            UpstreamMember {
-                host: "secondary.internal".into(),
-                port: 4001,
-            },
-        ],
+        failover: None,
+        members: vec![UpstreamMember {
+            host: target.forward_host.clone(),
+            port: 4000,
+        }],
     });
     configuration.revision =
         revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
     runtime.apply(configuration.clone()).await.unwrap();
-    let snapshot: ProxyConfigRequest = serde_json::from_slice(
-        &std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(snapshot.version, 8);
-    assert_eq!(validate_proxy_config(snapshot).unwrap(), configuration);
-    let active = runtime.active_config().await.unwrap();
+    let unknown = serde_json::to_value(runtime.upstream_health(HOST_ID).await.unwrap()).unwrap();
+    assert_eq!(unknown["state"], "unknown");
+    assert!(unknown["observedAt"].is_null());
+    let response = json!({"revision":configuration.revision,"host_id":HOST_ID,"observations":[{
+        "instance":"1","members":[{"index":0,"address":"backend:4000","healthy":true,"available":true}],
+    }]});
+    *engine.upstream_response.lock().await = Some(serde_json::to_vec(&response).unwrap().into());
+    let loads = engine.load_count.load(Ordering::SeqCst);
+    let current: Value =
+        serde_json::to_value(runtime.upstream_health(HOST_ID).await.unwrap()).unwrap();
+    assert_eq!(current["state"], "available");
+    assert!(current["observedAt"].is_string());
+    assert_eq!(engine.load_count.load(Ordering::SeqCst), loads);
+    engine.upstream_started.notified().await;
+
+    let gate = Arc::new(Notify::new());
+    *engine.upstream_gate.lock().await = Some(gate.clone());
+    let read = tokio::spawn({
+        let runtime = runtime.clone();
+        async move { runtime.upstream_health(HOST_ID).await }
+    });
+    engine.upstream_started.notified().await;
+    configuration.default_site = crate::models::DefaultSite::Welcome;
+    configuration.revision = crate::proxy::revision_for_full_configuration(
+        &configuration.proxy_hosts,
+        &configuration.redirect_hosts,
+        &configuration.http_settings,
+        &configuration.trusted_cas,
+        &configuration.default_site,
+    );
+    runtime.apply(configuration).await.unwrap();
+    gate.notify_one();
+    let stale: Value = serde_json::to_value(read.await.unwrap().unwrap()).unwrap();
+    assert_eq!(stale["state"], "unknown");
+    assert!(stale["observedAt"].is_null());
+    engine.running.store(false, Ordering::SeqCst);
+    let stopped: Value =
+        serde_json::to_value(runtime.upstream_health(HOST_ID).await.unwrap()).unwrap();
+    assert_eq!(stopped["state"], "unknown");
     runtime.shutdown().await;
-    let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
-    restarted.initialize().await;
-    assert_eq!(restarted.active_config().await.unwrap(), active);
-    restarted.shutdown().await;
 }
 
 #[tokio::test]

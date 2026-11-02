@@ -1,3 +1,4 @@
+import { getProxyHostUpstreamHealthService } from '@/server/Admin/ProxyHostManagement/upstream-health.service.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
 import { searchProxyHostsService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
@@ -84,6 +85,23 @@ function proxyHostActionSuccess(
         runtimeStatus,
     }
 }
+
+/**
+ * Exposes validated, VIEW-authorized upstream observations through an uncached GET.
+ * The service reauthorizes and checks desired-state consistency before returning
+ * availability; authorization/load errors use the existing localized query boundary.
+ */
+export const getProxyHostUpstreamHealthHandler = createServerFn({ method: 'GET' })
+    .validator(proxyHostIdInputSchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+            return await getProxyHostUpstreamHealthService(data.proxyHostId)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.proxyHosts.runtime.unavailable')
+        }
+    })
 
 export const getProxyRuntimeStatusHandler = createServerFn({ method: 'GET' }).handler(async () => {
     try {

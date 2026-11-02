@@ -7,7 +7,8 @@ use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost};
 use super::{
     RenderError, UpstreamTlsRenderSettings,
     model::{
-        CaSource, HeaderOps, HttpTransport, LoadBalancing, RequestHeaders, ReverseProxy,
+        ActiveHealthCheck, CaSource, HeaderOps, HealthChecks, HttpTransport, KeepAlive,
+        LoadBalancing, MatcherSet, PassiveHealthCheck, RequestHeaders, ReverseProxy,
         SelectionPolicy, TrustedProxies, Upstream, UpstreamTls,
     },
 };
@@ -24,7 +25,8 @@ pub(super) fn rendered_ranges(ranges: &[String]) -> Vec<String> {
     }
     rendered
 }
-/// Renders ordered native selection with unchanged headers, stream draining and shared trust policy.
+/// Renders ordered selection with shared trust, unchanged headers and stream draining.
+/// Retry-enabled pools avoid connection reuse to prevent implicit accepted-write replay.
 /// Pools without an explicit TLS identity verify each selected DNS member's own name.
 pub(super) fn reverse_proxy(
     upstream: &str,
@@ -45,6 +47,7 @@ pub(super) fn reverse_proxy(
     );
     let mut transport = HttpTransport {
         protocol: "http".to_owned(),
+        keep_alive: None,
         dial_timeout: None,
         read_timeout: None,
         response_header_timeout: None,
@@ -109,6 +112,15 @@ pub(super) fn reverse_proxy(
         }
     }
     let pool = host.and_then(|host| host.upstream_pool.as_ref());
+    if pool
+        .and_then(|pool| pool.failover.as_ref())
+        .is_some_and(|failover| failover.retries.is_some())
+    {
+        // Go's HTTP/1 transport can independently replay an accepted bodyless
+        // write carrying an idempotency header on a reused connection. Avoid
+        // that implicit retry path when strict failover retries are enabled.
+        transport.keep_alive = Some(KeepAlive { enabled: false });
+    }
     let upstreams = pool.map_or_else(
         || {
             vec![Upstream {
@@ -130,7 +142,52 @@ pub(super) fn reverse_proxy(
             selection_policy: SelectionPolicy {
                 policy: pool.policy,
             },
+            retries: pool
+                .failover
+                .as_ref()
+                .and_then(|failover| failover.retries.as_ref())
+                .map(|retry| retry.max_retries),
+            try_duration: pool
+                .failover
+                .as_ref()
+                .and_then(|failover| failover.retries.as_ref())
+                .map(|retry| format!("{}s", retry.try_duration_seconds)),
+            try_interval: pool
+                .failover
+                .as_ref()
+                .and_then(|failover| failover.retries.as_ref())
+                .map(|retry| format!("{}ms", retry.try_interval_milliseconds)),
+            // Even a streamed GET must never be replayed after connecting. Caddy
+            // still retries dial failures, before any request reaches an upstream.
+            retry_match: pool
+                .failover
+                .as_ref()
+                .and_then(|failover| failover.retries.as_ref())
+                .map(|_| {
+                    vec![MatcherSet {
+                        not: Some(vec![MatcherSet::default()]),
+                        ..MatcherSet::default()
+                    }]
+                }),
         }),
+        health_checks: pool
+            .and_then(|pool| pool.failover.as_ref())
+            .map(|failover| HealthChecks {
+                active: failover.active.as_ref().map(|active| ActiveHealthCheck {
+                    uri: active.path.clone(),
+                    interval: format!("{}s", active.interval_seconds),
+                    timeout: format!("{}s", active.timeout_seconds),
+                    fails: active.fails,
+                    passes: active.passes,
+                    expect_status: active.expected_status,
+                    max_size: 4096,
+                }),
+                passive: failover.passive.as_ref().map(|passive| PassiveHealthCheck {
+                    fail_duration: format!("{}s", passive.fail_duration_seconds),
+                    max_fails: passive.max_fails,
+                    unhealthy_status: vec![502, 503, 504],
+                }),
+            }),
         headers: RequestHeaders {
             request: HeaderOps {
                 set,
@@ -170,7 +227,7 @@ pub(super) fn trusted_proxies(cidrs: &[String]) -> Option<TrustedProxies> {
     })
 }
 
-pub(super) fn upstream_dial(host: &str, port: u16) -> String {
+pub(crate) fn upstream_dial(host: &str, port: u16) -> String {
     if host.parse::<std::net::Ipv6Addr>().is_ok() {
         format!("[{host}]:{port}")
     } else {

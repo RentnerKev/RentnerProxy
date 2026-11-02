@@ -4,6 +4,8 @@ export const proxyHostManagementQueryKeys = {
     runtimeStatus: ['admin', 'proxy-hosts', 'runtime-status'] as const,
     configEditor: ['admin', 'proxy-hosts', 'config-editor'] as const,
     hostConfigEditor: (hostId: string) => ['admin', 'proxy-hosts', 'host-config', hostId] as const,
+    upstreamHealth: (hostId: string) =>
+        ['admin', 'proxy-hosts', 'upstream-health', hostId] as const,
 }
 
 export function invalidateProxyHostManagementCache(queryClient: QueryClient): Promise<void> {

@@ -162,6 +162,8 @@ pub(super) enum Handler {
     StaticResponse(StaticResponse),
     #[serde(rename = "reverse_proxy")]
     ReverseProxy(Box<ReverseProxy>),
+    #[serde(rename = "rentnerproxy_upstream")]
+    ObservedReverseProxy(Box<ObservedReverseProxy>),
     #[serde(rename = "subroute")]
     Subroute(Subroute),
     #[serde(rename = "request_body")]
@@ -286,6 +288,8 @@ pub(super) struct ReverseProxy {
     pub(super) upstreams: Vec<Upstream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) load_balancing: Option<LoadBalancing>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) health_checks: Option<HealthChecks>,
     pub(super) headers: RequestHeaders,
     pub(super) transport: HttpTransport,
     pub(super) stream_close_delay: String,
@@ -298,6 +302,48 @@ pub(super) struct ReverseProxy {
 #[derive(Serialize)]
 pub(super) struct LoadBalancing {
     pub(super) selection_policy: SelectionPolicy,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) retries: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) try_duration: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) try_interval: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) retry_match: Option<Vec<MatcherSet>>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ObservedReverseProxy {
+    pub(super) host_id: String,
+    pub(super) revision: String,
+    #[serde(flatten)]
+    pub(super) proxy: ReverseProxy,
+}
+
+#[derive(Serialize)]
+pub(super) struct HealthChecks {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) active: Option<ActiveHealthCheck>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) passive: Option<PassiveHealthCheck>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ActiveHealthCheck {
+    pub(super) uri: String,
+    pub(super) interval: String,
+    pub(super) timeout: String,
+    pub(super) fails: u8,
+    pub(super) passes: u8,
+    pub(super) expect_status: u16,
+    pub(super) max_size: u16,
+}
+
+#[derive(Serialize)]
+pub(super) struct PassiveHealthCheck {
+    pub(super) fail_duration: String,
+    pub(super) max_fails: u8,
+    pub(super) unhealthy_status: Vec<u16>,
 }
 
 #[derive(Serialize)]
@@ -343,6 +389,8 @@ pub(super) struct HeaderOps {
 pub(super) struct HttpTransport {
     pub(super) protocol: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) keep_alive: Option<KeepAlive>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) dial_timeout: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) read_timeout: Option<String>,
@@ -352,6 +400,11 @@ pub(super) struct HttpTransport {
     pub(super) write_timeout: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) tls: Option<UpstreamTls>,
+}
+
+#[derive(Serialize)]
+pub(super) struct KeepAlive {
+    pub(super) enabled: bool,
 }
 
 #[derive(Serialize)]

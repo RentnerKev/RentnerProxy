@@ -1765,7 +1765,8 @@
                 "duplicateUpstream": "Jedes Ziel benötigt eine eindeutige Kombination aus Host und Port.",
                 "upstreamPoolPrimary": "Das primäre Ziel muss dem ersten Pool-Mitglied entsprechen.",
                 "upstreamMembersRequired": "Füge mindestens ein Upstream-Ziel hinzu.",
-                "upstreamMembersLimit": "Füge höchstens 16 Upstream-Ziele hinzu."
+                "upstreamMembersLimit": "Füge höchstens 16 Upstream-Ziele hinzu.",
+                "upstreamFailover": "Prüfe Healthcheck- und Failover-Einstellungen sowie deren Grenzen."
             },
             "config": {
                 "open": "Caddy-Konfiguration",
@@ -1965,6 +1966,43 @@
                 "moveUpLabel": "Ziel {{number}} nach oben verschieben",
                 "moveDownLabel": "Ziel {{number}} nach unten verschieben",
                 "summary": "{{count}} Ziele · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Healthchecks & Failover",
+                "active": "Aktive Prüfungen",
+                "passive": "Passive Fehlererfassung",
+                "retries": "Sichere Verbindungsversuche",
+                "activeHint": "Jedes Ziel per GET-Pfad prüfen. Intervall: 5–300 s; Timeout: 1–30 s und höchstens so lang wie das Intervall. Aufeinanderfolgende Fehler und Erfolge ändern die Routing-Verfügbarkeit.",
+                "passiveHint": "Fehlgeschlagene Verbindungen 1–300 s merken und Ziele ab dem Fehlerschwellwert ausschließen. Beim Abschalten werden auch erneute Versuche entfernt.",
+                "retriesHint": "Benötigt passive Fehlererfassung. Zusätzliche Failover-Versuche senden nur Anfragen erneut, die noch nicht verarbeitet wurden. Das Zeitfenster wird zwischen Versuchen geprüft und ist keine harte Anfragefrist. Im geordneten Modus muss die Anzahl der Wiederholungen den passiven Fehlerschwellwert erreichen. Mit Wiederholungen werden Upstream-Verbindungen nicht wiederverwendet, um unbeabsichtigte doppelte Schreibzugriffe zu vermeiden.",
+                "path": "Prüfpfad",
+                "intervalSeconds": "Prüfintervall (Sekunden, 5–300)",
+                "timeoutSeconds": "Prüf-Timeout (Sekunden, 1–30)",
+                "fails": "Fehler bis zum Ausschluss (1–10)",
+                "passes": "Erfolge bis zur Freigabe (1–10)",
+                "expectedStatus": "Erwarteter HTTP-Status (200–399)",
+                "failDurationSeconds": "Fehlerspeicher (Sekunden, 1–300)",
+                "maxFails": "Fehlerschwellwert (1–10)",
+                "maxRetries": "Maximale Wiederholungen (1–15)",
+                "tryDurationSeconds": "Zeitfenster (Sekunden, 1–30)",
+                "tryIntervalMilliseconds": "Pause zwischen Versuchen (ms, 100–5000)",
+                "pathPlaceholder": "/health"
+            },
+            "upstreamHealth": {
+                "title": "Routing-Verfügbarkeit",
+                "available": "Für Routing verfügbar",
+                "all_unavailable": "Alle Ziele nicht verfügbar",
+                "unknown": "Unbekannt",
+                "hint": "Zeigt aktuelle Routing-Entscheidungen des Proxys, keinen Monitoring-Verlauf. Ziele gelten anfangs als verfügbar; Ergebnisse aktiver Prüfungen entwickeln sich mit der Zeit.",
+                "disabledHint": "Host deaktiviert; die Routing-Verfügbarkeit ist unbekannt.",
+                "loadingHint": "Routing-Verfügbarkeit wird geladen.",
+                "errorHint": "Routing-Verfügbarkeit konnte nicht aktualisiert werden. Zuvor verfügbare Ziele werden jetzt als unbekannt angezeigt.",
+                "unknownHint": "Keine aktuelle, passende Routing-Beobachtung verfügbar.",
+                "member": {
+                    "available": "Verfügbar",
+                    "unavailable": "Nicht verfügbar",
+                    "unknown": "Unbekannt"
+                }
             }
         },
         "redirectHosts": {

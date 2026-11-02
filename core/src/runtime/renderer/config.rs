@@ -163,6 +163,7 @@ pub(super) fn render_config_inner(
                 true,
                 &config.http_settings,
                 &settings.trusted_proxy_cidrs,
+                &config.revision,
             )?);
         }
         for host in config

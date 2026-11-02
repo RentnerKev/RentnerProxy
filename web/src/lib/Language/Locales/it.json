@@ -1774,7 +1774,8 @@
                 "duplicateUpstream": "Ogni destinazione deve avere una combinazione univoca di host e porta.",
                 "upstreamPoolPrimary": "La destinazione primaria deve corrispondere al primo membro del pool.",
                 "upstreamMembersRequired": "Aggiungi almeno una destinazione upstream.",
-                "upstreamMembersLimit": "Aggiungi al massimo 16 destinazioni upstream."
+                "upstreamMembersLimit": "Aggiungi al massimo 16 destinazioni upstream.",
+                "upstreamFailover": "Controlla impostazioni e limiti dei controlli e del failover."
             },
             "config": {
                 "open": "Configurazione Caddy",
@@ -1974,6 +1975,43 @@
                 "moveUpLabel": "Sposta su destinazione {{number}}",
                 "moveDownLabel": "Sposta giù destinazione {{number}}",
                 "summary": "{{count}} destinazioni · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Controlli e failover",
+                "active": "Sonde attive",
+                "passive": "Rilevamento passivo degli errori",
+                "retries": "Tentativi di connessione sicuri",
+                "activeHint": "Controlla ogni destinazione con un percorso GET. Intervallo: 5–300 s; timeout: 1–30 s e non superiore all’intervallo. Errori e successi consecutivi modificano la disponibilità di instradamento.",
+                "passiveHint": "Memorizza le connessioni fallite per 1–300 s ed escludi le destinazioni alla soglia. Disattivando questa funzione si rimuovono anche i tentativi.",
+                "retriesHint": "Richiede il rilevamento passivo. I tentativi aggiuntivi di failover ripetono solo le richieste che non sono ancora state elaborate. La finestra viene controllata tra i tentativi, senza una scadenza totale rigida. In modalità ordinata il numero deve raggiungere la soglia passiva. Attivare i nuovi tentativi disabilita il riutilizzo delle connessioni upstream per evitare scritture duplicate implicite.",
+                "path": "Percorso della sonda",
+                "intervalSeconds": "Intervallo (secondi, 5–300)",
+                "timeoutSeconds": "Timeout della sonda (secondi, 1–30)",
+                "fails": "Errori per escludere (1–10)",
+                "passes": "Successi per ripristinare (1–10)",
+                "expectedStatus": "Stato HTTP previsto (200–399)",
+                "failDurationSeconds": "Memoria errori (secondi, 1–300)",
+                "maxFails": "Soglia errori (1–10)",
+                "maxRetries": "Tentativi massimi (1–15)",
+                "tryDurationSeconds": "Finestra tentativi (secondi, 1–30)",
+                "tryIntervalMilliseconds": "Pausa tra tentativi (ms, 100–5000)",
+                "pathPlaceholder": "/health"
+            },
+            "upstreamHealth": {
+                "title": "Disponibilità di instradamento",
+                "available": "Disponibile per l’instradamento",
+                "all_unavailable": "Tutte le destinazioni non disponibili",
+                "unknown": "Sconosciuta",
+                "hint": "Mostra le decisioni attuali del proxy, non la cronologia di monitoraggio. Le destinazioni sono inizialmente disponibili; le sonde attive aggiornano lo stato nel tempo.",
+                "disabledHint": "Host disabilitato; disponibilità sconosciuta.",
+                "loadingHint": "Caricamento disponibilità.",
+                "errorHint": "Aggiornamento non riuscito. Le destinazioni prima disponibili ora sono sconosciute.",
+                "unknownHint": "Nessuna osservazione recente e corrispondente.",
+                "member": {
+                    "available": "Disponibile",
+                    "unavailable": "Non disponibile",
+                    "unknown": "Sconosciuta"
+                }
             }
         },
         "redirectHosts": {

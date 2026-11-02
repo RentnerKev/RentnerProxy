@@ -1783,7 +1783,8 @@
                 "duplicateUpstream": "Każdy cel musi mieć unikalną kombinację hosta i portu.",
                 "upstreamPoolPrimary": "Główny cel musi odpowiadać pierwszemu elementowi puli.",
                 "upstreamMembersRequired": "Dodaj co najmniej jeden cel upstream.",
-                "upstreamMembersLimit": "Dodaj maksymalnie 16 celów upstream."
+                "upstreamMembersLimit": "Dodaj maksymalnie 16 celów upstream.",
+                "upstreamFailover": "Sprawdź ustawienia i limity kontroli oraz przełączania awaryjnego."
             },
             "config": {
                 "open": "Konfiguracja Caddy",
@@ -1983,6 +1984,43 @@
                 "moveUpLabel": "Przesuń cel {{number}} w górę",
                 "moveDownLabel": "Przesuń cel {{number}} w dół",
                 "summary": "{{count}} celów · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Kontrole i przełączanie awaryjne",
+                "active": "Aktywne sondy",
+                "passive": "Pasywne śledzenie błędów",
+                "retries": "Bezpieczne ponowienia połączeń",
+                "activeHint": "Sprawdzaj każdy cel ścieżką GET. Odstęp: 5–300 s; limit czasu: 1–30 s, nie dłuższy od odstępu. Kolejne błędy i sukcesy zmieniają dostępność routingu.",
+                "passiveHint": "Pamiętaj błędy połączeń przez 1–300 s i wykluczaj cele po osiągnięciu progu. Wyłączenie usuwa także ponowienia.",
+                "retriesHint": "Wymaga śledzenia pasywnego. Dodatkowe próby przełączenia awaryjnego ponawiają tylko żądania, które nie zostały jeszcze przetworzone. Okno jest sprawdzane między próbami i nie stanowi twardego limitu całego żądania. W trybie uporządkowanym liczba musi osiągnąć pasywny próg błędów. Włączenie ponowień wyłącza ponowne używanie połączeń upstream, aby uniknąć niezamierzonych podwójnych zapisów.",
+                "path": "Ścieżka sondy",
+                "intervalSeconds": "Odstęp sond (sekundy, 5–300)",
+                "timeoutSeconds": "Limit czasu sondy (sekundy, 1–30)",
+                "fails": "Błędy do wykluczenia (1–10)",
+                "passes": "Sukcesy do przywrócenia (1–10)",
+                "expectedStatus": "Oczekiwany status HTTP (200–399)",
+                "failDurationSeconds": "Pamięć błędów (sekundy, 1–300)",
+                "maxFails": "Próg błędów (1–10)",
+                "maxRetries": "Maksimum ponowień (1–15)",
+                "tryDurationSeconds": "Okno ponowień (sekundy, 1–30)",
+                "tryIntervalMilliseconds": "Odstęp ponowień (ms, 100–5000)",
+                "pathPlaceholder": "/health"
+            },
+            "upstreamHealth": {
+                "title": "Dostępność routingu",
+                "available": "Dostępny dla routingu",
+                "all_unavailable": "Wszystkie cele niedostępne",
+                "unknown": "Nieznana",
+                "hint": "Pokazuje bieżące decyzje proxy, nie historię monitorowania. Cele są początkowo dostępne; aktywne sondy stopniowo aktualizują stan.",
+                "disabledHint": "Host wyłączony; dostępność nieznana.",
+                "loadingHint": "Wczytywanie dostępności.",
+                "errorHint": "Nie udało się odświeżyć. Wcześniej dostępne cele są teraz oznaczone jako nieznane.",
+                "unknownHint": "Brak aktualnej, zgodnej obserwacji.",
+                "member": {
+                    "available": "Dostępny",
+                    "unavailable": "Niedostępny",
+                    "unknown": "Nieznany"
+                }
             }
         },
         "redirectHosts": {

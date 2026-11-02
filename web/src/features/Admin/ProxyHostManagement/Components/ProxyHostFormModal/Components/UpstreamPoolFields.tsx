@@ -6,6 +6,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import { proxyForwardHostSchema, proxyHostFormSchema } from '../../../validation.ts'
 import type { UpstreamPoolEditorProps } from '../Types/upstream-pool-fields.types.ts'
+import UpstreamFailoverFields from './UpstreamFailoverFields.tsx'
 
 /**
  * Presents single, round-robin and ordered pool modes with bounded target controls and field errors.
@@ -198,6 +199,7 @@ export default function UpstreamPoolFields({
                     >
                         {t('admin.proxyHosts.upstreamPool.add')}
                     </button>
+                    <UpstreamFailoverFields form={form} formId={formId} isPending={isPending} />
                 </>
             ) : null}
         </fieldset>

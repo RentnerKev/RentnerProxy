@@ -38,6 +38,7 @@ pub(super) fn http_routes(
             false,
             &config.http_settings,
             &settings.trusted_proxy_cidrs,
+            &config.revision,
         )?);
     }
     for host in &config.redirect_hosts {
@@ -76,7 +77,64 @@ pub(super) fn challenge_route(controller_addr: SocketAddr, forwarded_proto: &str
     }
 }
 
+/// Binds pooled traffic handlers to the verified revision while preserving access-policy routing.
 pub(super) fn host_routes(
+    host: &ProxyHost,
+    public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    https_listener: bool,
+    defaults: &ProxyHttpSettings,
+    trusted_proxy_cidrs: &[String],
+    revision: &str,
+) -> Result<Vec<Route>, RenderError> {
+    let mut routes = unobserved_host_routes(
+        host,
+        public_https_port,
+        upstream_tls,
+        https_listener,
+        defaults,
+        trusted_proxy_cidrs,
+    )?;
+    if host.upstream_pool.is_some() {
+        observe_routes(&mut routes, &host.id, revision);
+    }
+    Ok(routes)
+}
+
+/// Wraps only pooled proxies, including nested policy routes; auth and challenge proxies stay native.
+fn observe_routes(routes: &mut [Route], host_id: &str, revision: &str) {
+    for route in routes {
+        route.handle = std::mem::take(&mut route.handle)
+            .into_iter()
+            .map(|handler| match handler {
+                Handler::ReverseProxy(mut proxy) => {
+                    for response in &mut proxy.handle_response {
+                        observe_routes(&mut response.routes, host_id, revision);
+                    }
+                    if proxy.load_balancing.is_some() {
+                        Handler::ObservedReverseProxy(Box::new(
+                            super::model::ObservedReverseProxy {
+                                host_id: host_id.to_owned(),
+                                revision: revision.to_owned(),
+                                proxy: *proxy,
+                            },
+                        ))
+                    } else {
+                        Handler::ReverseProxy(proxy)
+                    }
+                }
+                Handler::Subroute(mut subroute) => {
+                    observe_routes(&mut subroute.routes, host_id, revision);
+                    Handler::Subroute(subroute)
+                }
+                handler => handler,
+            })
+            .collect();
+    }
+}
+
+/// Builds the existing HTTP/HTTPS and trusted-termination paths before attaching observation metadata.
+fn unobserved_host_routes(
     host: &ProxyHost,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
@@ -301,12 +359,14 @@ impl HostSourceRoutes {
     }
 }
 
+/// Produces per-host source with the same revision and routing behavior as the complete configuration.
 pub(crate) fn render_host_config_for_runtime(
     host: &ProxyHost,
     defaults: &ProxyHttpSettings,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     trusted_proxy_cidrs: &[String],
+    revision: &str,
 ) -> Result<String, RenderError> {
     let source = HostSource {
         http: HostSourceRoutes::from_routes(host_routes(
@@ -316,6 +376,7 @@ pub(crate) fn render_host_config_for_runtime(
             false,
             defaults,
             trusted_proxy_cidrs,
+            revision,
         )?),
         https: host
             .certificate_id
@@ -328,6 +389,7 @@ pub(crate) fn render_host_config_for_runtime(
                     true,
                     defaults,
                     trusted_proxy_cidrs,
+                    revision,
                 )
                 .map(HostSourceRoutes::from_routes)
             })
@@ -336,6 +398,7 @@ pub(crate) fn render_host_config_for_runtime(
     serde_json::to_string(&source).map_err(|_| RenderError::ConfigTooLarge)
 }
 
+/// Builds bounded per-host source views without changing member order or effective TLS policy.
 pub(crate) fn render_host_sources_for_runtime(
     configuration: &ValidatedProxyConfig,
     public_https_port: u16,
@@ -350,6 +413,7 @@ pub(crate) fn render_host_sources_for_runtime(
             public_https_port,
             upstream_tls,
             trusted_proxy_cidrs,
+            &configuration.revision,
         )?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
             return Err(RenderError::ConfigTooLarge);

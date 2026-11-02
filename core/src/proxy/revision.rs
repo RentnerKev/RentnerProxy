@@ -187,7 +187,7 @@ struct ProbeHandler {
     status_code: Option<u16>,
 }
 
-pub(super) fn is_revision(value: &str) -> bool {
+pub(crate) fn is_revision(value: &str) -> bool {
     let Some(hash) = value.strip_prefix("sha256:") else {
         return false;
     };

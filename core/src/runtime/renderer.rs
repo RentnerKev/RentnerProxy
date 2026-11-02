@@ -8,6 +8,7 @@ mod policy;
 mod proxy;
 mod routes;
 
+pub(super) use proxy::upstream_dial;
 pub(crate) use routes::{render_host_config_for_runtime, render_host_sources_for_runtime};
 
 pub(crate) const MAX_RENDERED_PROXY_CONFIG_BYTES: usize = 16 * 1024 * 1024;

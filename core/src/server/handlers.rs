@@ -32,7 +32,7 @@ pub(super) use crowdsec::{
 pub(super) use health::{health, readiness};
 pub(super) use proxy::{
     apply_proxy_config, preview_proxy_config, preview_proxy_host_config, proxy_status,
-    proxy_version, read_proxy_config, read_proxy_host_config,
+    proxy_version, read_proxy_config, read_proxy_host_config, read_proxy_host_upstreams,
 };
 
 fn no_store_status_json<T: Serialize>(status: StatusCode, payload: T) -> Response {

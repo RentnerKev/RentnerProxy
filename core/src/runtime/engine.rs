@@ -100,6 +100,14 @@ pub(crate) trait ProxyEngine: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
         Box::pin(async { Err(EngineError::Unavailable) })
     }
+    /// Reads handler-local observations; engines without this capability remain honestly unknown.
+    fn upstream_observations<'a>(
+        &'a self,
+        _host_id: &'a str,
+        _revision: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
+        Box::pin(async { Err(EngineError::Unavailable) })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -169,7 +177,7 @@ impl CaddyProcess {
         &self,
         socket: &Path,
         method: &'static str,
-        path: &'static str,
+        path: &str,
         body: &str,
         limits: ControlLimits,
     ) -> Result<ControlResponse, EngineError> {
@@ -497,6 +505,38 @@ impl ProxyEngine for CaddyProcess {
             Ok(response.body)
         })
     }
+    /// Queries the private admin socket with validated metadata and a bounded response/deadline.
+    fn upstream_observations<'a>(
+        &'a self,
+        host_id: &'a str,
+        revision: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
+        Box::pin(async move {
+            if !crate::proxy::is_canonical_uuid(host_id) || !crate::proxy::is_revision(revision) {
+                return Err(EngineError::InvalidResponse);
+            }
+            if !self.child_running().await {
+                return Err(EngineError::Unavailable);
+            }
+            let path = format!("/rentnerproxy/upstreams?host_id={host_id}&revision={revision}");
+            let response = self
+                .request_bounded(
+                    &self.admin_socket,
+                    "GET",
+                    &path,
+                    "",
+                    ControlLimits {
+                        response_bytes: 1024 * 1024,
+                        timeout: PROBE_TIMEOUT,
+                    },
+                )
+                .await?;
+            if response.status != 200 {
+                return Err(EngineError::InvalidResponse);
+            }
+            Ok(response.body)
+        })
+    }
 }
 
 struct ControlResponse {
@@ -536,7 +576,7 @@ async fn exchange_bounded<S>(
     stream: S,
     host: &str,
     method: &'static str,
-    path: &'static str,
+    path: &str,
     body: &str,
     response_limit: usize,
 ) -> Result<ControlResponse, EngineError>

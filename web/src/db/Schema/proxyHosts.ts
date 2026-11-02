@@ -59,7 +59,7 @@ export const proxyHosts = rentnerProxySchema.table(
             sql`${table.upstreamPool} is null or coalesce((
                 jsonb_typeof(${table.upstreamPool}) = 'object'
                 and ${table.upstreamPool} ?& array['policy', 'members']
-                and (${table.upstreamPool} - 'policy' - 'members') = '{}'::jsonb
+                and (${table.upstreamPool} - 'policy' - 'members' - 'failover') = '{}'::jsonb
                 and jsonb_typeof(${table.upstreamPool}->'policy') = 'string'
                 and ${table.upstreamPool}->>'policy' in ('round_robin', 'first')
                 and jsonb_typeof(${table.upstreamPool}->'members') = 'array'
@@ -68,6 +68,68 @@ export const proxyHosts = rentnerProxySchema.table(
                 and not jsonb_path_exists(${table.upstreamPool}, '$.members[*].keyvalue() ? (@.key != "host" && @.key != "port")')
                 and ${table.upstreamPool}->'members'->0->>'host' = ${table.forwardHost}
                 and ${table.upstreamPool}->'members'->0->'port' = to_jsonb(${table.forwardPort})
+                and (not (${table.upstreamPool} ? 'failover') or (
+                    jsonb_typeof((${table.upstreamPool}->'failover')) = 'object'
+                    and (${table.upstreamPool}->'failover') <> '{}'::jsonb
+                    and ((${table.upstreamPool}->'failover') - 'active' - 'passive' - 'retries') = '{}'::jsonb
+                    and (not ((${table.upstreamPool}->'failover') ? 'active') or (
+                    jsonb_typeof(((${table.upstreamPool}->'failover')->'active')) = 'object'
+                    and ((${table.upstreamPool}->'failover')->'active') ?& array['path', 'intervalSeconds', 'timeoutSeconds', 'fails', 'passes', 'expectedStatus']
+                    and (((${table.upstreamPool}->'failover')->'active') - 'path' - 'intervalSeconds' - 'timeoutSeconds' - 'fails' - 'passes' - 'expectedStatus') = '{}'::jsonb
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'intervalSeconds') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'intervalSeconds')::numeric between 5 and 300
+                    and trunc((((${table.upstreamPool}->'failover')->'active')->>'intervalSeconds')::numeric) = (((${table.upstreamPool}->'failover')->'active')->>'intervalSeconds')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'timeoutSeconds') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'timeoutSeconds')::numeric between 1 and 30
+                    and trunc((((${table.upstreamPool}->'failover')->'active')->>'timeoutSeconds')::numeric) = (((${table.upstreamPool}->'failover')->'active')->>'timeoutSeconds')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'fails') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'fails')::numeric between 1 and 10
+                    and trunc((((${table.upstreamPool}->'failover')->'active')->>'fails')::numeric) = (((${table.upstreamPool}->'failover')->'active')->>'fails')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'passes') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'passes')::numeric between 1 and 10
+                    and trunc((((${table.upstreamPool}->'failover')->'active')->>'passes')::numeric) = (((${table.upstreamPool}->'failover')->'active')->>'passes')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'expectedStatus') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'expectedStatus')::numeric between 200 and 399
+                    and trunc((((${table.upstreamPool}->'failover')->'active')->>'expectedStatus')::numeric) = (((${table.upstreamPool}->'failover')->'active')->>'expectedStatus')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'active')->'path') = 'string'
+                    and length((((${table.upstreamPool}->'failover')->'active')->>'path')) between 1 and 2048
+                    and left((((${table.upstreamPool}->'failover')->'active')->>'path'), 1) = '/' and left((((${table.upstreamPool}->'failover')->'active')->>'path'), 2) <> '//'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'path') !~ '[^!-~]'
+                    and position('#' in (((${table.upstreamPool}->'failover')->'active')->>'path')) = 0
+                    and position(chr(92) in (((${table.upstreamPool}->'failover')->'active')->>'path')) = 0
+                    and position('{' in (((${table.upstreamPool}->'failover')->'active')->>'path')) = 0 and position('}' in (((${table.upstreamPool}->'failover')->'active')->>'path')) = 0
+                    and (((${table.upstreamPool}->'failover')->'active')->>'path') !~ '%([^0-9A-Fa-f]|[0-9A-Fa-f]([^0-9A-Fa-f]|$)|$)'
+                    and (((${table.upstreamPool}->'failover')->'active')->>'timeoutSeconds')::numeric <= (((${table.upstreamPool}->'failover')->'active')->>'intervalSeconds')::numeric
+                ))
+                    and (not ((${table.upstreamPool}->'failover') ? 'passive') or (
+                    jsonb_typeof(((${table.upstreamPool}->'failover')->'passive')) = 'object'
+                    and ((${table.upstreamPool}->'failover')->'passive') ?& array['failDurationSeconds', 'maxFails']
+                    and (((${table.upstreamPool}->'failover')->'passive') - 'failDurationSeconds' - 'maxFails') = '{}'::jsonb
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'passive')->'failDurationSeconds') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'passive')->>'failDurationSeconds')::numeric between 1 and 300
+                    and trunc((((${table.upstreamPool}->'failover')->'passive')->>'failDurationSeconds')::numeric) = (((${table.upstreamPool}->'failover')->'passive')->>'failDurationSeconds')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'passive')->'maxFails') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'passive')->>'maxFails')::numeric between 1 and 10
+                    and trunc((((${table.upstreamPool}->'failover')->'passive')->>'maxFails')::numeric) = (((${table.upstreamPool}->'failover')->'passive')->>'maxFails')::numeric
+                ))
+                    and (not ((${table.upstreamPool}->'failover') ? 'retries') or (
+                    jsonb_typeof(((${table.upstreamPool}->'failover')->'retries')) = 'object'
+                    and ((${table.upstreamPool}->'failover')->'retries') ?& array['maxRetries', 'tryDurationSeconds', 'tryIntervalMilliseconds']
+                    and (((${table.upstreamPool}->'failover')->'retries') - 'maxRetries' - 'tryDurationSeconds' - 'tryIntervalMilliseconds') = '{}'::jsonb
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'retries')->'maxRetries') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'retries')->>'maxRetries')::numeric between 1 and 15
+                    and trunc((((${table.upstreamPool}->'failover')->'retries')->>'maxRetries')::numeric) = (((${table.upstreamPool}->'failover')->'retries')->>'maxRetries')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'retries')->'tryDurationSeconds') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'retries')->>'tryDurationSeconds')::numeric between 1 and 30
+                    and trunc((((${table.upstreamPool}->'failover')->'retries')->>'tryDurationSeconds')::numeric) = (((${table.upstreamPool}->'failover')->'retries')->>'tryDurationSeconds')::numeric
+                    and jsonb_typeof(((${table.upstreamPool}->'failover')->'retries')->'tryIntervalMilliseconds') = 'number'
+                    and (((${table.upstreamPool}->'failover')->'retries')->>'tryIntervalMilliseconds')::numeric between 100 and 5000
+                    and trunc((((${table.upstreamPool}->'failover')->'retries')->>'tryIntervalMilliseconds')::numeric) = (((${table.upstreamPool}->'failover')->'retries')->>'tryIntervalMilliseconds')::numeric
+                    and (${table.upstreamPool}->'failover') ? 'passive'
+                    and (((${table.upstreamPool}->'failover')->'retries')->>'tryIntervalMilliseconds')::numeric <= (((${table.upstreamPool}->'failover')->'retries')->>'tryDurationSeconds')::numeric * 1000
+                    and (${table.upstreamPool}->>'policy' <> 'first' or (((${table.upstreamPool}->'failover')->'retries')->>'maxRetries')::numeric >= (((${table.upstreamPool}->'failover')->'passive')->>'maxFails')::numeric)
+                ))
+                ))
             ), false)`,
         ),
         index('proxy_hosts_enabled_idx').on(table.enabled),

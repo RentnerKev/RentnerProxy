@@ -1,3 +1,4 @@
+import { UPSTREAM_FAILOVER_DEFAULTS } from '@/config/upstream-pools.config.ts'
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 
 import {
@@ -683,4 +684,43 @@ describe('upstream pool snapshot contract', () => {
             }).version,
         ).toBe(8)
     })
+})
+
+test('failover uses canonical v9 while preserving v7 and v8 payload hashes', () => {
+    const members = [
+        { host: 'backend.internal', port: 4000 },
+        { host: 'secondary.internal', port: 4001 },
+    ]
+    const base = { domains: ['www.demo.test', 'demo.test'] }
+    const legacy = snapshot(base)
+    const pooled = snapshot({ ...base, upstreamPool: { policy: 'round_robin', members } })
+    expect(legacy.version).toBe(7)
+    expect(legacy.revision).toBe(
+        'sha256:7b3e586f596ea7a1ffacad33824b96234e23802d12f3741e73025bf8a23a4a06',
+    )
+    expect(pooled.version).toBe(8)
+    expect(pooled.revision).toBe(
+        'sha256:ab553eed513e20dae33d9e0e41c2d2bf73505b6da121bc2a99ed0ee96a7b6841',
+    )
+    const failover = snapshot({
+        ...base,
+        upstreamPool: { policy: 'round_robin', members, failover: UPSTREAM_FAILOVER_DEFAULTS },
+    })
+    expect(failover.version).toBe(9)
+    expect(failover.revision).toBe(
+        'sha256:f3228530e6b0bc0b0c2aa22c401dc2b5358e809fbb2eb03fbc47abf2111aa22b',
+    )
+    expect(Object.keys(failover.proxyHosts[0]!).at(-1)).toBe('upstreamPool')
+    const changed = snapshot({
+        ...base,
+        upstreamPool: {
+            policy: 'round_robin',
+            members,
+            failover: {
+                ...UPSTREAM_FAILOVER_DEFAULTS,
+                active: { ...UPSTREAM_FAILOVER_DEFAULTS.active, path: '/ready' },
+            },
+        },
+    })
+    expect(changed.revision).not.toBe(failover.revision)
 })

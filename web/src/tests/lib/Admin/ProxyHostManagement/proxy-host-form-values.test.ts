@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHostFormValues.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import { UPSTREAM_FAILOVER_DEFAULTS } from '@/config/upstream-pools.config.ts'
 
 const source: ProxyHostSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',
@@ -79,5 +80,39 @@ describe('proxy host form drafts', () => {
             expect(pooled.upstreamPool!.members[0]!.host).toBe('primary.internal')
         }
         expect(getProxyHostFormValues('create', pooled).upstreamPool).toBeNull()
+    })
+    test('copies every failover section into independent string drafts for edit and duplicate', () => {
+        const pooled: ProxyHostSummary = {
+            ...source,
+            upstreamPool: {
+                policy: 'first',
+                members: [{ host: source.forwardHost, port: source.forwardPort }],
+                failover: structuredClone(UPSTREAM_FAILOVER_DEFAULTS),
+            },
+        }
+        for (const mode of ['edit', 'duplicate'] as const) {
+            const draft = getProxyHostFormValues(mode, pooled)
+            const failover = draft.upstreamPool!.failover!
+            expect(failover).toEqual({
+                active: {
+                    path: '/health',
+                    intervalSeconds: '10',
+                    timeoutSeconds: '2',
+                    fails: '2',
+                    passes: '2',
+                    expectedStatus: '200',
+                },
+                passive: { failDurationSeconds: '30', maxFails: '1' },
+                retries: {
+                    maxRetries: '2',
+                    tryDurationSeconds: '5',
+                    tryIntervalMilliseconds: '250',
+                },
+            })
+            failover.active!.path = '/changed'
+            failover.passive!.maxFails = '5'
+            failover.retries!.maxRetries = '7'
+            expect(pooled.upstreamPool!.failover).toEqual(UPSTREAM_FAILOVER_DEFAULTS)
+        }
     })
 })

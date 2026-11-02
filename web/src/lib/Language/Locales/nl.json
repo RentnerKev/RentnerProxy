@@ -1746,7 +1746,8 @@
                 "duplicateUpstream": "Elk doel moet een unieke combinatie van host en poort hebben.",
                 "upstreamPoolPrimary": "Het primaire doel moet overeenkomen met het eerste poollid.",
                 "upstreamMembersRequired": "Voeg minimaal één upstreamdoel toe.",
-                "upstreamMembersLimit": "Voeg maximaal 16 upstreamdoelen toe."
+                "upstreamMembersLimit": "Voeg maximaal 16 upstreamdoelen toe.",
+                "upstreamFailover": "Controleer de instellingen en grenzen voor controles en failover."
             },
             "config": {
                 "open": "Caddy-configuratie",
@@ -1946,6 +1947,43 @@
                 "moveUpLabel": "Doel {{number}} omhoog",
                 "moveDownLabel": "Doel {{number}} omlaag",
                 "summary": "{{count}} doelen · {{policy}}"
+            },
+            "upstreamFailover": {
+                "title": "Controles en failover",
+                "active": "Actieve controles",
+                "passive": "Passieve foutregistratie",
+                "retries": "Veilige verbindingspogingen",
+                "activeHint": "Controleer elk doel via een GET-pad. Interval: 5–300 s; timeout: 1–30 s en maximaal het interval. Opeenvolgende fouten en successen veranderen de beschikbaarheid voor routering.",
+                "passiveHint": "Onthoud mislukte verbindingen 1–300 s en sluit doelen uit bij de foutdrempel. Uitschakelen verwijdert ook herhaalde pogingen.",
+                "retriesHint": "Vereist passieve registratie. Extra failoverpogingen herhalen alleen verzoeken die nog niet zijn verwerkt. Het tijdvenster wordt tussen pogingen gecontroleerd en is geen harde totale deadline. In geordende modus moet het aantal de passieve foutdrempel bereiken. Herhaalde pogingen schakelen het hergebruik van upstreamverbindingen uit om onbedoelde dubbele schrijfacties te voorkomen.",
+                "path": "Controlepad",
+                "intervalSeconds": "Controle-interval (seconden, 5–300)",
+                "timeoutSeconds": "Timeout (seconden, 1–30)",
+                "fails": "Fouten voor uitsluiting (1–10)",
+                "passes": "Successen voor herstel (1–10)",
+                "expectedStatus": "Verwachte HTTP-status (200–399)",
+                "failDurationSeconds": "Foutgeheugen (seconden, 1–300)",
+                "maxFails": "Foutdrempel (1–10)",
+                "maxRetries": "Maximum herhalingen (1–15)",
+                "tryDurationSeconds": "Tijdvenster (seconden, 1–30)",
+                "tryIntervalMilliseconds": "Pauze tussen pogingen (ms, 100–5000)",
+                "pathPlaceholder": "/health"
+            },
+            "upstreamHealth": {
+                "title": "Beschikbaarheid voor routering",
+                "available": "Beschikbaar voor routering",
+                "all_unavailable": "Alle doelen onbeschikbaar",
+                "unknown": "Onbekend",
+                "hint": "Toont de huidige routeringsbeslissingen van de proxy, geen bewakingsgeschiedenis. Doelen beginnen als beschikbaar; actieve controles werken dit geleidelijk bij.",
+                "disabledHint": "Host uitgeschakeld; beschikbaarheid onbekend.",
+                "loadingHint": "Beschikbaarheid laden.",
+                "errorHint": "Vernieuwen mislukt. Eerder beschikbare doelen worden nu als onbekend getoond.",
+                "unknownHint": "Geen recente overeenkomende waarneming beschikbaar.",
+                "member": {
+                    "available": "Beschikbaar",
+                    "unavailable": "Onbeschikbaar",
+                    "unknown": "Onbekend"
+                }
             }
         },
         "redirectHosts": {
