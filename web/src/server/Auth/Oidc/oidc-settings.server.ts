@@ -55,6 +55,7 @@ const storedSchema = z
     })
     .strict()
 
+/** Applies the same explicit destination policy to newly submitted and persisted trust settings. */
 function validateDestinations(
     provider: StoredOidcProvider | SaveOidcProvidersInput['providers'][number],
 ): void {

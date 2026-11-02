@@ -50,6 +50,7 @@ export function createOidcFlowStore(overrides: Partial<OidcStateDependencies> = 
         open: decryptSecret,
         ...overrides,
     }
+    /** Fails closed when the shared challenge cache cannot durably issue or consume an exchange. */
     async function send(command: string, args: string[]) {
         try {
             const client = dependencies.client()
@@ -60,6 +61,7 @@ export function createOidcFlowStore(overrides: Partial<OidcStateDependencies> = 
         }
     }
     return {
+        /** Seals PKCE/nonce data and persists only hashed bearer identifiers with a bounded lifetime. */
         async issue(flow) {
             const parsed = flowSchema.safeParse(flow)
             if (!parsed.success) throw new OidcDomainError('invalid_input')
@@ -88,6 +90,7 @@ export function createOidcFlowStore(overrides: Partial<OidcStateDependencies> = 
                 throw new OidcDomainError('configuration_unavailable')
             return { state, browserToken, expiresAt: new Date(expiresAt) }
         },
+        /** Validates browser and lifetime before atomically consuming and opening the encrypted flow. */
         async consume(state, browserToken) {
             if (!isValidOpaqueToken(state) || !isValidOpaqueToken(browserToken)) return null
             const hash = await hashOpaqueToken(state)

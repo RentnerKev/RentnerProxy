@@ -458,6 +458,7 @@ export async function createOidcLoginMfaChallengeService(
     )
 }
 
+/** Revalidates first-factor authority and consumes local proof atomically before issuing a fresh session. */
 async function completeLoginMfaTransaction(
     consumed: LoginMfaChallenge,
     proof: LoginMfaProof,

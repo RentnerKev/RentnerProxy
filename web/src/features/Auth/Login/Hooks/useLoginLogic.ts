@@ -16,6 +16,7 @@ import { beginPasskeyLoginHandler, finishPasskeyLoginHandler, loginHandler } fro
 import { loginInputSchema } from '../validation.ts'
 import type { LoginFormValues } from '../Types/login-form.types.ts'
 import { getPublicOidcProvidersHandler } from '@/features/Auth/Oidc/middleware.ts'
+/** Coordinates local sign-in and native provider navigation, including restoration after browser Back. */
 export default function useLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()

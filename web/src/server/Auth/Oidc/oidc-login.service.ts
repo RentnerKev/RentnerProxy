@@ -24,6 +24,7 @@ import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts
 /** Connects one-time OIDC proof to the existing local session and MFA lifecycle. */
 export function createOidcLoginService(dependencies: OidcFlowDependencies) {
     let active = 0
+    /** Caps outstanding provider operations and releases admission on every completion path. */
     async function admitted<T>(run: () => Promise<T>): Promise<T> {
         if (active >= OIDC_LIMITS.activeExchanges) throw new OidcDomainError('provider_unavailable')
         active += 1
@@ -33,12 +34,14 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
             active -= 1
         }
     }
+    /** Pins callbacks to deployment configuration rather than forwarded request headers. */
     function redirectUri() {
         const origin = dependencies.origin()
         if (!origin) throw new OidcDomainError('configuration_unavailable')
         return new URL(OIDC_CALLBACK_PATH, origin).href
     }
     return {
+        /** Binds a fresh authorization attempt to the provider generation, browser and callback URI. */
         beginOidcLoginService(providerId: string) {
             return admitted(async () => {
                 const configuration = await dependencies.configuration(providerId)
@@ -60,6 +63,7 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
                 throw new OidcDomainError('provider_unavailable')
             })
         },
+        /** Consumes browser proof before redemption and rechecks trust before local authentication. */
         completeOidcLoginService(callback: URL, browserToken: string) {
             return admitted(async () => {
                 try {

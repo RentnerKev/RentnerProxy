@@ -34,6 +34,7 @@ import type { OidcClientConfiguration } from './Types/oidc.types.ts'
 /** Separates owner-authorized trust mutations from the credential-free public sign-in catalog. */
 export function createOidcProvidersService(dependencies: OidcProviderDependencies) {
     return {
+        /** Exposes only names and IDs of enabled providers with an explicitly linked account. */
         async getPublicOidcProvidersService(): Promise<Array<{ id: string; name: string }>> {
             return dependencies.transaction(async (transaction) => {
                 const settings = await dependencies.read(transaction)
@@ -47,6 +48,7 @@ export function createOidcProvidersService(dependencies: OidcProviderDependencie
                     .map(({ id, name }) => ({ id, name }))
             })
         },
+        /** Rechecks the owner session before returning a credential-free configuration snapshot. */
         async getOidcProvidersService() {
             const session = await dependencies.session()
             if (!hasOwnerRole(session.user.roles))
@@ -57,6 +59,7 @@ export function createOidcProvidersService(dependencies: OidcProviderDependencie
                 return summarizeOidcSettings(current)
             })
         },
+        /** Serializes revision-checked owner changes, validates new bindings and audits the committed policy. */
         async saveOidcProvidersService(input: SaveOidcProvidersInput) {
             const session = await dependencies.session()
             if (!hasOwnerRole(session.user.roles))

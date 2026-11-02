@@ -11,6 +11,7 @@ import type { OidcProtocolOptions } from './Types/oidc-client.types.ts'
 import { OidcDomainError } from './oidc.errors.ts'
 import { createOidcHttpFetch, validateOidcEndpoint } from './oidc-http.server.ts'
 
+/** Narrows untrusted protocol JSON without accepting arrays or null as metadata objects. */
 function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -21,6 +22,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
     const cache = new Map<string, { expires: number; pending: Promise<oidc.Configuration> }>()
     const validUntil = new WeakMap<oidc.Configuration, number>()
 
+    /** Coalesces discovery per trust fingerprint and discards expired or failed cache entries. */
     async function getConfiguration(
         configuration: OidcClientConfiguration,
     ): Promise<oidc.Configuration> {
@@ -137,6 +139,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
     }
 
     return {
+        /** Builds a code-only request with fresh browser state, nonce and S256 proof. */
         async buildAuthorizationUrl(
             configuration: OidcClientConfiguration,
             request: OidcAuthorizationRequest,
@@ -153,6 +156,7 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                 code_challenge: await oidc.calculatePKCECodeChallenge(request.codeVerifier),
             })
         },
+        /** Verifies the complete code exchange and returns only its issuer-bound immutable subject. */
         async exchangeAuthorizationCode(
             configuration: OidcClientConfiguration,
             request: OidcAuthorizationRequest,

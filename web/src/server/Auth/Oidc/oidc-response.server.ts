@@ -34,12 +34,14 @@ function responseHeaders() {
     })
 }
 
+/** Uses a browser-enforced host-only binding on HTTPS and a distinct development cookie on HTTP. */
 function flowCookieName(origin: string): string {
     return new URL(origin).protocol === 'https:'
         ? OIDC_FLOW_COOKIE_NAME
         : OIDC_DEVELOPMENT_FLOW_COOKIE_NAME
 }
 
+/** Rejects duplicate, malformed or oversized browser bindings before any exchange is consumed. */
 function flowCookie(request: Request, origin: string): string | null {
     const name = flowCookieName(origin)
     const header = request.headers.get('cookie') ?? ''
@@ -53,6 +55,7 @@ function flowCookie(request: Request, origin: string): string | null {
     return isValidOpaqueToken(value) ? value : null
 }
 
+/** Formats an opaque authentication cookie with the existing HttpOnly/Lax session contract. */
 function cookie(name: string, value: string, path: string, expiresAt: Date, origin: string) {
     if (value && !isValidOpaqueToken(value)) throw new Error('invalid_cookie')
     return `${name}=${value}; Path=${path}; HttpOnly; SameSite=Lax; Expires=${expiresAt.toUTCString()}${new URL(origin).protocol === 'https:' ? '; Secure' : ''}`
@@ -69,6 +72,7 @@ function redirect(
 /** Raw auth endpoints return fixed redirects and never serialize protocol responses. */
 export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies) {
     return {
+        /** Accepts a bounded same-origin provider selection and starts a native browser navigation. */
         async start(request: Request): Promise<Response> {
             const headers = responseHeaders()
             if (request.method !== 'POST') return new Response(null, { status: 405, headers })
@@ -116,6 +120,7 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                 return redirect('/login?oidcError=failed', headers)
             }
         },
+        /** Issues existing local session/MFA cookies only after a verified exchange, with fixed safe redirects. */
         async callback(request: Request): Promise<Response> {
             const headers = responseHeaders()
             if (request.method !== 'GET') return new Response(null, { status: 405, headers })

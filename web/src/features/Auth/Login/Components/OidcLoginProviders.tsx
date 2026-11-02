@@ -2,6 +2,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import type { OidcLoginProvidersProps } from '../Types/login-component-props.types.ts'
 
+/** Presents provider selections as separate native forms while retaining local-account recovery feedback. */
 export default function OidcLoginProviders({ state, onSubmit }: OidcLoginProvidersProps) {
     const { t } = useTranslationStore()
     return (

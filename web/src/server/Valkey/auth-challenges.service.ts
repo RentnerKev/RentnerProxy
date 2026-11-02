@@ -117,6 +117,7 @@ function isChallengeKind(value: unknown): value is AuthChallengeKind {
     )
 }
 
+/** Rejects malformed or mixed first-factor proof before the transaction revalidates its authority. */
 function isLoginFirstFactor(value: unknown): value is LoginFirstFactor {
     if (!value || typeof value !== 'object') return false
     const proof = value as Record<string, unknown>
@@ -144,6 +145,7 @@ function isLoginFirstFactor(value: unknown): value is LoginFirstFactor {
     )
 }
 
+/** Parses only the requested challenge kind and fails closed on obsolete or malformed persisted proof. */
 function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthChallenge | null {
     if (typeof value !== 'string') {
         return null
@@ -202,6 +204,7 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
     }
 }
 
+/** Prevents issuing a login challenge that lacks its explicit first-factor binding. */
 function ensureChallengeInput(challenge: AuthChallenge): void {
     if (
         !isChallengeKind(challenge.kind) ||
