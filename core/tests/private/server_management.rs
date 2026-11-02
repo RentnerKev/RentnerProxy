@@ -847,3 +847,6 @@ async fn delegated_cancellation_requires_bounded_fenced_request_and_authenticati
         )
     );
 }
+
+#[path = "server_handler_boundaries.rs"]
+mod handler_boundaries;

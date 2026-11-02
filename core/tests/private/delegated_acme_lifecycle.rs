@@ -635,3 +635,88 @@ fn retained_unknowns_do_not_bypass_cleanup_for_direct_dns_mode() {
             assert!(fixture.state.deleted.lock().await.is_empty());
         });
 }
+
+#[test]
+fn cleanup_recovery_keeps_authority_when_connection_is_missing_and_releases_worker_lease() {
+    if !isolated(
+        "cleanup_recovery_keeps_authority_when_connection_is_missing_and_releases_worker_lease",
+    ) {
+        return;
+    }
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let runtime = runtime().await;
+            begin_delegated(&runtime).await;
+            let journal = vec![intent()];
+            runtime
+                .certificate_store
+                .set_pending_dns_records(ID, journal.clone())
+                .await
+                .unwrap();
+            runtime
+                .certificate_store
+                .finish_failed(ID, CertificateError::DnsCredentialsUnavailable)
+                .await;
+            let before = runtime.certificate_store.get(ID).await.unwrap();
+            runtime.recover_dns_cleanup_one(ID).await;
+            assert_eq!(
+                runtime
+                    .certificate_store
+                    .pending_dns_records(ID)
+                    .await
+                    .unwrap(),
+                journal
+            );
+            assert_eq!(runtime.certificate_store.get(ID).await.unwrap(), before);
+            assert!(
+                runtime
+                    .certificate_store
+                    .begin_dns_cleanup(ID)
+                    .await
+                    .unwrap()
+                    .is_some()
+            );
+            runtime.certificate_store.finish_dns_cleanup(ID).await;
+            runtime.recover_dns_cleanup().await;
+            timeout(Duration::from_secs(3), async {
+                while super::super::ACME_JOBS.available_permits() != 4 {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(runtime.dns_cleanup_cursor.load(Ordering::Relaxed), 1);
+            assert_eq!(
+                runtime
+                    .certificate_store
+                    .pending_dns_records(ID)
+                    .await
+                    .unwrap(),
+                journal
+            );
+            assert_eq!(runtime.certificate_store.get(ID).await.unwrap(), before);
+            assert!(
+                runtime
+                    .certificate_store
+                    .begin_dns_cleanup(ID)
+                    .await
+                    .unwrap()
+                    .is_some()
+            );
+            runtime.certificate_store.finish_dns_cleanup(ID).await;
+            runtime.begin_shutdown();
+            runtime.recover_dns_cleanup().await;
+            assert_eq!(super::super::ACME_JOBS.available_permits(), 4);
+            assert_eq!(
+                runtime
+                    .certificate_store
+                    .pending_dns_records(ID)
+                    .await
+                    .unwrap(),
+                journal
+            );
+        });
+}

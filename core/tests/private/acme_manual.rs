@@ -20,6 +20,8 @@ struct ManualCa {
     observer: AcmeResponseObserver,
     expires: Option<String>,
     key: Vec<u8>,
+    authorization_patch: Option<Value>,
+    order_patch: Option<Value>,
 }
 
 impl ManualCa {
@@ -39,6 +41,8 @@ impl ManualCa {
                     .unwrap(),
             ),
             key: key.secret_pkcs8_der().to_vec(),
+            authorization_patch: None,
+            order_patch: None,
         }
     }
 
@@ -146,6 +150,18 @@ impl instant_acme::HttpClient for ManualCa {
             {
                 response["expires"] = json!(expires);
             }
+            let patch = if path.starts_with("/auth/") {
+                ca.authorization_patch.as_ref()
+            } else if ["/orders", "/order/1", "/finalize"].contains(&path.as_str()) {
+                ca.order_patch.as_ref()
+            } else {
+                None
+            };
+            if let Some(Value::Object(patch)) = patch {
+                for (key, value) in patch {
+                    response[key] = value.clone();
+                }
+            }
             let bytes = if path == "/cert" {
                 b"fake-certificate-chain".to_vec()
             } else {
@@ -166,6 +182,88 @@ impl instant_acme::HttpClient for ManualCa {
             ))
         })
     }
+}
+
+#[tokio::test]
+async fn manual_preparation_rejects_unrequested_duplicate_invalid_and_unsafe_authorizations() {
+    for patch in [
+        json!({"identifier":{"type":"dns","value":"other.example.com"}}),
+        json!({"wildcard":false}),
+        json!({"status":"invalid"}),
+        json!({"challenges":[]}),
+        json!({"challenges":[{"type":"dns-01","url":"https://attacker.example/challenge","token":"other-token","status":"pending"}]}),
+    ] {
+        let (runtime, request, operation, _) = setup().await;
+        let mut ca = ManualCa::new();
+        ca.authorization_patch = Some(patch);
+        assert!(matches!(
+            prepare(&runtime, &request, &operation, &ca).await,
+            Err(CertificateError::ManualDnsOrderInvalid)
+        ));
+        assert_eq!(ca.count("/challenge/apex"), 0);
+        assert_eq!(ca.count("/finalize"), 0);
+    }
+    for patch in [
+        json!({"finalize":"https://attacker.example/finalize"}),
+        json!({"authorizations":["https://attacker.example/auth"]}),
+        json!({"certificate":"http://ca.example.test/certificate"}),
+    ] {
+        let (runtime, request, operation, _) = setup().await;
+        let mut ca = ManualCa::new();
+        ca.order_patch = Some(patch);
+        assert!(matches!(
+            prepare(&runtime, &request, &operation, &ca).await,
+            Err(CertificateError::ManualDnsOrderInvalid)
+        ));
+        assert!(
+            runtime
+                .certificate_store
+                .load_manual_dns_order(ID)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(ca.count("/auth/apex"), 0);
+    }
+}
+
+#[tokio::test]
+async fn manual_resume_refuses_changed_proofs_and_incomplete_saved_csr() {
+    let (runtime, request, operation, _) = setup().await;
+    let ca = ManualCa::new();
+    prepare(&runtime, &request, &operation, &ca).await.unwrap();
+    let (_, mut saved) = begin_continue(&runtime).await;
+    saved.records[0].value = "A".repeat(43);
+    let result = runtime
+        .resume_manual_dns_with_account(
+            ID,
+            &request,
+            saved.clone(),
+            ManualAccount {
+                account: ca.account().await,
+                identity: "a".repeat(64),
+                directory: DIRECTORY.to_owned(),
+                observer: ca.observer.clone(),
+            },
+        )
+        .await;
+    assert!(matches!(
+        result,
+        Err(CertificateError::ManualDnsOrderInvalid)
+    ));
+    assert_eq!(ca.count("/challenge/apex"), 0);
+    assert_eq!(ca.count("/finalize"), 0);
+    saved.private_key_pem = Some("partial-key".to_owned());
+    assert_eq!(
+        ensure_saved_csr(&mut saved, &request.domains),
+        Err(CertificateError::StoreUnavailable)
+    );
+    saved.private_key_pem = None;
+    saved.csr_der = Some(vec![1, 2, 3]);
+    assert_eq!(
+        ensure_saved_csr(&mut saved, &request.domains),
+        Err(CertificateError::StoreUnavailable)
+    );
 }
 
 fn request() -> CertificateIssueRequest {

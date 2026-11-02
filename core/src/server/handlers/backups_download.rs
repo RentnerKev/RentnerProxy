@@ -412,3 +412,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/server_backup_download_faults.rs"]
+mod body_fault_tests;

@@ -319,3 +319,43 @@ async fn metrics_require_a_running_child_and_a_successful_bounded_response() {
     }
     fixture.reap().await;
 }
+
+#[tokio::test]
+async fn upstream_observations_validate_metadata_and_bound_the_private_admin_response() {
+    let fixture = Fixture::new("exit 1");
+    let host = "00000000-0000-4000-8000-000000000001";
+    let revision = format!("sha256:{}", "a".repeat(64));
+    for (host, revision) in [("bad-host", revision.as_str()), (host, "bad-revision")] {
+        assert_eq!(
+            fixture.engine.upstream_observations(host, revision).await,
+            Err(EngineError::InvalidResponse)
+        );
+    }
+    assert_eq!(
+        fixture.engine.upstream_observations(host, &revision).await,
+        Err(EngineError::Unavailable)
+    );
+    fixture.tracked_child().await;
+    let request =
+        format!("GET /rentnerproxy/upstreams?host_id={host}&revision={revision} HTTP/1.1\r\n");
+    for (status, body, expected) in [
+        (200, b"{\"upstreams\":[]}".to_vec(), None),
+        (503, Vec::new(), Some(EngineError::InvalidResponse)),
+        (
+            200,
+            vec![b'x'; 1024 * 1024 + 1],
+            Some(EngineError::InvalidResponse),
+        ),
+    ] {
+        let listener = fixture.listener("caddy-admin.sock");
+        let (result, ()) = tokio::join!(
+            fixture.engine.upstream_observations(host, &revision),
+            respond(&listener, &request, "", status, &body)
+        );
+        match expected {
+            Some(error) => assert_eq!(result, Err(error)),
+            None => assert_eq!(result.unwrap().as_ref(), body),
+        }
+    }
+    fixture.reap().await;
+}

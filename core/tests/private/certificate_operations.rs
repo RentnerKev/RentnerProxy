@@ -5,6 +5,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 const ID: &str = "0198d98a-0000-7000-8000-000000000191";
 
+#[path = "certificate_activation_boundaries.rs"]
+mod activation_boundaries;
+
 fn state_dir() -> std::path::PathBuf {
     let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
