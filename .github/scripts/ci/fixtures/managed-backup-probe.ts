@@ -400,9 +400,9 @@ async function webApiProbe() {
         SELECT ${sqlQuote(actorId)},id FROM rentnerproxy.roles WHERE key='owner';
         INSERT INTO rentnerproxy.user_roles(user_id,role_id)
         SELECT ${sqlQuote(viewerId)},id FROM rentnerproxy.roles WHERE key='viewer';
-        INSERT INTO rentnerproxy.sessions(user_id,token_hash,reauthenticated_at,expires_at)
-        VALUES (${sqlQuote(actorId)},${sqlQuote(createHash('sha256').update(ownerToken).digest('hex'))},now(),now()+interval '1 hour'),
-               (${sqlQuote(viewerId)},${sqlQuote(createHash('sha256').update(viewerToken).digest('hex'))},now(),now()+interval '1 hour');
+        INSERT INTO rentnerproxy.sessions(user_id,token_hash,reauthenticated_at,expires_at,oidc_proof)
+        VALUES (${sqlQuote(actorId)},${sqlQuote(createHash('sha256').update(ownerToken).digest('hex'))},now(),now()+interval '1 hour',NULL),
+               (${sqlQuote(viewerId)},${sqlQuote(createHash('sha256').update(viewerToken).digest('hex'))},now(),now()+interval '1 hour',NULL);
         COMMIT;`)
     assert.equal((await webRequest('status')).status, 401)
     assert.equal((await webRequest('status', viewerToken)).status, 403)
