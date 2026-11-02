@@ -1,4 +1,6 @@
 import type { ProxyUpstreamPool } from '@/lib/ProxyRuntime/Types/upstream-pool.types.ts'
+import { createAccessPolicyService } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
+import { createRedirectHostService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,6 +15,7 @@ import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import {
     auditEvents,
+    accessPolicies,
     hostDomains,
     npmImportRuns,
     permissions,
@@ -54,6 +57,7 @@ const EMAIL_SUFFIX = '@npm-import-test.invalid'
 const testDirectories: string[] = []
 const userIds: string[] = []
 const roleIds: string[] = []
+const accessPolicyIds: string[] = []
 
 async function sourceFixture(): Promise<{
     path: string
@@ -200,6 +204,8 @@ async function cleanup(): Promise<void> {
         if (proxyIds.length) await db.delete(proxyHosts).where(inArray(proxyHosts.id, proxyIds))
         if (redirectIds.length)
             await db.delete(redirectHosts).where(inArray(redirectHosts.id, redirectIds))
+        if (accessPolicyIds.length)
+            await db.delete(accessPolicies).where(inArray(accessPolicies.id, accessPolicyIds))
         if (userIds.length) {
             await db.delete(auditEvents).where(inArray(auditEvents.actorUserId, userIds))
             await db.delete(npmImportRuns).where(inArray(npmImportRuns.actorUserId, userIds))
@@ -209,6 +215,7 @@ async function cleanup(): Promise<void> {
     }
     userIds.length = 0
     roleIds.length = 0
+    accessPolicyIds.length = 0
     await Promise.all(
         testDirectories
             .splice(0)
@@ -442,19 +449,79 @@ integrationTest.each(
                 upstreamPool,
             }),
         )
+        const unrelatedHost = await runAsUser(owner, () =>
+            createProxyHostService({
+                domains: [`unrelated-proxy-${randomUUID().slice(0, 12)}${SUFFIX}`],
+                enabled: true,
+                forwardScheme: 'http',
+                forwardHost: 'unrelated.internal',
+                forwardPort: 9090,
+            }),
+        )
+        const unrelatedRedirect = await runAsUser(owner, () =>
+            createRedirectHostService({
+                domains: [`unrelated-redirect-${randomUUID().slice(0, 12)}${SUFFIX}`],
+                enabled: true,
+                destination: 'https://destination.example.test',
+                statusCode: 302,
+                preserveRequestUri: true,
+            }),
+        )
+        const unrelatedProxyBefore = await getAuthDatabase()
+            .select()
+            .from(proxyHosts)
+            .where(eq(proxyHosts.id, unrelatedHost.id))
+        const unrelatedRedirectBefore = await getAuthDatabase()
+            .select()
+            .from(redirectHosts)
+            .where(eq(redirectHosts.id, unrelatedRedirect.id))
+        const unrelatedPolicy = await runAsUser(owner, () =>
+            createAccessPolicyService({
+                name: `Unrelated portable fixture ${randomUUID()}`,
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        accessPolicyIds.push(unrelatedPolicy.id)
+        const unrelatedPolicyBefore = await getAuthDatabase()
+            .select()
+            .from(accessPolicies)
+            .where(eq(accessPolicies.id, unrelatedPolicy.id))
         const exported = await runAsUser(owner, exportPortableConfiguration)
         const directory = await mkdtemp(join(tmpdir(), 'rp-portable-pool-integration-'))
         testDirectories.push(directory)
+        const exportedPath = join(directory, 'global-export.json')
+        await writeFile(exportedPath, exported, 'utf8')
+        const exportedDocument = await readPortableSource(exportedPath)
+        expect(exportedDocument.proxyHosts.some((host) => host.id === unrelatedHost.id)).toBeTrue()
+        expect(
+            exportedDocument.redirectHosts.some((host) => host.id === unrelatedRedirect.id),
+        ).toBeTrue()
+        expect(
+            exportedDocument.policies.some(
+                (exportedPolicy) => exportedPolicy.id === unrelatedPolicy.id,
+            ),
+        ).toBeTrue()
+        // Keep the actual exported host unchanged, excluding unrelated global export entries.
+        const document = {
+            ...exportedDocument,
+            proxyHosts: exportedDocument.proxyHosts.filter((host) => host.id === original.id),
+            policies: [],
+            redirectHosts: [],
+        }
+        expect(document.proxyHosts).toHaveLength(1)
+        const serialized = JSON.stringify(document)
         const path = join(directory, 'portable.json')
-        await writeFile(path, exported, 'utf8')
+        await writeFile(path, serialized, 'utf8')
         expect((await readPortableSource(path)).version).toBe(version)
-        const fingerprint = createHash('sha256').update(exported).digest('hex')
+        const fingerprint = createHash('sha256').update(serialized).digest('hex')
         await runAsUser(owner, () => deleteProxyHostService(original.id))
         const preview = await runAsUser(owner, () =>
             previewImportService(path, fingerprint, 'rentnerproxy', PERMISSIONS.MIGRATION),
         )
         expect(preview.sourceSchema).toBe(`rentnerproxy-portable-v${version}`)
         expect(preview.counts.ready).toBe(1)
+        expect(preview.items).toHaveLength(1)
         const applied = await runAsUser(owner, () =>
             applyImportService(
                 path,
@@ -487,5 +554,23 @@ integrationTest.each(
             .from(proxyHosts)
             .where(eq(proxyHosts.id, importedId!))
         expect(stored[0]?.pool).toEqual(upstreamPool)
+        expect(
+            await getAuthDatabase()
+                .select()
+                .from(accessPolicies)
+                .where(eq(accessPolicies.id, unrelatedPolicy.id)),
+        ).toEqual(unrelatedPolicyBefore)
+        expect(
+            await getAuthDatabase()
+                .select()
+                .from(proxyHosts)
+                .where(eq(proxyHosts.id, unrelatedHost.id)),
+        ).toEqual(unrelatedProxyBefore)
+        expect(
+            await getAuthDatabase()
+                .select()
+                .from(redirectHosts)
+                .where(eq(redirectHosts.id, unrelatedRedirect.id)),
+        ).toEqual(unrelatedRedirectBefore)
     },
 )
