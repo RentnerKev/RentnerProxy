@@ -95,6 +95,7 @@ export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostD
     )
 }
 
+/** Displays the primary route, pool policy/count and remaining targets in their configured order. */
 export function ProxyHostForwardCell({
     forwardHost,
     forwardPort,

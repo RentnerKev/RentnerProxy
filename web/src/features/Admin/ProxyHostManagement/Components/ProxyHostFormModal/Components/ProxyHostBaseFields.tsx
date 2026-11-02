@@ -9,6 +9,7 @@ import type { ProxyHostBaseFieldsProps } from '../Types/form-sections.types.ts'
 import useUpstreamPoolFieldsLogic from '../Hooks/useUpstreamPoolFieldsLogic.ts'
 import UpstreamPoolFields from './UpstreamPoolFields.tsx'
 
+/** Renders domains and the primary scalar target, wiring pool edits through synchronized target handlers. */
 export default function ProxyHostBaseFields({
     form,
     formId,

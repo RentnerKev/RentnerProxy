@@ -80,6 +80,11 @@ export class PortableSourceError extends Error {
     }
 }
 
+/**
+ * Exports complete ordered pools in portable v2, retaining v1 for single targets.
+ * Credentials and certificate/CA material remain excluded; dependent hosts carry
+ * review indicators so imports cannot silently recreate unsupported security state.
+ */
 export function buildPortableDocument(
     policies: readonly PolicyExportRow[],
     proxies: readonly ProxyExportRow[],
@@ -174,6 +179,11 @@ export async function exportPortableConfiguration(): Promise<string> {
     return json
 }
 
+/**
+ * Reads a size-bounded portable v1 or v2 document with bounded object counts.
+ * Individual host and policy records are validated when constructing the import
+ * plan so invalid entries can be reported for review without trusting their shape.
+ */
 export async function readPortableSource(path: string): Promise<z.infer<typeof documentSchema>> {
     const bytes = await readFile(path)
     if (bytes.byteLength > PORTABLE_MAX_BYTES) throw new PortableSourceError('source_limit')
@@ -214,6 +224,11 @@ function manual(
     return { kind, sourceId, label, domains, status: 'manual', reasons: [reason] }
 }
 
+/**
+ * Builds validated import actions while preserving v2 pool policy and member order.
+ * Pool fields in v1 entries are rejected rather than discarded, and certificate,
+ * trust or policy dependencies remain explicit review requirements.
+ */
 export function buildPortablePlan(
     source: Awaited<ReturnType<typeof readPortableSource>>,
     fingerprint: string,

@@ -26,7 +26,11 @@ function groupDomains<T extends { readonly id: string; readonly domain: string |
     )
 }
 
-/** Reads search/sort fields and global domain facets without jobs or discovery hydration. */
+/**
+ * Reads the lightweight search/sort basis and global domain facets in one snapshot.
+ * Complete pool members are included for secondary-target filtering before page
+ * selection, while jobs and discovery metadata are deferred to summary hydration.
+ */
 export async function readProxyHostListBasis(
     transaction: AuthTransaction,
 ): Promise<ProxyHostListEntry[]> {

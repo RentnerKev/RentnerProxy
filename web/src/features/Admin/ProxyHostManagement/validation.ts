@@ -110,6 +110,11 @@ const proxyHostInputSchema = z.object({
     accessPolicyId: z.uuidv7().nullable().optional(),
 })
 
+/**
+ * Adds shared TLS and primary-target issues after host normalization.
+ * Verified HTTPS needs an explicit DNS identity if any pool member is an IP;
+ * custom CA selection also requires verification to remain enabled.
+ */
 function validateUpstreamTlsInput(
     host: {
         forwardScheme: string
@@ -143,6 +148,11 @@ function validateUpstreamTlsInput(
     }
 }
 
+/**
+ * Requires the legacy scalar target to equal the first normalized pool member.
+ * This keeps older readers consistent with the ordered pool without silently
+ * rewriting either representation supplied by the caller.
+ */
 export function validateUpstreamPoolPrimary(
     host: {
         forwardHost: string
@@ -185,6 +195,10 @@ const createProxyHostFieldsSchema = proxyHostInputSchema.extend({
 export const createProxyHostInputSchema =
     createProxyHostFieldsSchema.superRefine(validateUpstreamTlsInput)
 
+/**
+ * Validates form drafts with decimal-string ports, producing numeric API ports.
+ * Pool members retain their order; null explicitly selects a single target.
+ */
 export const proxyHostFormSchema = createProxyHostFieldsSchema
     .extend({
         forwardPort: formPortSchema,

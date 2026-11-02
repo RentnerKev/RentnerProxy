@@ -9,6 +9,12 @@ import type {
 } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
 
+/**
+ * Resolves one TLS policy for every effective upstream member.
+ * Omitted HTTPS settings inherit existing values, while HTTP resets stale TLS
+ * options. Verified IP members require a shared DNS name, and custom trust may
+ * never bypass certificate verification.
+ */
 export function normalizeUpstreamTlsSettings(
     input: CreateProxyHostInput | UpdateProxyHostInput,
     existing?: ExistingProxyHost,

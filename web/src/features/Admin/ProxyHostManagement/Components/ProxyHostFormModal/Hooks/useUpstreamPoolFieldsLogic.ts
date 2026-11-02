@@ -7,6 +7,10 @@ import type {
     UpstreamPoolFormMember,
 } from '../Types/upstream-pool-fields.types.ts'
 
+/**
+ * Owns pool mode and ordered-member edits while keeping the legacy scalar target equal to member zero.
+ * Single mode clears the pool explicitly; stable row keys follow members through removals and reordering.
+ */
 export default function useUpstreamPoolFieldsLogic({
     form,
 }: Pick<UpstreamPoolFieldsProps, 'form'>): UpstreamPoolFieldsLogicResult {
@@ -14,9 +18,11 @@ export default function useUpstreamPoolFieldsLogic({
     const [memberKeys, setMemberKeys] = useState(() =>
         (form.getFieldValue('upstreamPool')?.members ?? []).map(() => crypto.randomUUID()),
     )
+    /** Refreshes cross-member submission errors after editing, without showing them before the first submit. */
     const revalidate = () => {
         if (form.state.submissionAttempts > 0) void form.validate('submit')
     }
+    /** Replaces a nonempty ordered member list and synchronizes scalar host/port before revalidation. */
     const updateMembers = (members: UpstreamPoolFormMember[]) => {
         const current = form.getFieldValue('upstreamPool')
         if (!current || !members[0]) return
@@ -32,6 +38,7 @@ export default function useUpstreamPoolFieldsLogic({
             canAdd: Boolean(pool && pool.members.length < MAX_PROXY_UPSTREAM_MEMBERS),
         },
         handler: {
+            /** Clears pools for single mode, or seeds a selected pool policy from the current scalar target. */
             handleModeChange: (value) => {
                 if (value === 'single') {
                     form.setFieldValue('upstreamPool', null)
@@ -53,6 +60,7 @@ export default function useUpstreamPoolFieldsLogic({
                 if (!current) setMemberKeys([crypto.randomUUID()])
                 revalidate()
             },
+            /** Mirrors primary-host edits into member zero so the submitted scalar and pool stay consistent. */
             handlePrimaryHostChange: (value) => {
                 form.setFieldValue('forwardHost', value)
                 const current = form.getFieldValue('upstreamPool')
@@ -65,6 +73,7 @@ export default function useUpstreamPoolFieldsLogic({
                     })
                 revalidate()
             },
+            /** Mirrors the primary port draft into member zero, preserving incomplete string input until validation. */
             handlePrimaryPortChange: (value) => {
                 form.setFieldValue('forwardPort', value)
                 const current = form.getFieldValue('upstreamPool')
@@ -77,6 +86,7 @@ export default function useUpstreamPoolFieldsLogic({
                     })
                 revalidate()
             },
+            /** Updates one member host through the same ordered-list synchronization and error refresh path. */
             handleMemberHostChange: (index, value) => {
                 const current = form.getFieldValue('upstreamPool')
                 if (current)
@@ -86,6 +96,7 @@ export default function useUpstreamPoolFieldsLogic({
                         ),
                     )
             },
+            /** Updates one member's string port draft without reordering targets or coercing unfinished input. */
             handleMemberPortChange: (index, value) => {
                 const current = form.getFieldValue('upstreamPool')
                 if (current)
@@ -95,6 +106,7 @@ export default function useUpstreamPoolFieldsLogic({
                         ),
                     )
             },
+            /** Appends a blank target with the primary port and its own row key, up to the configured limit. */
             handleAdd: () => {
                 const current = form.getFieldValue('upstreamPool')
                 if (!current || current.members.length >= MAX_PROXY_UPSTREAM_MEMBERS) return
@@ -104,6 +116,7 @@ export default function useUpstreamPoolFieldsLogic({
                 ])
                 setMemberKeys((keys) => [...keys, crypto.randomUUID()])
             },
+            /** Removes an existing target while retaining at least one member and promoting the next primary if needed. */
             handleRemove: (index) => {
                 const current = form.getFieldValue('upstreamPool')
                 if (
@@ -116,6 +129,7 @@ export default function useUpstreamPoolFieldsLogic({
                 updateMembers(current.members.filter((_, memberIndex) => memberIndex !== index))
                 setMemberKeys((keys) => keys.filter((_, memberIndex) => memberIndex !== index))
             },
+            /** Swaps adjacent members and row identities, updating the scalar target when the primary changes. */
             handleMove: (index, direction) => {
                 const current = form.getFieldValue('upstreamPool')
                 const destination = index + direction

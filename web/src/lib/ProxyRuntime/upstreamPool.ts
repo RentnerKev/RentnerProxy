@@ -5,6 +5,7 @@ import {
 } from '@/config/upstream-pools.config.ts'
 import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
+/** Validates a strict host/port pair and canonicalizes DNS and IP host notation. */
 export const proxyUpstreamMemberSchema = z.strictObject({
     host: z
         .string()
@@ -27,6 +28,10 @@ export const proxyUpstreamMemberSchema = z.strictObject({
         .max(65_535, 'admin.proxyHosts.validation.port'),
 })
 
+/**
+ * Validates a bounded, ordered pool with an explicit selection policy.
+ * Extra member options are rejected and duplicate canonical targets are invalid.
+ */
 export const proxyUpstreamPoolSchema = z
     .strictObject({
         policy: z.enum(PROXY_UPSTREAM_POLICIES),
@@ -37,6 +42,10 @@ export const proxyUpstreamPoolSchema = z
     })
     .superRefine(validateUniqueUpstreamMembers)
 
+/**
+ * Adds an issue at each repeated canonical host/port pair without reordering it.
+ * Host normalization must run first so equivalent DNS or IP spellings collide.
+ */
 export function validateUniqueUpstreamMembers(
     pool: { members: readonly { host: string; port: number }[] },
     context: z.RefinementCtx,
@@ -54,6 +63,11 @@ export function validateUniqueUpstreamMembers(
     }
 }
 
+/**
+ * Reports whether the shared TLS policy covers any IP target.
+ * Callers require a DNS identity override for verified HTTPS in that case;
+ * distinct DNS targets can otherwise use their own automatic TLS identities.
+ */
 export function upstreamTlsRequiresServerName(hosts: readonly string[]): boolean {
     return hosts.some(
         (host) => z.ipv4().safeParse(host).success || z.ipv6().safeParse(host).success,

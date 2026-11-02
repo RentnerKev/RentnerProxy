@@ -224,6 +224,12 @@ function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
 }
 
+/**
+ * Validates enabled routing state and hashes its deterministic wire representation.
+ * Legacy routes keep the exact v7 property order and bytes; enabled pools select
+ * v8 and append their canonical field after existing host properties. Member order
+ * is meaningful and stays unchanged, while host and domain order is canonicalized.
+ */
 export function createProxyRuntimeSnapshot(
     hosts: ReadonlyArray<ProxyRuntimeHost & { readonly enabled: boolean }>,
     httpSettings: ProxyHttpSettings = {},
