@@ -65,6 +65,7 @@ function hashRevision(value: unknown): string {
     return 'sha256:' + new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
+/** Matches production field ordering and preserves meaningful pool order for cross-language hashes. */
 function canonicalHost(host: ProxyHost): ProxyHost {
     return {
         id: host.id,
@@ -78,6 +79,7 @@ function canonicalHost(host: ProxyHost): ProxyHost {
     }
 }
 
+/** Builds a canonical v7 single-target or v8 pool snapshot without upstream TLS material. */
 function createHttpSnapshot(host: ProxyHost): Snapshot {
     const canonical = {
         version: host.upstreamPool ? (8 as const) : (7 as const),
@@ -89,6 +91,7 @@ function createHttpSnapshot(host: ProxyHost): Snapshot {
     return { ...canonical, revision: hashRevision(canonical) }
 }
 
+/** Builds the same versioned contract with deterministically ordered explicit CA trust. */
 function createHttpsSnapshot(host: ProxyHost, trustedCas: readonly TrustedCa[] = []): Snapshot {
     const canonical = {
         version: host.upstreamPool ? (8 as const) : (7 as const),
@@ -153,6 +156,7 @@ async function createCa(prefix: string, commonName: string): Promise<string> {
     return caPath
 }
 
+/** Issues isolated certificates for distinct backend identities under the chosen fixture CA. */
 async function createBackendCertificate(
     prefix: string,
     caPrefix: string,
@@ -376,6 +380,7 @@ async function validateCa(pem: string): Promise<TrustedCa> {
     }
 }
 
+/** Verifies real upstream TLS identity, trust changes and mixed-DNS pool routing with isolated fixtures. */
 async function runSmoke(): Promise<void> {
     let caOnePath = ''
     let caTwoPath = ''

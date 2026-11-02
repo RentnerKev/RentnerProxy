@@ -53,6 +53,7 @@ pub(crate) fn revision_for_configuration_with_redirects(
     )
 }
 
+/// Hashes the canonical versioned configuration without sorting a pool's ordered member list.
 pub(crate) fn revision_for_full_configuration(
     hosts: &[ProxyHost],
     redirect_hosts: &[RedirectHost],

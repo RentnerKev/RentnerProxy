@@ -64,6 +64,8 @@ fn validate_domains<'a>(
     Ok(())
 }
 
+/// Validates the versioned desired configuration and its canonical revision before any activation.
+/// Pool ordering remains meaningful while domains, host IDs and trust material are canonicalized.
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
@@ -212,6 +214,7 @@ fn has_valid_default_site(default_site: &DefaultSite) -> bool {
     }
 }
 
+/// Preserves shared verification and CA policy; any verified IP member requires an explicit DNS identity.
 fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
     let Some(upstream_tls) = host.upstream_tls.as_ref() else {
         return host.forward_scheme != "https";

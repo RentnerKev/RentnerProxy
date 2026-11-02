@@ -45,6 +45,7 @@ impl ProxyRuntime {
         !matches!(std::fs::symlink_metadata(fence), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
 
+    /// Persists the versioned candidate; the separate activation fence prevents premature recovery.
     pub(super) fn persist_active_configuration(
         &self,
         configuration: &ValidatedProxyConfig,

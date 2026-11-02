@@ -25,8 +25,9 @@ pub(super) fn rendered_ranges(ranges: &[String]) -> Vec<String> {
     }
     rendered
 }
-/// Renders shared TLS/headers with ordered targets and conservative, pre-processing retries.
+/// Renders ordered selection with shared trust, unchanged headers and stream draining.
 /// Retry-enabled pools avoid connection reuse to prevent implicit accepted-write replay.
+/// Pools without an explicit TLS identity verify each selected DNS member's own name.
 pub(super) fn reverse_proxy(
     upstream: &str,
     host: Option<&ProxyHost>,
