@@ -1,3 +1,4 @@
+import { proxyUpstreamPoolSchema } from '@/lib/ProxyRuntime/upstreamPool.ts'
 import {
     readResponseCacheSettingsMap,
     writeResponseCacheSettings,
@@ -284,7 +285,9 @@ export async function createProxyHostInTransaction(
  * Updates authorized desired state while preserving an omitted pool and clearing
  * an explicitly null pool. Replacement and retained pools must match the scalar
  * primary target; member order and shared TLS policy remain part of routing state.
- * Routing changes also invalidate the host's monitoring observations.
+ * Stored JSONB is canonicalized before comparison so key ordering cannot erase
+ * monitoring observations on an unchanged save; meaningful routing changes still
+ * invalidate them.
  */
 export async function updateProxyHostInTransaction(
     transaction: AuthTransaction,
@@ -325,10 +328,11 @@ export async function updateProxyHostInTransaction(
             ? proxyHost.certificateId
             : (parsedInput.certificateId?.toLowerCase() ?? null)
     const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
+    const existingUpstreamPool = proxyHost.upstreamPool
+        ? proxyUpstreamPoolSchema.parse(proxyHost.upstreamPool)
+        : null
     const upstreamPool =
-        parsedInput.upstreamPool === undefined
-            ? (proxyHost.upstreamPool ?? null)
-            : parsedInput.upstreamPool
+        parsedInput.upstreamPool === undefined ? existingUpstreamPool : parsedInput.upstreamPool
     const firstMember = upstreamPool?.members[0]
     if (
         firstMember &&
@@ -380,7 +384,7 @@ export async function updateProxyHostInTransaction(
         parsedInput.forwardScheme !== proxyHost.forwardScheme ||
         parsedInput.forwardHost !== proxyHost.forwardHost ||
         parsedInput.forwardPort !== proxyHost.forwardPort ||
-        JSON.stringify(upstreamPool) !== JSON.stringify(proxyHost.upstreamPool ?? null) ||
+        JSON.stringify(upstreamPool) !== JSON.stringify(existingUpstreamPool) ||
         JSON.stringify(previousDomains.map(({ domain }) => domain).toSorted()) !==
             JSON.stringify(domains) ||
         (parsedInput.forwardScheme === 'https' &&

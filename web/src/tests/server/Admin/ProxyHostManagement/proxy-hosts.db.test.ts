@@ -27,6 +27,7 @@ import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     permissions,
+    hostCheckPolicies,
     redirectHosts,
     hostDomains,
     certificateDomains,
@@ -2883,3 +2884,75 @@ describe('upstream failover persistence', () => {
         },
     )
 })
+
+integrationTest(
+    'identical explicit failover saves preserve monitoring observations while member reorder invalidates them',
+    async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const input = proxyHostInput('failover-monitoring-noop')
+        const upstreamPool = {
+            policy: 'first' as const,
+            members: [
+                { host: input.forwardHost, port: input.forwardPort },
+                { host: 'secondary.internal', port: 8081 },
+            ],
+            failover: UPSTREAM_FAILOVER_DEFAULTS,
+        }
+        const created = await runAsUser(owner.id, () =>
+            createProxyHostService({ ...input, upstreamPool }),
+        )
+        const [policy] = await getAuthDatabase()
+            .insert(hostCheckPolicies)
+            .values({
+                proxyHostId: created.id,
+                domain: input.domains[0]!,
+                enabled: true,
+                version: Bun.randomUUIDv7(),
+                state: 'healthy',
+                lastCheckedAt: new Date('2026-11-02T12:00:00Z'),
+                lastOutcome: 'healthy',
+                lastCode: 'expected_status',
+                lastDurationMs: 5,
+                lastHttpStatus: 200,
+                contextProof: 'sha256:' + 'c'.repeat(64),
+                contextRevision: 'sha256:' + 'd'.repeat(64),
+            })
+            .returning()
+        expect(policy).toBeDefined()
+        await runAsUser(owner.id, () =>
+            updateProxyHostService({ ...input, proxyHostId: created.id, upstreamPool }),
+        )
+        const [unchanged] = await getAuthDatabase()
+            .select()
+            .from(hostCheckPolicies)
+            .where(eq(hostCheckPolicies.proxyHostId, created.id))
+        expect(unchanged).toEqual(policy)
+        await runAsUser(owner.id, () =>
+            updateProxyHostService({ ...input, proxyHostId: created.id }),
+        )
+        const [omitted] = await getAuthDatabase()
+            .select()
+            .from(hostCheckPolicies)
+            .where(eq(hostCheckPolicies.proxyHostId, created.id))
+        expect(omitted).toEqual(policy)
+        await runAsUser(owner.id, () =>
+            updateProxyHostService({
+                ...input,
+                proxyHostId: created.id,
+                forwardHost: 'secondary.internal',
+                forwardPort: 8081,
+                upstreamPool: { ...upstreamPool, members: upstreamPool.members.toReversed() },
+            }),
+        )
+        const [reordered] = await getAuthDatabase()
+            .select()
+            .from(hostCheckPolicies)
+            .where(eq(hostCheckPolicies.proxyHostId, created.id))
+        expect(reordered?.version).not.toBe(policy?.version)
+        expect(reordered?.state).toBe('unknown')
+        expect(reordered?.lastCheckedAt).toBeNull()
+        expect(reordered?.contextProof).toBeNull()
+        expect(reordered?.contextRevision).toBeNull()
+        await runAsUser(owner.id, () => deleteProxyHostService(created.id))
+    },
+)
