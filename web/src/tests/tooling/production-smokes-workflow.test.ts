@@ -104,7 +104,7 @@ describe('production smokes workflow security and toolchain', () => {
 })
 
 describe('production smokes workflow execution contract', () => {
-    test('builds appliance and HTTP3 once from committed OCI source, retaining only the local proxy build', async () => {
+    test('builds all runtime images once from committed OCI source on one builder', async () => {
         const document = Bun.YAML.parse(await workflow()) as {
             env: Record<string, string>
             jobs: {
@@ -115,43 +115,32 @@ describe('production smokes workflow execution contract', () => {
         }
         const steps = document.jobs['production-smokes'].steps
         const builds = steps.filter((step) => step.uses?.startsWith('docker/build-push-action@'))
-        expect(builds).toHaveLength(1)
+        expect(builds).toHaveLength(0)
         expect(
-            steps.findIndex((step) => step.uses?.startsWith('docker/setup-buildx-action@')),
-        ).toBeLessThan(steps.indexOf(builds[0]!))
-        const kinds = ['proxy-runtime']
-        const dockerfiles = ['docker/proxy-runtime/Dockerfile']
-        for (let index = 0; index < kinds.length; index += 1) {
-            const kind = kinds[index]!
-            const inputs = builds[index]!.with!
-            expect(inputs.context).toBe('.')
-            expect(inputs.file).toBe(dockerfiles[index])
-            expect(inputs.load).toBeTrue()
-            expect(inputs.push).toBeFalse()
-            expect(inputs.tags).toBe('rentnerproxy-smoke-${{ env.RENTNERPROXY_SMOKE_RUN }}:' + kind)
-            expect(inputs.labels).toBe(
-                [
-                    'io.rentnerproxy.smoke-run=${{ env.RENTNERPROXY_SMOKE_RUN }}',
-                    'io.rentnerproxy.smoke-source=${{ github.sha }}',
-                    'io.rentnerproxy.smoke-image=' + kind,
-                    '',
-                ].join('\n'),
-            )
-            const cache = 'type=gha,version=2,scope=production-smokes-' + kind + '-v1'
-            expect(inputs['cache-from']).toBe(cache + ',timeout=2m')
-            expect(inputs['cache-to']).toBe(cache + ',mode=max,timeout=2m,ignore-error=true')
-            expect(inputs['github-token']).toBeUndefined()
-        }
+            steps.some((step) => step.uses?.startsWith('docker/setup-buildx-action@')),
+        ).toBeFalse()
         const verify = steps.findIndex((step) =>
             step.run?.endsWith('production-smoke-ci.ts verify-images'),
         )
-        expect(verify).toBeGreaterThan(steps.indexOf(builds.at(-1)!))
+        const load = steps.findIndex(
+            (step) => step.uses === './.github/actions/load-runtime-images',
+        )
+        expect(load).toBeGreaterThan(-1)
+        expect(verify).toBeGreaterThan(load)
         expect(document.env.DOCKER_BUILD_SUMMARY).toBe('false')
         expect(document.env.DOCKER_BUILD_RECORD_UPLOAD).toBe('false')
         expect(await workflow()).not.toContain('ACTIONS_RUNTIME_TOKEN')
         const producerSource = await repositoryFile('.github/actions/runtime-images/action.yml')
         const producer = Bun.YAML.parse(producerSource) as {
-            runs: { steps: { uses?: string; run?: string; with?: Record<string, unknown> }[] }
+            inputs: Record<string, { default?: string }>
+            runs: {
+                steps: {
+                    uses?: string
+                    run?: string
+                    if?: string
+                    with?: Record<string, unknown>
+                }[]
+            }
         }
         expect(producerSource).toContain(
             'git archive HEAD | tar -x -C "$RUNNER_TEMP/runtime-image-source"',
@@ -160,10 +149,34 @@ describe('production smokes workflow execution contract', () => {
         const sharedBuilds = producer.runs.steps.filter((step) =>
             step.uses?.startsWith('docker/build-push-action@'),
         )
-        expect(sharedBuilds.map((step) => step.with?.file)).toEqual([
+        expect(sharedBuilds.map((step) => step.with?.file).toSorted()).toEqual([
             '${{ runner.temp }}/runtime-image-source/docker/production/Dockerfile',
+            '${{ runner.temp }}/runtime-image-source/docker/proxy-runtime/Dockerfile',
             '${{ runner.temp }}/runtime-image-source/scripts/smoke/http3/Dockerfile',
         ])
+        const builders = producer.runs.steps.filter((step) =>
+            step.uses?.startsWith('docker/setup-buildx-action@'),
+        )
+        expect(builders).toHaveLength(1)
+        for (const build of sharedBuilds)
+            expect(producer.runs.steps.indexOf(builders[0]!)).toBeLessThan(
+                producer.runs.steps.indexOf(build),
+            )
+        const appliance = sharedBuilds.find(
+            (step) =>
+                step.with?.file ===
+                '${{ runner.temp }}/runtime-image-source/docker/production/Dockerfile',
+        )!
+        const proxy = sharedBuilds.find(
+            (step) =>
+                step.with?.file ===
+                '${{ runner.temp }}/runtime-image-source/docker/proxy-runtime/Dockerfile',
+        )!
+        expect(producer.runs.steps.indexOf(appliance)).toBeLessThan(
+            producer.runs.steps.indexOf(proxy),
+        )
+        expect(proxy.if).toContain("inputs.include_proxy_runtime == 'true'")
+        expect(producer.inputs.include_proxy_runtime?.default).toBe('false')
         for (const build of sharedBuilds) {
             expect(build.with?.context).toBe('${{ runner.temp }}/runtime-image-source')
             expect(build.with?.platforms).toBe('linux/amd64')
@@ -174,6 +187,7 @@ describe('production smokes workflow execution contract', () => {
             )
             expect(build.with?.labels).toContain('io.rentnerproxy.smoke-source=${{ github.sha }}')
             expect(build.with?.['cache-to']).toContain("github.event_name != 'pull_request'")
+            expect(build.with?.['github-token']).toBeUndefined()
         }
         expect(sharedBuilds[0]?.with?.provenance).toBe('mode=max')
         expect(sharedBuilds[0]?.with?.sbom).toBeTrue()
@@ -193,6 +207,10 @@ describe('production smokes workflow execution contract', () => {
             >
         }
         const producer = document.jobs['build-runtime-images']!
+        expect(
+            producer.steps.find((step) => step.uses === './.github/actions/runtime-images')?.with
+                ?.include_proxy_runtime,
+        ).toBe('true')
         expect(
             Object.values(document.jobs)
                 .flatMap((job) => job.steps)
@@ -218,12 +236,26 @@ describe('production smokes workflow execution contract', () => {
                     '${{ needs.build-runtime-images.outputs.' + key + ' }}',
                 )
             }
+            if (name === 'production-smokes') {
+                expect(loader.with?.include_proxy_runtime).toBe('true')
+                for (const key of ['proxy_archive_sha256', 'proxy_identity_sha256']) {
+                    expect(producer.outputs?.[key]).toBe('${{ steps.images.outputs.' + key + ' }}')
+                    expect(loader.with?.[key]).toBe(
+                        '${{ needs.build-runtime-images.outputs.' + key + ' }}',
+                    )
+                }
+            } else {
+                expect(loader.with?.include_proxy_runtime).toBeUndefined()
+                expect(loader.with?.proxy_archive_sha256).toBeUndefined()
+                expect(loader.with?.proxy_identity_sha256).toBeUndefined()
+            }
         }
         const loaderSource = await repositoryFile('.github/actions/load-runtime-images/action.yml')
         const loader = Bun.YAML.parse(loaderSource) as {
             runs: {
                 steps: {
                     uses?: string
+                    if?: string
                     with?: Record<string, string>
                     env?: Record<string, string>
                     run?: string
@@ -233,10 +265,14 @@ describe('production smokes workflow execution contract', () => {
         const downloads = loader.runs.steps.filter((step) =>
             step.uses?.startsWith('actions/download-artifact@'),
         )
-        expect(downloads.map((step) => step.with?.name)).toEqual([
+        expect(downloads.map((step) => step.with?.name).toSorted()).toEqual([
             'runtime-appliance-${{ inputs.scope }}',
             'runtime-http3-client-${{ inputs.scope }}',
+            'runtime-proxy-runtime-${{ inputs.scope }}',
         ])
+        expect(
+            downloads.find((step) => step.with?.name?.startsWith('runtime-proxy-runtime-'))?.if,
+        ).toContain("inputs.include_proxy_runtime == 'true'")
         for (const download of downloads) {
             expect(download.with?.['run-id']).toBeUndefined()
             expect(download.with?.['github-token']).toBeUndefined()
@@ -244,7 +280,10 @@ describe('production smokes workflow execution contract', () => {
         const loads = loader.runs.steps.filter((step) =>
             step.run?.endsWith('runtime-image-artifact.ts load'),
         )
-        expect(loads).toHaveLength(2)
+        expect(loads).toHaveLength(3)
+        expect(
+            loads.find((step) => step.env?.RUNTIME_IMAGE_KIND === 'proxy-runtime')?.if,
+        ).toContain("inputs.include_proxy_runtime == 'true'")
         for (const load of loads) {
             expect(load.env?.RENTNERPROXY_SMOKE_RUN).toBe('${{ inputs.scope }}')
             expect(load.env?.RUNTIME_IMAGE_ARCHIVE_SHA256).toMatch(/^\$\{\{ inputs\./u)

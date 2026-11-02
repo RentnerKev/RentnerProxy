@@ -28,6 +28,8 @@ jobs:
             appliance_identity_sha256: ${{ steps.images.outputs.appliance_identity_sha256 }}
             http3_archive_sha256: ${{ steps.images.outputs.http3_archive_sha256 }}
             http3_identity_sha256: ${{ steps.images.outputs.http3_identity_sha256 }}
+            proxy_archive_sha256: ${{ steps.images.outputs.proxy_archive_sha256 }}
+            proxy_identity_sha256: ${{ steps.images.outputs.proxy_identity_sha256 }}
         steps:
             - name: Check out exact target commit
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,6 +43,8 @@ jobs:
             - name: Build and store exact runtime images
               id: images
               uses: ./.github/actions/runtime-images
+              with:
+                  include_proxy_runtime: 'true'
 
     production-smokes:
         name: Production Smokes
@@ -74,25 +78,12 @@ jobs:
                   ./web/src/tests/tooling/recover-offhost-backup.test.ts
             - name: Docker discovery socket proxy restrictions
               run: bun --no-env-file --no-orphans scripts/smoke/docker-discovery.ts
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-            - name: Build and load proxy-runtime smoke image
-              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-              with:
-                  context: '.'
-                  file: docker/proxy-runtime/Dockerfile
-                  load: true
-                  push: false
-                  tags: 'rentnerproxy-smoke-${{ env.RENTNERPROXY_SMOKE_RUN }}:proxy-runtime'
-                  labels: |
-                      io.rentnerproxy.smoke-run=${{ env.RENTNERPROXY_SMOKE_RUN }}
-                      io.rentnerproxy.smoke-source=${{ github.sha }}
-                      io.rentnerproxy.smoke-image=proxy-runtime
-                  cache-from: 'type=gha,version=2,scope=production-smokes-proxy-runtime-v1,timeout=2m'
-                  cache-to: 'type=gha,version=2,scope=production-smokes-proxy-runtime-v1,mode=max,timeout=2m,ignore-error=true'
             - name: Verify and load same-run runtime images
               uses: ./.github/actions/load-runtime-images
               with:
+                  include_proxy_runtime: 'true'
+                  proxy_archive_sha256: ${{ needs.build-runtime-images.outputs.proxy_archive_sha256 }}
+                  proxy_identity_sha256: ${{ needs.build-runtime-images.outputs.proxy_identity_sha256 }}
                   scope: ${{ needs.build-runtime-images.outputs.scope }}
                   appliance_archive_sha256: ${{ needs.build-runtime-images.outputs.appliance_archive_sha256 }}
                   appliance_identity_sha256: ${{ needs.build-runtime-images.outputs.appliance_identity_sha256 }}

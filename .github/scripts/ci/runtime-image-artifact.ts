@@ -73,7 +73,10 @@ const execute: Http3Command = async (args) => {
 export async function runtimeImageArtifact(action: string, command: Http3Command = execute) {
     requireValue(action === 'pack' || action === 'load', 'Expected pack or load action')
     const kind = process.env.RUNTIME_IMAGE_KIND
-    requireValue(kind === 'appliance' || kind === 'http3-client', 'Invalid runtime image kind')
+    requireValue(
+        kind === 'appliance' || kind === 'http3-client' || kind === 'proxy-runtime',
+        'Invalid runtime image kind',
+    )
     requireValue(
         process.env.RENTNERPROXY_SMOKE_REUSE_IMAGES === '1',
         'Explicit smoke image reuse is required',

@@ -84,7 +84,7 @@ async function fixture(
 }
 
 describe('same-run OCI runtime image artifacts', () => {
-    for (const kind of ['appliance', 'http3-client']) {
+    for (const kind of ['appliance', 'http3-client', 'proxy-runtime']) {
         test(`${kind} packs and loads the same immutable image bytes`, async () => {
             await fixture(async ({ directory, command, calls }) => {
                 const packed = await runtimeImageArtifact('pack', command)
@@ -120,8 +120,13 @@ describe('same-run OCI runtime image artifacts', () => {
         })
     }
 
-    for (const filename of ['image.tar', 'identity.json']) {
-        test(`rejects tampered ${filename} before any image commands`, async () => {
+    for (const [filename, kind] of [
+        ['image.tar', 'appliance'],
+        ['identity.json', 'appliance'],
+        ['image.tar', 'proxy-runtime'],
+        ['identity.json', 'proxy-runtime'],
+    ]) {
+        test(`rejects tampered ${kind} ${filename} before any image commands`, async () => {
             await fixture(async ({ directory, command, calls }) => {
                 const packed = await runtimeImageArtifact('pack', command)
                 process.env.RUNTIME_IMAGE_ARCHIVE_SHA256 = packed.archive_sha256
@@ -130,7 +135,7 @@ describe('same-run OCI runtime image artifacts', () => {
                 calls.length = 0
                 await expect(runtimeImageArtifact('load', command)).rejects.toThrow('hash mismatch')
                 expect(calls).toEqual([])
-            })
+            }, kind)
         })
     }
 
@@ -280,5 +285,22 @@ describe('same-run OCI runtime image artifacts', () => {
             process.env.GITHUB_SHA = 'f'.repeat(40)
             await expect(runtimeImageArtifact('pack', command)).rejects.toThrow('revision mismatch')
         })
+    })
+
+    test('proxy-runtime loading requires both expected artifact hashes', async () => {
+        await fixture(async ({ command, calls }) => {
+            const packed = await runtimeImageArtifact('pack', command)
+            calls.length = 0
+            process.env.RUNTIME_IMAGE_ARCHIVE_SHA256 = packed.archive_sha256
+            await expect(runtimeImageArtifact('load', command)).rejects.toThrow(
+                'hashes are required',
+            )
+            delete process.env.RUNTIME_IMAGE_ARCHIVE_SHA256
+            process.env.RUNTIME_IMAGE_IDENTITY_SHA256 = packed.identity_sha256
+            await expect(runtimeImageArtifact('load', command)).rejects.toThrow(
+                'hashes are required',
+            )
+            expect(calls).toEqual([])
+        }, 'proxy-runtime')
     })
 })
