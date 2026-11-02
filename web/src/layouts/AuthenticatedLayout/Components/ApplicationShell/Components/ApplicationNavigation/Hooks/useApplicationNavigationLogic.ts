@@ -27,7 +27,7 @@ const navigationGroups = [
     },
     {
         id: 'security',
-        paths: ['/access-policies', '/security', '/crowdsec'],
+        paths: ['/identity-providers', '/access-policies', '/security', '/crowdsec'],
     },
     {
         id: 'administration',

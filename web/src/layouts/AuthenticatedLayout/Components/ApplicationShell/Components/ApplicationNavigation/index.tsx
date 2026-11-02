@@ -176,6 +176,12 @@ export default function ApplicationNavigation({
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}
                                         />
+                                    ) : item.to === '/identity-providers' ? (
+                                        <KeyRound
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                            strokeWidth={1.8}
+                                        />
                                     ) : item.to === '/roles' ? (
                                         <ShieldCheck
                                             aria-hidden="true"

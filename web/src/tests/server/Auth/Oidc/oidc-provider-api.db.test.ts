@@ -31,6 +31,8 @@ mock.module('@/server/Auth/Access/cookies.server.ts', () => ({
 const { createSessionService } = await import('@/server/Auth/Access/sessions.service.ts')
 const { handleOidcProviderRequest } =
     await import('@/server/Auth/Oidc/oidc-provider-response.server.ts')
+const { handleOidcProviderTestRequest } =
+    await import('@/server/Auth/Oidc/oidc-provider-test-response.server.ts')
 
 let snapshot: StoredOidcSettings | undefined
 let fixtureReady = false
@@ -186,6 +188,82 @@ afterAll(async () => {
 })
 
 describe('OIDC owner JSON API with actual authorization, settings and audit persistence', () => {
+    integrationTest(
+        'protects saved-provider probes with real owner freshness and redacted failure responses',
+        async () => {
+            const initial = await storedSettings()
+            const providerId = randomUUID()
+            const secret = 'synthetic probe credential never sent'
+            const savedResponse = await request('POST', {
+                expectedRevision: initial.revision,
+                providers: [
+                    {
+                        id: providerId,
+                        name: 'Disabled probe fixture',
+                        enabled: false,
+                        issuer: 'https://oidc-probe.invalid',
+                        clientId: 'synthetic-probe-client',
+                        clientSecret: secret,
+                        tokenEndpointAuthMethod: 'client_secret_basic',
+                        allowedEndpointOrigins: ['https://oidc-probe.invalid'],
+                        allowedPrivateCidrs: [],
+                        bindings: [],
+                    },
+                ],
+            })
+            expect(savedResponse.status).toBe(200)
+            const saved = await storedSettings()
+            async function probe(revision = saved.revision) {
+                const response = await handleOidcProviderTestRequest(
+                    new Request(origin + '/api/admin/oidc/providers/test', {
+                        method: 'POST',
+                        headers: { Origin: origin, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ providerId, expectedRevision: revision }),
+                    }),
+                )
+                expect(response.headers.get('cache-control')).toContain('no-store')
+                expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+                return response
+            }
+            for (const [cookie, status, code] of [
+                [viewerToken, 403, 'owner_required'],
+                [staleOwnerToken, 403, 'reauthentication_required'],
+                [null, 401, 'authentication_required'],
+            ] as const) {
+                currentCookie = cookie
+                // oxlint-disable-next-line no-await-in-loop -- Each request needs its own fixture session cookie.
+                const response = await probe()
+                expect(response.status).toBe(status)
+                // oxlint-disable-next-line no-await-in-loop -- Inspect the preceding response before replacing its session.
+                expect(await response.json()).toEqual({ error: code })
+            }
+            currentCookie = ownerToken
+            const conflict = await probe(initial.revision)
+            expect(conflict.status).toBe(409)
+            expect(await conflict.json()).toEqual({ error: 'configuration_conflict' })
+            const unavailable = await probe()
+            expect(unavailable.status).toBe(503)
+            const text = await unavailable.text()
+            expect(JSON.parse(text)).toEqual({ error: 'provider_unavailable' })
+            expect(text).not.toContain(secret)
+            expect(text).not.toContain('synthetic-probe-client')
+            expect(text).not.toContain('oidc-probe.invalid')
+            expect(await storedSettings()).toEqual(saved)
+            const events = await getAuthDatabase()
+                .select({ id: auditEvents.id })
+                .from(auditEvents)
+                .where(
+                    and(
+                        eq(auditEvents.actorUserId, ownerId),
+                        eq(auditEvents.resource, 'security-settings'),
+                        eq(auditEvents.action, 'update'),
+                    ),
+                )
+            expect(events).toHaveLength(1)
+        },
+        15_000,
+    )
+
     integrationTest(
         'persists an owner mutation with encrypted credentials and a nullable global audit target',
         async () => {

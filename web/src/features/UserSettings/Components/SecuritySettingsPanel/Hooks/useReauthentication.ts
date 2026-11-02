@@ -1,7 +1,7 @@
 import type { ReauthenticationResult } from '../Types/reauthentication.types.ts'
 import { invalidateSecurityStatusCache } from '@/lib/UserSettings/userSettingsCache.ts'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import {
     beginPasskeyReauthenticationHandler,
@@ -10,23 +10,42 @@ import {
 } from '../../../middleware.ts'
 import type { SerializedAuthenticationResponse } from '../../../Types/security.types.ts'
 
+/** Coordinates password and passkey checks while keeping assertion material out of mutation caches. */
 export default function useReauthentication() {
     const queryClient = useQueryClient()
     const [credential, setCredential] = useState('')
+    const passkeyInput = useRef<{
+        challengeId: string
+        response: SerializedAuthenticationResponse
+    } | null>(null)
+    /** Refreshes account security status after a successful authentication confirmation. */
     const refreshStatus = () => invalidateSecurityStatusCache(queryClient)
     const passwordMutation = useMutation({
-        mutationFn: (value: string) =>
-            reauthenticatePasswordHandler({ data: { credential: value } }),
+        mutationFn: () => reauthenticatePasswordHandler({ data: { credential } }),
+        retry: false,
+        gcTime: 0,
         onSuccess: async (result) => {
             if (result.success) await refreshStatus()
         },
     })
     const passkeyBeginMutation = useMutation({
         mutationFn: () => beginPasskeyReauthenticationHandler({ data: {} }),
+        retry: false,
+        gcTime: 0,
     })
     const passkeyFinishMutation = useMutation({
-        mutationFn: (input: { challengeId: string; response: SerializedAuthenticationResponse }) =>
-            finishPasskeyReauthenticationHandler({ data: input }),
+        /** Consumes the pending assertion once and clears it even if server verification fails. */
+        mutationFn: async () => {
+            const input = passkeyInput.current
+            if (!input) throw new Error('Passkey assertion unavailable')
+            try {
+                return await finishPasskeyReauthenticationHandler({ data: input })
+            } finally {
+                passkeyInput.current = null
+            }
+        },
+        retry: false,
+        gcTime: 0,
         onSuccess: async (result) => {
             if (result.success) await refreshStatus()
         },
@@ -43,16 +62,20 @@ export default function useReauthentication() {
         handler: {
             reset: () => {
                 setCredential('')
+                passkeyInput.current = null
                 passwordMutation.reset()
                 passkeyBeginMutation.reset()
                 passkeyFinishMutation.reset()
             },
-            verifyPassword: () => passwordMutation.mutateAsync(credential),
+            verifyPassword: () => passwordMutation.mutateAsync(),
             beginPasskey: () => passkeyBeginMutation.mutateAsync(),
             finishPasskey: (input: {
                 challengeId: string
                 response: SerializedAuthenticationResponse
-            }) => passkeyFinishMutation.mutateAsync(input),
+            }) => {
+                passkeyInput.current = input
+                return passkeyFinishMutation.mutateAsync()
+            },
         },
     } satisfies ReauthenticationResult
 }

@@ -1,5 +1,5 @@
 import '@tanstack/react-start/server-only'
-import { OIDC_LIMITS } from '@/config/oidc.config.ts'
+import { OIDC_CALLBACK_PATH, OIDC_LIMITS } from '@/config/oidc.config.ts'
 import { readBoundedStream, ResponseBodyLimitError } from '@/lib/Http/readBoundedStream.ts'
 import { saveOidcProvidersSchema } from '@/lib/Auth/Oidc/validation.ts'
 import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
@@ -10,7 +10,7 @@ import { getOidcProvidersService, saveOidcProvidersService } from './oidc-provid
 import type { OidcProviderResponseDependencies } from './Types/oidc-provider-response.types.ts'
 
 /** Emits fixed response codes while withholding input, credentials, and internal failure details. */
-function failure(error: unknown, headers: Headers): Response {
+export function oidcProviderFailure(error: unknown, headers: Headers): Response {
     if (error instanceof RateLimitError) {
         headers.set('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1_000))))
         return Response.json({ error: 'rate_limited' }, { status: 429, headers })
@@ -26,6 +26,8 @@ function failure(error: unknown, headers: Headers): Response {
             return Response.json({ error: error.code }, { status: 403, headers })
     }
     if (error instanceof OidcDomainError) {
+        if (error.code === 'provider_unavailable')
+            return Response.json({ error: error.code }, { status: 503, headers })
         if (error.code === 'configuration_conflict')
             return Response.json({ error: error.code }, { status: 409, headers })
         if (error.code === 'invalid_input' || error.code === 'identity_not_allowed')
@@ -36,6 +38,11 @@ function failure(error: unknown, headers: Headers): Response {
 
 /** Exposes the canonical owner services through a bounded JSON API without requiring an admin UI. */
 export function createOidcProviderResponseHandler(dependencies: OidcProviderResponseDependencies) {
+    /** Adds the canonical callback URL to a credential-free provider summary. */
+    function withCallback(summary: Awaited<ReturnType<typeof dependencies.get>>) {
+        const origin = dependencies.origin()
+        return { ...summary, callbackUrl: origin ? new URL(OIDC_CALLBACK_PATH, origin).href : null }
+    }
     /** Applies same-origin mutation checks and input bounds before delegating exactly once. */
     async function handle(request: Request): Promise<Response> {
         const headers = new Headers({
@@ -49,9 +56,9 @@ export function createOidcProviderResponseHandler(dependencies: OidcProviderResp
         }
         if (request.method === 'GET') {
             try {
-                return Response.json(await dependencies.get(), { headers })
+                return Response.json(withCallback(await dependencies.get()), { headers })
             } catch (error) {
-                return failure(error, headers)
+                return oidcProviderFailure(error, headers)
             }
         }
         const origin = dependencies.origin()
@@ -67,7 +74,7 @@ export function createOidcProviderResponseHandler(dependencies: OidcProviderResp
             // The mutation independently rechecks them under its settings lock.
             await dependencies.get()
         } catch (error) {
-            return failure(error, headers)
+            return oidcProviderFailure(error, headers)
         }
         const signal = AbortSignal.any([
             request.signal,
@@ -97,9 +104,9 @@ export function createOidcProviderResponseHandler(dependencies: OidcProviderResp
             return Response.json({ error: 'invalid_input' }, { status: 422, headers })
         if (request.signal.aborted) return new Response(null, { status: 499, headers })
         try {
-            return Response.json(await dependencies.save(parsed.data), { headers })
+            return Response.json(withCallback(await dependencies.save(parsed.data)), { headers })
         } catch (error) {
-            return failure(error, headers)
+            return oidcProviderFailure(error, headers)
         }
     }
     return handle

@@ -1,6 +1,6 @@
 import { redirect } from '@tanstack/react-router'
 
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { SYSTEM_ROLES, PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { getAuthStateHandler, logoutHandler } from '@/features/Auth/middleware.ts'
 import type { PermissionRouteContext } from '@/features/Auth/Types/route-context.types.ts'
@@ -64,4 +64,9 @@ export async function requireAuthenticatedRoute() {
     }
 
     return { user: state.user, sessionId: state.sessionId }
+}
+
+/** Redirects non-owners based on role membership, independent of broad owner permissions. */
+export function requireOwnerRoute({ context }: PermissionRouteContext) {
+    if (!context.user.roles.includes(SYSTEM_ROLES.OWNER)) throw redirect({ to: '/' })
 }

@@ -21,6 +21,7 @@ import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDdnsRouteImport } from './routes/_authenticated/ddns'
 import { Route as AuthenticatedDnsConnectionsRouteImport } from './routes/_authenticated/dns-connections'
 import { Route as AuthenticatedDockerDiscoveryRouteImport } from './routes/_authenticated/docker-discovery'
+import { Route as AuthenticatedIdentityProvidersRouteImport } from './routes/_authenticated/identity-providers'
 import { Route as AuthenticatedMigrationRouteImport } from './routes/_authenticated/migration'
 import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
@@ -60,6 +61,7 @@ import { Route as ApiAdminOidcProvidersRouteImport } from './routes/api/admin/oi
 import { Route as ApiAuthOidcCallbackRouteImport } from './routes/api/auth/oidc/callback'
 import { Route as ApiAuthOidcStartRouteImport } from './routes/api/auth/oidc/start'
 import { Route as ApiAdminBackupsJobIdDownloadRouteImport } from './routes/api/admin/backups/$jobId/download'
+import { Route as ApiAdminOidcProvidersTestRouteImport } from './routes/api/admin/oidc/providers/test'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -121,6 +123,12 @@ const AuthenticatedDockerDiscoveryRoute =
   AuthenticatedDockerDiscoveryRouteImport.update({
     id: '/docker-discovery',
     path: '/docker-discovery',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIdentityProvidersRoute =
+  AuthenticatedIdentityProvidersRouteImport.update({
+    id: '/identity-providers',
+    path: '/identity-providers',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedMigrationRoute = AuthenticatedMigrationRouteImport.update({
@@ -325,6 +333,12 @@ const ApiAdminBackupsJobIdDownloadRoute =
     path: '/api/admin/backups/$jobId/download',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminOidcProvidersTestRoute =
+  ApiAdminOidcProvidersTestRouteImport.update({
+    id: '/test',
+    path: '/test',
+    getParentRoute: () => ApiAdminOidcProvidersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -337,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
+  '/identity-providers': typeof AuthenticatedIdentityProvidersRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
@@ -372,10 +387,11 @@ export interface FileRoutesByFullPath {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
-  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRouteWithChildren
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
+  '/api/admin/oidc/providers/test': typeof ApiAdminOidcProvidersTestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -388,6 +404,7 @@ export interface FileRoutesByTo {
   '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
+  '/identity-providers': typeof AuthenticatedIdentityProvidersRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
@@ -422,10 +439,11 @@ export interface FileRoutesByTo {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
-  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRouteWithChildren
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
+  '/api/admin/oidc/providers/test': typeof ApiAdminOidcProvidersTestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -440,6 +458,7 @@ export interface FileRoutesById {
   '/_authenticated/ddns': typeof AuthenticatedDdnsRoute
   '/_authenticated/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/_authenticated/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
+  '/_authenticated/identity-providers': typeof AuthenticatedIdentityProvidersRoute
   '/_authenticated/migration': typeof AuthenticatedMigrationRoute
   '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
@@ -476,10 +495,11 @@ export interface FileRoutesById {
   '/api/admin/monitoring/history': typeof ApiAdminMonitoringHistoryRoute
   '/api/admin/monitoring/policy': typeof ApiAdminMonitoringPolicyRoute
   '/api/admin/monitoring/summary': typeof ApiAdminMonitoringSummaryRoute
-  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRoute
+  '/api/admin/oidc/providers': typeof ApiAdminOidcProvidersRouteWithChildren
   '/api/auth/oidc/callback': typeof ApiAuthOidcCallbackRoute
   '/api/auth/oidc/start': typeof ApiAuthOidcStartRoute
   '/api/admin/backups/$jobId/download': typeof ApiAdminBackupsJobIdDownloadRoute
+  '/api/admin/oidc/providers/test': typeof ApiAdminOidcProvidersTestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -494,6 +514,7 @@ export interface FileRouteTypes {
     | '/ddns'
     | '/dns-connections'
     | '/docker-discovery'
+    | '/identity-providers'
     | '/migration'
     | '/npm-import'
     | '/operations'
@@ -533,6 +554,7 @@ export interface FileRouteTypes {
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
+    | '/api/admin/oidc/providers/test'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -545,6 +567,7 @@ export interface FileRouteTypes {
     | '/ddns'
     | '/dns-connections'
     | '/docker-discovery'
+    | '/identity-providers'
     | '/migration'
     | '/npm-import'
     | '/operations'
@@ -583,6 +606,7 @@ export interface FileRouteTypes {
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
+    | '/api/admin/oidc/providers/test'
   id:
     | '__root__'
     | '/_authenticated'
@@ -596,6 +620,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ddns'
     | '/_authenticated/dns-connections'
     | '/_authenticated/docker-discovery'
+    | '/_authenticated/identity-providers'
     | '/_authenticated/migration'
     | '/_authenticated/npm-import'
     | '/_authenticated/operations'
@@ -636,6 +661,7 @@ export interface FileRouteTypes {
     | '/api/auth/oidc/callback'
     | '/api/auth/oidc/start'
     | '/api/admin/backups/$jobId/download'
+    | '/api/admin/oidc/providers/test'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -658,7 +684,7 @@ export interface RootRouteChildren {
   ApiAdminMonitoringHistoryRoute: typeof ApiAdminMonitoringHistoryRoute
   ApiAdminMonitoringPolicyRoute: typeof ApiAdminMonitoringPolicyRoute
   ApiAdminMonitoringSummaryRoute: typeof ApiAdminMonitoringSummaryRoute
-  ApiAdminOidcProvidersRoute: typeof ApiAdminOidcProvidersRoute
+  ApiAdminOidcProvidersRoute: typeof ApiAdminOidcProvidersRouteWithChildren
   ApiAuthOidcCallbackRoute: typeof ApiAuthOidcCallbackRoute
   ApiAuthOidcStartRoute: typeof ApiAuthOidcStartRoute
   ApiAdminBackupsJobIdDownloadRoute: typeof ApiAdminBackupsJobIdDownloadRoute
@@ -748,6 +774,13 @@ declare module '@tanstack/react-router' {
       path: '/docker-discovery'
       fullPath: '/docker-discovery'
       preLoaderRoute: typeof AuthenticatedDockerDiscoveryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/identity-providers': {
+      id: '/_authenticated/identity-providers'
+      path: '/identity-providers'
+      fullPath: '/identity-providers'
+      preLoaderRoute: typeof AuthenticatedIdentityProvidersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/migration': {
@@ -1023,6 +1056,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminBackupsJobIdDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/oidc/providers/test': {
+      id: '/api/admin/oidc/providers/test'
+      path: '/test'
+      fullPath: '/api/admin/oidc/providers/test'
+      preLoaderRoute: typeof ApiAdminOidcProvidersTestRouteImport
+      parentRoute: typeof ApiAdminOidcProvidersRoute
+    }
   }
 }
 
@@ -1036,6 +1076,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDdnsRoute: typeof AuthenticatedDdnsRoute
   AuthenticatedDnsConnectionsRoute: typeof AuthenticatedDnsConnectionsRoute
   AuthenticatedDockerDiscoveryRoute: typeof AuthenticatedDockerDiscoveryRoute
+  AuthenticatedIdentityProvidersRoute: typeof AuthenticatedIdentityProvidersRoute
   AuthenticatedMigrationRoute: typeof AuthenticatedMigrationRoute
   AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
@@ -1059,6 +1100,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDdnsRoute: AuthenticatedDdnsRoute,
   AuthenticatedDnsConnectionsRoute: AuthenticatedDnsConnectionsRoute,
   AuthenticatedDockerDiscoveryRoute: AuthenticatedDockerDiscoveryRoute,
+  AuthenticatedIdentityProvidersRoute: AuthenticatedIdentityProvidersRoute,
   AuthenticatedMigrationRoute: AuthenticatedMigrationRoute,
   AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
@@ -1121,6 +1163,19 @@ const ApiMigrationRouteWithChildren = ApiMigrationRoute._addFileChildren(
   ApiMigrationRouteChildren,
 )
 
+interface ApiAdminOidcProvidersRouteChildren {
+  ApiAdminOidcProvidersTestRoute: typeof ApiAdminOidcProvidersTestRoute
+}
+
+const ApiAdminOidcProvidersRouteChildren: ApiAdminOidcProvidersRouteChildren = {
+  ApiAdminOidcProvidersTestRoute: ApiAdminOidcProvidersTestRoute,
+}
+
+const ApiAdminOidcProvidersRouteWithChildren =
+  ApiAdminOidcProvidersRoute._addFileChildren(
+    ApiAdminOidcProvidersRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   PublicRouteRoute: PublicRouteRouteWithChildren,
@@ -1141,7 +1196,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminMonitoringHistoryRoute: ApiAdminMonitoringHistoryRoute,
   ApiAdminMonitoringPolicyRoute: ApiAdminMonitoringPolicyRoute,
   ApiAdminMonitoringSummaryRoute: ApiAdminMonitoringSummaryRoute,
-  ApiAdminOidcProvidersRoute: ApiAdminOidcProvidersRoute,
+  ApiAdminOidcProvidersRoute: ApiAdminOidcProvidersRouteWithChildren,
   ApiAuthOidcCallbackRoute: ApiAuthOidcCallbackRoute,
   ApiAuthOidcStartRoute: ApiAuthOidcStartRoute,
   ApiAdminBackupsJobIdDownloadRoute: ApiAdminBackupsJobIdDownloadRoute,
