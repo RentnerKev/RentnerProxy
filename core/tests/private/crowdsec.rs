@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "crowdsec_supervisor.rs"]
+mod supervisor;
+
 #[test]
 fn external_endpoint_is_canonicalized_without_weakening_its_origin() {
     assert_eq!(

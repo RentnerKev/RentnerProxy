@@ -222,3 +222,7 @@ pub(in crate::server) struct ApplyResponse {
     active_revision: String,
     last_apply_at: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/server_proxy_redaction.rs"]
+mod redaction_tests;

@@ -3,6 +3,9 @@ use crate::{models::SecretString, runtime::RuntimeSettings};
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use std::{fs, path::PathBuf, time::Duration};
 
+#[path = "crowdsec_transitions.rs"]
+mod transitions;
+
 struct Fixture {
     runtime: Arc<ProxyRuntime>,
     root: PathBuf,

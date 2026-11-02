@@ -2,6 +2,49 @@ use super::{EngineError, exchange};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
+struct MinimalEngine;
+
+impl super::ProxyEngine for MinimalEngine {
+    fn start<'a>(&'a self, _: &'a str, _: &'a str) -> super::EngineFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn load<'a>(&'a self, _: &'a str) -> super::EngineFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn probe<'a>(&'a self, _: &'a str) -> super::EngineFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn shutdown(&self) -> super::EngineFuture<'_> {
+        Box::pin(std::future::pending())
+    }
+    fn is_running(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + '_>> {
+        Box::pin(async { false })
+    }
+}
+
+#[tokio::test]
+async fn optional_engine_capabilities_are_unknown_and_default_shutdown_observes_deadline() {
+    use super::ProxyEngine;
+    let engine = MinimalEngine;
+    assert_eq!(engine.version().await, None);
+    assert_eq!(engine.metrics().await, Err(EngineError::Unavailable));
+    assert_eq!(
+        engine.upstream_observations("host", "revision").await,
+        Err(EngineError::Unavailable)
+    );
+    engine.set_environment(super::EngineEnvironment::default());
+    assert_eq!(
+        engine.shutdown_until(tokio::time::Instant::now()).await,
+        Err(EngineError::TimedOut)
+    );
+    let environment = super::EngineEnvironment::with_crowdsec_bouncer_key("synthetic-key".into());
+    assert_eq!(
+        format!("{environment:?}"),
+        "EngineEnvironment { crowdsec_bouncer_key: Some(\"[redacted]\") }"
+    );
+    assert!(!format!("{environment:?}").contains("synthetic-key"));
+}
+
 #[cfg(unix)]
 #[path = "caddy_shutdown.rs"]
 mod shutdown;

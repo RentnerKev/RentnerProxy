@@ -5,12 +5,16 @@ use serde_json::{Value, json};
 
 const ID: &str = "0198d98a-0000-7000-8000-000000000199";
 
+type ChallengeObserver =
+    Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync>;
+
 #[derive(Clone)]
 struct OrderCa {
     authorization: Value,
     calls: Arc<std::sync::Mutex<Vec<(String, Value)>>>,
     failed_path: Option<&'static str>,
     invalid_order: bool,
+    challenge_observer: Option<ChallengeObserver>,
 }
 
 impl OrderCa {
@@ -20,6 +24,7 @@ impl OrderCa {
             calls: Arc::default(),
             failed_path: None,
             invalid_order: false,
+            challenge_observer: None,
         }
     }
     fn order(&self, status: &str) -> Value {
@@ -65,6 +70,9 @@ impl instant_acme::HttpClient for OrderCa {
                 "/orders" => ca.order("pending"),
                 "/auth" => ca.authorization.clone(),
                 "/challenge" => {
+                    if let Some(observer) = &ca.challenge_observer {
+                        observer().await;
+                    }
                     json!({"type":"http-01","url":"https://ca.example.test/challenge","token":"test-token","status":"valid"})
                 }
                 "/order/1" => ca.order(if ca.invalid_order {
@@ -116,6 +124,34 @@ async fn run_order(
     ChallengeStore,
     Arc<ProxyRuntime>,
 ) {
+    run_order_with_dns(ca, None).await
+}
+
+async fn run_order_with_dns(
+    ca: &OrderCa,
+    dns: Option<(
+        &DnsProvider,
+        crate::runtime::certificates::DnsValidationMode,
+    )>,
+) -> (
+    Result<(String, String), CertificateError>,
+    Vec<(String, String)>,
+    ChallengeStore,
+    Arc<ProxyRuntime>,
+) {
+    run_order_with_dns_observer(ca, dns, None).await
+}
+
+async fn run_order_with_dns_observer(
+    ca: &OrderCa,
+    dns: Option<(&DnsProvider, DnsValidationMode)>,
+    observer: Option<fn(Arc<ProxyRuntime>) -> ChallengeObserver>,
+) -> (
+    Result<(String, String), CertificateError>,
+    Vec<(String, String)>,
+    ChallengeStore,
+    Arc<ProxyRuntime>,
+) {
     let path = std::env::temp_dir().join(format!(
         "rentnerproxy-acme-orders-{}-{}",
         std::process::id(),
@@ -123,8 +159,10 @@ async fn run_order(
     ));
     std::fs::create_dir_all(&path).unwrap();
     let runtime = ProxyRuntime::new(crate::runtime::RuntimeSettings::new(path, 0), None);
+    let mut ca = ca.clone();
+    ca.challenge_observer = observer.map(|observer| observer(Arc::clone(&runtime)));
     runtime.certificate_store.initialize().await.unwrap();
-    let request = CertificateIssueRequest {
+    let mut request = CertificateIssueRequest {
         domains: vec!["example.com".to_owned()],
         environment: crate::runtime::certificates::CertificateEnvironment::Staging,
         contact_email: None,
@@ -133,6 +171,22 @@ async fn run_order(
         dns_provider: None,
         accept_terms: true,
     };
+    if let Some((_, mode)) = dns {
+        request.challenge_type = AcmeChallengeType::Dns01;
+        request.dns_mode = mode;
+        request.dns_provider = Some(if mode == DnsValidationMode::Delegated {
+            crate::runtime::dns::DnsProviderConfig::Connection {
+                provider: crate::runtime::dns::capabilities::ProviderId::Cloudflare,
+                connection_id: ID.to_owned(),
+                zone_id: "0123456789abcdef0123456789abcdef".to_owned(),
+            }
+        } else {
+            crate::runtime::dns::DnsProviderConfig::Cloudflare {
+                zone_id: "0123456789abcdef0123456789abcdef".to_owned(),
+                api_token: "fixture-token".to_owned(),
+            }
+        });
+    }
     runtime
         .certificate_store
         .begin_issue(ID, request.clone(), false)
@@ -149,22 +203,33 @@ async fn run_order(
         .unwrap();
     let mut registered = Vec::new();
     let challenges = ChallengeStore::new();
+    let mut dns_intents = Vec::new();
+    let delegated = if let Some((provider, DnsValidationMode::Delegated)) = dns {
+        super::super::delegated::bindings(&request, provider)
+            .await
+            .unwrap()
+    } else {
+        BTreeMap::new()
+    };
     let result = runtime
         .issue_acme_with_account(
             ID,
             &request,
             &challenges,
             ChallengeRegistrations {
-                delegated: BTreeMap::new(),
+                delegated,
                 http: &mut registered,
-                dns: &mut Vec::new(),
+                dns: &mut dns_intents,
             },
-            None,
+            dns.map(|(provider, _)| provider),
             account,
         )
         .await;
     (result, registered, challenges, runtime)
 }
+
+#[path = "acme_dns_orders.rs"]
+mod dns_orders;
 
 #[tokio::test]
 async fn http_order_registers_exact_challenge_and_finalizes_with_generated_csr() {
