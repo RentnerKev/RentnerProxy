@@ -179,6 +179,7 @@ function configObject(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>
 }
 
+/** Exercises isolated database, controller and Caddy traffic contracts with bounded fixture cleanup. */
 async function runSmoke(): Promise<void> {
     console.log('Starting isolated PostgreSQL and the real Caddy runtime.')
     const caKey = join(temporaryComposeDirectory, 'crowdsec-ca.key')

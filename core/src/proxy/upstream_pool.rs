@@ -6,6 +6,7 @@ use super::is_valid_forward_host;
 
 pub(crate) const MAX_UPSTREAM_MEMBERS: usize = 16;
 
+/// Requires bounded, ordered unique targets whose first member matches the legacy primary fields.
 pub(super) fn has_valid_upstream_pool(host: &ProxyHost) -> bool {
     let Some(pool) = &host.upstream_pool else {
         return true;
@@ -31,6 +32,7 @@ pub(super) fn has_valid_upstream_pool(host: &ProxyHost) -> bool {
     })
 }
 
+/// Uses v8 only when pools exist, preserving canonical v7 bytes for existing single targets.
 pub(crate) fn configuration_version(hosts: &[ProxyHost]) -> u8 {
     if hosts.iter().any(|host| host.upstream_pool.is_some()) {
         8

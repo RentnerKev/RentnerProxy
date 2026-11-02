@@ -24,6 +24,8 @@ pub(super) fn rendered_ranges(ranges: &[String]) -> Vec<String> {
     }
     rendered
 }
+/// Renders ordered native selection with unchanged headers, stream draining and shared trust policy.
+/// Pools without an explicit TLS identity verify each selected DNS member's own name.
 pub(super) fn reverse_proxy(
     upstream: &str,
     host: Option<&ProxyHost>,
