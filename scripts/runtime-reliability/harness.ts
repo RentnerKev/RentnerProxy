@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { startCertificateDnsFixture } from '../smoke/certificates/dns-fixture.ts'
 import { buildHttp3Client } from '../smoke/http3/client.ts'
+import { sharedSmokeImage } from '../smoke/images.ts'
 import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke/resources.ts'
 import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
 import { fixtureTransport } from './fixture-transport.config.ts'
@@ -128,13 +129,14 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
     const network = prefix + '-network'
     let volume = prefix + '-data'
     const composeFile = join(tmpdir(), prefix + '-compose.yml')
-    const http3Image = prefix + '-http3'
+    const sharedHttp3Image = sharedSmokeImage('http3-client')
+    const http3Image = sharedHttp3Image ?? prefix + '-http3'
     const builtImage = prefix + '-current'
     const temp = await mkdtemp(join(tmpdir(), 'rentnerproxy-reliability-'))
     await chmod(temp, 0o700)
     const ownedContainers = [container, pebble, upstream, prefix + '-certs']
     const ownedVolumes = [volume]
-    const ownedImages = [http3Image]
+    const ownedImages: string[] = sharedHttp3Image ? [] : [http3Image]
     const docker = (args: string[], config?: CommandOptions) => command(['docker', ...args], config)
     const dns = await startCertificateDnsFixture(randomBytes(16).toString('hex'))
     const traffic = createTrafficObserver()

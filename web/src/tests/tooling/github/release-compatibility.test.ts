@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 const beta1 = publishedRelease('beta.1')
 
-test('collects exact-revision publication evidence even for documentation-only main commits', async () => {
+test('collects main publication evidence and routes PR compatibility through production smokes', async () => {
     const workflow = Bun.YAML.parse(
         await readFile(
             new URL('../../../../../.github/workflows/release-compatibility.yml', import.meta.url),
@@ -32,13 +32,115 @@ test('collects exact-revision publication evidence even for documentation-only m
     ) as {
         on: {
             push: { branches: string[]; paths?: string[]; 'paths-ignore'?: string[] }
-            pull_request: { paths: string[] }
+            workflow_dispatch: { inputs: { source: { options: string[] } } }
         }
     }
     expect(workflow.on.push.branches).toContain('main')
     expect(workflow.on.push).not.toHaveProperty('paths')
     expect(workflow.on.push).not.toHaveProperty('paths-ignore')
-    expect(workflow.on.pull_request.paths).toContain('web/**')
+    expect(workflow.on).not.toHaveProperty('pull_request')
+    expect(workflow.on.workflow_dispatch.inputs.source.options).toEqual([
+        'all',
+        'fresh',
+        'oldest',
+        'previous',
+    ])
+    const central = Bun.YAML.parse(
+        await readFile(
+            new URL('../../../../../.github/workflows/production-smokes.yml', import.meta.url),
+            'utf8',
+        ),
+    ) as {
+        on: Record<string, unknown>
+        jobs: Record<
+            string,
+            { steps: { uses?: string; with?: Record<string, unknown>; run?: string }[] }
+        >
+    }
+    expect(central.on).toHaveProperty('pull_request')
+    const selection = central.jobs['select-compatibility-sources']!
+    const matrix = central.jobs['release-compatibility']!
+    expect(
+        selection.steps.some((step) =>
+            step.run?.endsWith('release-compatibility/select-sources.ts'),
+        ),
+    ).toBeTrue()
+    expect(
+        matrix.steps.some((step) => step.run?.endsWith('release-compatibility/run.ts')),
+    ).toBeTrue()
+    for (const job of [selection, matrix]) {
+        const checkout = job.steps.find((step) => step.uses?.startsWith('actions/checkout@'))!
+        expect(checkout.with?.ref).toBe('${{ github.sha }}')
+    }
+})
+
+test('one standalone runtime producer supplies verified image artifacts to every compatibility source', async () => {
+    const workflow = Bun.YAML.parse(
+        await readFile(
+            new URL('../../../../../.github/workflows/release-compatibility.yml', import.meta.url),
+            'utf8',
+        ),
+    ) as {
+        jobs: Record<
+            string,
+            {
+                needs?: string[]
+                env?: Record<string, string>
+                outputs?: Record<string, string>
+                strategy?: { matrix: { source: string } }
+                steps: {
+                    id?: string
+                    uses?: string
+                    with?: Record<string, unknown>
+                    run?: string
+                }[]
+            }
+        >
+    }
+    const producer = workflow.jobs['build-runtime-images']!
+    const matrix = workflow.jobs['release-compatibility']!
+    expect(
+        producer.steps.filter((step) => step.uses === './.github/actions/runtime-images'),
+    ).toHaveLength(1)
+    expect(producer.steps.at(-1)?.id).toBe('images')
+    expect(
+        Object.values(workflow.jobs)
+            .flatMap((job) => job.steps)
+            .filter((step) => step.uses === './.github/actions/runtime-images'),
+    ).toHaveLength(1)
+    expect(matrix.needs).toEqual(['select-sources', 'build-runtime-images'])
+    expect(matrix.strategy?.matrix.source).toBe(
+        '${{ fromJSON(needs.select-sources.outputs.sources) }}',
+    )
+    expect(matrix.env?.RENTNERPROXY_SMOKE_REUSE_IMAGES).toBe('1')
+    expect(matrix.env?.RENTNERPROXY_SMOKE_RUN).toBe(
+        '${{ needs.build-runtime-images.outputs.scope }}',
+    )
+    const loader = matrix.steps.find(
+        (step) => step.uses === './.github/actions/load-runtime-images',
+    )!
+    for (const key of [
+        'scope',
+        'appliance_archive_sha256',
+        'appliance_identity_sha256',
+        'http3_archive_sha256',
+        'http3_identity_sha256',
+    ]) {
+        expect(producer.outputs?.[key]).toBe('${{ steps.images.outputs.' + key + ' }}')
+        expect(loader.with?.[key]).toBe('${{ needs.build-runtime-images.outputs.' + key + ' }}')
+    }
+    expect(
+        matrix.steps.some(
+            (step) =>
+                step.run?.includes('docker build') ||
+                step.uses === './.github/actions/runtime-images',
+        ),
+    ).toBeFalse()
+    for (const job of [producer, matrix]) {
+        const checkout = job.steps.find((step) => step.uses?.startsWith('actions/checkout@'))!
+        expect(checkout.with?.ref).toBe('${{ github.sha }}')
+        expect(checkout.with?.['persist-credentials']).toBeFalse()
+    }
 })
 
 const beta2 = {
@@ -525,6 +627,7 @@ describe('historical backup dependency closure', () => {
                 {
                     name?: string
                     if?: string
+                    needs?: string[]
                     steps: { env?: Record<string, string>; run?: string }[]
                 }
             >
@@ -532,6 +635,13 @@ describe('historical backup dependency closure', () => {
         const gate = workflow.jobs['compatibility-verified']!
         expect(gate.name).toBe('Compatibility verified')
         expect(gate.if).toContain('always()')
+        expect(gate.needs).toEqual([
+            'select-sources',
+            'build-runtime-images',
+            'release-compatibility',
+        ])
+        expect(gate.steps[0]!.env?.BUILD_RESULT).toBe('${{ needs.build-runtime-images.result }}')
+        expect(gate.steps[0]!.run).toContain('test "$BUILD_RESULT" = success')
         expect(gate.steps[0]!.run).toContain('test "$COMPLETE" = true')
         expect(
             workflow.jobs['release-compatibility']!.steps.at(-1)!.env?.COMPATIBILITY_SOURCE,

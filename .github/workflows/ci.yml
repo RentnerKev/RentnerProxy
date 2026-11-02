@@ -19,6 +19,31 @@ env:
     RUST_VERSION: 1.99.1
 
 jobs:
+    changes:
+        name: Caddy Change Detection
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            caddy: ${{ steps.changes.outputs.caddy }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Detect Caddy inputs
+              id: changes
+              env:
+                  CADDY_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  CADDY_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+              run: bun --no-env-file .github/scripts/ci/caddy-changes.ts
+
     format:
         name: Format
         runs-on: ubuntu-latest
@@ -239,11 +264,43 @@ jobs:
                       ~/.cargo/git/db
                   key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
+            - name: Restore Rust coverage build outputs
+              id: rust-build-cache
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      core/target/debug
+                      core/target/llvm-cov-target/debug/.fingerprint
+                      core/target/llvm-cov-target/debug/build
+                      core/target/llvm-cov-target/debug/deps
+                      core/target/llvm-cov-target/debug/incremental
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-coverage-v1-${{ env.RUST_VERSION }}-llvm-cov-0.9.1-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-${{ hashFiles('core/src/**', 'core/tests/**', 'core/build.rs') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ runner.arch }}-cargo-coverage-v1-${{ env.RUST_VERSION }}-llvm-cov-0.9.1-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-
+
             - name: Run Clippy
               run: cargo clippy --locked --manifest-path core/Cargo.toml --all-targets --all-features -- -D warnings
 
+            - name: Restore Rust coverage tool
+              id: llvm-cov-cache
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ${{ runner.temp }}/cargo-llvm-cov/bin/cargo-llvm-cov
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-llvm-cov-0.9.1-${{ env.RUST_VERSION }}-v1
+
+            - name: Add Rust coverage tool to PATH
+              run: echo "$RUNNER_TEMP/cargo-llvm-cov/bin" >> "$GITHUB_PATH"
+
             - name: Install Rust coverage tool
-              run: cargo install cargo-llvm-cov --locked --version 0.9.1
+              if: steps.llvm-cov-cache.outputs.cache-hit != 'true'
+              run: cargo install cargo-llvm-cov --locked --version 0.9.1 --root "$RUNNER_TEMP/cargo-llvm-cov"
+
+            - name: Save Rust coverage tool
+              if: github.event_name != 'pull_request' && steps.llvm-cov-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ${{ runner.temp }}/cargo-llvm-cov/bin/cargo-llvm-cov
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-llvm-cov-0.9.1-${{ env.RUST_VERSION }}-v1
 
             - name: Run Rust tests with coverage
               id: rust-tests
@@ -265,6 +322,18 @@ jobs:
                   path: core/target/coverage
                   if-no-files-found: error
                   retention-days: 14
+
+            - name: Save Rust coverage build outputs
+              if: github.event_name != 'pull_request' && steps.rust-build-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      core/target/debug
+                      core/target/llvm-cov-target/debug/.fingerprint
+                      core/target/llvm-cov-target/debug/build
+                      core/target/llvm-cov-target/debug/deps
+                      core/target/llvm-cov-target/debug/incremental
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-coverage-v1-${{ env.RUST_VERSION }}-llvm-cov-0.9.1-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-${{ hashFiles('core/src/**', 'core/tests/**', 'core/build.rs') }}
 
             - name: Save Cargo dependency cache
               if: github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true'
@@ -313,14 +382,34 @@ jobs:
                       ~/.cargo/git/db
                   key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
+            - name: Restore Rust release build outputs
+              id: rust-release-cache
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      core/target/release
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-v1-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-${{ hashFiles('core/src/**', 'core/tests/**', 'core/build.rs') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ runner.arch }}-cargo-release-v1-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-
+
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
             - name: Build production artifacts
               run: bun --no-env-file run build
 
+            - name: Save Rust release build outputs
+              if: github.event_name != 'pull_request' && steps.rust-release-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      core/target/release
+                  key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-v1-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'rust-toolchain*', '.cargo/**', 'core/.cargo/**', '.github/workflows/ci.yml') }}-${{ hashFiles('core/src/**', 'core/tests/**', 'core/build.rs') }}
+
     caddy-response-cache:
         name: Caddy Response Cache
+        needs: changes
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.caddy != 'false') }}
         runs-on: ubuntu-latest
         timeout-minutes: 20
         steps:
@@ -329,16 +418,58 @@ jobs:
               with:
                   persist-credentials: false
 
+            - name: Restore Caddy Go caches
+              id: caddy-go-cache
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      .cache/caddy-go/mod
+                      .cache/caddy-go/build
+                  key: ${{ runner.os }}-${{ runner.arch }}-caddy-go-race-v1-${{ hashFiles('core/caddy-modules/responsecache/go.mod', 'core/caddy-modules/responsecache/go.sum', 'docker/proxy-runtime/Dockerfile', '.github/workflows/ci.yml') }}-${{ hashFiles('core/caddy-modules/responsecache/**') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ runner.arch }}-caddy-go-race-v1-${{ hashFiles('core/caddy-modules/responsecache/go.mod', 'core/caddy-modules/responsecache/go.sum', 'docker/proxy-runtime/Dockerfile', '.github/workflows/ci.yml') }}-
+
+            - name: Prepare isolated Caddy Go cache mounts
+              run: mkdir -p .cache/caddy-go/mod .cache/caddy-go/build
+
             - name: Verify module checksums, race safety and formatting
               run: |
                   docker run --rm --workdir /src \
                     --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/.cache/caddy-go/mod,target=/go/pkg/mod" \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/.cache/caddy-go/build,target=/root/.cache/go-build" \
+                    --env GOMODCACHE=/go/pkg/mod --env GOCACHE=/root/.cache/go-build \
                     --env GOTOOLCHAIN=local --env CGO_ENABLED=1 \
                     mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 \
                     /bin/sh -ec 'GODEBUG=http2client=0 go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
 
+            - name: Save Caddy Go caches
+              if: github.event_name != 'pull_request' && steps.caddy-go-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      .cache/caddy-go/mod
+                      .cache/caddy-go/build
+                  key: ${{ runner.os }}-${{ runner.arch }}-caddy-go-race-v1-${{ hashFiles('core/caddy-modules/responsecache/go.mod', 'core/caddy-modules/responsecache/go.sum', 'docker/proxy-runtime/Dockerfile', '.github/workflows/ci.yml') }}-${{ hashFiles('core/caddy-modules/responsecache/**') }}
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
             - name: Build actual custom Caddy
-              run: docker build --file docker/proxy-runtime/Dockerfile --target caddy-build --tag response-cache-caddy:test .
+              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+              env:
+                  DOCKER_BUILD_RECORD_UPLOAD: 'false'
+              with:
+                  context: .
+                  file: docker/proxy-runtime/Dockerfile
+                  target: caddy-build
+                  load: true
+                  push: false
+                  tags: response-cache-caddy:test
+                  cache-from: |
+                      type=gha,version=2,scope=ci-caddy-build-v1,timeout=2m
+                      type=gha,version=2,scope=production-smokes-proxy-runtime-v1,timeout=2m
+                  cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,version=2,scope=ci-caddy-build-v1,mode=max,timeout=2m,ignore-error=true' || '' }}
 
             - name: Verify counting upstream, security ordering, variants and ephemeral lifecycle
               run: |
