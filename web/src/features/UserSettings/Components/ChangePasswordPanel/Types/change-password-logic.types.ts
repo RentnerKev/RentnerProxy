@@ -5,9 +5,6 @@ export interface ChangePasswordLogicResult<TForm> {
     state: { isPending: boolean }
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
-        validateCurrentPassword: (context: {
-            value: string
-        }) => ReturnType<typeof getValidationIssue>
         validatePassword: (context: { value: string }) => ReturnType<typeof getValidationIssue>
         validateConfirmPassword: (context: { value: string }) => string | undefined
     }

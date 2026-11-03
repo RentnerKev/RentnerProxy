@@ -232,7 +232,6 @@
         "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie później.",
         "authUnavailable": "Usługa uwierzytelniania jest tymczasowo niedostępna.",
         "authentication_required": "Sesja wygasła. Zaloguj się ponownie.",
-        "reauthentication_required": "Potwierdź swoją tożsamość, aby kontynuować.",
         "email_conflict": "Ten adres e-mail jest już używany.",
         "last_active_owner": "Nie można wyłączyć ani zmienić ostatniego aktywnego właściciela.",
         "owner_required": "Tylko właściciel może wprowadzić tę zmianę.",
@@ -267,7 +266,6 @@
             "unavailable": "Nie udało się połączyć z dostawcą tożsamości. Spróbuj ponownie lub użyj lokalnego hasła albo klucza dostępu.",
             "denied": "Ta tożsamość nie ma uprawnień do logowania. Skontaktuj się z administratorem lub użyj konta lokalnego.",
             "expired": "To żądanie logowania wygasło. Rozpocznij logowanie ponownie.",
-            "reauthentication": "Zaloguj się lokalnym hasłem lub kluczem dostępu, a następnie spróbuj ponownie.",
             "conflict": "Konfiguracja logowania uległa zmianie. Rozpocznij logowanie ponownie.",
             "localRecovery": "Lokalni właściciele mogą kontynuować przy użyciu hasła lub klucza dostępu.",
             "cancel": "Anuluj logowanie"
@@ -543,7 +541,6 @@
         "password": {
             "sectionEyebrow": "Dane logowania",
             "title": "Zmień hasło",
-            "currentPassword": "Bieżące hasło",
             "newPassword": "Nowe hasło",
             "confirmNewPassword": "Potwierdź nowe hasło",
             "changing": "Zmienianie hasła…",
@@ -552,8 +549,7 @@
                 "changed": "Hasło zostało zmienione. Wylogowano pozostałe sesje."
             },
             "error": {
-                "update": "Nie udało się zmienić hasła.",
-                "incorrectCurrentPassword": "Bieżące hasło jest nieprawidłowe."
+                "update": "Nie udało się zmienić hasła."
             }
         },
         "profileImage": {
@@ -680,23 +676,6 @@
                 "remove": "Nie udało się usunąć klucza dostępu."
             }
         },
-        "reauthentication": {
-            "title": "Potwierdź tę zmianę zabezpieczeń",
-            "description": "Uwierzytelnij się ponownie, aby kontynuować. Sama istniejąca sesja nie wystarczy.",
-            "currentPassword": "Bieżące hasło",
-            "confirm": "Potwierdź",
-            "usePasskey": "Użyj klucza dostępu",
-            "success": {
-                "confirmed": "Tożsamość została potwierdzona.",
-                "passkeyStarted": "Rozpoczęto weryfikację klucza dostępu."
-            },
-            "error": {
-                "failed": "Ponowne uwierzytelnienie nie powiodło się.",
-                "incorrectPassword": "Hasło jest nieprawidłowe.",
-                "passkeyStart": "Nie udało się rozpocząć ponownego uwierzytelnienia kluczem dostępu.",
-                "passkeyVerification": "Weryfikacja klucza dostępu nie powiodła się."
-            }
-        },
         "recoveryCodes": {
             "title": "Zapisz kody odzyskiwania",
             "description": "Te kody są wyświetlane tylko raz. Każdego kodu można użyć jeden raz.",
@@ -739,7 +718,6 @@
             "error": {
                 "unavailable": "Nie udało się załadować połączonych kont. Odśwież listę i spróbuj ponownie.",
                 "conflict": "Połączenia uległy zmianie. Lista została odświeżona; sprawdź ją i spróbuj ponownie.",
-                "reauthenticate": "Potwierdź ponownie hasło lub klucz dostępu i spróbuj jeszcze raz.",
                 "denied": "Potrzebujesz lokalnego hasła lub klucza dostępu oraz uprawnień do zmiany tego konta.",
                 "rateLimited": "Zbyt wiele prób. Poczekaj minutę i spróbuj ponownie.",
                 "failed": "Nie udało się zmienić połączenia. Odśwież listę i spróbuj ponownie.",
@@ -4301,7 +4279,6 @@
         "test": "Testuj zapisanego dostawcę",
         "tested": "Zweryfikowano metadane. To nie testuje logowania użytkownika.",
         "saved": "Zapisano konfigurację.",
-        "reauthenticated": "Zweryfikowano lokalne uwierzytelnienie. Ponów działanie.",
         "unavailableUser": "Niedostępne lub nieaktywne konto lokalne",
         "fields": {
             "name": "Nazwa dostawcy",
@@ -4313,7 +4290,6 @@
             "privateCidrs": "Dozwolone prywatne sieci CIDR"
         },
         "errors": {
-            "reauthentication_required": "Potwierdź tożsamość lokalnego właściciela i ponów.",
             "authentication_required": "Zaloguj się ponownie.",
             "owner_required": "Wymagane lokalne konto właściciela.",
             "configuration_conflict": "Konfiguracja się zmieniła. Zachowano wersję roboczą. Odśwież i jawnie ponów.",

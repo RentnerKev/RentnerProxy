@@ -4,26 +4,20 @@ import { setResponseHeader } from '@tanstack/react-start/server'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { PROFILE_IMAGE_VERSION_QUERY_KEY } from '@/config/profile-image.config.ts'
-import {
-    changeCurrentPasswordService,
-    reauthenticateCurrentSessionWithPasswordService,
-} from '@/server/Auth/Account/account.service.ts'
+import { changeCurrentPasswordService } from '@/server/Auth/Account/account.service.ts'
 import {
     getProfileImageAssetService,
     updateCurrentProfileImageService,
 } from '@/server/Auth/Account/profile-image.service.ts'
 import {
-    isSessionRecentlyAuthenticated,
     requirePermissionService,
     requireSessionPermission,
     requireSessionService,
 } from '@/server/Auth/Access/authorization.service.ts'
 import {
     beginPasskeyRegistrationService,
-    beginPasskeyReauthenticationService,
     deletePasskeyService,
     finishPasskeyRegistrationService,
-    finishPasskeyReauthenticationService,
     getPasskeysForUserService,
     renamePasskeyService,
 } from '@/server/Auth/Passkey/passkey.service.ts'
@@ -51,14 +45,11 @@ import type { ThemeModeUpdateResult } from './Types/theme-server-result.types.ts
 import type { NavigationGroupUpdateResult } from './Types/navigation-server-result.types.ts'
 import type { AccentColorUpdateResult } from './Types/appearance-server-result.types.ts'
 import {
-    beginPasskeyReauthenticationInputSchema,
     changePasswordInputSchema,
     confirmTotpSetupInputSchema,
     disableTotpInputSchema,
     emptySecurityInputSchema,
     finishPasskeyRegistrationInputSchema,
-    finishPasskeyReauthenticationInputSchema,
-    reauthenticatePasswordInputSchema,
     removePasskeyInputSchema,
     renamePasskeyInputSchema,
     updateLanguageInputSchema,
@@ -122,13 +113,10 @@ export const changePasswordHandler = createServerFn({ method: 'POST' })
     .handler(async ({ data }): Promise<AuthActionResult> => {
         try {
             await requirePermissionService(PERMISSIONS.ACCOUNT_UPDATE)
-            const result = await changeCurrentPasswordService({
-                currentPassword: data.currentPassword,
+            await changeCurrentPasswordService({
                 password: data.password,
             })
-            return result.success
-                ? { success: true, message: 'account.password.success.changed' }
-                : { success: false, message: 'account.password.error.incorrectCurrentPassword' }
+            return { success: true, message: 'account.password.success.changed' }
         } catch (error) {
             return localizedActionFailure(error, 'account.password.error.update')
         }
@@ -162,7 +150,6 @@ export const getSecurityStatusHandler = createServerFn({ method: 'GET' }).handle
                 lastUsedAt: passkey.lastUsedAt?.toISOString() ?? null,
                 name: passkey.name,
             })),
-            recentlyAuthenticated: isSessionRecentlyAuthenticated(session),
         }
     } catch (error) {
         throwLocalizedQueryError(error, 'account.security.error.unavailable')
@@ -328,67 +315,6 @@ export const removePasskeyHandler = createServerFn({ method: 'POST' })
             }
         } catch (error) {
             return localizedActionFailure(error, 'account.passkeys.error.remove')
-        }
-    })
-
-export const reauthenticatePasswordHandler = createServerFn({ method: 'POST' })
-    .validator(reauthenticatePasswordInputSchema)
-    .handler(async ({ data }) => {
-        try {
-            const session = await requireSessionService()
-            await enforceSensitiveLimit('login', session.user.email)
-            const success = await reauthenticateCurrentSessionWithPasswordService(
-                session,
-                data.credential,
-            )
-            return {
-                success,
-                message: success
-                    ? 'account.reauthentication.success.confirmed'
-                    : 'account.reauthentication.error.incorrectPassword',
-            }
-        } catch (error) {
-            return localizedActionFailure(error, 'account.reauthentication.error.failed')
-        }
-    })
-
-export const beginPasskeyReauthenticationHandler = createServerFn({ method: 'POST' })
-    .validator(beginPasskeyReauthenticationInputSchema)
-    .handler(async () => {
-        try {
-            const session = await requireSessionService()
-            await enforceSensitiveLimit('login', session.user.email)
-            const result = await beginPasskeyReauthenticationService(session)
-            return {
-                challengeId: result.flowId,
-                message: 'account.reauthentication.success.passkeyStarted',
-                options: result.options,
-                success: true as const,
-            }
-        } catch (error) {
-            return localizedActionFailure(error, 'account.reauthentication.error.passkeyStart')
-        }
-    })
-
-export const finishPasskeyReauthenticationHandler = createServerFn({ method: 'POST' })
-    .validator(finishPasskeyReauthenticationInputSchema)
-    .handler(async ({ data }) => {
-        try {
-            const session = await requireSessionService()
-            await enforceSensitiveLimit('login', session.user.email)
-            const result = await finishPasskeyReauthenticationService({
-                currentSession: session,
-                flowId: data.challengeId,
-                response: data.response,
-            })
-            return {
-                success: result.success,
-                message: result.success
-                    ? 'account.reauthentication.success.confirmed'
-                    : 'account.reauthentication.error.passkeyVerification',
-            }
-        } catch (error) {
-            return localizedActionFailure(error, 'account.reauthentication.error.failed')
         }
     })
 

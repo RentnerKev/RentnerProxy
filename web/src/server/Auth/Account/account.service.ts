@@ -4,10 +4,7 @@ import { and, eq, gt } from 'drizzle-orm'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { passwordResetTokens, sessions, users } from '@/db/schema.ts'
-import type {
-    ChangePasswordResult,
-    CurrentSession,
-} from '@/server/Auth/Core/Types/auth-service.types.ts'
+import type { ChangePasswordResult } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { hashPassword } from '@/server/Auth/Core/password.server.ts'
@@ -17,12 +14,10 @@ import { appendAuditEventInTransactionService } from '@/server/Audit/audit.servi
 import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import {
     getCurrentSessionService,
-    markSessionReauthenticatedInTransaction,
     revokeOtherUserSessionsInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
 
 export async function changeCurrentPasswordService(input: {
-    currentPassword: string
     password: string
 }): Promise<ChangePasswordResult> {
     const currentSession = await getCurrentSessionService()
@@ -91,15 +86,6 @@ export async function changeCurrentPasswordService(input: {
                     )
                 }
 
-                const currentPasswordMatches =
-                    input.currentPassword.length > 0 &&
-                    input.currentPassword.length <= 256 &&
-                    (await Bun.password.verify(input.currentPassword, user.passwordHash))
-
-                if (!currentPasswordMatches) {
-                    return { success: false as const, code: 'invalid_current_password' as const }
-                }
-
                 await transaction
                     .update(users)
                     .set({ passwordHash, updatedAt: now })
@@ -112,7 +98,6 @@ export async function changeCurrentPasswordService(input: {
                     currentSession.user.id,
                     currentSession.id,
                 )
-                await markSessionReauthenticatedInTransaction(transaction, currentSession)
                 await appendAuditEventInTransactionService(transaction, {
                     actorUserId: currentSession.user.id,
                     actorKind: 'user',
@@ -126,54 +111,4 @@ export async function changeCurrentPasswordService(input: {
             })
         },
     )
-}
-
-export async function reauthenticateCurrentSessionWithPasswordService(
-    currentSession: CurrentSession,
-    password: string,
-): Promise<boolean> {
-    if (!password || password.length > 256) {
-        return false
-    }
-
-    return getAuthDatabase().transaction(async (transaction) => {
-        const rows = await transaction
-            .select({ passwordHash: users.passwordHash, status: users.status })
-            .from(users)
-            .where(eq(users.id, currentSession.user.id))
-            .limit(1)
-            .for('share')
-        const user = rows.at(0)
-
-        if (!user || user.status !== 'active' || !user.passwordHash) {
-            throw new AuthDomainError('authentication_required', 'Authentication is required.')
-        }
-
-        if (!(await Bun.password.verify(password, user.passwordHash))) {
-            await appendAuditEventInTransactionService(transaction, {
-                actorUserId: currentSession.user.id,
-                actorKind: 'user',
-                action: 'reauthenticate',
-                resource: 'session',
-                targetId: currentSession.id,
-                result: 'failure',
-                metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
-            })
-            return false
-        }
-
-        const completed = await markSessionReauthenticatedInTransaction(transaction, currentSession)
-        if (completed) {
-            await appendAuditEventInTransactionService(transaction, {
-                actorUserId: currentSession.user.id,
-                actorKind: 'user',
-                action: 'reauthenticate',
-                resource: 'session',
-                targetId: currentSession.id,
-                result: 'success',
-                metadata: { authenticationMethod: 'password' },
-            })
-        }
-        return completed
-    })
 }

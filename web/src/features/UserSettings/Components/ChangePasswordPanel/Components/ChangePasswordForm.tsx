@@ -9,32 +9,6 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
 
     return (
         <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
-            <form.Field
-                name="currentPassword"
-                validators={{ onBlur: handler.validateCurrentPassword }}
-            >
-                {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            {t('account.password.currentPassword')}
-                        </label>
-                        <PasswordInput
-                            placeholder={t('placeholders.currentPassword')}
-                            id={field.name}
-                            name={field.name}
-                            autoComplete="current-password"
-                            maxLength={256}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            error={getFieldErrorMessage(field.state.meta.errors, t)}
-                        />
-                    </div>
-                )}
-            </form.Field>
             <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">

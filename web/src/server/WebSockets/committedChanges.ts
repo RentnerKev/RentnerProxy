@@ -10,7 +10,6 @@ export function markAuditedApplicationMutation(transaction: object, event: Audit
         event.result !== 'success' ||
         event.resource === 'config-export' ||
         event.action === 'login' ||
-        event.action === 'reauthenticate' ||
         event.metadata?.changedFields?.length === 0
     )
         return

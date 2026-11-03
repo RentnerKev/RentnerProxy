@@ -209,7 +209,6 @@
         "rateLimited": "Te veel verzoeken. Probeer het later opnieuw.",
         "authUnavailable": "De authenticatiedienst is tijdelijk niet beschikbaar.",
         "authentication_required": "Je sessie is verlopen. Log opnieuw in.",
-        "reauthentication_required": "Bevestig je identiteit om door te gaan.",
         "email_conflict": "Dit e-mailadres is al in gebruik.",
         "last_active_owner": "De laatste actieve eigenaar kan niet worden uitgeschakeld of gewijzigd.",
         "owner_required": "Alleen een eigenaar kan deze wijziging uitvoeren.",
@@ -244,7 +243,6 @@
             "unavailable": "De identiteitsprovider kon niet worden bereikt. Probeer het opnieuw of gebruik je lokale wachtwoord of passkey.",
             "denied": "Deze identiteit mag zich niet aanmelden. Neem contact op met je beheerder of gebruik je lokale account.",
             "expired": "Dit aanmeldverzoek is verlopen. Start de aanmelding opnieuw.",
-            "reauthentication": "Meld je aan met je lokale wachtwoord of passkey en probeer het opnieuw.",
             "conflict": "De aanmeldconfiguratie is gewijzigd. Start de aanmelding opnieuw.",
             "localRecovery": "Lokale eigenaren kunnen doorgaan met een wachtwoord of passkey.",
             "cancel": "Aanmelden annuleren"
@@ -520,7 +518,6 @@
         "password": {
             "sectionEyebrow": "Inloggegevens",
             "title": "Wachtwoord wijzigen",
-            "currentPassword": "Huidig wachtwoord",
             "newPassword": "Nieuw wachtwoord",
             "confirmNewPassword": "Nieuw wachtwoord bevestigen",
             "changing": "Wachtwoord wijzigen…",
@@ -529,8 +526,7 @@
                 "changed": "Wachtwoord gewijzigd. Andere sessies zijn ingetrokken."
             },
             "error": {
-                "update": "Het wachtwoord kon niet worden gewijzigd.",
-                "incorrectCurrentPassword": "Het huidige wachtwoord is onjuist."
+                "update": "Het wachtwoord kon niet worden gewijzigd."
             }
         },
         "profileImage": {
@@ -657,23 +653,6 @@
                 "remove": "De passkey kon niet worden verwijderd."
             }
         },
-        "reauthentication": {
-            "title": "Bevestig deze beveiligingswijziging",
-            "description": "Authenticeer opnieuw om door te gaan. Alleen je bestaande sessie is niet voldoende.",
-            "currentPassword": "Huidig wachtwoord",
-            "confirm": "Bevestigen",
-            "usePasskey": "Een passkey gebruiken",
-            "success": {
-                "confirmed": "Identiteit bevestigd.",
-                "passkeyStarted": "Verificatie van passkey gestart."
-            },
-            "error": {
-                "failed": "Opnieuw authenticeren mislukt.",
-                "incorrectPassword": "Het wachtwoord is onjuist.",
-                "passkeyStart": "Opnieuw authenticeren met passkey kon niet worden gestart.",
-                "passkeyVerification": "Verificatie van passkey mislukt."
-            }
-        },
         "recoveryCodes": {
             "title": "Bewaar je herstelcodes",
             "description": "Deze codes worden slechts één keer getoond. Elke code kan één keer worden gebruikt.",
@@ -716,7 +695,6 @@
             "error": {
                 "unavailable": "De gekoppelde accounts konden niet worden geladen. Vernieuw de lijst en probeer het opnieuw.",
                 "conflict": "De koppelingen zijn gewijzigd. De lijst is vernieuwd; controleer deze en probeer het opnieuw.",
-                "reauthenticate": "Bevestig je wachtwoord of passkey opnieuw en probeer het nogmaals.",
                 "denied": "Je hebt een lokaal wachtwoord of een lokale passkey en toestemming nodig om dit account te wijzigen.",
                 "rateLimited": "Te veel pogingen. Wacht een minuut en probeer het opnieuw.",
                 "failed": "De koppeling kon niet worden gewijzigd. Vernieuw de lijst en probeer het opnieuw.",
@@ -4271,7 +4249,6 @@
         "test": "Opgeslagen provider testen",
         "tested": "Metadata gecontroleerd. Dit test geen gebruikersaanmelding.",
         "saved": "Configuratie opgeslagen.",
-        "reauthenticated": "Lokale authenticatie gecontroleerd. Probeer de actie opnieuw.",
         "unavailableUser": "Onbeschikbaar of inactief lokaal account",
         "fields": {
             "name": "Providernaam",
@@ -4283,7 +4260,6 @@
             "privateCidrs": "Toegestane private CIDR-netwerken"
         },
         "errors": {
-            "reauthentication_required": "Verifieer uw lokale eigenaarsidentiteit en probeer opnieuw.",
             "authentication_required": "Meld u opnieuw aan.",
             "owner_required": "Een lokale eigenaar is vereist.",
             "configuration_conflict": "Configuratie gewijzigd. Uw concept blijft bewaard. Vernieuw en probeer expliciet opnieuw.",

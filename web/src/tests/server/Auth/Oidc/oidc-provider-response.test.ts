@@ -108,7 +108,6 @@ test.each([
     ['authentication_required', 401],
     ['owner_required', 403],
     ['permission_denied', 403],
-    ['reauthentication_required', 403],
     ['service_unavailable', 503],
 ] as const)('preserves canonical auth denial %s with redacted details', async (code, status) => {
     const { handler } = fixture(

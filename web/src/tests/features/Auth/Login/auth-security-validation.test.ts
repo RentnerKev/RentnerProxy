@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
-import { completeTwoFactorLoginInputSchema } from '@/features/Auth/Login/validation.ts'
+import {
+    completeTwoFactorLoginInputSchema,
+    finishPasskeyLoginInputSchema,
+} from '@/features/Auth/Login/validation.ts'
 import {
     confirmTotpSetupInputSchema,
     finishPasskeyRegistrationInputSchema,
-    finishPasskeyReauthenticationInputSchema,
     renamePasskeyInputSchema,
 } from '@/features/UserSettings/validation.ts'
 
@@ -52,7 +54,7 @@ describe('account security validation', () => {
         }
     })
 
-    test('accepts password reauthentication as a separate action input', () => {
+    test('normalizes passkey names without requiring extra identity credentials', () => {
         expect(
             renamePasskeyInputSchema.parse({
                 passkeyId: '123e4567-e89b-12d3-a456-426614174000',
@@ -63,7 +65,7 @@ describe('account security validation', () => {
         const parsed = renamePasskeyInputSchema.parse({
             passkeyId: '123e4567-e89b-12d3-a456-426614174000',
             name: 'Laptop',
-            reauthentication: { method: 'password', credential: 'password' },
+            unexpectedField: 'ignored',
         })
         expect(parsed).toEqual({
             passkeyId: '123e4567-e89b-12d3-a456-426614174000',
@@ -93,7 +95,7 @@ describe('account security validation', () => {
         expect(finishPasskeyRegistrationInputSchema.safeParse({}).success).toBeFalse()
 
         expect(
-            finishPasskeyReauthenticationInputSchema.safeParse({
+            finishPasskeyLoginInputSchema.safeParse({
                 challengeId: opaqueChallenge,
                 response: passkeyAuthenticationResponse,
             }).success,

@@ -550,10 +550,6 @@ describe('OIDC raw HTTP endpoints', () => {
         [new OidcDomainError('configuration_unavailable'), 'unavailable'],
         [new OidcDomainError('configuration_conflict'), 'conflict'],
         [new AuthDomainError('permission_denied', 'secret-subject-token'), 'denied'],
-        [
-            new AuthDomainError('reauthentication_required', 'secret-subject-token'),
-            'reauthentication',
-        ],
         [new Error('secret-subject-token: denied unavailable'), 'failed'],
         [{ code: 'identity_not_allowed', message: 'secret-subject-token' }, 'failed'],
     ] as const

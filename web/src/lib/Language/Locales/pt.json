@@ -230,7 +230,6 @@
         "rateLimited": "Demasiados pedidos. Tente novamente mais tarde.",
         "authUnavailable": "O serviço de autenticação está temporariamente indisponível.",
         "authentication_required": "A sua sessão expirou. Inicie sessão novamente.",
-        "reauthentication_required": "Confirme a sua identidade para continuar.",
         "email_conflict": "Este endereço de e-mail já está a ser utilizado.",
         "last_active_owner": "O último proprietário ativo não pode ser desativado nem alterado.",
         "owner_required": "Só um proprietário pode fazer esta alteração.",
@@ -265,7 +264,6 @@
             "unavailable": "Não foi possível contactar o fornecedor de identidade. Tente novamente ou utilize a sua palavra-passe ou chave de acesso local.",
             "denied": "Esta identidade não tem permissão para iniciar sessão. Contacte o administrador ou utilize a sua conta local.",
             "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
-            "reauthentication": "Inicie sessão com a sua palavra-passe ou chave de acesso local e tente novamente.",
             "conflict": "A configuração de autenticação foi alterada. Inicie a sessão novamente.",
             "localRecovery": "Os proprietários locais podem continuar com uma palavra-passe ou chave de acesso.",
             "cancel": "Cancelar início de sessão"
@@ -541,7 +539,6 @@
         "password": {
             "sectionEyebrow": "Credenciais",
             "title": "Alterar palavra-passe",
-            "currentPassword": "Palavra-passe atual",
             "newPassword": "Nova palavra-passe",
             "confirmNewPassword": "Confirmar nova palavra-passe",
             "changing": "A alterar a palavra-passe…",
@@ -550,8 +547,7 @@
                 "changed": "Palavra-passe alterada. As outras sessões foram terminadas."
             },
             "error": {
-                "update": "Não foi possível alterar a palavra-passe.",
-                "incorrectCurrentPassword": "A palavra-passe atual está incorreta."
+                "update": "Não foi possível alterar a palavra-passe."
             }
         },
         "profileImage": {
@@ -678,23 +674,6 @@
                 "remove": "Não foi possível remover a chave de acesso."
             }
         },
-        "reauthentication": {
-            "title": "Confirmar esta alteração de segurança",
-            "description": "Volte a autenticar-se para continuar. A sessão atual, por si só, não é suficiente.",
-            "currentPassword": "Palavra-passe atual",
-            "confirm": "Confirmar",
-            "usePasskey": "Utilizar uma chave de acesso",
-            "success": {
-                "confirmed": "Identidade confirmada.",
-                "passkeyStarted": "Verificação com chave de acesso iniciada."
-            },
-            "error": {
-                "failed": "A confirmação de identidade falhou.",
-                "incorrectPassword": "A palavra-passe está incorreta.",
-                "passkeyStart": "Não foi possível iniciar a autenticação com chave de acesso.",
-                "passkeyVerification": "A verificação com chave de acesso falhou."
-            }
-        },
         "recoveryCodes": {
             "title": "Guarde os seus códigos de recuperação",
             "description": "Estes códigos só são apresentados uma vez. Cada código só pode ser utilizado uma vez.",
@@ -737,7 +716,6 @@
             "error": {
                 "unavailable": "Não foi possível carregar as contas associadas. Atualize a lista e tente novamente.",
                 "conflict": "As associações foram alteradas. A lista foi atualizada; reveja-a e tente novamente.",
-                "reauthenticate": "Confirme novamente a sua palavra-passe ou chave de acesso e tente outra vez.",
                 "denied": "Precisa de uma palavra-passe ou chave de acesso local e de permissão para alterar esta conta.",
                 "rateLimited": "Demasiadas tentativas. Aguarde um minuto e tente novamente.",
                 "failed": "Não foi possível alterar a associação. Atualize a lista e tente novamente.",
@@ -4299,7 +4277,6 @@
         "test": "Testar provedor guardado",
         "tested": "Metadados verificados. Isto não testa o acesso de um utilizador.",
         "saved": "Configuração guardada.",
-        "reauthenticated": "Autenticação local verificada. Repetir a ação.",
         "unavailableUser": "Conta local indisponível ou inativa",
         "fields": {
             "name": "Nome do provedor",
@@ -4311,7 +4288,6 @@
             "privateCidrs": "Redes CIDR privadas permitidas"
         },
         "errors": {
-            "reauthentication_required": "Verificar a identidade do proprietário local e repetir.",
             "authentication_required": "Iniciar sessão novamente.",
             "owner_required": "É necessário um proprietário local.",
             "configuration_conflict": "A configuração mudou. Rascunho preservado. Atualizar e repetir explicitamente.",

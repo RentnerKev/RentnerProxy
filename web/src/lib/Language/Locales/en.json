@@ -228,7 +228,6 @@
         "rateLimited": "Too many requests. Try again later.",
         "authUnavailable": "Authentication service temporarily unavailable.",
         "authentication_required": "Your session has expired. Sign in again.",
-        "reauthentication_required": "Confirm your identity to continue.",
         "email_conflict": "This email address is already in use.",
         "last_active_owner": "The last active owner cannot be disabled or changed.",
         "owner_required": "Only an owner can make this change.",
@@ -263,7 +262,6 @@
             "unavailable": "The identity provider could not be reached. Try again or use your local password or passkey.",
             "denied": "This identity is not allowed to sign in. Contact your administrator or use your local account.",
             "expired": "This sign-in request has expired. Start sign-in again.",
-            "reauthentication": "Sign in with your local password or passkey, then retry.",
             "conflict": "The sign-in configuration changed. Start sign-in again.",
             "localRecovery": "Local owners can continue with a password or passkey.",
             "cancel": "Cancel sign-in"
@@ -439,7 +437,6 @@
         "password": {
             "sectionEyebrow": "Credentials",
             "title": "Change password",
-            "currentPassword": "Current password",
             "newPassword": "New password",
             "confirmNewPassword": "Confirm new password",
             "changing": "Changing password…",
@@ -448,8 +445,7 @@
                 "changed": "Password changed. Other sessions were revoked."
             },
             "error": {
-                "update": "The password could not be changed.",
-                "incorrectCurrentPassword": "The current password is incorrect."
+                "update": "The password could not be changed."
             }
         },
         "profileImage": {
@@ -574,23 +570,6 @@
                 "notFound": "The passkey no longer exists.",
                 "rename": "Passkey name could not be saved.",
                 "remove": "Passkey could not be removed."
-            }
-        },
-        "reauthentication": {
-            "title": "Confirm this security change",
-            "description": "Reauthenticate to continue. Your existing session alone is not sufficient.",
-            "currentPassword": "Current password",
-            "confirm": "Confirm",
-            "usePasskey": "Use a passkey instead",
-            "success": {
-                "confirmed": "Identity confirmed.",
-                "passkeyStarted": "Passkey verification started."
-            },
-            "error": {
-                "failed": "Reauthentication failed.",
-                "incorrectPassword": "The password is incorrect.",
-                "passkeyStart": "Passkey reauthentication could not be started.",
-                "passkeyVerification": "Passkey verification failed."
             }
         },
         "recoveryCodes": {
@@ -735,7 +714,6 @@
             "error": {
                 "unavailable": "Linked accounts could not be loaded. Refresh and try again.",
                 "conflict": "Connections changed. The list has been refreshed; review it and try again.",
-                "reauthenticate": "Confirm your password or passkey again, then retry.",
                 "denied": "You need a local password or passkey and permission to change this account.",
                 "rateLimited": "Too many attempts. Wait a minute and try again.",
                 "failed": "The connection could not be changed. Refresh and try again.",
@@ -4271,7 +4249,6 @@
         "test": "Test saved provider",
         "tested": "Saved provider metadata verified. This does not test a user sign-in.",
         "saved": "Provider configuration saved.",
-        "reauthenticated": "Local authentication verified. Retry your action.",
         "unavailableUser": "Unavailable or inactive local account",
         "fields": {
             "name": "Provider name",
@@ -4283,7 +4260,6 @@
             "privateCidrs": "Allowed private network CIDRs"
         },
         "errors": {
-            "reauthentication_required": "Verify your local owner identity, then retry.",
             "authentication_required": "Sign in again.",
             "owner_required": "A local owner account is required.",
             "configuration_conflict": "Configuration changed. Your draft is preserved. Refresh and explicitly retry.",

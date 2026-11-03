@@ -10,7 +10,7 @@ import {
 } from '@/server/Auth/Access/rbac.service.ts'
 import {
     lockActiveUserForAuthenticationInTransaction,
-    requireRecentSessionInTransaction,
+    requireActiveSessionInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
@@ -34,7 +34,7 @@ import {
     validateOidcAccountPoliciesInTransaction,
 } from './oidc-accounts.service.ts'
 
-/** Rechecks local owner access and recent authentication under the active-user lock. */
+/** Rechecks current owner access and the active session under the active-user lock. */
 export async function authorizeOidcOwnerInTransaction(
     transaction: AuthTransaction,
     session: Awaited<ReturnType<typeof requireSessionService>>,
@@ -44,7 +44,7 @@ export async function authorizeOidcOwnerInTransaction(
     if (!user || !user.permissions.includes(PERMISSIONS.APP_ACCESS))
         throw new AuthDomainError('authentication_required', 'Authentication is required.')
     if (!hasOwnerRole(user.roles)) throw new AuthDomainError('owner_required', 'Owner is required.')
-    await requireRecentSessionInTransaction(transaction, session)
+    await requireActiveSessionInTransaction(transaction, session)
 }
 
 /** Separates owner-authorized trust mutations from the credential-free public sign-in catalog. */

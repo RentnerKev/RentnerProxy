@@ -18,7 +18,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 Object.defineProperty(window, 'stop', { configurable: true, writable: true, value: () => {} })
 
 let search: {
-    oidcError?: 'failed' | 'denied' | 'unavailable' | 'expired' | 'reauthentication' | 'conflict'
+    oidcError?: 'failed' | 'denied' | 'unavailable' | 'expired' | 'conflict'
 } = {}
 const navigate = mock(async (_options: unknown) => {})
 const errorToast = mock((_message: string, _options?: unknown) => {})
@@ -758,7 +758,6 @@ test.each([
         'The identity provider could not be reached. Try again or use your local password or passkey.',
     ],
     ['expired', 'This sign-in request has expired. Start sign-in again.'],
-    ['reauthentication', 'Sign in with your local password or passkey, then retry.'],
     ['conflict', 'The sign-in configuration changed. Start sign-in again.'],
 ] as const)(
     'validated callback marker %s is consumed once in StrictMode and remains visible as a safe inline alert',

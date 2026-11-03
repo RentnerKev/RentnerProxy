@@ -213,7 +213,7 @@ mock.module('@/server/Auth/Access/rbac.service.ts', () => ({
     requirePermissionInTransaction: async () => undefined,
 }))
 mock.module('@/server/Auth/Access/authorization.service.ts', () => ({
-    requireRecentAuthenticationForSession: async () => undefined,
+    requireActiveSessionForSession: async () => undefined,
     requireSessionPermission: async () => undefined,
 }))
 mock.module('@/server/Audit/audit.service.ts', () => ({
@@ -326,9 +326,9 @@ async function rotatePassword(method: 'reset' | 'change') {
         ).toMatchObject({ success: true })
     } else {
         sessionCookie = cookieToken
-        expect(
-            await changeCurrentPasswordService({ currentPassword, password: nextPassword }),
-        ).toEqual({ success: true })
+        expect(await changeCurrentPasswordService({ password: nextPassword })).toEqual({
+            success: true,
+        })
         sessionCookie = null
     }
     expect(await Bun.password.verify(currentPassword, user.passwordHash ?? '')).toBeFalse()
@@ -374,6 +374,29 @@ beforeEach(() => {
 })
 
 describe('password authentication state', () => {
+    test('changes a local password from an older active session without supplying the old password', async () => {
+        sessionCookie = cookieToken
+        storedSessions[0] = { ...storedSessions[0], reauthenticatedAt: new Date(0) }
+        expect(await changeCurrentPasswordService({ password: nextPassword })).toEqual({
+            success: true,
+        })
+        expect(await Bun.password.verify(nextPassword, user.passwordHash ?? '')).toBeTrue()
+        expect(events).toContain('sessions-revoked')
+        expect(loginAudits).toContainEqual(
+            expect.objectContaining({ action: 'update', resource: 'password', result: 'success' }),
+        )
+    })
+
+    test('keeps externally managed passwordless credentials outside local password changes', async () => {
+        sessionCookie = cookieToken
+        user.passwordHash = null
+        await expect(
+            changeCurrentPasswordService({ password: nextPassword }),
+        ).rejects.toMatchObject({ code: 'authentication_required' })
+        expect(user.passwordHash).toBeNull()
+        expect(events).not.toContain('password-updated')
+    })
+
     test('issues a session for the current password', async () => {
         const login = await loginService({ email: user.email, password: currentPassword })
         expect(login).toMatchObject({ success: true, requiresTwoFactor: false })
@@ -553,7 +576,7 @@ describe('password authentication state', () => {
         expect(factor.lastUsedCounter).toBe(0)
     })
 
-    test('serializes factor disable before checking the recent session and revoking sessions', async () => {
+    test('serializes factor disable before checking the active session and revoking sessions', async () => {
         factor = enabledFactor()
         const challengeId = await issueChallenge()
         events.length = 0
@@ -570,7 +593,7 @@ describe('password authentication state', () => {
         ).toEqual({ success: false, code: 'authentication_failed' })
     })
 
-    test('serializes recovery-code rotation before checking the recent session', async () => {
+    test('serializes recovery-code rotation before checking the active session', async () => {
         factor = enabledFactor()
         expect(await regenerateRecoveryCodesService(currentSession())).toMatchObject({
             success: true,
@@ -580,14 +603,12 @@ describe('password authentication state', () => {
         )
     })
 
-    test('still requires recent authentication inside factor changes', async () => {
+    test('accepts older authentication inside factor changes', async () => {
         factor = enabledFactor()
         storedSessions[0] = { ...storedSessions[0], reauthenticatedAt: new Date(0) }
-        await expect(disableTotpService(currentSession())).rejects.toMatchObject({
-            code: 'reauthentication_required',
-        })
-        expect(factor).not.toBeNull()
-        expect(events).not.toContain('factor-deleted')
+        expect(await disableTotpService(currentSession())).toBeTrue()
+        expect(factor).toBeNull()
+        expect(events).toContain('factor-deleted')
     })
 
     test('keeps independent passkey session issuance available without a password', async () => {
@@ -601,25 +622,22 @@ describe('password authentication state', () => {
 })
 
 describe('OIDC authentication state and local assurance', () => {
-    test('defaults OIDC session freshness to local confirmation required', async () => {
+    test('retains compatibility timestamp when issuing an OIDC session', async () => {
         const session = await getAuthDatabase().transaction((transaction) =>
             createSessionInTransaction(transaction, userId, 'oidc', undefined, oidcProof),
         )
         expect(session.reauthenticatedAt.getTime()).toBe(0)
     })
 
-    test('creates an OIDC session without granting recent local authentication', async () => {
+    test('accepts an active OIDC session without local reauthentication', async () => {
         storedSessions = []
         const session = await getAuthDatabase().transaction((transaction) =>
             createSessionInTransaction(transaction, userId, 'oidc', new Date(0), oidcProof),
         )
         expect(session.reauthenticatedAt.getTime()).toBe(0)
         expect(storedSessions.at(-1)?.reauthenticatedAt).toEqual(new Date(0))
-        await expect(
-            disableTotpService({ ...currentSession(), id: session.id }),
-        ).rejects.toMatchObject({
-            code: 'reauthentication_required',
-        })
+        factor = enabledFactor()
+        expect(await disableTotpService({ ...currentSession(), id: session.id })).toBeTrue()
     })
 
     for (const secondFactor of ['totp', 'recovery'] as const) {

@@ -228,7 +228,6 @@
         "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
         "authUnavailable": "Der Anmeldedienst ist vorübergehend nicht verfügbar.",
         "authentication_required": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
-        "reauthentication_required": "Bestätige deine Identität, um fortzufahren.",
         "email_conflict": "Diese E-Mail-Adresse wird bereits verwendet.",
         "last_active_owner": "Der letzte aktive Eigentümer kann nicht deaktiviert oder geändert werden.",
         "owner_required": "Nur ein Eigentümer kann diese Änderung vornehmen.",
@@ -263,7 +262,6 @@
             "unavailable": "Der Identitätsanbieter ist nicht erreichbar. Versuche es erneut oder nutze dein lokales Passwort oder deinen Passkey.",
             "denied": "Diese Identität darf sich nicht anmelden. Wende dich an deine Administration oder nutze dein lokales Konto.",
             "expired": "Diese Anmeldeanfrage ist abgelaufen. Starte die Anmeldung erneut.",
-            "reauthentication": "Melde dich mit deinem lokalen Passwort oder Passkey an und versuche es erneut.",
             "conflict": "Die Anmeldekonfiguration hat sich geändert. Starte die Anmeldung erneut.",
             "localRecovery": "Lokale Owner können sich weiterhin mit Passwort oder Passkey anmelden.",
             "cancel": "Anmeldung abbrechen"
@@ -439,7 +437,6 @@
         "password": {
             "sectionEyebrow": "Zugangsdaten",
             "title": "Passwort ändern",
-            "currentPassword": "Aktuelles Passwort",
             "newPassword": "Neues Passwort",
             "confirmNewPassword": "Neues Passwort bestätigen",
             "changing": "Passwort wird geändert …",
@@ -448,8 +445,7 @@
                 "changed": "Passwort geändert. Andere Sitzungen wurden beendet."
             },
             "error": {
-                "update": "Das Passwort konnte nicht geändert werden.",
-                "incorrectCurrentPassword": "Das aktuelle Passwort ist falsch."
+                "update": "Das Passwort konnte nicht geändert werden."
             }
         },
         "profileImage": {
@@ -574,23 +570,6 @@
                 "notFound": "Der Passkey existiert nicht mehr.",
                 "rename": "Der Passkey-Name konnte nicht gespeichert werden.",
                 "remove": "Der Passkey konnte nicht entfernt werden."
-            }
-        },
-        "reauthentication": {
-            "title": "Sicherheitsänderung bestätigen",
-            "description": "Bestätige deine Identität, um fortzufahren. Die bestehende Sitzung allein reicht nicht aus.",
-            "currentPassword": "Aktuelles Passwort",
-            "confirm": "Bestätigen",
-            "usePasskey": "Stattdessen Passkey verwenden",
-            "success": {
-                "confirmed": "Identität bestätigt.",
-                "passkeyStarted": "Passkey-Verifizierung gestartet."
-            },
-            "error": {
-                "failed": "Identitätsbestätigung fehlgeschlagen.",
-                "incorrectPassword": "Das Passwort ist falsch.",
-                "passkeyStart": "Die Passkey-Identitätsbestätigung konnte nicht gestartet werden.",
-                "passkeyVerification": "Die Passkey-Verifizierung ist fehlgeschlagen."
             }
         },
         "recoveryCodes": {
@@ -735,7 +714,6 @@
             "error": {
                 "unavailable": "Verknüpfte Konten konnten nicht geladen werden. Aktualisiere die Liste und versuche es erneut.",
                 "conflict": "Die Verknüpfungen haben sich geändert. Prüfe die aktualisierte Liste und versuche es erneut.",
-                "reauthenticate": "Bestätige erneut dein Passwort oder deinen Passkey und versuche es noch einmal.",
                 "denied": "Du benötigst ein lokales Passwort oder einen Passkey und die Berechtigung, dieses Konto zu ändern.",
                 "rateLimited": "Zu viele Versuche. Warte eine Minute und versuche es erneut.",
                 "failed": "Die Verknüpfung konnte nicht geändert werden. Aktualisiere die Liste und versuche es erneut.",
@@ -4271,7 +4249,6 @@
         "test": "Gespeicherten Anbieter testen",
         "tested": "Metadaten des gespeicherten Anbieters geprüft. Eine Benutzeranmeldung wird damit nicht getestet.",
         "saved": "Anbieterkonfiguration gespeichert.",
-        "reauthenticated": "Lokale Identität bestätigt. Die Aktion erneut ausführen.",
         "unavailableUser": "Nicht verfügbares oder inaktives lokales Konto",
         "fields": {
             "name": "Anbietername",
@@ -4283,7 +4260,6 @@
             "privateCidrs": "Erlaubte private CIDR-Netze"
         },
         "errors": {
-            "reauthentication_required": "Lokale Eigentümeridentität bestätigen und erneut versuchen.",
             "authentication_required": "Erneut anmelden.",
             "owner_required": "Ein lokales Eigentümerkonto ist erforderlich.",
             "configuration_conflict": "Die Konfiguration wurde geändert. Dein Entwurf bleibt erhalten. Aktualisieren und ausdrücklich erneut versuchen.",

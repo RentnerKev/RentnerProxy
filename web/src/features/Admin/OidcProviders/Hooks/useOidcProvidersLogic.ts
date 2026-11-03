@@ -1,14 +1,12 @@
 import { z } from 'zod'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { startAuthentication } from '@simplewebauthn/browser'
 import { toast } from '@rentnerkev/toasts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import { getUsersHandler } from '@/features/Admin/UserManagement/middleware.ts'
 import { getRolesHandler } from '@/features/Admin/RoleManagement/middleware.ts'
-import useReauthentication from '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import { saveOidcProvidersSchema } from '@/lib/Auth/Oidc/validation.ts'
@@ -50,7 +48,7 @@ async function request<T>(schema: z.ZodType<T>, path = '', body?: unknown): Prom
 }
 const key = ['admin', 'oidc-providers'] as const
 
-/** Coordinates revisioned provider edits, explicit reloads, and fresh-owner authentication. */
+/** Coordinates revisioned provider edits and explicit conflict reloads. */
 export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
@@ -60,11 +58,8 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const [editing, setEditing] = useState<OidcProviderSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<OidcProviderSummary | null>(null)
     const [conflict, setConflict] = useState(false)
-    const [reauthOpen, setReauthOpen] = useState(false)
     const [baseRevision, setBaseRevision] = useState<number | null>(null)
     const busy = useRef(false)
-    const reauthBusy = useRef(false)
-    const reauthentication = useReauthentication()
     /** Maps server error codes to safe UI feedback and opens the recovery state when needed. */
     const report = useCallback(
         (error: unknown) => {
@@ -75,7 +70,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             const code =
                 error instanceof ProviderRequestError ? error.message : 'configuration_unavailable'
             const known = [
-                'reauthentication_required',
                 'authentication_required',
                 'owner_required',
                 'configuration_conflict',
@@ -88,7 +82,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             toast.error(
                 t(`oidc.errors.${known.includes(code) ? code : 'configuration_unavailable'}`),
             )
-            if (code === 'reauthentication_required') setReauthOpen(true)
             if (code === 'configuration_conflict') setConflict(true)
         },
         [t],
@@ -143,14 +136,13 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         },
         [],
     )
-    /** Closes an idle editor and clears its draft, conflict, and reauthentication state. */
+    /** Closes an idle editor and clears its draft and conflict state. */
     function close() {
         if (busy.current) return
         resetDraft(providerDraft())
         setEditorOpen(false)
         setEditing(null)
         setConflict(false)
-        reauthentication.handler.reset()
     }
     const mutation = useMutation({
         /** Builds a revisioned full snapshot while requiring secrets for new or changed trust. */
@@ -212,7 +204,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             setEditing(null)
             setDeleteTarget(null)
             setConflict(false)
-            reauthentication.handler.reset()
             toast.success(t('oidc.saved'))
         } catch (error) {
             report(error)
@@ -247,7 +238,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         setBaseRevision(result.data.revision)
         setConflict(false)
         setReloadConfirm(false)
-        reauthentication.handler.reset()
     }
     /** Tests the selected provider against the current server revision without changing its draft. */
     async function handleTest(provider: OidcProviderSummary) {
@@ -265,38 +255,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         } finally {
             busy.current = false
             setTesting(false)
-        }
-    }
-    /** Reauthenticates with a password or passkey, then reloads the authorized provider snapshot. */
-    async function reauthenticate(passkey = false) {
-        if (reauthBusy.current) return
-        reauthBusy.current = true
-        try {
-            let result
-            if (passkey) {
-                const started = await reauthentication.handler.beginPasskey()
-                if (!started.success || !started.options || !started.challengeId) {
-                    toast.error(t(started.message))
-                    return
-                }
-                const response = await startAuthentication({ optionsJSON: started.options })
-                result = await reauthentication.handler.finishPasskey({
-                    challengeId: started.challengeId,
-                    response,
-                })
-            } else result = await reauthentication.handler.verifyPassword()
-            if (!result.success) {
-                toast.error(t(result.message))
-                return
-            }
-            reauthentication.handler.reset()
-            setReauthOpen(false)
-            await query.refetch()
-            toast.success(t('oidc.reauthenticated'))
-        } catch {
-            toast.error(t('account.reauthentication.error.failed'))
-        } finally {
-            reauthBusy.current = false
         }
     }
     const eligibleRoles = new Set(
@@ -341,11 +299,8 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                         : role.name || role.key,
                 })),
             rolesAvailable: roles.isSuccess && !roles.isError,
-            isAvailable: Boolean(query.data && !query.isError && !reauthOpen),
+            isAvailable: Boolean(query.data && !query.isError),
             reloadConfirm,
-            reauthOpen,
-            credential: reauthentication.state.credential,
-            reauthPending: reauthentication.state.isPending,
         },
         handler: {
             /** Starts a draft only while an owner snapshot is available and current. */
@@ -390,17 +345,8 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 }
             },
             handleConfirmDelete: () => run('delete'),
-            handleReauthenticate: reauthenticate,
             handleReloadConfirm: setReloadConfirm,
             handleReload: reload,
-            /** Clears local credentials and closes reauthentication only when no challenge is running. */
-            handleReauthClose: () => {
-                if (!reauthBusy.current) {
-                    reauthentication.handler.reset()
-                    setReauthOpen(false)
-                }
-            },
-            handleCredential: reauthentication.setter.setCredential,
             handlePolicyProvisioning: (provisioning) =>
                 updatePolicy((policy) => ({ ...policy, provisioning })),
             handlePolicyGroupClaim: (groupClaim) =>

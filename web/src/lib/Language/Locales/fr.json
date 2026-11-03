@@ -230,7 +230,6 @@
         "rateLimited": "Trop de demandes. Réessayez plus tard.",
         "authUnavailable": "Le service d’authentification est temporairement indisponible.",
         "authentication_required": "Votre session a expiré. Reconnectez-vous.",
-        "reauthentication_required": "Confirmez votre identité pour continuer.",
         "email_conflict": "Cette adresse e-mail est déjà utilisée.",
         "last_active_owner": "Le dernier propriétaire actif ne peut être ni désactivé ni modifié.",
         "owner_required": "Seul un propriétaire peut effectuer cette modification.",
@@ -265,7 +264,6 @@
             "unavailable": "Le fournisseur d’identité est injoignable. Réessayez ou utilisez votre mot de passe ou votre clé d’accès locale.",
             "denied": "Cette identité n’est pas autorisée à se connecter. Contactez votre administrateur ou utilisez votre compte local.",
             "expired": "Cette demande de connexion a expiré. Recommencez la connexion.",
-            "reauthentication": "Connectez-vous avec votre mot de passe ou votre clé d’accès locale, puis réessayez.",
             "conflict": "La configuration de connexion a changé. Recommencez la connexion.",
             "localRecovery": "Les propriétaires locaux peuvent continuer avec un mot de passe ou une clé d’accès.",
             "cancel": "Annuler la connexion"
@@ -541,7 +539,6 @@
         "password": {
             "sectionEyebrow": "Identifiants",
             "title": "Modifier le mot de passe",
-            "currentPassword": "Mot de passe actuel",
             "newPassword": "Nouveau mot de passe",
             "confirmNewPassword": "Confirmer le nouveau mot de passe",
             "changing": "Modification du mot de passe…",
@@ -550,8 +547,7 @@
                 "changed": "Mot de passe modifié. Les autres sessions ont été révoquées."
             },
             "error": {
-                "update": "Le mot de passe n’a pas pu être modifié.",
-                "incorrectCurrentPassword": "Le mot de passe actuel est incorrect."
+                "update": "Le mot de passe n’a pas pu être modifié."
             }
         },
         "profileImage": {
@@ -678,23 +674,6 @@
                 "remove": "La clé d’accès n’a pas pu être supprimée."
             }
         },
-        "reauthentication": {
-            "title": "Confirmer cette modification de sécurité",
-            "description": "Réauthentifiez-vous pour continuer. Votre session existante ne suffit pas à elle seule.",
-            "currentPassword": "Mot de passe actuel",
-            "confirm": "Confirmer",
-            "usePasskey": "Utiliser une clé d’accès à la place",
-            "success": {
-                "confirmed": "Identité confirmée.",
-                "passkeyStarted": "Vérification de la clé d’accès démarrée."
-            },
-            "error": {
-                "failed": "La réauthentification a échoué.",
-                "incorrectPassword": "Le mot de passe est incorrect.",
-                "passkeyStart": "La réauthentification par clé d’accès n’a pas pu être démarrée.",
-                "passkeyVerification": "La vérification de la clé d’accès a échoué."
-            }
-        },
         "recoveryCodes": {
             "title": "Enregistrez vos codes de récupération",
             "description": "Ces codes ne sont affichés qu’une seule fois. Chaque code ne peut être utilisé qu’une fois.",
@@ -737,7 +716,6 @@
             "error": {
                 "unavailable": "Impossible de charger les comptes associés. Actualisez la liste et réessayez.",
                 "conflict": "Les associations ont changé. La liste a été actualisée ; vérifiez-la et réessayez.",
-                "reauthenticate": "Confirmez à nouveau votre mot de passe ou votre clé d’accès, puis réessayez.",
                 "denied": "Vous devez disposer d’un mot de passe ou d’une clé d’accès locale et de l’autorisation de modifier ce compte.",
                 "rateLimited": "Trop de tentatives. Patientez une minute et réessayez.",
                 "failed": "Impossible de modifier l’association. Actualisez la liste et réessayez.",
@@ -4273,7 +4251,6 @@
         "test": "Tester le fournisseur enregistré",
         "tested": "Métadonnées vérifiées. Ceci ne teste pas la connexion d’un utilisateur.",
         "saved": "Configuration enregistrée.",
-        "reauthenticated": "Authentification locale vérifiée. Réessayer l’action.",
         "unavailableUser": "Compte local indisponible ou inactif",
         "fields": {
             "name": "Nom du fournisseur",
@@ -4285,7 +4262,6 @@
             "privateCidrs": "Réseaux CIDR privés autorisés"
         },
         "errors": {
-            "reauthentication_required": "Vérifier votre identité de propriétaire local, puis réessayer.",
             "authentication_required": "Reconnectez-vous.",
             "owner_required": "Un propriétaire local est requis.",
             "configuration_conflict": "Configuration modifiée. Brouillon conservé. Actualiser puis réessayer explicitement.",

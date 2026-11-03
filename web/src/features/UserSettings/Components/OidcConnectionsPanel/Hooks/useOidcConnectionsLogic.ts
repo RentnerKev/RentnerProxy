@@ -1,7 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
-import { startAuthentication } from '@simplewebauthn/browser'
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
@@ -11,7 +10,6 @@ import {
     unlinkOidcConnection,
 } from '@/lib/UserSettings/oidcConnections.ts'
 import type { OidcConnectionAction } from '@/lib/UserSettings/Types/oidc-connections.types.ts'
-import useReauthentication from '../../SecuritySettingsPanel/Hooks/useReauthentication.ts'
 import type { OidcConnectionsLogicResult } from '../Types/oidc-connections.types.ts'
 
 export default function useOidcConnectionsLogic(
@@ -25,16 +23,13 @@ export default function useOidcConnectionsLogic(
     const { oidcResult, oidcError } = useSearch({ strict: false })
     const [initialFeedback] = useState({ oidcResult, oidcError })
     const feedbackHandled = useRef(false)
-    const reauth = useReauthentication()
     const [action, setAction] = useState<OidcConnectionAction | null>(null)
-    const pendingAction = useRef<OidcConnectionAction | null>(null)
     const nativeNavigation = useRef<OidcConnectionAction | null>(null)
     const cancellationLock = useRef(false)
     const [message, setMessage] = useState<string | null>(null)
     const [isNavigating, setIsNavigating] = useState(false)
     const form = useRef<HTMLFormElement>(null)
     const lock = useRef(false)
-    const verificationLock = useRef(false)
     const generation = useRef(0)
     const controller = useRef<AbortController | null>(null)
     const queryKey = ['auth', 'account', 'oidc-connections', userId]
@@ -59,11 +54,9 @@ export default function useOidcConnectionsLogic(
         generation.current += 1
         controller.current?.abort()
         lock.current = false
-        pendingAction.current = null
         nativeNavigation.current = null
         setIsNavigating(false)
         setAction(null)
-        reauth.handler.reset()
         void queryClient.invalidateQueries({
             queryKey: ['auth', 'account', 'oidc-connections', userId],
         })
@@ -78,7 +71,6 @@ export default function useOidcConnectionsLogic(
             if (nativeNavigation.current) window.stop()
             nativeNavigation.current = null
             generation.current += 1
-            pendingAction.current = null
             controller.current?.abort()
             window.removeEventListener('pageshow', resume)
         }
@@ -107,15 +99,13 @@ export default function useOidcConnectionsLogic(
               ? 'account.oidc.linkedSuccess'
               : initialFeedback.oidcError === 'conflict'
                 ? 'account.oidc.error.conflict'
-                : initialFeedback.oidcError === 'reauthentication'
-                  ? 'account.oidc.error.reauthenticate'
-                  : initialFeedback.oidcError === 'expired'
-                    ? 'account.oidc.error.expired'
-                    : initialFeedback.oidcError === 'denied'
-                      ? 'account.oidc.error.deniedLink'
-                      : initialFeedback.oidcError === 'unavailable'
-                        ? 'account.oidc.error.unavailableProvider'
-                        : 'account.oidc.error.failed'
+                : initialFeedback.oidcError === 'expired'
+                  ? 'account.oidc.error.expired'
+                  : initialFeedback.oidcError === 'denied'
+                    ? 'account.oidc.error.deniedLink'
+                    : initialFeedback.oidcError === 'unavailable'
+                      ? 'account.oidc.error.unavailableProvider'
+                      : 'account.oidc.error.failed'
 
     useEffect(() => {
         if (feedbackHandled.current || !callbackMessage) return
@@ -142,9 +132,7 @@ export default function useOidcConnectionsLogic(
         if (nativeNavigation.current) return
         generation.current += 1
         lock.current = false
-        pendingAction.current = null
         setAction(null)
-        reauth.handler.reset()
     }
 
     function cancelNavigation(target: OidcConnectionAction | null) {
@@ -159,7 +147,6 @@ export default function useOidcConnectionsLogic(
         }
         nativeNavigation.current = null
         close()
-        verificationLock.current = false
         setIsNavigating(false)
         setMessage('')
         const cancelledGeneration = generation.current
@@ -201,62 +188,36 @@ export default function useOidcConnectionsLogic(
         lock.current = true
         setMessage('')
         const nextAction = { providerId, kind, expectedRevision: data.revision }
-        pendingAction.current = nextAction
         setAction(nextAction)
+        void execute(nextAction)
     }
 
-    async function verify(passkey: boolean) {
-        if (
-            !action ||
-            pendingAction.current !== action ||
-            verificationLock.current ||
-            nativeNavigation.current
-        )
-            return
-        verificationLock.current = true
+    async function execute(pendingAction: OidcConnectionAction) {
         const currentGeneration = generation.current
         try {
-            let result
-            if (passkey) {
-                const started = await reauth.handler.beginPasskey()
-                if (currentGeneration !== generation.current) return
-                if (!started.success || !started.challengeId || !started.options) {
-                    if (currentGeneration === generation.current) {
-                        setMessage(started.message)
-                        toast.error(t(started.message), { title: t('toast.titles.error') })
-                    }
-                    return
-                }
-                const response = await startAuthentication({ optionsJSON: started.options })
-                if (currentGeneration !== generation.current) return
-                result = await reauth.handler.finishPasskey({
-                    challengeId: started.challengeId,
-                    response,
-                })
-            } else result = await reauth.handler.verifyPassword()
-            if (currentGeneration !== generation.current) return
-            if (!result.success) {
-                setMessage(result.message)
-                toast.error(t(result.message), { title: t('toast.titles.error') })
-                return
-            }
-            reauth.handler.reset()
-            if (action.kind === 'link') {
+            if (pendingAction.kind === 'link') {
                 const element = form.current
                 if (!element) throw new Error('form_unavailable')
-                nativeNavigation.current = action
+                const providerInput = element.elements.namedItem('providerId')
+                if (!(providerInput instanceof HTMLInputElement))
+                    throw new Error('form_unavailable')
+                providerInput.value = pendingAction.providerId
+                nativeNavigation.current = pendingAction
                 setIsNavigating(true)
                 setMessage('account.oidc.pending')
                 element.submit()
             } else {
-                await unlink.mutateAsync(action)
+                await unlink.mutateAsync(pendingAction)
                 if (currentGeneration !== generation.current) return
                 setMessage('account.oidc.unlinkedSuccess')
                 toast.success(t('account.oidc.unlinkedSuccess'), {
                     title: t('toast.titles.success'),
                 })
                 close()
+                const refreshGeneration = generation.current
+                lock.current = true
                 await query.refetch()
+                if (generation.current === refreshGeneration) lock.current = false
             }
         } catch (error) {
             if (currentGeneration === generation.current) {
@@ -265,8 +226,6 @@ export default function useOidcConnectionsLogic(
                 setIsNavigating(false)
                 await report(error)
             }
-        } finally {
-            verificationLock.current = false
         }
     }
 
@@ -277,30 +236,16 @@ export default function useOidcConnectionsLogic(
             error: query.error,
             canUpdate,
             message: message ?? callbackMessage,
-            isPending:
-                unlink.isPending || reauth.state.isPending || isNavigating || query.isFetching,
+            isPending: unlink.isPending || isNavigating || query.isFetching,
             isNavigating,
             action,
-            credential: reauth.state.credential,
-            isReauthenticationPending: reauth.state.isPending || unlink.isPending || isNavigating,
         },
         refs: { form },
-        setter: { setCredential: reauth.setter.setCredential },
         handler: {
             handleRequest: request,
             handleCancelNavigation: () => cancelNavigation(action),
-            handleClose: close,
-            handleOpenChange: (open: boolean) => {
-                if (!open) close()
-            },
-            handlePassword: () => {
-                void verify(false)
-            },
-            handlePasskey: () => {
-                void verify(true)
-            },
             handleRefresh: () => {
-                if (!verificationLock.current && !nativeNavigation.current) {
+                if (!lock.current && !nativeNavigation.current) {
                     close()
                     setIsNavigating(false)
                     void query.refetch()

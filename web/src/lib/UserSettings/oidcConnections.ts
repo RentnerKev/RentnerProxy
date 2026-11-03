@@ -77,7 +77,6 @@ export async function unlinkOidcConnection(
 export function getOidcConnectionsErrorKey(error: unknown): string {
     const code = error instanceof OidcConnectionsError ? error.code : null
     if (code === 'configuration_conflict') return 'account.oidc.error.conflict'
-    if (code === 'reauthentication_required') return 'account.oidc.error.reauthenticate'
     if (code === 'identity_not_allowed' || code === 'permission_denied')
         return 'account.oidc.error.denied'
     if (code === 'rate_limited') return 'account.oidc.error.rateLimited'

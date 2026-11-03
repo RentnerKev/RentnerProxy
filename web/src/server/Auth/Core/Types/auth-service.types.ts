@@ -56,6 +56,6 @@ export type TokenConsumptionResult =
     | { readonly success: true; readonly userId: string }
     | { readonly success: false; readonly code: 'invalid_or_expired_token' }
 
-export type ChangePasswordResult =
-    | { readonly success: true }
-    | { readonly success: false; readonly code: 'invalid_current_password' }
+export interface ChangePasswordResult {
+    readonly success: true
+}

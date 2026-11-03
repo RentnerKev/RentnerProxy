@@ -19,18 +19,11 @@ export interface OidcConnectionsLogicResult {
         isPending: boolean
         isNavigating: boolean
         action: OidcConnectionAction | null
-        credential: string
-        isReauthenticationPending: boolean
     }
     refs: { form: RefObject<HTMLFormElement | null> }
-    setter: { setCredential: (value: string) => void }
     handler: {
         handleRequest: (providerId: string, kind: 'link' | 'unlink') => void
         handleCancelNavigation: () => void
-        handleClose: () => void
-        handleOpenChange: (open: boolean) => void
-        handlePassword: () => void
-        handlePasskey: () => void
         handleRefresh: () => void
     }
 }

@@ -59,7 +59,6 @@ describe('account security section', () => {
                     totpEnabled: false,
                     recoveryCodesRemaining: 0,
                     passkeys: [],
-                    recentlyAuthenticated: true,
                 }}
                 isLoading={false}
                 isPending={false}
@@ -90,7 +89,6 @@ describe('account security section', () => {
                 status={{
                     totpEnabled: true,
                     recoveryCodesRemaining: 8,
-                    recentlyAuthenticated: true,
                     passkeys: [
                         {
                             id: 'passkey-1',

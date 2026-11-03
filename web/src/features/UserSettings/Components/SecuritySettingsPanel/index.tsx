@@ -1,7 +1,6 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FormMessage from '@/shared/Forms/FormMessage.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
-import ReauthenticationModal from './Components/ReauthenticationModal.tsx'
 import RecoveryCodesModal from '../RecoveryCodesModal/index.tsx'
 import RenamePasskeyModal from '../RenamePasskeyModal/index.tsx'
 import PasskeysSection from './Components/PasskeysSection.tsx'
@@ -19,7 +18,7 @@ export default function SecuritySettingsPanel({
 }) {
     const { t } = useTranslationStore()
     const security = useSecurityPageLogic(userId)
-    const { state, handler, setter } = security
+    const { state, handler } = security
     return (
         <>
             {state.error ? (
@@ -70,16 +69,6 @@ export default function SecuritySettingsPanel({
                 isPending={state.isPending}
                 onConfirm={(name) => void handler.confirmPasskeyName(name)}
                 onClose={handler.closePasskeyName}
-            />
-            <ReauthenticationModal
-                open={state.reauthAction !== null}
-                isPending={state.isReauthenticationPending || state.isPending}
-                value={state.reauthenticationCredential}
-                onChange={setter.setReauthenticationCredential}
-                onConfirm={() => void handler.confirmReauthentication()}
-                onPasskey={() => void handler.reauthenticateWithPasskey()}
-                onClose={handler.closeReauthentication}
-                onOpenChange={handler.handleReauthenticationOpenChange}
             />
             <ConfirmDialog
                 open={state.confirmation !== null}

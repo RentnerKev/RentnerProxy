@@ -36,15 +36,13 @@ import {
     createAuthChallenge,
     consumeAuthChallenge,
 } from '@/server/Valkey/auth-challenges.service.ts'
-import type { WebAuthnReauthenticationChallenge } from '@/server/Valkey/Types/auth-challenges.types.ts'
 import {
-    requireRecentAuthenticationForSession,
+    requireActiveSessionForSession,
     requireSessionPermission,
 } from '@/server/Auth/Access/authorization.service.ts'
 import {
     createSessionInTransaction,
-    markSessionReauthenticatedInTransaction,
-    requireRecentSessionInTransaction,
+    requireActiveSessionInTransaction,
     revokeOtherUserSessionsInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
@@ -173,9 +171,36 @@ export async function getPasskeysForUserService(userId: string): Promise<Array<P
         .orderBy(desc(passkeys.createdAt))
 }
 
+async function requireLocalPasskeyAccountInTransaction(
+    transaction: AuthTransaction,
+    userId: string,
+) {
+    const [user] = await transaction
+        .select({ status: users.status, oidcProviderId: users.oidcProviderId })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .for('update')
+    if (!user || user.status !== 'active')
+        throw new AuthDomainError('authentication_required', 'Authentication is required.')
+    if (user.oidcProviderId !== null)
+        throw new AuthDomainError(
+            'permission_denied',
+            'Local credentials are not available for this account.',
+        )
+}
+
 export async function beginPasskeyRegistrationService(currentSession: CurrentSession) {
-    await requireRecentAuthenticationForSession(currentSession)
     await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    await getAuthDatabase().transaction(async (transaction) => {
+        await requireLocalPasskeyAccountInTransaction(transaction, currentSession.user.id)
+        await requireActiveSessionInTransaction(transaction, currentSession)
+        await requirePermissionInTransaction(
+            transaction,
+            currentSession.user.id,
+            PERMISSIONS.ACCOUNT_UPDATE,
+        )
+    })
 
     const configuration = await requireWebAuthnConfiguration()
     const existingPasskeys = await getAuthDatabase()
@@ -233,7 +258,7 @@ export async function finishPasskeyRegistrationService(input: {
             targetId: null,
         },
         async () => {
-            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireActiveSessionForSession(input.currentSession)
             await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             const configuration = await requireWebAuthnConfiguration()
@@ -268,7 +293,11 @@ export async function finishPasskeyRegistrationService(input: {
             const { credential, credentialBackedUp, credentialDeviceType } =
                 verification.registrationInfo
             const inserted = await getAuthDatabase().transaction(async (transaction) => {
-                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requireLocalPasskeyAccountInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                )
+                await requireActiveSessionInTransaction(transaction, input.currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     input.currentSession.user.id,
@@ -435,146 +464,6 @@ export async function finishDiscoverablePasskeyAuthenticationService(input: {
     )
 }
 
-export async function beginPasskeyReauthenticationService(currentSession: CurrentSession) {
-    const configuration = await requireWebAuthnConfiguration()
-    const knownPasskeys = await getAuthDatabase()
-        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys)
-        .where(eq(passkeys.userId, currentSession.user.id))
-
-    if (knownPasskeys.length === 0) {
-        throw new AuthDomainError('invalid_input', 'No passkey is available.')
-    }
-
-    const options = toSerializableAuthenticationOptions(
-        await generateAuthenticationOptions({
-            rpID: configuration.rpId,
-            timeout: WEBAUTHN_TIMEOUT_MS,
-            userVerification: 'required',
-            allowCredentials: knownPasskeys.map((passkey) => ({
-                id: passkey.credentialId,
-                transports: toStoredTransports(passkey.transports),
-            })),
-        }),
-    )
-    const issued = await createAuthChallenge(
-        {
-            challenge: options.challenge,
-            createdAt: new Date().toISOString(),
-            kind: 'webauthn-reauthentication',
-            sessionId: currentSession.id,
-            userId: currentSession.user.id,
-        },
-        WEBAUTHN_CHALLENGE_DURATION_MS,
-    )
-
-    return { expiresAt: issued.expiresAt, flowId: issued.id, options }
-}
-
-export async function finishPasskeyReauthenticationService(input: {
-    currentSession: CurrentSession
-    flowId: string
-    response: AuthenticationResponseJSON
-}): Promise<{
-    readonly code?: 'authentication_failed' | 'challenge_expired'
-    readonly success: boolean
-}> {
-    return auditAuthOperation(
-        {
-            actorUserId: input.currentSession.user.id,
-            actorKind: 'user',
-            action: 'reauthenticate',
-            resource: 'session',
-            targetId: input.currentSession.id,
-            metadata: { authenticationMethod: 'passkey' },
-        },
-        async () => {
-            const configuration = await requireWebAuthnConfiguration()
-            const challenge = await consumeAuthChallenge('webauthn-reauthentication', input.flowId)
-
-            if (!isBoundReauthenticationChallenge(challenge, input.currentSession)) {
-                return { code: 'challenge_expired', success: false }
-            }
-
-            const rows = await getAuthDatabase()
-                .select({ passkey: passkeys })
-                .from(passkeys)
-                .where(
-                    and(
-                        eq(passkeys.credentialId, input.response.id),
-                        eq(passkeys.userId, input.currentSession.user.id),
-                    ),
-                )
-                .limit(1)
-            const passkey = rows.at(0)?.passkey
-
-            if (!passkey) {
-                return { code: 'authentication_failed', success: false }
-            }
-
-            let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
-
-            try {
-                verification = await verifyAuthenticationResponse({
-                    response: input.response,
-                    expectedChallenge: challenge.challenge,
-                    expectedOrigin: configuration.origin,
-                    expectedRPID: configuration.rpId,
-                    credential: {
-                        counter: passkey.counter,
-                        id: passkey.credentialId,
-                        publicKey: copyBytes(passkey.publicKey),
-                        transports: toStoredTransports(passkey.transports),
-                    },
-                    requireUserVerification: true,
-                })
-            } catch {
-                return { code: 'authentication_failed', success: false }
-            }
-
-            if (!verification.verified) {
-                return { code: 'authentication_failed', success: false }
-            }
-
-            const completed = await getAuthDatabase().transaction(async (transaction) => {
-                const updated = await updateVerifiedPasskeyInTransaction(
-                    transaction,
-                    passkey,
-                    verification.authenticationInfo,
-                )
-
-                if (!updated) {
-                    return false
-                }
-
-                const refreshed = await markSessionReauthenticatedInTransaction(
-                    transaction,
-                    input.currentSession,
-                )
-                if (refreshed) {
-                    await revokeOtherUserSessionsInTransaction(
-                        transaction,
-                        input.currentSession.user.id,
-                        input.currentSession.id,
-                    )
-                    await appendAuditEventInTransactionService(transaction, {
-                        actorUserId: input.currentSession.user.id,
-                        actorKind: 'user',
-                        action: 'reauthenticate',
-                        resource: 'session',
-                        targetId: input.currentSession.id,
-                        result: 'success',
-                        metadata: { authenticationMethod: 'passkey' },
-                    })
-                }
-                return refreshed
-            })
-
-            return completed ? { success: true } : { code: 'authentication_failed', success: false }
-        },
-    )
-}
-
 export async function renamePasskeyService(input: {
     currentSession: CurrentSession
     name: string
@@ -590,7 +479,7 @@ export async function renamePasskeyService(input: {
         },
         async () => {
             return getAuthDatabase().transaction(async (transaction) => {
-                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requireActiveSessionInTransaction(transaction, input.currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     input.currentSession.user.id,
@@ -636,11 +525,11 @@ export async function deletePasskeyService(input: {
             targetId: input.passkeyId,
         },
         async () => {
-            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireActiveSessionForSession(input.currentSession)
             await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             return getAuthDatabase().transaction(async (transaction) => {
-                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requireActiveSessionInTransaction(transaction, input.currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     input.currentSession.user.id,
@@ -670,14 +559,5 @@ export async function deletePasskeyService(input: {
                 return true
             })
         },
-    )
-}
-
-function isBoundReauthenticationChallenge(
-    challenge: WebAuthnReauthenticationChallenge | null,
-    session: CurrentSession,
-): challenge is WebAuthnReauthenticationChallenge {
-    return Boolean(
-        challenge && challenge.sessionId === session.id && challenge.userId === session.user.id,
     )
 }

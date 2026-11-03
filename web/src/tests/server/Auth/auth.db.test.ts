@@ -72,7 +72,6 @@ import {
 } from '@/server/Auth/Access/sessions.service.ts'
 import {
     beginDiscoverablePasskeyAuthenticationService,
-    beginPasskeyReauthenticationService,
     beginPasskeyRegistrationService,
     deletePasskeyService,
     renamePasskeyService,
@@ -1855,7 +1854,7 @@ describe('user invites with PostgreSQL', () => {
 
 describe('sensitive action rate limits with PostgreSQL and Valkey', () => {
     securityIntegrationTest(
-        'admits ten wrong password changes, isolates users, and rejects the eleventh',
+        'admits ten password changes, isolates users, and rejects the eleventh',
         async () => {
             const user = await createTestUser()
             const otherUser = await createTestUser()
@@ -1876,17 +1875,15 @@ describe('sensitive action rate limits with PostgreSQL and Valkey', () => {
                 // oxlint-disable-next-line eslint/no-await-in-loop -- Attempts must consume one shared Valkey window in order.
                 const result = await runWithSessionToken(session.token, () =>
                     changeCurrentPasswordService({
-                        currentPassword: 'wrong current password',
                         password: NEW_PASSWORD,
                     }),
                 )
-                expect(result).toEqual({ success: false, code: 'invalid_current_password' })
+                expect(result).toEqual({ success: true })
             }
 
             const eleventhError = await captureError(
                 runWithSessionToken(session.token, () =>
                     changeCurrentPasswordService({
-                        currentPassword: 'wrong current password',
                         password: NEW_PASSWORD,
                     }),
                 ),
@@ -1900,11 +1897,10 @@ describe('sensitive action rate limits with PostgreSQL and Valkey', () => {
 
             const otherResult = await runWithSessionToken(otherSession.token, () =>
                 changeCurrentPasswordService({
-                    currentPassword: 'wrong current password',
                     password: NEW_PASSWORD,
                 }),
             )
-            expect(otherResult).toEqual({ success: false, code: 'invalid_current_password' })
+            expect(otherResult).toEqual({ success: true })
 
             const storedUsers = await getAuthDatabase()
                 .select({ email: users.email, passwordHash: users.passwordHash })
@@ -1915,7 +1911,7 @@ describe('sensitive action rate limits with PostgreSQL and Valkey', () => {
                 storedUsers.every(
                     (storedUser) =>
                         storedUser.passwordHash !== null &&
-                        storedUser.passwordHash === preparedPasswordHash,
+                        storedUser.passwordHash !== preparedPasswordHash,
                 ),
             ).toBeTrue()
         },
@@ -2377,30 +2373,6 @@ describe('account security with PostgreSQL and Valkey', () => {
                     })
                     .returning({ id: passkeys.id })
                 const passkeyId = requireFirstRow(insertedPasskeys, 'Passkey was not stored.').id
-                const reauthentication = await beginPasskeyReauthenticationService(currentSession)
-                expect(reauthentication.options.userVerification).toBe('required')
-                expect(reauthentication.options.rpId).toBe('localhost')
-                expect(reauthentication.options.challenge).toMatch(/^[A-Za-z0-9_-]+$/u)
-                expect(reauthentication.options.extensions).toBeUndefined()
-                expect(reauthentication.options.allowCredentials).toEqual([
-                    { id: credentialId, transports: ['internal'], type: 'public-key' },
-                ])
-                expect(
-                    await consumeAuthChallenge(
-                        'webauthn-reauthentication',
-                        reauthentication.flowId,
-                    ),
-                ).toMatchObject({
-                    challenge: reauthentication.options.challenge,
-                    sessionId: currentSession.id,
-                    userId: user.id,
-                })
-                expect(
-                    await consumeAuthChallenge(
-                        'webauthn-reauthentication',
-                        reauthentication.flowId,
-                    ),
-                ).toBeNull()
                 const duplicateCredentialError = await captureError(
                     Promise.resolve(
                         getAuthDatabase()

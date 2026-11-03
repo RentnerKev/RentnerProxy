@@ -230,7 +230,6 @@
         "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo más tarde.",
         "authUnavailable": "El servicio de autenticación no está disponible temporalmente.",
         "authentication_required": "Tu sesión ha caducado. Inicia sesión de nuevo.",
-        "reauthentication_required": "Confirma tu identidad para continuar.",
         "email_conflict": "Esta dirección de correo electrónico ya está en uso.",
         "last_active_owner": "No se puede desactivar ni modificar al último propietario activo.",
         "owner_required": "Solo un propietario puede realizar este cambio.",
@@ -265,7 +264,6 @@
             "unavailable": "No se pudo contactar con el proveedor de identidad. Inténtalo de nuevo o utiliza tu contraseña o clave de acceso local.",
             "denied": "Esta identidad no tiene permiso para iniciar sesión. Contacta con la administración o utiliza tu cuenta local.",
             "expired": "Esta solicitud de acceso ha caducado. Vuelve a iniciar sesión.",
-            "reauthentication": "Inicia sesión con tu contraseña o clave de acceso local y vuelve a intentarlo.",
             "conflict": "La configuración de acceso ha cambiado. Vuelve a iniciar sesión.",
             "localRecovery": "Los propietarios locales pueden continuar con una contraseña o clave de acceso.",
             "cancel": "Cancelar inicio de sesión"
@@ -541,7 +539,6 @@
         "password": {
             "sectionEyebrow": "Credenciales",
             "title": "Cambiar contraseña",
-            "currentPassword": "Contraseña actual",
             "newPassword": "Nueva contraseña",
             "confirmNewPassword": "Confirmar nueva contraseña",
             "changing": "Cambiando contraseña…",
@@ -550,8 +547,7 @@
                 "changed": "Contraseña cambiada. Se revocaron las demás sesiones."
             },
             "error": {
-                "update": "No se pudo cambiar la contraseña.",
-                "incorrectCurrentPassword": "La contraseña actual es incorrecta."
+                "update": "No se pudo cambiar la contraseña."
             }
         },
         "profileImage": {
@@ -678,23 +674,6 @@
                 "remove": "No se pudo eliminar la clave de acceso."
             }
         },
-        "reauthentication": {
-            "title": "Confirmar este cambio de seguridad",
-            "description": "Vuelve a autenticarte para continuar. La sesión actual por sí sola no es suficiente.",
-            "currentPassword": "Contraseña actual",
-            "confirm": "Confirmar",
-            "usePasskey": "Usar una clave de acceso en su lugar",
-            "success": {
-                "confirmed": "Identidad confirmada.",
-                "passkeyStarted": "Verificación de clave de acceso iniciada."
-            },
-            "error": {
-                "failed": "La reautenticación falló.",
-                "incorrectPassword": "La contraseña es incorrecta.",
-                "passkeyStart": "No se pudo iniciar la reautenticación con clave de acceso.",
-                "passkeyVerification": "La verificación de la clave de acceso falló."
-            }
-        },
         "recoveryCodes": {
             "title": "Guardar tus códigos de recuperación",
             "description": "Estos códigos se muestran una sola vez. Cada código puede utilizarse una vez.",
@@ -737,7 +716,6 @@
             "error": {
                 "unavailable": "No se pudieron cargar las cuentas vinculadas. Actualiza la lista y vuelve a intentarlo.",
                 "conflict": "Los vínculos han cambiado. La lista se ha actualizado; revísala y vuelve a intentarlo.",
-                "reauthenticate": "Confirma de nuevo tu contraseña o clave de acceso y vuelve a intentarlo.",
                 "denied": "Necesitas una contraseña o clave de acceso local y permiso para modificar esta cuenta.",
                 "rateLimited": "Demasiados intentos. Espera un minuto y vuelve a intentarlo.",
                 "failed": "No se pudo cambiar el vínculo. Actualiza la lista y vuelve a intentarlo.",
@@ -4273,7 +4251,6 @@
         "test": "Probar proveedor guardado",
         "tested": "Metadatos verificados. Esto no prueba el acceso de un usuario.",
         "saved": "Configuración guardada.",
-        "reauthenticated": "Autenticación local verificada. Reintentar la acción.",
         "unavailableUser": "Cuenta local inactiva o no disponible",
         "fields": {
             "name": "Nombre del proveedor",
@@ -4285,7 +4262,6 @@
             "privateCidrs": "Redes CIDR privadas permitidas"
         },
         "errors": {
-            "reauthentication_required": "Verificar su identidad de propietario local y reintentar.",
             "authentication_required": "Inicie sesión de nuevo.",
             "owner_required": "Se requiere un propietario local.",
             "configuration_conflict": "La configuración cambió. Se conserva el borrador. Actualizar y reintentar expresamente.",

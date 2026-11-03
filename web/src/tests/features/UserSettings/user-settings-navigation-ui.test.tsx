@@ -85,7 +85,6 @@ const testNotification = spyOn(
 ).mockResolvedValue({ success: true, value: { success: true } })
 const securityStatus = spyOn(settingsServer, 'getSecurityStatusHandler').mockResolvedValue({
     passkeys: [],
-    recentlyAuthenticated: true,
     recoveryCodesRemaining: 0,
     totpEnabled: false,
 })
@@ -335,9 +334,7 @@ describe('user settings navigation', () => {
         await click(navigationLink(container, 'Password'))
         await waitFor(() => router.state.location.search.section === 'password')
 
-        const passwordInput = container.querySelector<HTMLInputElement>(
-            'input[name="currentPassword"]',
-        )!
+        const passwordInput = container.querySelector<HTMLInputElement>('input[name="password"]')!
         await setInputValue(passwordInput, 'unsent draft')
         await click(navigationLink(container, 'My profile'))
         await waitFor(() => router.state.location.search.section === 'profile')
@@ -350,9 +347,9 @@ describe('user settings navigation', () => {
         await waitFor(() => router.state.location.search.section === 'password')
 
         expect(activeNavigationLabel(container)).toBe('Password')
-        expect(
-            container.querySelector<HTMLInputElement>('input[name="currentPassword"]')?.value,
-        ).toBe('unsent draft')
+        expect(container.querySelector<HTMLInputElement>('input[name="password"]')?.value).toBe(
+            'unsent draft',
+        )
 
         await act(async () => {
             router.history.forward()
@@ -366,10 +363,36 @@ describe('user settings navigation', () => {
             await new Promise((resolve) => setTimeout(resolve, 0))
         })
         await waitFor(() => router.state.location.search.section === 'password')
-        expect(
-            container.querySelector<HTMLInputElement>('input[name="currentPassword"]')?.value,
-        ).toBe('unsent draft')
+        expect(container.querySelector<HTMLInputElement>('input[name="password"]')?.value).toBe(
+            'unsent draft',
+        )
         expect(changePassword).not.toHaveBeenCalled()
+    })
+
+    test('changes the password with only the active session and matching new-password fields', async () => {
+        const { container } = await render('/account?section=password')
+        expect(container.querySelector('input[name="currentPassword"]')).toBeNull()
+        const password = container.querySelector<HTMLInputElement>('input[name="password"]')!
+        const confirmation = container.querySelector<HTMLInputElement>(
+            'input[name="confirmPassword"]',
+        )!
+        await setInputValue(password, 'A secure new password 123!')
+        await setInputValue(confirmation, 'A different password 123!')
+        const form = password.closest('form')!
+        await act(async () => {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+        expect(changePassword).not.toHaveBeenCalled()
+        await setInputValue(confirmation, 'A secure new password 123!')
+        await act(async () => {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+        await waitFor(() => changePassword.mock.calls.length === 1)
+        expect(changePassword).toHaveBeenCalledWith({
+            data: { password: 'A secure new password 123!' },
+        })
     })
 
     test('keeps profile-image permissions while letting regular users edit their own appearance', async () => {

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
-import type { ReauthenticationModalProps } from '@/features/UserSettings/Components/SecuritySettingsPanel/Types/reauthentication-modal.types.ts'
 import type { OidcConnectionsLogicResult } from '@/features/UserSettings/Components/OidcConnectionsPanel/Types/oidc-connections.types.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -9,10 +8,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const verify = mock(async () => ({ success: true, message: 'verified' }))
-const beginPasskey = mock(async () => ({ success: true, challengeId: 'challenge', options: {} }))
-const startAuthentication = mock(async () => ({}))
-mock.module('@simplewebauthn/browser', () => ({ startAuthentication }))
 const navigate = mock(async () => {})
 const invalidate = mock(async () => {})
 const success = mock(() => '')
@@ -28,34 +23,6 @@ mock.module('@rentnerkev/toasts', () => ({ toast: { success, error } }))
 mock.module('@/shared/Language/Hooks/useTranslationStore.ts', () => ({
     default: () => ({ t: translate }),
 }))
-mock.module(
-    '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts',
-    () => ({
-        default: () => ({
-            state: { credential: 'password', isPending: false },
-            setter: { setCredential: () => {} },
-            handler: {
-                reset: () => {},
-                verifyPassword: verify,
-                beginPasskey,
-                finishPasskey: verify,
-            },
-        }),
-    }),
-)
-mock.module(
-    '@/features/UserSettings/Components/SecuritySettingsPanel/Components/ReauthenticationModal.tsx',
-    () => ({
-        default: (props: ReauthenticationModalProps) =>
-            props.open ? (
-                <dialog open>
-                    <button onClick={props.onConfirm}>Confirm password</button>
-                    <button onClick={props.onPasskey}>Confirm passkey</button>
-                    <button onClick={props.onClose}>Cancel</button>
-                </dialog>
-            ) : null,
-    }),
-)
 const { default: Panel } =
     await import('@/features/UserSettings/Components/OidcConnectionsPanel/index.tsx')
 const { default: useOidcConnectionsLogic } =
@@ -129,9 +96,6 @@ afterEach(async () => {
     submit.mockClear()
     stopNavigation.mockReset()
     stopNavigation.mockImplementation(() => {})
-    verify.mockClear()
-    beginPasskey.mockClear()
-    startAuthentication.mockClear()
     navigate.mockClear()
     success.mockClear()
     error.mockClear()
@@ -139,14 +103,11 @@ afterEach(async () => {
 })
 
 describe('linked identity accounts', () => {
-    test('requires local consent and submits exactly one same-origin native link form', async () => {
+    test('submits exactly one same-origin native link form using the active session', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link', true)
-        expect(submit).not.toHaveBeenCalled()
-        expect(container.querySelector('dialog')).not.toBeNull()
-        await click('Confirm password', true)
-        expect(verify).toHaveBeenCalledTimes(1)
+        expect(container.querySelector('dialog')).toBeNull()
         expect(submit).toHaveBeenCalledTimes(1)
         const form = container.querySelector('form')!
         expect(form.getAttribute('action')).toBe('/api/auth/oidc/start')
@@ -155,14 +116,13 @@ describe('linked identity accounts', () => {
         expect(new FormData(form).get('intent')).toBe('link')
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
-    test('unlinks after fresh consent using the displayed revision and refreshes', async () => {
+    test('unlinks using the active session and displayed revision, then refreshes', async () => {
         fetchMock
             .mockResolvedValueOnce(Response.json(connections(true)))
             .mockResolvedValueOnce(Response.json({ success: true }))
             .mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.unlink')
-        await click('Confirm password', true)
         const posts = fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')
         expect(posts).toHaveLength(1)
         expect(JSON.parse(String(posts[0]![1]?.body))).toEqual({ providerId, expectedRevision: 7 })
@@ -178,7 +138,6 @@ describe('linked identity accounts', () => {
             .mockResolvedValue(Response.json(connections(true)))
         await render()
         await click('account.oidc.unlink')
-        await click('Confirm password')
         expect(container.textContent).toContain('account.oidc.error.conflict')
         expect(
             fetchMock.mock.calls.filter((call) => call[1]?.method === 'GET').length,
@@ -209,14 +168,14 @@ describe('linked identity accounts', () => {
         expect(fetchMock).not.toHaveBeenCalled()
         expect(container.textContent).toContain('account.oidc.noPermission')
     })
-    test('cancellation does not initiate an identity flow', async () => {
+    test('cancellation stops the active document request', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link')
-        await click('Cancel')
+        await click('account.oidc.cancel')
         expect(container.querySelector('dialog')).toBeNull()
-        expect(submit).not.toHaveBeenCalled()
-        expect(verify).not.toHaveBeenCalled()
+        expect(submit).toHaveBeenCalledTimes(1)
+        expect(stopNavigation).toHaveBeenCalledTimes(1)
     })
     test('rejects malformed raw responses', async () => {
         fetchMock.mockResolvedValue(Response.json({ ...connections(), externallyManaged: 'false' }))
@@ -231,27 +190,27 @@ describe('linked identity accounts', () => {
         await render()
         expect(navigate).toHaveBeenCalledWith({ to: '/login', replace: true })
     })
-    test('does not continue a pending confirmation after navigating away', async () => {
-        let finish: ((value: { success: boolean; message: string }) => void) | undefined
-        verify.mockImplementationOnce(
-            () =>
-                new Promise((resolve) => {
-                    finish = resolve
-                }),
+    test('aborts a pending unlink and ignores its late response after navigating away', async () => {
+        let finish: ((value: Response) => void) | undefined
+        fetchMock.mockResolvedValueOnce(Response.json(connections(true))).mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve
+            }),
         )
-        fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
-        await click('account.oidc.link')
-        await click('Confirm password')
+        await click('account.oidc.unlink')
+        const signal = fetchMock.mock.calls[1]?.[1]?.signal
         await act(async () => {
             root?.unmount()
             root = null
         })
+        expect(signal?.aborted).toBe(true)
         await act(async () => {
-            finish?.({ success: true, message: 'verified' })
-            await Promise.resolve()
+            finish?.(Response.json({ success: true }))
         })
-        expect(submit).not.toHaveBeenCalled()
+        await flush()
+        expect(success).not.toHaveBeenCalled()
+        expect(fetchMock).toHaveBeenCalledTimes(2)
     })
     test('back navigation clears the synchronous guard and refreshes provider state', async () => {
         fetchMock
@@ -259,7 +218,6 @@ describe('linked identity accounts', () => {
             .mockResolvedValueOnce(Response.json(connections()))
         await render()
         await click('account.oidc.link')
-        await click('Confirm password')
         expect(submit).toHaveBeenCalledTimes(1)
         await act(async () => {
             const event = new Event('pageshow')
@@ -268,7 +226,6 @@ describe('linked identity accounts', () => {
         })
         await flush()
         await click('account.oidc.link')
-        await click('Confirm password')
         expect(submit).toHaveBeenCalledTimes(2)
     })
     test('consumes allowlisted callback feedback once and removes it from navigation', async () => {
@@ -283,42 +240,39 @@ describe('linked identity accounts', () => {
             replace: true,
         })
     })
-    test('keeps failed fresh consent visible and does not start a link', async () => {
-        verify.mockResolvedValueOnce({
-            success: false,
-            message: 'account.reauthentication.error.failed',
+    test('reports a synchronous native form failure without leaving controls locked', async () => {
+        submit.mockImplementationOnce(() => {
+            throw new Error('private diagnostic')
         })
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link')
-        await click('Confirm password')
-        expect(container.textContent).toContain('account.reauthentication.error.failed')
-        expect(submit).not.toHaveBeenCalled()
-        expect(container.querySelector('dialog')).not.toBeNull()
-    })
-    test('links with fresh local passkey consent', async () => {
-        fetchMock.mockResolvedValue(Response.json(connections()))
-        await render()
+        expect(container.textContent).toContain('account.oidc.error.failed')
+        expect(container.textContent).not.toContain('private diagnostic')
+        expect(container.querySelector('dialog')).toBeNull()
         await click('account.oidc.link')
-        await click('Confirm passkey', true)
-        expect(beginPasskey).toHaveBeenCalledTimes(1)
-        expect(startAuthentication).toHaveBeenCalledTimes(1)
-        expect(verify).toHaveBeenCalledTimes(1)
-        expect(submit).toHaveBeenCalledTimes(1)
+        expect(submit).toHaveBeenCalledTimes(2)
     })
-    test('requires renewed consent when server freshness expires', async () => {
+    test('reports denied unlink without requesting another identity check', async () => {
+        fetchMock
+            .mockResolvedValueOnce(Response.json(connections(true)))
+            .mockResolvedValueOnce(Response.json({ error: 'permission_denied' }, { status: 403 }))
+        await render()
+        await click('account.oidc.unlink')
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(success).not.toHaveBeenCalled()
+        expect(container.querySelector('dialog')).toBeNull()
+    })
+    test('redirects to login when the session expires during unlink', async () => {
         fetchMock
             .mockResolvedValueOnce(Response.json(connections(true)))
             .mockResolvedValueOnce(
-                Response.json({ error: 'reauthentication_required' }, { status: 403 }),
+                Response.json({ error: 'authentication_required' }, { status: 401 }),
             )
         await render()
         await click('account.oidc.unlink')
-        await click('Confirm password')
-        expect(container.textContent).toContain('account.oidc.error.reauthenticate')
+        expect(navigate).toHaveBeenCalledWith({ to: '/login', replace: true })
         expect(container.querySelector('dialog')).toBeNull()
-        await click('account.oidc.unlink')
-        expect(container.querySelector('dialog')).not.toBeNull()
     })
     test('does not offer linking to a disabled provider', async () => {
         fetchMock.mockResolvedValue(Response.json(connections(false, false)))
@@ -366,40 +320,26 @@ describe('linked identity accounts', () => {
         expect(error).toHaveBeenCalledTimes(1)
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
-    test('ordinary pageshow preserves pending consent and does not refresh', async () => {
+    test('ordinary pageshow preserves active navigation and does not refresh', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link')
         await act(async () => {
             window.dispatchEvent(new Event('pageshow'))
         })
-        expect(container.querySelector('dialog')).not.toBeNull()
+        expect(container.textContent).toContain('account.oidc.pending')
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
-    test('does not open a stale passkey prompt after navigating away', async () => {
-        let finish:
-            | ((value: { success: boolean; challengeId: string; options: object }) => void)
-            | undefined
-        beginPasskey.mockImplementationOnce(
-            () =>
-                new Promise((resolve) => {
-                    finish = resolve
-                }),
-        )
+    test('stops native navigation when the panel unmounts', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link')
-        await click('Confirm passkey')
         await act(async () => {
             root?.unmount()
             root = null
         })
-        await act(async () => {
-            finish?.({ success: true, challengeId: 'late', options: {} })
-            await Promise.resolve()
-        })
-        expect(startAuthentication).not.toHaveBeenCalled()
-        expect(submit).not.toHaveBeenCalled()
+        expect(stopNavigation).toHaveBeenCalledTimes(1)
+        expect(submit).toHaveBeenCalledTimes(1)
     })
     test('keeps navigation cancellation reachable and refreshes before a new action', async () => {
         let finishRefresh: ((response: Response) => void) | undefined
@@ -410,7 +350,6 @@ describe('linked identity accounts', () => {
         )
         await render()
         await click('account.oidc.link')
-        await click('Confirm password')
         const cancel = [...container.querySelectorAll('button')].find(
             (button) => button.textContent === 'account.oidc.cancel',
         )!
@@ -431,8 +370,6 @@ describe('linked identity accounts', () => {
         })
         await flush()
         await click('account.oidc.link')
-        await click('Confirm password')
-        expect(verify).toHaveBeenCalledTimes(2)
         expect(submit).toHaveBeenCalledTimes(2)
     })
     test('stops native navigation before releasing action guards and ignores stale cancellation', async () => {
@@ -445,19 +382,19 @@ describe('linked identity accounts', () => {
             current = logic
         })
         const form = document.createElement('form')
+        const input = document.createElement('input')
+        input.name = 'providerId'
+        form.append(input)
         current!.refs.form.current = form
         await act(async () => {
             current!.handler.handleRequest(providerId, 'link')
         })
-        await act(async () => {
-            current!.handler.handlePassword()
-        })
+        await act(async () => {})
         await flush()
         const staleCancel = current!.handler.handleCancelNavigation
         const activeHandlers = current!.handler
         stopNavigation.mockImplementationOnce(() => {
             activeHandlers.handleRequest(providerId, 'link')
-            activeHandlers.handlePassword()
             staleCancel()
         })
         await act(async () => {
@@ -466,16 +403,13 @@ describe('linked identity accounts', () => {
         })
         await flush()
         expect(stopNavigation).toHaveBeenCalledTimes(1)
-        expect(verify).toHaveBeenCalledTimes(1)
         expect(submit).toHaveBeenCalledTimes(1)
         expect(current!.state.action).toBeNull()
         expect(current!.state.isNavigating).toBe(false)
         await act(async () => {
             current!.handler.handleRequest(providerId, 'link')
         })
-        await act(async () => {
-            current!.handler.handlePassword()
-        })
+        await act(async () => {})
         await flush()
         await act(async () => {
             staleCancel()
@@ -489,6 +423,5 @@ describe('linked identity accounts', () => {
         await flush()
         expect(stopNavigation).toHaveBeenCalledTimes(2)
         expect(submit).toHaveBeenCalledTimes(2)
-        expect(verify).toHaveBeenCalledTimes(2)
     })
 })

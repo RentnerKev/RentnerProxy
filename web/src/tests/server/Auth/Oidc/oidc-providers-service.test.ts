@@ -247,14 +247,14 @@ describe('owner OIDC provider service', () => {
             authorize: async () => {
                 calls.push('authorize')
                 throw new AuthDomainError(
-                    'reauthentication_required',
+                    'authentication_required',
                     'Recent authentication is required.',
                 )
             },
         })
         await expect(
             service.saveOidcProvidersService({ expectedRevision: 0, providers: [] }),
-        ).rejects.toMatchObject({ code: 'reauthentication_required' })
+        ).rejects.toMatchObject({ code: 'authentication_required' })
         expect(calls).toEqual(['limit', 'lock', 'authorize'])
     })
 

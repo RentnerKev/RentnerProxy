@@ -1,41 +1,58 @@
 import { describe, expect, test } from 'bun:test'
-
-import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
-import { isSessionRecentlyAuthenticated } from '@/server/Auth/Access/authorization.service.ts'
+import { PgDialect } from 'drizzle-orm/pg-core'
+import type { SQL } from 'drizzle-orm'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { requireActiveSessionInTransaction } from '@/server/Auth/Access/sessions.service.ts'
 
-function createSession(reauthenticatedAt: Date): CurrentSession {
-    return {
-        id: 'session-1',
-        expiresAt: new Date(2_000_000),
-        reauthenticatedAt,
-        user: {
-            displayName: 'Test User',
-            email: 'test@example.com',
-            id: 'user-1',
-            language: 'en',
-            permissions: [PERMISSIONS.APP_ACCESS],
-            profileImageVersion: null,
-            roles: [],
-            themeMode: 'light',
-        },
-    }
+const session = {
+    id: 'active-session',
+    user: { id: 'current-user' },
+    reauthenticatedAt: new Date(0),
+} as CurrentSession
+
+function fixture(rows: readonly { readonly expiresAt: Date }[]) {
+    const checks: { condition?: SQL; lock?: string } = {}
+    const transaction = {
+        select: () => ({
+            from: () => ({
+                where: (condition: SQL) => {
+                    checks.condition = condition
+                    return {
+                        limit: () => ({
+                            for: async (lock: string) => {
+                                checks.lock = lock
+                                return rows
+                            },
+                        }),
+                    }
+                },
+            }),
+        }),
+    } as unknown as AuthTransaction
+    return { transaction, checks }
 }
 
-describe('recent session authentication', () => {
-    const now = 1_000_000
-
-    test('accepts the exact five-minute boundary and rejects one millisecond later', () => {
-        const session = createSession(new Date(now - RECENT_AUTHENTICATION_DURATION_MS))
-
-        expect(isSessionRecentlyAuthenticated(session, now)).toBeTrue()
-        expect(isSessionRecentlyAuthenticated(session, now + 1)).toBeFalse()
-    })
-
-    test('rejects a reauthentication timestamp in the future', () => {
-        const session = createSession(new Date(now + 1))
-
-        expect(isSessionRecentlyAuthenticated(session, now)).toBeFalse()
-    })
+describe('active session mutation fence', () => {
+    test.each([new Date(0), new Date(Date.now() + 60_000)])(
+        'accepts an active session regardless of its compatibility authentication timestamp %s',
+        async (reauthenticatedAt) => {
+            const { transaction, checks } = fixture([{ expiresAt: new Date(Date.now() + 60_000) }])
+            await requireActiveSessionInTransaction(transaction, { ...session, reauthenticatedAt })
+            expect(checks.lock).toBe('update')
+            const query = new PgDialect().sqlToQuery(checks.condition!)
+            expect(query.params).toEqual([session.id, session.user.id])
+        },
+    )
+    test.each([{ rows: [] }, { rows: [{ expiresAt: new Date(0) }] }])(
+        'rejects a revoked or expired persisted session',
+        async ({ rows }) => {
+            const { transaction } = fixture(rows)
+            await expect(
+                requireActiveSessionInTransaction(transaction, session),
+            ).rejects.toMatchObject({
+                code: 'authentication_required',
+            })
+        },
+    )
 })

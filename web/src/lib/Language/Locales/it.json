@@ -230,7 +230,6 @@
         "rateLimited": "Troppe richieste. Riprova più tardi.",
         "authUnavailable": "Il servizio di autenticazione non è temporaneamente disponibile.",
         "authentication_required": "La sessione è scaduta. Accedi di nuovo.",
-        "reauthentication_required": "Conferma la tua identità per continuare.",
         "email_conflict": "Questo indirizzo email è già in uso.",
         "last_active_owner": "L’ultimo proprietario attivo non può essere disattivato o modificato.",
         "owner_required": "Solo un proprietario può apportare questa modifica.",
@@ -265,7 +264,6 @@
             "unavailable": "Impossibile contattare il provider di identità. Riprova o usa la tua password o passkey locale.",
             "denied": "Questa identità non è autorizzata ad accedere. Contatta l’amministratore o usa il tuo account locale.",
             "expired": "Questa richiesta di accesso è scaduta. Avvia nuovamente l’accesso.",
-            "reauthentication": "Accedi con la tua password o passkey locale, poi riprova.",
             "conflict": "La configurazione di accesso è cambiata. Avvia nuovamente l’accesso.",
             "localRecovery": "I proprietari locali possono continuare con una password o una passkey.",
             "cancel": "Annulla accesso"
@@ -541,7 +539,6 @@
         "password": {
             "sectionEyebrow": "Credenziali",
             "title": "Cambia password",
-            "currentPassword": "Password attuale",
             "newPassword": "Nuova password",
             "confirmNewPassword": "Conferma la nuova password",
             "changing": "Modifica della password…",
@@ -550,8 +547,7 @@
                 "changed": "Password modificata. Le altre sessioni sono state revocate."
             },
             "error": {
-                "update": "Impossibile modificare la password.",
-                "incorrectCurrentPassword": "La password attuale non è corretta."
+                "update": "Impossibile modificare la password."
             }
         },
         "profileImage": {
@@ -678,23 +674,6 @@
                 "remove": "Impossibile rimuovere la passkey."
             }
         },
-        "reauthentication": {
-            "title": "Conferma questa modifica di sicurezza",
-            "description": "Esegui nuovamente l’autenticazione per continuare. La sessione attuale non è sufficiente.",
-            "currentPassword": "Password attuale",
-            "confirm": "Conferma",
-            "usePasskey": "Usa una passkey",
-            "success": {
-                "confirmed": "Identità confermata.",
-                "passkeyStarted": "Verifica della passkey avviata."
-            },
-            "error": {
-                "failed": "Nuova autenticazione non riuscita.",
-                "incorrectPassword": "La password non è corretta.",
-                "passkeyStart": "Impossibile avviare la nuova autenticazione con passkey.",
-                "passkeyVerification": "Verifica della passkey non riuscita."
-            }
-        },
         "recoveryCodes": {
             "title": "Salva i codici di recupero",
             "description": "Questi codici vengono mostrati una sola volta. Ogni codice può essere usato una sola volta.",
@@ -737,7 +716,6 @@
             "error": {
                 "unavailable": "Impossibile caricare gli account collegati. Aggiorna l’elenco e riprova.",
                 "conflict": "I collegamenti sono cambiati. L’elenco è stato aggiornato: controllalo e riprova.",
-                "reauthenticate": "Conferma di nuovo la tua password o passkey, poi riprova.",
                 "denied": "Servono una password o passkey locale e il permesso di modificare questo account.",
                 "rateLimited": "Troppi tentativi. Attendi un minuto e riprova.",
                 "failed": "Impossibile modificare il collegamento. Aggiorna l’elenco e riprova.",
@@ -4286,7 +4264,6 @@
         "test": "Verifica provider salvato",
         "tested": "Metadati verificati. Non verifica l’accesso di un utente.",
         "saved": "Configurazione salvata.",
-        "reauthenticated": "Autenticazione locale verificata. Riprovare l’azione.",
         "unavailableUser": "Account locale non disponibile o inattivo",
         "fields": {
             "name": "Nome provider",
@@ -4298,7 +4275,6 @@
             "privateCidrs": "Reti CIDR private consentite"
         },
         "errors": {
-            "reauthentication_required": "Verificare l’identità del proprietario locale e riprovare.",
             "authentication_required": "Accedere di nuovo.",
             "owner_required": "È richiesto un proprietario locale.",
             "configuration_conflict": "Configurazione modificata. Bozza conservata. Aggiornare e riprovare esplicitamente.",

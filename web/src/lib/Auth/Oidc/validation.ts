@@ -6,7 +6,6 @@ export const oidcFeedbackCodeSchema = z.enum([
     'denied',
     'unavailable',
     'expired',
-    'reauthentication',
     'conflict',
 ])
 

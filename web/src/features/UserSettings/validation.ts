@@ -4,9 +4,8 @@ import { AVAILABLE_LANGUAGES } from '@/config/language.config.ts'
 import { PROFILE_IMAGE_MAX_DATA_URL_LENGTH } from '@/config/profile-image.config.ts'
 import { USER_THEME_MODES } from '@/config/theme.config.ts'
 import { navigationGroupPreferenceInputSchema } from '@/lib/Navigation/navigationPreferences.ts'
-import { credentialPasswordSchema, newPasswordSchema } from '@/lib/Auth/validation.ts'
+import { newPasswordSchema } from '@/lib/Auth/validation.ts'
 import {
-    authenticationResponseSchema,
     opaqueAuthChallengeSchema,
     registrationResponseSchema,
 } from '@/lib/Auth/webauthn.validation.ts'
@@ -21,9 +20,10 @@ export const updateThemeModeInputSchema = z.object({
     themeMode: z.enum(USER_THEME_MODES),
 })
 
-export const changePasswordInputSchema = z
+export const changePasswordInputSchema = z.object({ password: newPasswordSchema })
+
+export const changePasswordFormSchema = z
     .object({
-        currentPassword: credentialPasswordSchema,
         password: newPasswordSchema,
         confirmPassword: z.string(),
     })
@@ -44,11 +44,6 @@ export const updateProfileImageInputSchema = z.object({
 })
 
 export const emptySecurityInputSchema = z.object({})
-/** @alias */
-export const beginPasskeyReauthenticationInputSchema = emptySecurityInputSchema
-export const reauthenticatePasswordInputSchema = z.object({
-    credential: z.string().min(1).max(256),
-})
 export const totpCodeSchema = z.string().regex(/^\d{6}$/, 'account.validation.authenticatorCode')
 export const totpSetupFormSchema = z.object({ code: totpCodeSchema })
 export const confirmTotpSetupInputSchema = z.object({
@@ -68,8 +63,4 @@ export const finishPasskeyRegistrationInputSchema = z.object({
     challengeId: opaqueAuthChallengeSchema,
     name: z.string().trim().min(1).max(100).optional(),
     response: registrationResponseSchema,
-})
-export const finishPasskeyReauthenticationInputSchema = z.object({
-    challengeId: opaqueAuthChallengeSchema,
-    response: authenticationResponseSchema,
 })

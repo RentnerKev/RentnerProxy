@@ -10,7 +10,7 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const { act, useEffect, useState } = await import('react')
+const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
@@ -26,18 +26,7 @@ const finishPasskeyMock = mock(async () => ({
     message: 'account.passkeys.error.registrationFailed',
 }))
 const startRegistrationMock = mock(async () => ({}))
-let setRecentlyAuthenticated: ((value: boolean) => void) | null = null
-
 function useSecurityLogicMock() {
-    const [recentlyAuthenticated, setRecentlyAuthenticatedState] = useState(true)
-
-    useEffect(() => {
-        setRecentlyAuthenticated = (value) => setRecentlyAuthenticatedState(value)
-        return () => {
-            setRecentlyAuthenticated = null
-        }
-    }, [])
-
     return {
         state: {
             error: null,
@@ -47,7 +36,6 @@ function useSecurityLogicMock() {
             setup: null,
             status: {
                 passkeys: [],
-                recentlyAuthenticated,
                 recoveryCodesRemaining: 0,
                 totpEnabled: false,
             },
@@ -67,24 +55,6 @@ function useSecurityLogicMock() {
     }
 }
 
-function useReauthenticationLogicMock() {
-    const [credential, setCredential] = useState('current password')
-
-    return {
-        state: { credential, isPending: false, result: null },
-        handler: {
-            beginPasskey: mock(async () => ({ success: false, message: 'unused' })),
-            finishPasskey: mock(async () => ({ success: false, message: 'unused' })),
-            reset: () => setCredential(''),
-            verifyPassword: async () => {
-                setRecentlyAuthenticated?.(true)
-                return { success: true as const, message: 'Reauthenticated.' }
-            },
-        },
-        setter: { setCredential },
-    }
-}
-
 mock.module('@simplewebauthn/browser', () => ({
     startAuthentication: mock(async () => ({})),
     startRegistration: startRegistrationMock,
@@ -95,13 +65,6 @@ mock.module(
         default: useSecurityLogicMock,
     }),
 )
-mock.module(
-    '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts',
-    () => ({
-        default: useReauthenticationLogicMock,
-    }),
-)
-
 const { default: SecuritySettingsPanel } =
     await import('@/features/UserSettings/Components/SecuritySettingsPanel/index.tsx')
 
@@ -168,7 +131,6 @@ function errorToasts(): Array<HTMLElement> {
 beforeEach(() => {
     toast.dismissAll()
     document.body.replaceChildren()
-    setRecentlyAuthenticated = null
     beginPasskeyMock.mockReset()
     beginPasskeyMock.mockResolvedValue({
         success: true,
@@ -227,7 +189,7 @@ describe('security action feedback', () => {
             expect(finishPasskeyMock).not.toHaveBeenCalled()
         },
     )
-    test('restores the passkey name dialog once after a reauthenticated registration failure', async () => {
+    test('preserves the passkey name after registration fails without requesting reauthentication', async () => {
         await render()
 
         await click(findButton('Add passkey')!)
@@ -235,12 +197,8 @@ describe('security action feedback', () => {
 
         const nameInput = document.querySelector<HTMLInputElement>('#passkey-name')!
         await setInputValue(nameInput, 'Office security key')
-        await act(async () => {
-            setRecentlyAuthenticated?.(false)
-        })
         await click(findButton('Continue')!)
-        await waitFor(() => findButton('Confirm') !== undefined)
-        await click(findButton('Confirm')!)
+        expect(document.querySelector('input[autocomplete="current-password"]')).toBeNull()
 
         await waitFor(() => finishPasskeyMock.mock.calls.length === 1)
         await waitFor(() => errorToasts().length === 1)
@@ -279,7 +237,7 @@ test('renders no previous identity metadata while the new identity query is pend
             return createElement('div', null, state.status?.passkeys.map((passkey) => passkey.name).join(',') ?? 'Loading')
         }
         client.setQueryData([...securityQueryKeys.status, 'alice'], {
-            totpEnabled: true, recentlyAuthenticated: true, recoveryCodesRemaining: 7,
+            totpEnabled: true, recoveryCodesRemaining: 7,
             passkeys: [{ id: 'alice-key', name: 'Alice private laptop', createdAt: '2026-01-01', lastUsedAt: null }],
         })
         const container = document.createElement('div')

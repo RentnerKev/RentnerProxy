@@ -3,13 +3,12 @@ import { Copy } from 'lucide-react'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
-import ReauthenticationModal from '@/features/UserSettings/Components/SecuritySettingsPanel/Components/ReauthenticationModal.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ProviderEditor from './Components/ProviderEditor.tsx'
 import ProviderSetupHelp from './Components/ProviderSetupHelp.tsx'
 import useOidcProvidersLogic from './Hooks/useOidcProvidersLogic.ts'
 
-/** Presents the provider snapshot with explicit edit, conflict reload, and reauthentication actions. */
+/** Presents the provider snapshot with explicit edit and conflict reload actions. */
 export default function OidcProvidersPage() {
     const { state, handler, form } = useOidcProvidersLogic()
     const { t } = useTranslationStore()
@@ -161,22 +160,6 @@ export default function OidcProvidersPage() {
                 description={t('oidc.reloadDescription')}
                 destructive
                 onConfirm={handler.handleReload}
-            />
-            <ReauthenticationModal
-                open={state.reauthOpen}
-                isPending={state.reauthPending}
-                value={state.credential}
-                onChange={handler.handleCredential}
-                onConfirm={() => {
-                    void handler.handleReauthenticate()
-                }}
-                onPasskey={() => {
-                    void handler.handleReauthenticate(true)
-                }}
-                onClose={handler.handleReauthClose}
-                onOpenChange={(open) => {
-                    if (!open) handler.handleReauthClose()
-                }}
             />
         </>
     )

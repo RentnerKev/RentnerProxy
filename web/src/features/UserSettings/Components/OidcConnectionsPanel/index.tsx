@@ -1,7 +1,6 @@
 import { Link2 } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FormMessage from '@/shared/Forms/FormMessage.tsx'
-import ReauthenticationModal from '../SecuritySettingsPanel/Components/ReauthenticationModal.tsx'
 import useOidcConnectionsLogic from './Hooks/useOidcConnectionsLogic.ts'
 import type { OidcConnectionsPanelProps } from './Types/oidc-connections.types.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
@@ -10,7 +9,7 @@ const buttonClass = buttonClassName('secondary')
 
 export default function OidcConnectionsPanel({ userId, canUpdate }: OidcConnectionsPanelProps) {
     const { t } = useTranslationStore()
-    const { state, handler, setter, refs } = useOidcConnectionsLogic(userId, canUpdate)
+    const { state, handler, refs } = useOidcConnectionsLogic(userId, canUpdate)
     const { form: formRef } = refs
     return (
         <section
@@ -136,16 +135,6 @@ export default function OidcConnectionsPanel({ userId, canUpdate }: OidcConnecti
                 <input type="hidden" name="providerId" value={state.action?.providerId ?? ''} />
                 <input type="hidden" name="intent" value="link" />
             </form>
-            <ReauthenticationModal
-                open={!!state.action && !state.isNavigating}
-                isPending={state.isReauthenticationPending}
-                value={state.credential}
-                onChange={setter.setCredential}
-                onConfirm={handler.handlePassword}
-                onPasskey={handler.handlePasskey}
-                onClose={handler.handleClose}
-                onOpenChange={handler.handleOpenChange}
-            />
         </section>
     )
 }

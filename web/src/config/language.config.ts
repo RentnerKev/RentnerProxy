@@ -79,7 +79,6 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'auth.oidc.denied':
         'This identity is not allowed to sign in. Contact your administrator or use your local account.',
     'auth.oidc.expired': 'This sign-in request has expired. Start sign-in again.',
-    'auth.oidc.reauthentication': 'Sign in with your local password or passkey, then retry.',
     'auth.oidc.conflict': 'The sign-in configuration changed. Start sign-in again.',
     'auth.oidc.localRecovery': 'Local owners can continue with a password or passkey.',
     'auth.twoFactor.unavailable': 'Authentication service temporarily unavailable. Try again.',

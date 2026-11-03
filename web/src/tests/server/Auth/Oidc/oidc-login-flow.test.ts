@@ -258,10 +258,6 @@ describe('OIDC login orchestration', () => {
             [new OidcDomainError('provider_unavailable'), 'provider_unavailable'],
             [new OidcDomainError('configuration_conflict'), 'configuration_conflict'],
             [
-                new AuthDomainError('reauthentication_required', 'secret-subject-token'),
-                'reauthentication_required',
-            ],
-            [
                 new AuthDomainError('authentication_required', 'secret-subject-token'),
                 'authentication_required',
             ],

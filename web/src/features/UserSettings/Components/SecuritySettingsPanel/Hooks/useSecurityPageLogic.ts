@@ -1,15 +1,13 @@
-import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
+import { startRegistration } from '@simplewebauthn/browser'
 import { useState } from 'react'
 
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { getPasskeyRegistrationErrorKey } from '@/lib/UserSettings/security.ts'
-import useReauthentication from './useReauthentication.ts'
 import useSecurityOperations from './useSecurityOperations.ts'
 
 import type {
     DestructiveSecurityAction,
-    ReauthenticationAction,
     SecurityConfirmation,
     PasskeyNameRequest,
     SecurityPageLogicResult,
@@ -18,31 +16,8 @@ import type {
 export default function useSecurityPageLogic(userId: string) {
     const { t } = useTranslationStore()
     const security = useSecurityOperations(userId)
-    const reauthentication = useReauthentication()
-    const [reauthAction, setReauthAction] = useState<ReauthenticationAction | null>(null)
-    const [targetPasskeyId, setTargetPasskeyId] = useState<string | null>(null)
-    const [pendingPasskeyName, setPendingPasskeyName] = useState<string | null>(null)
     const [nameRequest, setNameRequest] = useState<PasskeyNameRequest | null>(null)
     const [confirmation, setConfirmation] = useState<SecurityConfirmation | null>(null)
-    const recentlyAuthenticated = security.state.status?.recentlyAuthenticated ?? false
-
-    function resetReauthentication() {
-        setReauthAction(null)
-        setTargetPasskeyId(null)
-        setPendingPasskeyName(null)
-        reauthentication.handler.reset()
-    }
-
-    function startReauthentication(
-        action: ReauthenticationAction,
-        passkeyId?: string,
-        passkeyName?: string,
-    ) {
-        setReauthAction(action)
-        setTargetPasskeyId(passkeyId ?? null)
-        setPendingPasskeyName(passkeyName ?? null)
-    }
-
     async function registerPasskey(name: string): Promise<boolean> {
         try {
             const started = await security.handler.beginPasskey()
@@ -106,101 +81,17 @@ export default function useSecurityPageLogic(userId: string) {
         }
     }
 
-    async function finishReauthentication() {
-        const action = reauthAction
-        const passkeyId = targetPasskeyId
-        const passkeyName = pendingPasskeyName
-        if (!action) return
-
-        if (action === 'disable' || action === 'regenerate') {
-            setConfirmation({ kind: action })
-            resetReauthentication()
-            return
-        }
-        if (action === 'remove' && passkeyId) {
-            setConfirmation({ kind: 'remove', passkeyId })
-            resetReauthentication()
-            return
-        }
-        if (action === 'enable') {
-            await beginTotpSetup()
-            resetReauthentication()
-            return
-        }
-        if (action === 'add') {
-            const success = passkeyName ? await registerPasskey(passkeyName) : false
-            resetReauthentication()
-            if (!success) {
-                setNameRequest(
-                    passkeyName ? { kind: 'add', initialName: passkeyName } : { kind: 'add' },
-                )
-            }
-            return
-        }
-        if (action === 'rename' && passkeyId && passkeyName) {
-            const success = await renamePasskey(passkeyName, passkeyId)
-            resetReauthentication()
-            if (!success) {
-                setNameRequest({
-                    kind: 'rename',
-                    initialName: passkeyName,
-                    passkeyId,
-                })
-            }
-        }
-    }
-
-    async function confirmReauthentication() {
-        try {
-            const result = await reauthentication.handler.verifyPassword()
-            if (result.success) await finishReauthentication()
-            else toast.error(t(result.message), { title: t('toast.titles.error') })
-        } catch {
-            toast.error(t('account.reauthentication.error.failed'), {
-                title: t('toast.titles.error'),
-            })
-        }
-    }
-
-    async function reauthenticateWithPasskey() {
-        try {
-            const started = await reauthentication.handler.beginPasskey()
-            if (!started.success || !started.challengeId || !started.options) {
-                toast.error(t(started.message), { title: t('toast.titles.error') })
-                return
-            }
-            const response = await startAuthentication({ optionsJSON: started.options })
-            const result = await reauthentication.handler.finishPasskey({
-                challengeId: started.challengeId,
-                response,
-            })
-            if (result.success) await finishReauthentication()
-            else toast.error(t(result.message), { title: t('toast.titles.error') })
-        } catch {
-            toast.error(t('account.reauthentication.error.passkeyVerification'), {
-                title: t('toast.titles.error'),
-            })
-        }
-    }
-
     function requestEnableTotp() {
-        if (recentlyAuthenticated) void beginTotpSetup()
-        else startReauthentication('enable')
+        void beginTotpSetup()
     }
 
     function requestAddPasskey() {
-        if (recentlyAuthenticated) {
-            setNameRequest({ kind: 'add' })
-        } else startReauthentication('add')
+        setNameRequest({ kind: 'add' })
     }
 
     function requestDestructiveAction(action: DestructiveSecurityAction, passkeyId?: string) {
-        if (recentlyAuthenticated) {
-            if (action === 'remove' && passkeyId) setConfirmation({ kind: action, passkeyId })
-            else if (action !== 'remove') setConfirmation({ kind: action })
-            return
-        }
-        startReauthentication(action, passkeyId)
+        if (action === 'remove' && passkeyId) setConfirmation({ kind: action, passkeyId })
+        else if (action !== 'remove') setConfirmation({ kind: action })
     }
 
     function requestRename(passkeyId: string) {
@@ -215,16 +106,6 @@ export default function useSecurityPageLogic(userId: string) {
     async function confirmPasskeyName(name: string) {
         const request = nameRequest
         if (!request) return
-
-        if (!recentlyAuthenticated) {
-            setNameRequest(null)
-            startReauthentication(
-                request.kind,
-                request.kind === 'rename' ? request.passkeyId : undefined,
-                name,
-            )
-            return
-        }
 
         let success = false
         try {
@@ -300,32 +181,22 @@ export default function useSecurityPageLogic(userId: string) {
             isLoading: security.state.isLoading,
             error: security.state.error,
             isPending: security.state.isPending,
-            reauthenticationCredential: reauthentication.state.credential,
-            isReauthenticationPending: reauthentication.state.isPending,
             confirmationTitle,
             confirmationDescription,
             confirmationLabel,
             confirmation,
             nameRequest,
-            reauthAction,
         },
-        setter: { setReauthenticationCredential: reauthentication.setter.setCredential },
         handler: {
             handleConfirmationOpenChange: (open) => {
                 if (!open) setConfirmation(null)
             },
-            handleReauthenticationOpenChange: (open) => {
-                if (!open && !reauthentication.state.isPending) resetReauthentication()
-            },
             resetSetup: security.handler.resetSetup,
             resetRecoveryCodes: security.handler.resetRecoveryCodes,
             closePasskeyName: () => setNameRequest(null),
-            closeReauthentication: resetReauthentication,
             confirmDestructiveAction,
             confirmTotp,
             confirmPasskeyName,
-            confirmReauthentication,
-            reauthenticateWithPasskey,
             requestAddPasskey,
             requestDestructiveAction,
             requestEnableTotp,

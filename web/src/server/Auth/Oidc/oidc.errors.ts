@@ -9,7 +9,6 @@ export type OidcErrorCode =
     | 'authentication_failed'
     | 'identity_not_allowed'
     | 'challenge_expired'
-    | 'reauthentication_required'
     | 'authentication_required'
 
 const feedbackCodes: Record<OidcErrorCode, OidcFeedbackCode> = {
@@ -20,7 +19,6 @@ const feedbackCodes: Record<OidcErrorCode, OidcFeedbackCode> = {
     authentication_failed: 'failed',
     identity_not_allowed: 'denied',
     challenge_expired: 'expired',
-    reauthentication_required: 'reauthentication',
     authentication_required: 'failed',
 }
 
@@ -38,7 +36,6 @@ export function normalizeOidcFlowError(error: unknown): OidcDomainError {
         return new OidcDomainError(error.code)
     if (error instanceof AuthDomainError) {
         switch (error.code) {
-            case 'reauthentication_required':
             case 'authentication_required':
                 return new OidcDomainError(error.code)
             case 'permission_denied':

@@ -46,16 +46,6 @@ mock.module('@/features/Auth/middleware.ts', () => ({
     getAuthStateHandler: mock(async () => ({ setupRequired: false, user: null })),
     logoutHandler: mock(async () => {}),
 }))
-const verifyPassword = mock(async (_input: unknown) => ({ success: true, message: 'ok' }))
-const beginPasskey = mock(async () => ({
-    success: false,
-    message: 'account.reauthentication.error.failed',
-}))
-mock.module('@/features/UserSettings/middleware.ts', () => ({
-    reauthenticatePasswordHandler: verifyPassword,
-    beginPasskeyReauthenticationHandler: beginPasskey,
-    finishPasskeyReauthenticationHandler: mock(async () => ({ success: true })),
-}))
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
@@ -107,8 +97,6 @@ beforeEach(() => {
     writes.length = 0
     probes.length = 0
     feedback.length = 0
-    verifyPassword.mockClear()
-    beginPasskey.mockClear()
     restores = (['success', 'error'] as const).map((kind) => {
         const spy = spyOn(toast, kind).mockImplementation((message) => {
             feedback.push({ kind, message })
@@ -477,41 +465,23 @@ describe('OIDC provider setup UI', () => {
         await waitFor(() => writes.length === 2 && !dialog())
         expect(writes[1]!.providers[0]!.bindings).toEqual([])
     })
-    test('reauthentication clears closed credentials, preserves the draft, and allows an explicit retry', async () => {
+    test('session expiry preserves the draft and reports sign-in failure without a credential dialog', async () => {
         await render()
         await click(button('Edit provider'))
-        await fill('oidc-name', 'Draft after reauth')
-        failure = 'reauthentication_required'
+        await fill('oidc-name', 'Draft after expiry')
+        failure = 'authentication_required'
         await submit()
-        await waitFor(() => document.getElementById('reauth-password') !== null)
-        await fill('reauth-password', 'fixture-password')
-        const reauthDialog = document.getElementById('reauth-password')!.closest('[role="dialog"]')!
-        await click(button('Cancel', reauthDialog))
+        await waitFor(() => feedback.some((item) => item.message === 'Sign in again.'))
         expect(document.getElementById('reauth-password')).toBeNull()
         expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe(
-            'Draft after reauth',
+            'Draft after expiry',
         )
-        await submit()
-        await waitFor(() => document.getElementById('reauth-password') !== null)
-        expect((document.getElementById('reauth-password') as HTMLInputElement).value).toBe('')
-        await fill('reauth-password', 'second-fixture-password')
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+        expect(writes).toHaveLength(1)
         failure = null
-        await click(
-            button(
-                'Confirm',
-                document.getElementById('reauth-password')!.closest('[role="dialog"]')!,
-            ),
-        )
-        await waitFor(() => document.getElementById('reauth-password') === null)
-        expect(verifyPassword).toHaveBeenCalledTimes(1)
-        expect(verifyPassword.mock.calls[0]).toEqual([
-            { data: { credential: 'second-fixture-password' } },
-        ])
-        expect(writes).toHaveLength(2)
         await submit()
-        await waitFor(() => writes.length === 3 && !dialog())
-        expect(writes[2]!.providers[0]!.name).toBe('Draft after reauth')
-        expect(document.body.textContent).not.toContain('fixture-password')
+        await waitFor(() => writes.length === 2 && !dialog())
+        expect(writes[1]!.providers[0]!.name).toBe('Draft after expiry')
     })
     test('loads safe summaries, creates disabled providers, and closes only after a successful save', async () => {
         await render()

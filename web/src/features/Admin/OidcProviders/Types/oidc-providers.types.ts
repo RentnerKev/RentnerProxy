@@ -41,9 +41,6 @@ export interface OidcProvidersLogicResult {
         rolesAvailable: boolean
         reloadConfirm: boolean
         isAvailable: boolean
-        reauthOpen: boolean
-        credential: string
-        reauthPending: boolean
     }
     handler: {
         handleCreate: () => void
@@ -55,11 +52,8 @@ export interface OidcProvidersLogicResult {
         handleCopy: () => Promise<void>
         handleDelete: (provider: OidcProviderSummary | null) => void
         handleConfirmDelete: () => Promise<void>
-        handleReauthenticate: (passkey?: boolean) => Promise<void>
-        handleReauthClose: () => void
         handleReloadConfirm: (open: boolean) => void
         handleReload: () => Promise<void>
-        handleCredential: (value: string) => void
         handlePolicyProvisioning: (value: boolean) => void
         handlePolicyGroupClaim: (value: string) => void
         handlePolicyDefaultRoles: (value: string[]) => void

@@ -1,5 +1,5 @@
 import { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
-import { credentialPasswordSchema, newPasswordSchema } from '@/lib/Auth/validation.ts'
+import { newPasswordSchema } from '@/lib/Auth/validation.ts'
 import type { ChangePasswordLogicResult } from '../Types/change-password-logic.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
@@ -7,21 +7,21 @@ import { useMutation } from '@tanstack/react-query'
 import { changePasswordHandler } from '../../../middleware.ts'
 import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { changePasswordInputSchema } from '../../../validation.ts'
+import { changePasswordFormSchema } from '../../../validation.ts'
 import type { ChangePasswordFormValues } from '../Types/change-password-form.types.ts'
 
 export default function useChangePasswordLogic() {
     const { t } = useTranslationStore()
     const mutation = useMutation({
-        mutationFn: (values: ChangePasswordFormValues) => changePasswordHandler({ data: values }),
+        mutationFn: (values: ChangePasswordFormValues) =>
+            changePasswordHandler({ data: { password: values.password } }),
     })
     const form = useForm({
         defaultValues: {
-            currentPassword: '',
             password: '',
             confirmPassword: '',
         } satisfies ChangePasswordFormValues,
-        validators: { onSubmit: changePasswordInputSchema },
+        validators: { onSubmit: changePasswordFormSchema },
         onSubmit: async ({ value, formApi }) => {
             mutation.reset()
             try {
@@ -45,8 +45,6 @@ export default function useChangePasswordLogic() {
                 event.stopPropagation()
                 void form.handleSubmit()
             },
-            validateCurrentPassword: ({ value }) =>
-                getValidationIssue(credentialPasswordSchema, value),
             validatePassword: ({ value }) => getValidationIssue(newPasswordSchema, value),
             validateConfirmPassword: ({ value }) => {
                 const password = form.getFieldValue('password')

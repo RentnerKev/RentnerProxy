@@ -31,7 +31,6 @@ export const KNOWN_CODES: Record<string, PageErrorCode> = {
     ERR_POSTGRES_CONNECTION_CLOSED: 'DATABASE_UNAVAILABLE',
     ERR_POSTGRES_CONNECTION_FAILED: 'DATABASE_UNAVAILABLE',
     authentication_required: 'SESSION_EXPIRED',
-    reauthentication_required: 'SESSION_EXPIRED',
     permission_denied: 'ACCESS_DENIED',
     owner_required: 'ACCESS_DENIED',
     user_not_found: 'NOT_FOUND',
