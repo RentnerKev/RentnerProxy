@@ -171,6 +171,7 @@ pub(super) fn reconcile_candidate_manifests(
                 }
 
                 persist_candidate_manifest(certificates_dir, &id, &indexed)?;
+                index.pending_candidates.insert(id, indexed);
             }
             (None, Some(sidecar)) => {
                 if !candidate_is_valid(&id, &sidecar) {

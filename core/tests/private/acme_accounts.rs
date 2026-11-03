@@ -413,3 +413,74 @@ async fn manual_resume_does_not_register_account_when_saved_credentials_are_miss
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn registration_without_contact_never_sends_an_account_contact_update() {
+    let runtime = account_runtime().await;
+    let mut request = issue_request();
+    request.contact_email = None;
+    let ca = FakeCa::default();
+    runtime
+        .acme_account_with_builder(&request, DIRECTORY.to_owned(), ca.builder())
+        .await
+        .unwrap();
+    {
+        let calls = ca.calls.lock().unwrap();
+        assert!(calls.iter().any(|(path, _)| path == "/accounts"));
+        assert!(!calls.iter().any(|(path, _)| path == "/accounts/1"));
+    }
+    let stored = runtime
+        .certificate_store
+        .load_acme_account(request.environment)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(serde_json::from_slice::<AccountCredentials>(&stored).is_ok());
+}
+
+#[tokio::test]
+async fn manual_resume_rejects_replaced_account_identity_without_rewriting_saved_credentials() {
+    let runtime = account_runtime().await;
+    let request = issue_request();
+    runtime
+        .acme_account_with_builder(&request, DIRECTORY.to_owned(), FakeCa::default().builder())
+        .await
+        .unwrap();
+    let mut credentials: Value = serde_json::from_slice(
+        &runtime
+            .certificate_store
+            .load_acme_account(request.environment)
+            .await
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
+    let (configured_directory, _) = acme_directory(request.environment).unwrap();
+    credentials["directory"] = json!(configured_directory);
+    let credentials = serde_json::to_vec(&credentials).unwrap();
+    runtime
+        .certificate_store
+        .store_acme_account(request.environment, &credentials)
+        .await
+        .unwrap();
+    assert!(matches!(
+        runtime
+            .manual_acme_account(
+                "unused",
+                &request,
+                Some("a-different-saved-account"),
+                AcmeResponseObserver::default(),
+            )
+            .await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(
+        runtime
+            .certificate_store
+            .load_acme_account(request.environment)
+            .await
+            .unwrap()
+            .unwrap(),
+        credentials
+    );
+}

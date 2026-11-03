@@ -122,6 +122,56 @@ fn usage() -> Reference {
 }
 
 #[tokio::test]
+async fn persisted_permission_checks_are_bound_to_the_connection_zone_and_owner() {
+    let fixture = fixture().await;
+    let mut state = fixture.store.lock().await.unwrap();
+    let mut entry = Store::registry(&mut state).unwrap().connections[0].clone();
+    drop(state);
+    let valid = PermissionCheck {
+        zone_id: ZONE.into(),
+        intent: DnsRecordIntent::new(ID, "rp-verify.example.com", "probe-value").unwrap(),
+    };
+    entry.pending_checks = vec![valid.clone()];
+    assert_eq!(validate_pending(&entry), Ok(()));
+    for mutation in 0..6 {
+        let mut bad = entry.clone();
+        match mutation {
+            0 => bad.pending_checks = vec![valid.clone(); 51],
+            1 => bad.pending_checks[0].zone_id = UNRELATED.into(),
+            2 => bad.pending_checks[0].intent.name = "outside.example.org".into(),
+            3 => bad.pending_checks[0].intent.marker = "rentnerproxy-acme:another-owner".into(),
+            4 => bad.pending_checks[0].intent.value = String::new(),
+            _ => bad.pending_checks[0].intent.unconfirmed_write = true,
+        }
+        assert_eq!(
+            validate_pending(&bad),
+            Err(Error::StoreUnavailable),
+            "mutation {mutation}"
+        );
+    }
+    entry.metadata.provider = "desec".into();
+    entry.metadata.zones[0].name = "example.com".into();
+    entry.pending_checks[0].intent =
+        DnsRecordIntent::new(ID, "example.com", "probe-value").unwrap();
+    assert_eq!(validate_pending(&entry), Ok(()));
+    entry.metadata.provider = "cloudflare".into();
+    assert_eq!(validate_pending(&entry), Err(Error::StoreUnavailable));
+    for zone in [
+        "_acme-challenge.rp-verify.invalid",
+        "_acme-challenge.example.com",
+    ] {
+        entry.metadata.zones[0].name = zone.into();
+        entry.pending_checks[0].intent = permission_probe(ID, zone, "probe-value").unwrap();
+        assert_eq!(validate_pending(&entry), Ok(()));
+        entry.pending_checks[0].intent.marker = "rentnerproxy-acme:another-owner".into();
+        assert_eq!(validate_pending(&entry), Err(Error::StoreUnavailable));
+    }
+    assert!(permission_probe(ID, "example.com", "probe-value").is_err());
+    assert!(permission_probe("../invalid", "_acme-challenge.example.com", "probe-value").is_err());
+    assert!(permission_probe(ID, "_bad zone.example.com", "probe-value").is_err());
+}
+
+#[tokio::test]
 async fn verification_proves_write_and_cleanup_without_touching_unrelated_records() {
     let fixture = fixture().await;
     assert_eq!(

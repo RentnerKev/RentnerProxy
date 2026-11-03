@@ -7,6 +7,205 @@ use std::sync::Mutex;
 const ID: &str = "0198d98a-0000-7000-8000-000000000281";
 const DIRECTORY: &str = "https://ca.example.test/directory";
 
+#[test]
+fn trusted_transport_manual_preparation_and_restart_preserve_account_and_proofs() {
+    const CHILD: &str = "RENTNERPROXY_MANUAL_TRANSPORT_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let (runtime, request, operation, path) = setup().await;
+            assert!(matches!(
+                runtime
+                    .prepare_manual_dns(ID, &request, &operation)
+                    .await
+                    .unwrap(),
+                ManualOutcome::Paused
+            ));
+            let (_, saved) = runtime
+                .certificate_store
+                .load_manual_dns_order(ID)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(saved.records.len(), 2);
+            assert_ne!(saved.records[0].value, saved.records[1].value);
+            assert_eq!(saved.phase, ManualDnsPhase::AwaitingInput);
+            std::fs::remove_dir_all(path).unwrap();
+            let (runtime, request, operation, path) = setup().await;
+            let (_, identity, _) = runtime
+                .manual_acme_account(ID, &request, None, AcmeResponseObserver::default())
+                .await
+                .unwrap();
+            let credentials = runtime
+                .certificate_store
+                .load_acme_account(request.environment)
+                .await
+                .unwrap()
+                .unwrap();
+            let mut saved = saved;
+            saved.operation_id = operation.clone();
+            saved.challenge_set_id = operation;
+            saved.account_identity = identity.clone();
+            // A crash after the order checkpoint but before proof discovery must re-park.
+            saved.records.clear();
+            saved.phase = ManualDnsPhase::CheckingDns;
+            runtime
+                .certificate_store
+                .store_manual_dns_order(ID, saved.clone())
+                .await
+                .unwrap();
+            assert!(matches!(
+                runtime
+                    .resume_manual_dns(ID, &request, saved)
+                    .await
+                    .unwrap(),
+                ManualOutcome::Paused
+            ));
+            let (_, restored) = runtime
+                .certificate_store
+                .load_manual_dns_order(ID)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(restored.records.len(), 2);
+            assert_eq!(restored.account_identity, identity);
+            assert_eq!(
+                runtime
+                    .certificate_store
+                    .load_acme_account(request.environment)
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                credentials
+            );
+            let mut http = request.clone();
+            let _ = begin_continue(&runtime).await;
+            http.challenge_type = crate::runtime::certificates::AcmeChallengeType::Http01;
+            let mut registered = Vec::new();
+            let mut intents = Vec::new();
+            assert!(matches!(
+                runtime
+                    .issue_acme(
+                        ID,
+                        &http,
+                        &crate::server::challenges::ChallengeStore::new(),
+                        &mut registered,
+                        None,
+                        &mut intents
+                    )
+                    .await,
+                Err(CertificateError::AcmeFailed)
+            ));
+            assert!(registered.is_empty() && intents.is_empty());
+            std::fs::remove_dir_all(path).unwrap();
+        });
+        return;
+    }
+    crate::runtime::tls::ensure_crypto_provider();
+    let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_owned()]).unwrap();
+    let config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![cert.cert.der().clone()],
+            rustls::pki_types::PrivatePkcs8KeyDer::from(cert.signing_key.serialize_der()).into(),
+        )
+        .unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let origin = format!("https://{}", listener.local_addr().unwrap());
+    let pem = std::env::temp_dir().join(format!(
+        "rentnerproxy-manual-ca-{}.pem",
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
+    ));
+    std::fs::write(&pem, cert.cert.pem()).unwrap();
+    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stopping = Arc::clone(&stop);
+    let base = origin.clone();
+    let server = std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        while !stopping.load(std::sync::atomic::Ordering::SeqCst) {
+            let (socket, _) = match listener.accept() {
+                Ok(socket) => socket,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+                Err(error) => panic!("{error}"),
+            };
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut stream = rustls::StreamOwned::new(
+                rustls::ServerConnection::new(Arc::new(config.clone())).unwrap(),
+                socket,
+            );
+            let mut request = Vec::new();
+            loop {
+                let mut bytes = [0; 4096];
+                let n = stream.read(&mut bytes).unwrap();
+                assert!(n > 0 && request.len() < 65536);
+                request.extend_from_slice(&bytes[..n]);
+                if let Some(end) = request.windows(4).position(|p| p == b"\r\n\r\n") {
+                    let head = String::from_utf8_lossy(&request[..end]);
+                    let length = head
+                        .lines()
+                        .find_map(|line| {
+                            line.split_once(':')
+                                .filter(|(key, _)| key.eq_ignore_ascii_case("content-length"))
+                                .map(|(_, value)| value.trim().parse::<usize>().unwrap())
+                        })
+                        .unwrap_or(0);
+                    if request.len() >= end + 4 + length {
+                        break;
+                    }
+                }
+            }
+            let request = String::from_utf8(request).unwrap();
+            let path = request.split_whitespace().nth(1).unwrap();
+            let expires = (OffsetDateTime::now_utc() + time::Duration::days(2))
+                .format(&Rfc3339)
+                .unwrap();
+            let value = match path {
+                "/directory" => {
+                    json!({"newNonce":format!("{base}/nonce"),"newAccount":format!("{base}/accounts"),"newOrder":format!("{base}/orders")})
+                }
+                "/nonce" => Value::Null,
+                "/accounts" | "/account/1" => json!({"status":"valid"}),
+                "/orders" | "/order/1" => {
+                    json!({"status":"pending","expires":expires,"authorizations":[format!("{base}/auth/apex"),format!("{base}/auth/wildcard")],"finalize":format!("{base}/finalize")})
+                }
+                "/auth/apex" | "/auth/wildcard" => {
+                    json!({"identifier":{"type":"dns","value":"example.com"},"wildcard":path.ends_with("wildcard"),"status":"pending","expires":expires,"challenges":[{"type":"dns-01","url":format!("{base}/challenge{path}"),"token":path,"status":"pending"}]})
+                }
+                _ => panic!("unexpected network request {path}"),
+            };
+            let body = if path == "/nonce" {
+                String::new()
+            } else {
+                value.to_string()
+            };
+            let location = if path == "/accounts" {
+                format!("location: {base}/account/1\r\n")
+            } else if path == "/orders" {
+                format!("location: {base}/order/1\r\n")
+            } else {
+                String::new()
+            };
+            write!(stream,"HTTP/1.1 200 OK\r\nreplay-nonce: nonce\r\n{location}content-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",body.len()).unwrap();
+            stream.flush().unwrap();
+        }
+    });
+    let output=std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","runtime::acme::manual::tests::trusted_transport_manual_preparation_and_restart_preserve_account_and_proofs","--nocapture"]).env(CHILD,"1").env("RENTNERPROXY_ACME_TEST_DIRECTORY_URL",format!("{origin}/directory")).env("RENTNERPROXY_ACME_TEST_ROOT_CERT",&pem).output().unwrap();
+    stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    server.join().unwrap();
+    std::fs::remove_file(pem).unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 struct CaState {
     status: String,
     calls: Vec<(String, Value)>,
@@ -1386,4 +1585,185 @@ async fn invalid_order_before_persistence_remains_terminal_without_retry() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn manual_validation_never_retriggers_completed_or_invalid_ca_challenges() {
+    for (patch, accepted) in [
+        (json!({"status":"valid"}), true),
+        (json!({"status":"invalid"}), false),
+        (json!({"challenges":[]}), false),
+        (
+            json!({"challenges":[{"type":"dns-01","url":"https://ca.example.test/challenge/apex","token":"apex-token","status":"processing"}]}),
+            true,
+        ),
+        (
+            json!({"challenges":[{"type":"dns-01","url":"https://ca.example.test/challenge/apex","token":"apex-token","status":"valid"}]}),
+            true,
+        ),
+        (
+            json!({"challenges":[{"type":"dns-01","url":"https://ca.example.test/challenge/apex","token":"apex-token","status":"invalid"}]}),
+            false,
+        ),
+    ] {
+        let (runtime, request, operation, _) = setup().await;
+        let mut ca = ManualCa::new();
+        prepare(&runtime, &request, &operation, &ca).await.unwrap();
+        let (_, mut saved) = begin_continue(&runtime).await;
+        ca.authorization_patch = Some(patch);
+        let mut order = ca
+            .account()
+            .await
+            .order(saved.order_url.clone())
+            .await
+            .unwrap();
+        let result = runtime
+            .validate_manual_dns_check(ID, &mut order, &mut saved, Ok(()))
+            .await;
+        if accepted {
+            assert_eq!(result, Ok(false));
+            assert_eq!(saved.phase, ManualDnsPhase::Validating);
+            assert!(saved.last_checked_at.is_some());
+        } else {
+            assert_eq!(result, Err(CertificateError::ManualDnsOrderInvalid));
+        }
+        assert_eq!(ca.count("/challenge/apex"), 0);
+        assert_eq!(ca.count("/challenge/wildcard"), 0);
+        assert_eq!(ca.count("/finalize"), 0);
+    }
+}
+
+#[tokio::test]
+async fn invalid_ca_order_cannot_finalize_or_publish_saved_key() {
+    let (runtime, request, operation, _) = setup().await;
+    let ca = ManualCa::new();
+    prepare(&runtime, &request, &operation, &ca).await.unwrap();
+    let (_, saved) = begin_continue(&runtime).await;
+    ca.state.lock().unwrap().status = "invalid".into();
+    let mut order = ca
+        .account()
+        .await
+        .order(saved.order_url.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        order_error(&mut order),
+        CertificateError::ManualDnsOrderInvalid
+    );
+    assert!(matches!(
+        runtime
+            .finish_manual_order(ID, &request, &mut order, saved)
+            .await,
+        Err(CertificateError::ManualDnsOrderInvalid)
+    ));
+    assert_eq!(ca.count("/finalize"), 0);
+    assert_eq!(ca.count("/cert"), 0);
+    assert!(
+        runtime
+            .certificate_store
+            .get(ID)
+            .await
+            .unwrap()
+            .fingerprint
+            .is_none()
+    );
+}
+
+#[test]
+fn expiry_validation_rejects_malformed_times_and_never_extends_ca_deadline() {
+    let early = "2035-01-01T00:00:00Z";
+    let late = "2036-01-01T00:00:00Z";
+    assert_eq!(earlier_expiry(early, late).unwrap(), early);
+    assert_eq!(earlier_expiry(late, early).unwrap(), early);
+    assert_eq!(earlier_expiry(early, early).unwrap(), early);
+    assert_eq!(
+        earlier_expiry("malformed", early),
+        Err(CertificateError::AcmeFailed)
+    );
+    assert_eq!(
+        earlier_expiry(early, "malformed"),
+        Err(CertificateError::AcmeFailed)
+    );
+    assert_eq!(
+        require_unexpired("malformed"),
+        Err(CertificateError::ManualDnsOrderInvalid)
+    );
+    assert_eq!(
+        require_same_origin("%%%", DIRECTORY),
+        Err(CertificateError::ManualDnsOrderInvalid)
+    );
+    assert_eq!(
+        require_same_origin("https://ca.example.test/order", "%%%"),
+        Err(CertificateError::ManualDnsOrderInvalid)
+    );
+}
+
+#[tokio::test]
+async fn restart_during_dns_check_reparks_persisted_proofs_for_operator_confirmation() {
+    let (runtime, request, operation, directory) = setup().await;
+    let ca = ManualCa::new();
+    prepare(&runtime, &request, &operation, &ca).await.unwrap();
+    let (_, checking) = begin_continue(&runtime).await;
+    assert_eq!(checking.phase, ManualDnsPhase::CheckingDns);
+    assert!(!checking.records.is_empty());
+    drop(runtime);
+    let restored = ProxyRuntime::new(crate::runtime::RuntimeSettings::new(directory, 0), None);
+    restored.certificate_store.initialize().await.unwrap();
+    let (_, parked) = restored
+        .certificate_store
+        .load_manual_dns_order(ID)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(parked.phase, ManualDnsPhase::AwaitingInput);
+    assert_eq!(parked.records, checking.records);
+    assert_eq!(parked.order_url, checking.order_url);
+    assert_eq!(parked.operation_id, checking.operation_id);
+    assert_eq!(
+        restored
+            .certificate_store
+            .get(ID)
+            .await
+            .unwrap()
+            .current_operation
+            .unwrap()
+            .stage,
+        CertificateOperationStage::AwaitingDns
+    );
+    assert!(
+        restored
+            .certificate_store
+            .pending_manual_dns_resume_ids()
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(ca.count("/challenge/apex"), 0);
+    assert_eq!(ca.count("/finalize"), 0);
+}
+
+#[tokio::test]
+async fn manual_order_debug_output_never_exposes_account_proofs_key_or_csr() {
+    let (runtime, request, operation, _) = setup().await;
+    prepare(&runtime, &request, &operation, &ManualCa::new())
+        .await
+        .unwrap();
+    let mut saved = saved_order(&runtime).await;
+    saved.private_key_pem = Some("private-key-secret-fixture".into());
+    saved.csr_der = Some(b"csr-secret-fixture".to_vec());
+    let rendered = format!("{saved:?}");
+    assert!(rendered.contains(&saved.operation_id));
+    assert!(rendered.contains("AwaitingInput"));
+    for confidential in [
+        saved.private_key_pem.as_deref().unwrap(),
+        "csr-secret-fixture",
+        saved.account_identity.as_str(),
+        saved.order_url.as_str(),
+        saved.records[0].value.as_str(),
+    ] {
+        assert!(
+            !rendered.contains(confidential),
+            "manual order debug leaked sensitive field"
+        );
+    }
 }

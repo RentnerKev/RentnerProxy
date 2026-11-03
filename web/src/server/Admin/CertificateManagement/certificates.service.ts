@@ -731,7 +731,8 @@ export async function searchCertificatesService(
         .select({
             id: certificates.id,
             label: certificates.name,
-            detail: sql<string>`coalesce((select ${certificateDomains.domain} from ${certificateDomains} where ${certificateDomains.certificateId} = ${certificates.id} order by ${certificateDomains.domain} limit 1), '')`,
+            // SELECT projections strip column qualifiers; retain the outer relation explicitly.
+            detail: sql<string>`coalesce((select ${certificateDomains.domain} from ${certificateDomains} where ${certificateDomains.certificateId} = ${certificates}.${sql.identifier(certificates.id.name)} order by ${certificateDomains.domain} limit 1), '')`,
         })
         .from(certificates)
         .where(
