@@ -8,8 +8,11 @@ import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act } = await import('react')
-const { createRoot } = await import('react-dom/client')
+const { createRoot, hydrateRoot } = await import('react-dom/client')
+const { renderToString } = await import('react-dom/server')
 const { Chart } = await import('@tanstack/charts/react')
+const { default: MonitoringDurationChart } =
+    await import('@/features/Admin/HostMonitoring/Components/MonitoringDurationChart/index.tsx')
 const { default: useMonitoringDurationChartLogic } =
     await import('@/features/Admin/HostMonitoring/Components/MonitoringDurationChart/Hooks/useMonitoringDurationChartLogic.ts')
 
@@ -90,6 +93,58 @@ afterEach(async () => {
     rendered = null
     spies.splice(0).forEach((spy) => spy.mockRestore())
     document.body.replaceChildren()
+})
+
+test('production duration chart hydrates its server SVG and preserves accessible measurements', async () => {
+    const chart = withTestLanguage(
+        <MonitoringDurationChart
+            observations={[sample(3, 2_300, 'unhealthy'), sample(2, null, 'unknown'), sample(1, 0)]}
+        />,
+    )
+    const recoverableErrors: unknown[] = []
+    const consoleErrors = spyOn(console, 'error').mockImplementation(() => undefined)
+    spies.push(consoleErrors)
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(chart)
+    document.body.append(container)
+    const serverSvg = container.querySelector('svg')!
+    expect(serverSvg).not.toBeNull()
+    expect(container.querySelector('figcaption')?.textContent).toBe('Response duration')
+    expect(serverSvg.getAttribute('aria-label')).toBe('Response duration')
+    expect(serverSvg.querySelector('desc')?.textContent).toBe(
+        'Response times for the displayed checks. Missing responses leave gaps.',
+    )
+    expect(serverSvg.querySelector('path')).not.toBeNull()
+
+    await act(async () => {
+        root = hydrateRoot(container, chart, {
+            onRecoverableError: (error) => recoverableErrors.push(error),
+        })
+    })
+    await flush()
+    expect(container.querySelector('svg')).toBe(serverSvg)
+    expect(serverSvg.getAttribute('aria-label')).toBe('Response duration')
+    expect(serverSvg.getAttribute('tabindex')).toBe('0')
+    expect(serverSvg.querySelector('desc')?.textContent).toBe(
+        'Response times for the displayed checks. Missing responses leave gaps.',
+    )
+    spies.push(
+        spyOn(serverSvg, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 640, 180)),
+    )
+    await act(async () => serverSvg.dispatchEvent(new FocusEvent('focusin', { bubbles: true })))
+    await flush()
+    expect(tooltipText()).toContain('0 ms')
+    await act(async () =>
+        serverSvg.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
+        ),
+    )
+    await flush()
+    expect(tooltipText()).toContain('2,300 ms')
+    expect(tooltipText()).toContain('Unhealthy')
+    expect(tooltipText()).toContain('HTTP status: 503')
+    expect(recoverableErrors).toEqual([])
+    expect(consoleErrors.mock.calls).toEqual([])
 })
 
 test('TanStack pointer inspection shows exact duration, time, health and HTTP status', async () => {

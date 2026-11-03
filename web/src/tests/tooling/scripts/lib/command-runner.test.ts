@@ -83,6 +83,7 @@ describe('check modes', () => {
                 },
             }),
         ).toBe(0)
+        expect(executed).toContain('dependencies:check')
         expect(executed).toContain('typecheck')
         expect(executed).toContain('test:ts')
         expect(
@@ -103,6 +104,7 @@ describe('check modes', () => {
                     },
                 })
                 expect(exitCode).toBe(fuzzExit)
+                expect(executed).toContain('dependencies:check')
                 expect(executed).toContain('typecheck:scripts')
                 expect(executed).not.toContain('typecheck')
                 expect(executed.some((script) => script.startsWith('db:'))).toBeFalse()
@@ -112,6 +114,26 @@ describe('check modes', () => {
                 expect(executed.filter((script) => script === 'build:core')).toHaveLength(
                     fuzzExit ? 0 : 1,
                 )
+            }),
+        )
+    })
+
+    test('dependency failures stop both check modes before lint, tests and builds', async () => {
+        await Promise.all(
+            [[], ['--full']].map(async (args) => {
+                const executed: string[] = []
+                const output: string[] = []
+                const exitCode = await runCheck(args, {
+                    logger: createOutputLogger(output),
+                    runStep: async (step) => {
+                        executed.push(step.script)
+                        return step.script === 'dependencies:check' ? 7 : 0
+                    },
+                })
+
+                expect(exitCode).toBe(7)
+                expect(executed).toEqual(['format:check', 'dependencies:check'])
+                expect(output.some((line) => line.includes('All checks passed'))).toBeFalse()
             }),
         )
     })
