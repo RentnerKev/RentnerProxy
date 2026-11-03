@@ -432,6 +432,14 @@ jobs:
             - name: Prepare isolated Caddy Go cache mounts
               run: mkdir -p .cache/caddy-go/mod .cache/caddy-go/build
 
+            - name: Verify native binary metadata policies
+              run: |
+                  docker run --rm --workdir /src \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/docker/tooling/buildinfo,target=/src,readonly" \
+                    --env GOTOOLCHAIN=local --env GOWORK=off \
+                    mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 \
+                    /bin/sh -ec 'go test -race -count=1 verify.go verify_test.go; go vet verify.go verify_test.go; test -z "$(gofmt -l .)"'
+
             - name: Verify module checksums, race safety and formatting
               run: |
                   docker run --rm --workdir /src \

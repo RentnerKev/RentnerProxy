@@ -33,6 +33,9 @@
 !core/tests/**
 
 !docker/
+!docker/tooling/
+!docker/tooling/buildinfo/
+!docker/tooling/buildinfo/**
 !docker/caddy/
 !docker/caddy/tooling/
 !docker/caddy/tooling/**

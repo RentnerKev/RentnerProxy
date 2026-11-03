@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "assets:accent-masks": "bun --no-env-file scripts/assets/generate-accent-art-masks.ts",
         "dev": "bun --no-orphans scripts/dev.ts",
         "dev:web": "bun --bun vite --configLoader native --config vite.config.ts",
         "dev:core": "bun --no-orphans scripts/dev-core.ts",

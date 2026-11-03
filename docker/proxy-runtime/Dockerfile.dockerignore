@@ -9,9 +9,11 @@
 !core/caddy-modules/responsecache/**
 
 !docker/
+!docker/tooling/
+!docker/tooling/buildinfo/
+!docker/tooling/buildinfo/**
 !docker/caddy/
 !docker/caddy/tooling/
-!docker/caddy/tooling/verify-buildinfo.sh
 !docker/caddy/tooling/build.sh
 !docker/licenses/
 !docker/licenses/Caddy-LICENSE
