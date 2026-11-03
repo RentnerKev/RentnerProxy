@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { coverageThreshold } from './coverage.config.ts'
 import { assertCoverageSourcesUnchanged, createCoverageBaseline } from './sources.ts'
 import { clearPublishedCoverage } from './published.ts'
+import { remapTypescriptCoverage } from './original.ts'
 import {
     coverageFailures,
     formatCoverageResults,
@@ -46,7 +47,7 @@ export async function runTypescriptCoverage(args: string[] = []): Promise<number
     }
     const run = await mkdtemp(join(output, 'run-'))
     const cacheDirectory = join(run, 'instrumented')
-    const { baseline, excluded, hashes } = await createCoverageBaseline(
+    const { baseline, excluded, hashes, sourceMaps } = await createCoverageBaseline(
         repositoryRoot,
         cacheDirectory,
     )
@@ -57,6 +58,7 @@ export async function runTypescriptCoverage(args: string[] = []): Promise<number
         JSON.stringify({ repositoryRoot, outputDirectory: run, cacheDirectory, files }),
     )
     await writeFile(join(run, 'baseline.json'), JSON.stringify(baseline))
+    await writeFile(join(run, 'source-maps.json'), JSON.stringify(sourceMaps))
     await writeFile(
         join(output, 'sources.json'),
         JSON.stringify({ files, hashes, excluded }, null, 2),
@@ -105,7 +107,11 @@ export async function runTypescriptCoverage(args: string[] = []): Promise<number
             .toSorted()
             .map(async (name) => JSON.parse(await readFile(join(raw, name), 'utf8')) as unknown),
     )
-    const merged = mergeTypescriptCoverage(baseline, snapshots)
+    const merged = await remapTypescriptCoverage(
+        mergeTypescriptCoverage(baseline, snapshots),
+        sourceMaps,
+        repositoryRoot,
+    )
     const groups = typescriptCoverageResults(merged)
     const summary = { version: 1, minimum: coverageThreshold, groups, testExitCode: status }
     await writeFile(join(output, 'coverage.json'), JSON.stringify(merged.toJSON()))

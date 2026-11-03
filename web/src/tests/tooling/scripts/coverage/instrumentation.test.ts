@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { createCoverageMap } from 'istanbul-lib-coverage'
-import type { CoverageMapData, FileCoverageData } from 'istanbul-lib-coverage'
+import { createCoverageMap } from '@vitest/istanbul-lib-coverage'
+import type { CoverageMapData, FileCoverageData } from '@vitest/istanbul-lib-coverage'
+import { createSourceMapStore } from '@vitest/istanbul-lib-source-maps'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,19 +18,68 @@ const source = [
 ].join('\n')
 
 describe('source coverage instrumentation', () => {
-    test('preserves original TSX coordinates and distinguishes same-line anonymous functions', () => {
+    test('preserves original TSX coordinates and distinguishes same-line anonymous functions', async () => {
         const result = instrumentCoverageSource(
             `${source}\nexport const View = () => <span>hello</span>`,
             'web/src/example.tsx',
         )
-        expect(result.code).toContain('export type Input')
+        expect(result.code).not.toContain('export type Input')
         expect(result.code).toContain('<span>hello</span>')
-        const functions = Object.values(result.coverage.fnMap)
-        const arrows = functions.filter((fn) => fn.line === 6)
+        expect(result.coverage).not.toHaveProperty('inputSourceMap')
+        const store = createSourceMapStore()
+        store.registerMap(result.coverage.path, result.sourceMap)
+        const mapped = await store.transformCoverage(
+            createCoverageMap({
+                [result.coverage.path]: result.coverage,
+            }),
+        )
+        const functions = Object.values(mapped.fileCoverageFor(mapped.files()[0]!).fnMap)
+        const arrows = functions.filter((fn) => fn.loc.start.line === 6)
         expect(arrows).toHaveLength(2)
         expect(arrows[0]?.loc.start.column).not.toBe(arrows[1]?.loc.start.column)
         expect(functions[0]?.decl.start.line).toBe(2)
         expect(Object.values(result.coverage.f)).toEqual([0, 0, 0, 0])
+        expect(result.sourceMap.sourcesContent).toEqual([
+            `${source}\nexport const View = () => <span>hello</span>`,
+        ])
+        store.dispose()
+    })
+
+    test('maps Unicode columns to original UTF-16 source and counts parameter-property methods', async () => {
+        const text = [
+            '// München 🦊 keeps a non-ASCII source prefix',
+            'export type Label = string',
+            'export const label: Label = "Grüße 🦊"; export const arrows = [() => "ä", () => "🦊"]',
+            'export class Value { constructor(public readonly amount: number) {} read(): number { return this.amount } }',
+        ].join('\n')
+        const filename = 'web/src/unicode.ts'
+        const result = instrumentCoverageSource(text, filename)
+        const store = createSourceMapStore()
+        store.registerMap(filename, result.sourceMap)
+        const mapped = await store.transformCoverage(
+            createCoverageMap({
+                [filename]: result.coverage,
+            }),
+        )
+        const functions = Object.values(mapped.fileCoverageFor(mapped.files()[0]!).fnMap)
+        const arrows = functions.filter((fn) => fn.loc.start.line === 3)
+        expect(arrows).toHaveLength(2)
+        const line = text.split('\n')[2]!
+        expect(arrows.map((fn) => fn.loc.start.column)).toEqual([
+            line.indexOf('"ä"'),
+            line.lastIndexOf('"🦊"'),
+        ])
+        expect(functions).toHaveLength(4)
+        expect(Object.values(result.coverage.f)).toEqual([0, 0, 0, 0])
+        expect(result.code).toContain('this.amount = amount')
+        expect(result.sourceMap.sourcesContent).toEqual([text])
+        store.dispose()
+    })
+
+    test('rejects malformed TypeScript instead of creating an empty passing baseline', () => {
+        expect(() => instrumentCoverageSource('export const broken: = 1', 'broken.ts')).toThrow(
+            SyntaxError,
+        )
     })
 
     test('leaves type-only modules empty and rejects unsupported runtime TypeScript constructs', () => {
@@ -67,13 +117,13 @@ describe('source coverage instrumentation', () => {
         const cacheDirectory = join(directory, 'instrumented')
         const manifestPath = join(directory, 'manifest.json')
         const fixtureSources: Record<string, string> = {
-            'lib.tsx': source,
+            'lib.tsx': `${source}\nexport class Value { constructor(public readonly amount: number) {} read(): number { return this.amount } }\nexport const nested = () => () => 9`,
             'never.ts':
                 'throw new Error("Never-imported side effect executed"); export const never = () => 9',
             'child.ts':
                 'import {branch} from "./lib.tsx"; if (!import.meta.main || import.meta.file !== "child.ts" || import.meta.dir.endsWith("instrumented") || branch(7) !== 7) throw new Error("child failed")',
             'a.test.ts':
-                'import {test,expect} from "bun:test"; import {branch,arrows} from "./lib.tsx"; test("positive",()=>{expect(branch(1)).toBe(1);expect(arrows[0]()).toBe(3)})',
+                'import {test,expect} from "bun:test"; import {branch,arrows,Value,nested} from "./lib.tsx"; test("positive",()=>{expect(branch(1)).toBe(1);expect(arrows[0]()).toBe(3);expect(new Value(8).read()).toBe(8);expect(typeof nested()).toBe("function")})',
             'b.test.ts':
                 'import {test,expect} from "bun:test"; import {branch,arrows} from "./lib.tsx"; test("negative",async()=>{expect(branch(-2)).toBe(2);expect(arrows[1]()).toBe(4); const child=Bun.spawn([process.execPath,"--no-env-file",import.meta.dir+"/child.ts"],{stdout:"ignore",stderr:"inherit"});expect(await child.exited).toBe(0)})',
         }
@@ -143,6 +193,7 @@ describe('source coverage instrumentation', () => {
                 .filter((coverage): coverage is FileCoverageData => Boolean(coverage))
             expect(hits.some((coverage) => coverage.f[1] === 1 && coverage.f[2] === 0)).toBe(true)
             expect(hits.some((coverage) => coverage.f[1] === 0 && coverage.f[2] === 1)).toBe(true)
+            expect(hits.some((coverage) => coverage.f[5] === 1 && coverage.f[6] === 0)).toBe(true)
             expect(snapshots.some((snapshot) => Boolean(snapshot['child.ts']))).toBe(true)
             const coverage = createCoverageMap({})
             for (const filename of files) {
@@ -152,9 +203,9 @@ describe('source coverage instrumentation', () => {
             }
             for (const snapshot of snapshots) coverage.merge(snapshot)
             expect(coverage.fileCoverageFor('lib.tsx').toSummary().functions).toMatchObject({
-                total: 3,
-                covered: 3,
-                pct: 100,
+                total: 7,
+                covered: 6,
+                pct: 85.71,
             })
             expect(coverage.fileCoverageFor('never.ts').toSummary().functions).toMatchObject({
                 total: 1,

@@ -1,5 +1,6 @@
-import { parse } from '@babel/parser'
-import { createInstrumenter } from 'istanbul-lib-instrument'
+import { createInstrumenter } from '@vitest/istanbul-lib-instrument'
+import { basename } from 'node:path'
+import { parseSync, transformSync } from 'rolldown/utils'
 import type { InstrumentedCoverageSource } from './Types/instrumentation.types.ts'
 
 function rejectUnsupportedRuntimeSyntax(node: unknown, filename: string): void {
@@ -36,18 +37,36 @@ export function instrumentCoverageSource(
     source: string,
     filename: string,
 ): InstrumentedCoverageSource {
-    rejectUnsupportedRuntimeSyntax(
-        parse(source, { sourceType: 'module', plugins: ['typescript', 'jsx'] }),
-        filename,
-    )
+    const lang = filename.endsWith('.tsx') ? 'tsx' : 'ts'
+    const parsed = parseSync(filename, source, { sourceType: 'module', lang })
+    const parseError = parsed.errors.find((error) => error.severity === 'Error')
+    if (parseError) throw new SyntaxError(`${filename}: ${parseError.message}`)
+    rejectUnsupportedRuntimeSyntax(parsed.program, filename)
+    // The instrumenter's public parser accepts JavaScript/JSX, so strip types
+    // with Oxc first and retain its map for reporting against untouched sources.
+    const transformed = transformSync(filename, source, {
+        lang,
+        sourceType: 'module',
+        jsx: 'preserve',
+        target: 'esnext',
+        tsconfig: false,
+        sourcemap: true,
+    })
+    if (transformed.errors.length > 0) throw transformed.errors[0]
+    if (!transformed.map) throw new Error(`Coverage source map missing: ${filename}`)
+    // Source-map names resolve relative to the generated file, not the repo root.
+    const inputSourceMap = {
+        ...transformed.map,
+        version: 3 as const,
+        sources: [basename(filename)],
+    }
     const instrumenter = createInstrumenter({
         esModules: true,
         coverageVariable: 'rentnerproxyCoverage',
-        parserPlugins: ['typescript', 'jsx'],
         coverageGlobalScope: 'globalThis',
         coverageGlobalScopeFunc: false,
-        preserveComments: true,
+        inputSourceMap: false,
     })
-    const code = instrumenter.instrumentSync(source, filename)
-    return { code, coverage: instrumenter.lastFileCoverage() }
+    const code = instrumenter.instrumentSync(transformed.code, filename, inputSourceMap)
+    return { code, coverage: instrumenter.lastFileCoverage(), sourceMap: inputSourceMap }
 }

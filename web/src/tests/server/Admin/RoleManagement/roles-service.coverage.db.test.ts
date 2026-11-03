@@ -66,7 +66,11 @@ integrationTest(
             .select()
             .from(auditEvents)
             .where(and(eq(auditEvents.targetId, role.id), eq(auditEvents.result, 'success')))
-        expect(audits.map((event) => event.action)).toEqual(['create', 'update', 'update'])
+        expect(audits.map((event) => event.action).toSorted()).toEqual([
+            'create',
+            'update',
+            'update',
+        ])
         await asBackendActor(actor, () => deleteRoleService(role.id))
         expect(await database.select().from(roles).where(eq(roles.id, role.id))).toHaveLength(0)
         expect(

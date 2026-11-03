@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { CoverageMapData, FileCoverageData } from 'istanbul-lib-coverage'
+import type { CoverageMapData, FileCoverageData } from '@vitest/istanbul-lib-coverage'
 import { instrumentCoverageSource } from '../../../../../../scripts/coverage/instrumentation.ts'
 import {
     coverageCount,

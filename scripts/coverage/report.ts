@@ -1,5 +1,5 @@
-import { createCoverageMap } from 'istanbul-lib-coverage'
-import type { CoverageMap, CoverageMapData, FileCoverageData } from 'istanbul-lib-coverage'
+import { createCoverageMap } from '@vitest/istanbul-lib-coverage'
+import type { CoverageMap, CoverageMapData, FileCoverageData } from '@vitest/istanbul-lib-coverage'
 import { coverageThreshold, typescriptCoverageGroups } from './coverage.config.ts'
 import type { CoverageCount, CoverageResult } from './Types/report.types.ts'
 
@@ -45,6 +45,7 @@ function validateSnapshot(
 ): asserts value is FileCoverageData {
     const actual = record(value)
     if (actual.path !== expected.path) throw new Error('Coverage source path differs.')
+    if ('inputSourceMap' in actual) throw new Error('Unexpected snapshot source map.')
     for (const field of ['statementMap', 'fnMap', 'branchMap'] as const) {
         if (JSON.stringify(actual[field]) !== JSON.stringify(expected[field]))
             throw new Error('Coverage source maps differ; rerun with a fresh baseline.')
@@ -64,9 +65,8 @@ export function mergeTypescriptCoverage(
     for (const snapshot of snapshots) {
         for (const [filename, value] of Object.entries(record(snapshot))) {
             const expected = baseline[filename]
-            if (!expected || !('statementMap' in expected))
-                throw new Error('Unexpected coverage source: ' + filename)
-            validateSnapshot(value, expected)
+            if (!expected) throw new Error('Unexpected coverage source: ' + filename)
+            validateSnapshot(value, 'toJSON' in expected ? expected.toJSON() : expected)
             merged.merge({ [filename]: value })
         }
     }

@@ -1,8 +1,10 @@
-import type { FileCoverageData } from 'istanbul-lib-coverage'
+import type { FileCoverageData } from '@vitest/istanbul-lib-coverage'
+import type { InputSourceMap } from '@vitest/istanbul-lib-instrument'
 
 export type InstrumentedCoverageSource = {
     code: string
     coverage: FileCoverageData
+    sourceMap: InputSourceMap
 }
 
 export type CoverageManifest = {

@@ -3,7 +3,8 @@ import { lstat, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { coverageSourceExclusions, coverageSourceRoots } from './coverage.config.ts'
 import { instrumentCoverageSource } from './instrumentation.ts'
-import type { CoverageMapData } from 'istanbul-lib-coverage'
+import type { CoverageMapData } from '@vitest/istanbul-lib-coverage'
+import type { InputSourceMap } from '@vitest/istanbul-lib-instrument'
 import type { CoverageBaseline, ExcludedCoverageSource } from './Types/report.types.ts'
 
 function sourceName(repositoryRoot: string, absolute: string): string {
@@ -81,7 +82,7 @@ export async function createCoverageBaseline(
             }
             const source = await readFile(absolute, 'utf8')
             const hash = sourceHash(source)
-            const { code, coverage } = instrumentCoverageSource(source, filename)
+            const { code, coverage, sourceMap } = instrumentCoverageSource(source, filename)
             if (
                 Object.keys(coverage.statementMap).length === 0 &&
                 Object.keys(coverage.fnMap).length === 0
@@ -93,16 +94,19 @@ export async function createCoverageBaseline(
                 await mkdir(dirname(destination), { recursive: true })
                 await writeFile(destination, code)
             }
-            return { filename, hash, coverage }
+            return { filename, hash, coverage, sourceMap }
         }),
     )
     const baseline: CoverageMapData = {}
     const excluded: ExcludedCoverageSource[] = []
     const hashes: Record<string, string> = {}
+    const sourceMaps: Record<string, InputSourceMap> = {}
     for (const record of records) {
         if (record.hash) hashes[record.filename] = record.hash
-        if (record.coverage) baseline[record.filename] = record.coverage
-        else excluded.push({ path: record.filename, reason: record.reason! })
+        if (record.coverage) {
+            baseline[record.filename] = record.coverage
+            sourceMaps[record.filename] = record.sourceMap!
+        } else excluded.push({ path: record.filename, reason: record.reason! })
     }
-    return { baseline, excluded, hashes }
+    return { baseline, excluded, hashes, sourceMaps }
 }
