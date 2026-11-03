@@ -3,20 +3,15 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { createMiddlewareHarness } from '@/tests/Helpers/middlewareCoverage.ts'
 
 const boundary = createMiddlewareHarness()
-boundary.mockServices('@/server/Auth/Account/account.service.ts', [
-    'changeCurrentPasswordService',
-    'reauthenticateCurrentSessionWithPasswordService',
-])
+boundary.mockServices('@/server/Auth/Account/account.service.ts', ['changeCurrentPasswordService'])
 boundary.mockServices('@/server/Auth/Account/profile-image.service.ts', [
     'getProfileImageAssetService',
     'updateCurrentProfileImageService',
 ])
 boundary.mockServices('@/server/Auth/Passkey/passkey.service.ts', [
     'beginPasskeyRegistrationService',
-    'beginPasskeyReauthenticationService',
     'deletePasskeyService',
     'finishPasskeyRegistrationService',
-    'finishPasskeyReauthenticationService',
     'getPasskeysForUserService',
     'renamePasskeyService',
 ])
@@ -47,10 +42,6 @@ const registration = {
     type: 'public-key',
     clientExtensionResults: {},
     response: { attestationObject: 'fixture', clientDataJSON: 'fixture' },
-}
-const authentication = {
-    ...registration,
-    response: { authenticatorData: 'fixture', clientDataJSON: 'fixture', signature: 'fixture' },
 }
 beforeEach(() => {
     boundary.reset()
@@ -123,37 +114,36 @@ describe('personal account boundary', () => {
         ).toEqual({ success: false, message: 'userAppearance.errors.saveFailed' })
     })
 
-    test('checks password permission, confirmation, and incorrect-current-password results', async () => {
-        const input = {
-            currentPassword: 'fixture-old',
-            password: 'fixture-new',
-            confirmPassword: 'fixture-new',
-        }
+    test('requires password permission and delegates only the new password without reauthentication fields', async () => {
+        const input = { password: 'fixture-new' }
         boundary.failures.set('requirePermissionService', new Error('denied'))
         expect(await boundary.invoke(handlers.changePasswordHandler, input)).toMatchObject({
             success: false,
         })
         expect(boundary.argumentsFor('changeCurrentPasswordService')).toEqual([])
         boundary.failures.clear()
-        for (const success of [true, false]) {
-            boundary.values.set('changeCurrentPasswordService', { success })
-            // oxlint-disable-next-line no-await-in-loop -- Each outcome changes the shared boundary fixture.
-            expect(await boundary.invoke(handlers.changePasswordHandler, input)).toMatchObject({
-                success,
-            })
-        }
+        boundary.values.set('changeCurrentPasswordService', { success: true })
+        expect(await boundary.invoke(handlers.changePasswordHandler, input)).toEqual({
+            success: true,
+            message: 'account.password.success.changed',
+        })
         expect(boundary.argumentsFor('requirePermissionService')[0]).toEqual([
             PERMISSIONS.ACCOUNT_UPDATE,
         ])
-        expect(boundary.argumentsFor('changeCurrentPasswordService')[0]).toEqual([
-            { currentPassword: 'fixture-old', password: 'fixture-new' },
-        ])
+        expect(boundary.argumentsFor('changeCurrentPasswordService')).toEqual([[input]])
+        boundary.failures.set(
+            'changeCurrentPasswordService',
+            new Error('private credential failure'),
+        )
+        expect(await boundary.invoke(handlers.changePasswordHandler, input)).toEqual({
+            success: false,
+            message: 'account.password.error.update',
+        })
+        boundary.calls.length = 0
         await expect(
-            boundary.invoke(handlers.changePasswordHandler, {
-                ...input,
-                confirmPassword: 'different',
-            }),
+            boundary.invoke(handlers.changePasswordHandler, { password: '' }),
         ).rejects.toThrow()
+        expect(boundary.argumentsFor('changeCurrentPasswordService')).toEqual([])
     })
 
     test('projects passkeys without private material and requires account-view permission', async () => {
@@ -165,7 +155,6 @@ describe('personal account boundary', () => {
         ])
         expect(await boundary.invoke(handlers.getSecurityStatusHandler)).toEqual({
             enabled: true,
-            recentlyAuthenticated: true,
             passkeys: [
                 { id, name: 'Fixture', createdAt: createdAt.toISOString(), lastUsedAt: null },
                 {
@@ -212,27 +201,6 @@ describe('personal account boundary', () => {
             'finishPasskeyRegistrationService',
             { challengeId, name: 'Fixture', response: registration },
             'setup',
-            { success: true },
-        ],
-        [
-            handlers.reauthenticatePasswordHandler,
-            'reauthenticateCurrentSessionWithPasswordService',
-            { credential: 'fixture-password' },
-            'login',
-            true,
-        ],
-        [
-            handlers.beginPasskeyReauthenticationHandler,
-            'beginPasskeyReauthenticationService',
-            {},
-            'login',
-            { flowId: challengeId, options: {} },
-        ],
-        [
-            handlers.finishPasskeyReauthenticationHandler,
-            'finishPasskeyReauthenticationService',
-            { challengeId, response: authentication },
-            'login',
             { success: true },
         ],
     ])(

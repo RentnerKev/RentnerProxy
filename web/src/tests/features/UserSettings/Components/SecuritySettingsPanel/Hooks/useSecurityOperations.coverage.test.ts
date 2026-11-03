@@ -29,25 +29,18 @@ const handlers = Object.fromEntries(
         'regenerateRecoveryCodesHandler',
         'removePasskeyHandler',
         'renamePasskeyHandler',
-        'beginPasskeyReauthenticationHandler',
-        'finishPasskeyReauthenticationHandler',
-        'reauthenticatePasswordHandler',
     ].map((name) => [name, endpoint(name)]),
 )
 mock.module('@/features/UserSettings/middleware.ts', () => ({
     ...handlers,
     getSecurityStatusHandler: mock(async () => ({
         passkeys: [],
-        recentlyAuthenticated: true,
         totpEnabled: false,
         recoveryCodesRemaining: 2,
     })),
 }))
 const { default: useSecurityOperations } =
     await import('@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useSecurityOperations.ts')
-const { default: useReauthentication } =
-    await import('@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts')
-
 test('real security mutations bind OTP challenges, refresh successful writes and clear recovery material', async () => {
     const hook = await mountHook(() => useSecurityOperations('user-one'))
     const invalidate = spyOn(hook.client, 'invalidateQueries')
@@ -113,43 +106,6 @@ test('real security mutations bind OTP challenges, refresh successful writes and
         await hook.run(() => hook.value.handler.resetSetup())
         await hook.run(() => hook.value.handler.resetRecoveryCodes())
         expect(hook.value.state.recoveryCodes).toBeNull()
-    } finally {
-        fail = false
-        invalidate.mockRestore()
-        await hook.dispose()
-    }
-})
-
-test('reauthentication forwards credentials and single-use assertions and reset clears password state', async () => {
-    const hook = await mountHook(useReauthentication)
-    const invalidate = spyOn(hook.client, 'invalidateQueries')
-    try {
-        await hook.run(() => hook.value.setter.setCredential('fixture-password'))
-        await hook.run(() => hook.value.handler.verifyPassword())
-        expect(calls.find((call) => call.name === 'reauthenticatePasswordHandler')?.input).toEqual({
-            data: { credential: 'fixture-password' },
-        })
-        await hook.run(() => hook.value.handler.beginPasskey())
-        const response = {
-            id: 'key',
-            rawId: 'YQ',
-            type: 'public-key' as const,
-            clientExtensionResults: {},
-            response: { clientDataJSON: 'YQ', authenticatorData: 'YQ', signature: 'YQ' },
-        }
-        await hook.run(() =>
-            hook.value.handler.finishPasskey({ challengeId: 'assertion', response }),
-        )
-        expect(
-            calls.find((call) => call.name === 'finishPasskeyReauthenticationHandler')?.input,
-        ).toEqual({ data: { challengeId: 'assertion', response } })
-        expect(invalidate).toHaveBeenCalled()
-        invalidate.mockClear()
-        fail = true
-        await hook.run(() => hook.value.handler.verifyPassword())
-        expect(invalidate).not.toHaveBeenCalled()
-        await hook.run(() => hook.value.handler.reset())
-        expect(hook.value.state.credential).toBe('')
     } finally {
         fail = false
         invalidate.mockRestore()

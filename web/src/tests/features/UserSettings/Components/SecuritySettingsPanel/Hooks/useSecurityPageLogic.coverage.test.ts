@@ -1,7 +1,6 @@
 import { expect, mock, test } from 'bun:test'
 import { mountHook } from '@/tests/features/UserSettings/hookCoverageSupport.ts'
 
-let authenticated = false
 let rejected = ''
 let throwing = ''
 const calls: { name: string; input: unknown }[] = []
@@ -24,9 +23,6 @@ const operations = Object.fromEntries(
         'finishPasskey',
         'rename',
         'remove',
-        'verifyPassword',
-        'beginAssertion',
-        'finishAssertion',
     ].map((name) => [name, operation(name)]),
 )
 mock.module('@/shared/Language/Hooks/useTranslationStore.ts', () => ({
@@ -35,7 +31,6 @@ mock.module('@/shared/Language/Hooks/useTranslationStore.ts', () => ({
 mock.module('@rentnerkev/toasts', () => ({ toast: { success: successToast, error: errorToast } }))
 mock.module('@simplewebauthn/browser', () => ({
     startRegistration: operation('registration'),
-    startAuthentication: operation('assertion'),
 }))
 mock.module(
     '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useSecurityOperations.ts',
@@ -43,7 +38,6 @@ mock.module(
         default: () => ({
             state: {
                 status: {
-                    recentlyAuthenticated: authenticated,
                     passkeys: [{ id: 'key', name: 'Laptop' }],
                 },
                 setup: null,
@@ -60,33 +54,14 @@ mock.module(
         }),
     }),
 )
-mock.module(
-    '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts',
-    () => ({
-        default: () => ({
-            state: { credential: '', isPending: false },
-            setter: { setCredential: mock(() => {}) },
-            handler: {
-                reset: mock(() => {}),
-                verifyPassword: operations.verifyPassword,
-                beginPasskey: operations.beginAssertion,
-                finishPasskey: operations.finishAssertion,
-            },
-        }),
-    }),
-)
 const { default: useSecurityPageLogic } =
     await import('@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useSecurityPageLogic.ts')
 
-test('security actions require reauthentication and explicit destructive confirmation before mutation', async () => {
-    authenticated = false
+test('active sessions can enroll security methods while destructive changes require explicit confirmation', async () => {
     const hook = await mountHook(() => useSecurityPageLogic('user'))
     try {
         await hook.run(() => hook.value.handler.requestEnableTotp())
-        expect(hook.value.state.reauthAction).toBe('enable')
-        await hook.run(() => hook.value.handler.confirmReauthentication())
         expect(calls.some((call) => call.name === 'beginTotp')).toBe(true)
-        expect(hook.value.state.reauthAction).toBeNull()
         await hook.run(() => hook.value.handler.confirmTotp('123456'))
         expect(calls.find((call) => call.name === 'confirmTotp')?.input).toBe('123456')
         async function checkDestructiveAction(action: 'disable' | 'regenerate' | 'remove') {
@@ -94,9 +69,6 @@ test('security actions require reauthentication and explicit destructive confirm
                 (call) => call.name === (action === 'disable' ? 'disableTotp' : action),
             ).length
             await hook.run(() => hook.value.handler.requestDestructiveAction(action, 'key'))
-            expect(hook.value.state.reauthAction).toBe(action)
-            expect(hook.value.state.confirmation).toBeNull()
-            await hook.run(() => hook.value.handler.reauthenticateWithPasskey())
             expect(hook.value.state.confirmation?.kind).toBe(action)
             expect(
                 calls.filter(
@@ -117,23 +89,17 @@ test('security actions require reauthentication and explicit destructive confirm
             passkeyId: 'key',
         })
         await hook.run(() => hook.value.handler.confirmPasskeyName('Work laptop'))
-        expect(hook.value.state.reauthAction).toBe('rename')
-        await hook.run(() => hook.value.handler.confirmReauthentication())
         expect(calls.find((call) => call.name === 'rename')?.input).toEqual({
             name: 'Work laptop',
             passkeyId: 'key',
         })
         await hook.run(() => hook.value.handler.requestAddPasskey())
-        await hook.run(() => hook.value.handler.confirmReauthentication())
         expect(hook.value.state.nameRequest?.kind).toBe('add')
         await hook.run(() => hook.value.handler.confirmPasskeyName('Phone'))
-        await hook.run(() => hook.value.handler.confirmReauthentication())
         expect(calls.find((call) => call.name === 'finishPasskey')?.input).toMatchObject({
             challengeId: 'challenge',
             name: 'Phone',
         })
-        expect(hook.value.state.reauthAction).toBeNull()
-        await hook.run(() => hook.value.handler.handleReauthenticationOpenChange(false))
         await hook.run(() => hook.value.handler.closePasskeyName())
         expect(hook.value.state.nameRequest).toBeNull()
     } finally {
@@ -142,7 +108,6 @@ test('security actions require reauthentication and explicit destructive confirm
 })
 
 test('authenticated security failures preserve confirmation and retry names without silently reporting success', async () => {
-    authenticated = true
     const hook = await mountHook(() => useSecurityPageLogic('user'))
     try {
         await hook.run(() => hook.value.handler.requestDestructiveAction('disable'))

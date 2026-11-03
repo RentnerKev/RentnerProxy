@@ -58,11 +58,11 @@ export function createMiddlewareHarness() {
         getRequest: () => new Request('https://example.test'),
         getRequestIP: () => '127.0.0.1',
     }))
-    mockServices(
-        '@/server/Auth/Access/authorization.service.ts',
-        ['requirePermissionService', 'requireSessionService', 'requireSessionPermission'],
-        { isSessionRecentlyAuthenticated: () => true },
-    )
+    mockServices('@/server/Auth/Access/authorization.service.ts', [
+        'requirePermissionService',
+        'requireSessionService',
+        'requireSessionPermission',
+    ])
     mock.module('@/server/Auth/transport.server.ts', () => ({
         enforceSensitiveLimit: service('enforceSensitiveLimit'),
         localizedActionFailure: (error: unknown, fallback: string) => {

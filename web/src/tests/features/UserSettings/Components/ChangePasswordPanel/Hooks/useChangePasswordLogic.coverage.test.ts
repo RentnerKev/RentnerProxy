@@ -16,18 +16,16 @@ const { default: useChangePasswordLogic } =
 test('password form validates, resets only successful changes and surfaces rejection and service failure', async () => {
     const hook = await mountHook(useChangePasswordLogic)
     try {
-        expect(hook.value.handler.validateCurrentPassword({ value: '' })).toBeDefined()
         expect(hook.value.handler.validatePassword({ value: '' })).toBeDefined()
         expect(hook.value.handler.validateConfirmPassword({ value: 'different' })).toBe(
             'account.validation.passwordsDoNotMatch',
         )
         const values = {
-            currentPassword: 'old-fixture-password',
             password: 'Next-fixture-password-74!',
             confirmPassword: 'Next-fixture-password-74!',
         }
         const fill = () => {
-            for (const name of ['currentPassword', 'password', 'confirmPassword'] as const)
+            for (const name of ['password', 'confirmPassword'] as const)
                 hook.value.form.setFieldValue(name, values[name])
         }
         await hook.run(fill)
@@ -39,14 +37,14 @@ test('password form validates, resets only successful changes and surfaces rejec
             stopPropagation: mock(() => {}),
         } as unknown as FormEvent<HTMLFormElement>
         await hook.run(() => hook.value.handler.handleSubmit(event))
-        expect(change).toHaveBeenCalledWith({ data: values })
+        expect(change).toHaveBeenCalledWith({ data: { password: values.password } })
         expect(hook.value.form.getFieldValue('password')).toBe('')
         expect(success).toHaveBeenCalledWith('password-saved', { title: 'toast.titles.success' })
         await hook.run(fill)
-        change.mockResolvedValueOnce({ success: false, message: 'reauth-required' })
+        change.mockResolvedValueOnce({ success: false, message: 'password-rejected' })
         await hook.run(() => hook.value.form.handleSubmit())
         expect(hook.value.form.getFieldValue('password')).toBe(values.password)
-        expect(error).toHaveBeenCalledWith('reauth-required', { title: 'toast.titles.error' })
+        expect(error).toHaveBeenCalledWith('password-rejected', { title: 'toast.titles.error' })
         change.mockRejectedValueOnce(new Error('offline'))
         await hook.run(() => hook.value.form.handleSubmit())
         expect(error).toHaveBeenCalledWith('account.password.error.update', {
