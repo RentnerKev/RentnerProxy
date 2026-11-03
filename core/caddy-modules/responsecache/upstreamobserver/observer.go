@@ -2,6 +2,7 @@
 package upstreamobserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -83,7 +84,7 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		return err
 	}
 	token := sequence.Add(1)
-	if err := instances.add(token, h); err != nil {
+	if err := instances.add(token, h, ctx.Context); err != nil {
 		_ = h.Cleanup()
 		return err
 	}
@@ -109,6 +110,7 @@ func (h *Handler) Cleanup() error {
 type entry struct {
 	hostID, revision string
 	members          reverseproxy.UpstreamPool
+	lifecycle        context.Context
 }
 type registry struct {
 	sync.RWMutex
@@ -116,14 +118,32 @@ type registry struct {
 }
 
 // add retains the handler's own upstream pointers without copying live state or exceeding capacity.
-func (s *registry) add(token uint64, h *Handler) error {
+// Production entries use the Caddy configuration context; only private registry fixtures omit it.
+func (s *registry) add(token uint64, h *Handler, lifecycle context.Context) error {
 	s.Lock()
 	defer s.Unlock()
+	if lifecycle != nil && lifecycle.Err() != nil {
+		return lifecycle.Err()
+	}
+	if len(s.entries) >= maxInstances {
+		// Retired configurations can retain stock resources while requests drain.
+		// Their canceled contexts no longer consume observation capacity.
+		for token, entry := range s.entries {
+			if entry.lifecycle != nil && entry.lifecycle.Err() != nil {
+				delete(s.entries, token)
+			}
+		}
+	}
 	if len(s.entries) >= maxInstances {
 		return errors.New("upstream observer registry capacity exceeded")
 	}
 	// Copy the pointer slice, never the Upstream values.
-	s.entries[token] = entry{h.HostID, h.Revision, append(reverseproxy.UpstreamPool(nil), h.Upstreams...)}
+	s.entries[token] = entry{
+		hostID:    h.HostID,
+		revision:  h.Revision,
+		members:   append(reverseproxy.UpstreamPool(nil), h.Upstreams...),
+		lifecycle: lifecycle,
+	}
 	return nil
 }
 func (s *registry) remove(token uint64) { s.Lock(); defer s.Unlock(); delete(s.entries, token) }
@@ -150,7 +170,9 @@ func (s *registry) snapshot(hostID, revision string) (response, error) {
 	defer s.RUnlock()
 	result := response{Revision: revision, HostID: hostID, Observations: []observation{}}
 	for token, entry := range s.entries {
-		if entry.hostID != hostID || entry.revision != revision {
+		// Context cancellation retires an observation synchronously even when
+		// Caddy defers module Cleanup until old requests have drained.
+		if (entry.lifecycle != nil && entry.lifecycle.Err() != nil) || entry.hostID != hostID || entry.revision != revision {
 			continue
 		}
 		if len(result.Observations) >= maxObservations {
