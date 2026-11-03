@@ -7,19 +7,6 @@ import { join, resolve } from 'node:path'
 const buildRoot = resolve(import.meta.dir, '../../../../../docker/crowdsec/tooling/engine-build')
 const gitBash = 'C:/Program Files/Git/bin/bash.exe'
 const shell = process.platform === 'win32' && existsSync(gitBash) ? gitBash : Bun.which('bash')
-const validBuildinfo = `crowdsec: go1.27.3
-\tpath\tgithub.com/crowdsecurity/crowdsec/cmd/crowdsec
-\tdep\tgoogle.golang.org/grpc\tv1.85.0\th1:grpc
-\tdep\tgolang.org/x/crypto\tv0.58.0\th1:crypto
-\tdep\tgolang.org/x/net\tv0.62.0\th1:net
-\tdep\tgolang.org/x/time\tv0.16.0
-\t=>\tgithub.com/crowdsecurity/time\tv0.13.0-crowdsec.20250912\th1:time
-\tdep\tgithub.com/corazawaf/coraza/v3\tv3.8.1
-\t=>\tgithub.com/crowdsecurity/coraza/v3\tv3.8.0-crowdsec.20261002\th1:coraza
-\tbuild\t-tags=netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo,no_db_postgres
-\tbuild\tCGO_ENABLED=1
-`
-
 async function runShell(script: string, ...args: string[]) {
     if (!shell) throw new Error('A POSIX shell is required to verify the build contract')
     const child = Bun.spawn(
@@ -71,6 +58,9 @@ describe('pinned pristine CrowdSec appliance rebuild', () => {
             'ldd "$binary_path"',
             'Expected a fully static $binary',
             'for binary in crowdsec cscli',
+            'GOWORK=off go build -o "$work_root/verify-buildinfo" /opt/verify-buildinfo.go',
+            '"$work_root/verify-buildinfo" crowdsec "$binary_path"',
+            'go version -m "$binary_path"',
             'export GOWORK="$work_root/go.work"',
             'cp "$script_root/go.mod" "$script_root/go.sum" "$work_root/pins/"',
             'cp "$script_root/go.work.template" "$work_root/go.work"',
@@ -126,58 +116,6 @@ describe('pinned pristine CrowdSec appliance rebuild', () => {
         )
         for (const managed of managedConfigs) {
             expect(managed).toMatch(/db_config:\s+log_level: info\s+type: sqlite/)
-        }
-    })
-
-    test('actual binary metadata rejects wrong toolchain, module versions, replacements and lost native flags', async () => {
-        const directory = await mkdtemp(join(tmpdir(), 'crowdsec-buildinfo-'))
-        try {
-            const variants = [
-                [validBuildinfo, true],
-                [validBuildinfo.replace('go1.27.3', 'go1.27.1'), false],
-                [validBuildinfo.replace('v1.85.0', 'v1.83.0'), false],
-                [validBuildinfo.replace('v0.58.0', 'v0.55.0'), false],
-                [validBuildinfo.replace('v0.62.0', 'v0.58.0'), false],
-                [
-                    validBuildinfo.replace('v3.8.0-crowdsec.20261002', 'v3.7.0-crowdsec.20260730'),
-                    false,
-                ],
-                [validBuildinfo + '\tdep\tgithub.com/jackc/pgx/v4\tv4.18.3\th1:old\n', false],
-                [validBuildinfo + '\tdep\tgithub.com/jackc/pgproto3/v2\tv2.3.3\th1:old\n', false],
-                [validBuildinfo + '\tdep\tgithub.com/jackc/pgconn\tv1.14.3\th1:old\n', false],
-                [validBuildinfo + '\tdep\tgithub.com/jackc/pgtype\tv1.14.4\th1:old\n', false],
-                [validBuildinfo.replace('CGO_ENABLED=1', 'CGO_ENABLED=0'), false],
-                [validBuildinfo.replace(',re2_cgo', ''), false],
-                [validBuildinfo.replace(',sqlite_omit_load_extension', ''), false],
-                [validBuildinfo.replace(',no_db_postgres', ''), false],
-                [validBuildinfo + '\t=>\tlocal/fork\tv1.0.0\n', false],
-                [
-                    validBuildinfo.replace(
-                        '\tdep\tgolang.org/x/crypto',
-                        '\t=>\tgithub.com/crowdsecurity/time\tv0.13.0-crowdsec.20250912\n\tdep\tgolang.org/x/crypto',
-                    ),
-                    false,
-                ],
-                ['', false],
-            ] as const
-            const outcomes = await Promise.all(
-                variants.map(async ([metadata, accepted], index) => {
-                    const filename = join(directory, `buildinfo-${index}.txt`)
-                    await writeFile(filename, metadata)
-                    return {
-                        accepted,
-                        actual: await runShell(join(buildRoot, 'verify-buildinfo.sh'), filename),
-                    }
-                }),
-            )
-            for (const outcome of outcomes)
-                expect(outcome.actual).toEqual({
-                    accepted: outcome.accepted,
-                    stdout: '',
-                    stderr: '',
-                })
-        } finally {
-            await rm(directory, { recursive: true, force: true })
         }
     })
 

@@ -60,7 +60,7 @@ COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
 ARG CADDY_CROWDSEC_BOUNCER_VERSION=v0.14.2-0.20261030164527-4a6ce1d3094d
 ARG CADDY_LAYER4_VERSION=v0.1.3-0.20261029145729-f607ccea1b7d
-COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
+COPY docker/tooling/buildinfo/verify.go /tmp/verify-buildinfo.go
 COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh
 COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/rentnerproxy-caddy
@@ -77,6 +77,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
+COPY docker/tooling/buildinfo/verify.go /opt/verify-buildinfo.go
 RUN /bin/sh /opt/crowdsec-build/build.sh /out
 
 FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS gosu-build

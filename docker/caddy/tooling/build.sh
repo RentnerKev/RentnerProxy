@@ -2,6 +2,7 @@
 set -eu
 
 test "$(go env GOVERSION)" = go1.27.3
+GOWORK=off go build -o /tmp/verify-buildinfo /tmp/verify-buildinfo.go
 cd /opt/rentnerproxy-responsecache
 GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" go mod download
 go mod verify
@@ -19,7 +20,7 @@ GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" xcaddy build "${CADDY_VERSION:?Cadd
         --replace golang.org/x/term=golang.org/x/term@v0.47.0 \
         --replace golang.org/x/text=golang.org/x/text@v0.43.0
 go version -m /usr/bin/caddy > /tmp/caddy-buildinfo.txt
-/bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt
+/tmp/verify-buildinfo caddy /usr/bin/caddy
 caddy_version="$(/usr/bin/caddy version)"
 printf '%s\n' "$caddy_version"
 test "${caddy_version%% *}" = "$CADDY_VERSION"

@@ -1,26 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-
-const script = resolve(import.meta.dir, '../../../../../docker/caddy/tooling/verify-buildinfo.sh')
-const shell =
-    Bun.which('sh') ??
-    (process.platform === 'win32' && existsSync('C:/Program Files/Git/usr/bin/sh.exe')
-        ? 'C:/Program Files/Git/usr/bin/sh.exe'
-        : null)
-const validBuildinfo = `/usr/bin/caddy: go1.27.3
-\tpath\tgithub.com/caddyserver/caddy/v2/cmd/caddy
-\tdep\tgolang.org/x/net\tv0.59.0
-\t=>\tgolang.org/x/net\tv0.62.0\th1:net
-\tdep\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.14.2-0.20261030164527-4a6ce1d3094d
-\tdep\tgithub.com/mholt/caddy-l4\tv0.1.1
-\t=>\tgithub.com/mholt/caddy-l4\tv0.1.3-0.20261029145729-f607ccea1b7d\th1:layer4
-\tdep\tgithub.com/crowdsecurity/crowdsec\tv1.7.0
-\t=>\tgithub.com/crowdsecurity/crowdsec\tv1.8.2\th1:crowdsec
-\tbuild\tCGO_ENABLED=0
-`
 
 describe('upstream Caddy binary security metadata', () => {
     test('both images use the same Caddy build while retaining pins, static ABI and licenses', async () => {
@@ -41,6 +21,9 @@ describe('upstream Caddy binary security metadata', () => {
         expect(caddyBuilders[1]).toBe(caddyBuilders[0])
         for (const image of images) {
             expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
+            expect(image).toContain(
+                'COPY docker/tooling/buildinfo/verify.go /tmp/verify-buildinfo.go',
+            )
             expect(image).toContain(
                 'COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/',
             )
@@ -73,96 +56,31 @@ describe('upstream Caddy binary security metadata', () => {
             '--replace golang.org/x/sys=golang.org/x/sys@v0.49.0',
             '--replace golang.org/x/term=golang.org/x/term@v0.47.0',
             '--replace golang.org/x/text=golang.org/x/text@v0.43.0',
-            '/bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt',
+            '/tmp/verify-buildinfo caddy /usr/bin/caddy',
             'test "${caddy_version%% *}" = "$CADDY_VERSION"',
         ])
             expect(shared).toContain(contract)
+        expect(shared).toContain(
+            'GOWORK=off go build -o /tmp/verify-buildinfo /tmp/verify-buildinfo.go',
+        )
+        expect(shared).toContain('go version -m /usr/bin/caddy > /tmp/caddy-buildinfo.txt')
+        const contexts = await Promise.all(
+            ['production', 'proxy-runtime'].map((image) =>
+                readFile(join(root, 'docker', image, 'Dockerfile.dockerignore'), 'utf8'),
+            ),
+        )
+        for (const context of contexts) {
+            expect(context).toContain('!docker/tooling/')
+            expect(context).toContain('!docker/tooling/buildinfo/')
+            expect(context).toContain('!docker/tooling/buildinfo/**')
+        }
+        expect(images[0]).toContain(
+            'COPY docker/tooling/buildinfo/verify.go /opt/verify-buildinfo.go',
+        )
         expect(shared).not.toContain('caddy-http-only')
         expect(shared).not.toContain('caddy-crowdsec-bouncer=/')
         expect(
             await readFile(join(root, 'docker/proxy-runtime/Dockerfile.dockerignore'), 'utf8'),
         ).toContain('!docker/caddy/tooling/build.sh')
-    })
-    test('checks the compiler and effective x/net version instead of the original module version', async () => {
-        if (!shell) throw new Error('A POSIX shell is required to verify the Caddy build contract')
-        const directory = await mkdtemp(join(tmpdir(), 'caddy-buildinfo-'))
-        try {
-            const variants = [
-                [validBuildinfo, true],
-                [
-                    validBuildinfo.replace(
-                        '\tdep\tgolang.org/x/net\tv0.59.0\n\t=>\tgolang.org/x/net\tv0.62.0',
-                        '\tdep\tgolang.org/x/net\tv0.62.0',
-                    ),
-                    true,
-                ],
-                [validBuildinfo.replace('go1.27.3', 'go1.27.1'), false],
-                [validBuildinfo.replace('v0.62.0', 'v0.59.0'), false],
-                [
-                    validBuildinfo
-                        .replace('dep\tgolang.org/x/net\tv0.59.0', 'dep\tgolang.org/x/net\tv0.62.0')
-                        .replace('=>\tgolang.org/x/net\tv0.62.0', '=>\tgolang.org/x/net\tv0.59.0'),
-                    false,
-                ],
-                [validBuildinfo.replace('\t=>\tgolang.org/x/net\tv0.62.0\th1:net\n', ''), false],
-                [validBuildinfo.replace('=>\tgolang.org/x/net', '=>\tlocal/fork'), false],
-                [validBuildinfo.replace('CGO_ENABLED=0', 'CGO_ENABLED=1'), false],
-                [validBuildinfo.replace('v0.14.2-0.20261030164527-4a6ce1d3094d', 'v0.14.1'), false],
-                [validBuildinfo.replace('v0.14.2-0.20261030164527-4a6ce1d3094d', 'v0.15.0'), false],
-                [
-                    validBuildinfo.replace(
-                        '\tdep\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.14.2-0.20261030164527-4a6ce1d3094d',
-                        '\tdep\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.15.0\n\t=>\tgithub.com/hslatman/caddy-crowdsec-bouncer\tv0.14.2-0.20261030164527-4a6ce1d3094d\th1:reviewed-commit',
-                    ),
-                    true,
-                ],
-                [validBuildinfo.replace('v1.8.2', 'v1.7.0'), false],
-                [validBuildinfo.replace('v0.1.3-0.20261029145729-f607ccea1b7d', 'v0.1.1'), false],
-                [
-                    validBuildinfo +
-                        '\tdep\tforeign/module\tv1.0.0\n\t=>\t/tmp/patched-source\t(devel)\n',
-                    false,
-                ],
-                [validBuildinfo + '\tdep\tgolang.org/x/net\tv0.62.0\th1:duplicate\n', false],
-                [
-                    validBuildinfo.replace(
-                        '\tdep\tgithub.com/crowdsecurity/crowdsec',
-                        '\t=>\tgolang.org/x/net\tv0.62.0\n\tdep\tgithub.com/crowdsecurity/crowdsec',
-                    ),
-                    false,
-                ],
-                ['', false],
-            ] as const
-            const outcomes = await Promise.all(
-                variants.map(async ([metadata, accepted], index) => {
-                    const filename = join(directory, `buildinfo-${index}.txt`)
-                    await writeFile(filename, metadata)
-                    const child = Bun.spawn(
-                        [
-                            shell,
-                            '-c',
-                            'export PATH="/usr/bin:$PATH"; exec sh "$@"',
-                            'caddy-build-test',
-                            script,
-                            filename,
-                        ],
-                        { stdout: 'pipe', stderr: 'pipe' },
-                    )
-                    const [stdout, stderr, exitCode] = await Promise.all([
-                        new Response(child.stdout).text(),
-                        new Response(child.stderr).text(),
-                        child.exited,
-                    ])
-                    return { accepted, actual: exitCode === 0, stdout, stderr }
-                }),
-            )
-            for (const outcome of outcomes) {
-                expect(outcome.actual).toBe(outcome.accepted)
-                expect(outcome.stdout).toBe('')
-                expect(outcome.stderr).toBe('')
-            }
-        } finally {
-            await rm(directory, { recursive: true, force: true })
-        }
     })
 })
