@@ -92,6 +92,9 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            - name: Check dependency declarations
+              run: bun --no-env-file run dependencies:check
+
             - name: Run Oxlint
               run: bun --no-env-file run lint
 

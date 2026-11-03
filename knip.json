@@ -1,5 +1,5 @@
 {
-    "$schema": "https://unpkg.com/knip@6.42.1/schema.json",
+    "$schema": "https://unpkg.com/knip@6.44.1/schema.json",
     "entry": [
         "scripts/{build,check,dev,dev-core,test-web,production-backup,production-restore}.ts",
         "scripts/assets/{download-geoip,generate-accent-art-masks}.ts",
@@ -17,7 +17,6 @@
         "docker/production/backups/{agent,export,build-identity}.ts",
         "web/src/server/WebSockets/realtimeWebSocket.ts",
         "web/src/tests/server/Auth/Access/Fixtures/sessions-maintenance.fixture.ts",
-        "vite.config.ts",
         "drizzle.config.ts"
     ],
     "project": [
