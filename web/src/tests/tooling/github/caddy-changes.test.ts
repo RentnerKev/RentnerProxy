@@ -59,6 +59,8 @@ describe('conservative Caddy change detection', () => {
             'core/src/proxy/renderer.rs',
             'core/tests/private/renderer.rs',
             'docker/caddy/tooling/build.sh',
+            'docker/tooling/buildinfo/verify.go',
+            'docker/tooling/buildinfo/verify_test.go',
             'docker/proxy-runtime/Dockerfile',
             'docker/proxy-runtime/Dockerfile.dockerignore',
             '.dockerignore',

@@ -147,23 +147,65 @@ async fn cancelled_control_request_closes_the_transport_task() {
 }
 
 #[cfg(windows)]
+const TERMINATION_CHILD_MARKER: &str = "RENTNERPROXY_TERMINATION_TEST_CHILD";
+
+#[cfg(windows)]
+const TERMINATION_CHILD_READY: &str = "rentnerproxy termination child ready";
+
+#[cfg(windows)]
+#[test]
+fn termination_child_fixture() {
+    use std::io::Write;
+
+    if std::env::var(TERMINATION_CHILD_MARKER).as_deref() != Ok("1") {
+        return;
+    }
+
+    let mut stdout = std::io::stdout().lock();
+    writeln!(stdout, "\n{TERMINATION_CHILD_READY}").unwrap();
+    stdout.flush().unwrap();
+    drop(stdout);
+    loop {
+        std::thread::park();
+    }
+}
+
+#[cfg(windows)]
 #[tokio::test]
 async fn forced_termination_reaps_the_child_and_is_idempotent() {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
     let engine = super::CaddyProcess::new("unused-test-binary".into(), std::env::temp_dir());
-    let child = tokio::process::Command::new("powershell.exe")
+    let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
         .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "Start-Sleep -Seconds 60",
+            "--exact",
+            "runtime::engine::tests::termination_child_fixture",
+            "--nocapture",
         ])
+        .env(TERMINATION_CHILD_MARKER, "1")
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .creation_flags(0x0800_0000)
         .kill_on_drop(true)
         .spawn()
         .unwrap();
+    let mut output = BufReader::new(child.stdout.take().unwrap()).lines();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let line = output
+                .next_line()
+                .await
+                .unwrap()
+                .expect("termination child exited before its ready marker");
+            if line == TERMINATION_CHILD_READY {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("termination child did not become ready");
+    assert!(child.try_wait().unwrap().is_none());
     *engine.child.lock().await = Some(child);
     assert_eq!(
         engine.terminate_child_bounded(Duration::from_secs(1)).await,

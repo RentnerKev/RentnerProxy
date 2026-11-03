@@ -26,6 +26,8 @@ const buildInputs = [
     'web/drizzle/0000_fixture.sql',
     'web/public/favicon.svg',
     'docker/production/Dockerfile',
+    'docker/tooling/buildinfo/verify.go',
+    'docker/tooling/buildinfo/verify_test.go',
     'docker/production/Dockerfile.dockerignore',
     'docker-compose.yml',
     'scripts/build.ts',

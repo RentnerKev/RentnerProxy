@@ -20,6 +20,7 @@ test "$(go env GOOS)" = linux
 
 work_root=$(mktemp -d)
 trap 'rm -rf "$work_root"' EXIT HUP INT TERM
+GOWORK=off go build -o "$work_root/verify-buildinfo" /opt/verify-buildinfo.go
 curl --fail --location --retry 3 --output "$work_root/re2.tar.gz" \
     "https://codeload.github.com/google/re2/tar.gz/refs/tags/$re2_version"
 printf '%s  %s\n' "$re2_sha256" "$work_root/re2.tar.gz" | sha256sum --check --strict -
@@ -63,7 +64,7 @@ mkdir -p "$output_root/bin" "$output_root/evidence"
 for binary in crowdsec cscli; do
     case "$binary" in crowdsec) binary_path=cmd/crowdsec/crowdsec ;; cscli) binary_path=cmd/crowdsec-cli/cscli ;; esac
     go version -m "$binary_path" > "$output_root/evidence/$binary.buildinfo.txt"
-    /bin/sh "$script_root/verify-buildinfo.sh" "$output_root/evidence/$binary.buildinfo.txt"
+    "$work_root/verify-buildinfo" crowdsec "$binary_path"
     # ldd exits nonzero for a static executable; validate that result explicitly.
     ldd_report=$(ldd "$binary_path" 2>&1 || true)
     printf '%s\n' "$ldd_report" > "$output_root/evidence/$binary.ldd.txt"
