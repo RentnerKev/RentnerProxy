@@ -196,11 +196,30 @@ jobs:
             - name: Apply database migrations
               run: bun --no-env-file run db:migrate
 
-            - name: Run web tests
-              run: bun --no-env-file run test:ts
+            - name: Build isolated TypeScript coverage environment
+              run: docker build -f docker/tooling/coverage/Dockerfile -t rentnerproxy-ts-coverage:test .
 
-            - name: Run database integration tests
-              run: bun --no-env-file run test:db
+            - name: Run web, database and property tests with complete coverage
+              run: |
+                  mkdir -p coverage/typescript
+                  docker run --rm --network host --workdir /workspace \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE,target=/workspace" \
+                    --env DATABASE_URL --env VALKEY_URL \
+                    --env RENTNERPROXY_DATABASE_INTEGRATION --env RENTNERPROXY_VALKEY_INTEGRATION \
+                    rentnerproxy-ts-coverage:test run coverage:ts --database
+
+            - name: Store TypeScript coverage and source inventory
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: typescript-coverage-linux
+                  path: |
+                      coverage/typescript/coverage.json
+                      coverage/typescript/summary.json
+                      coverage/typescript/summary.md
+                      coverage/typescript/sources.json
+                  if-no-files-found: error
+                  retention-days: 7
 
             - name: Create isolated host page fixture database
               run: psql "$DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 -c 'CREATE DATABASE host_page_fixture;'
@@ -409,7 +428,7 @@ jobs:
     caddy-response-cache:
         name: Caddy Response Cache
         needs: changes
-        if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.caddy != 'false') }}
+        if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 20
         steps:
@@ -430,26 +449,28 @@ jobs:
                       ${{ runner.os }}-${{ runner.arch }}-caddy-go-race-v1-${{ hashFiles('core/caddy-modules/responsecache/go.mod', 'core/caddy-modules/responsecache/go.sum', 'docker/proxy-runtime/Dockerfile', '.github/workflows/ci.yml') }}-
 
             - name: Prepare isolated Caddy Go cache mounts
-              run: mkdir -p .cache/caddy-go/mod .cache/caddy-go/build
+              run: mkdir -p .cache/caddy-go/mod .cache/caddy-go/build coverage/go
 
-            - name: Verify native binary metadata policies
+            - name: Verify all owned Go packages, race safety and coverage
               run: |
-                  docker run --rm --workdir /src \
-                    --mount "type=bind,source=$GITHUB_WORKSPACE/docker/tooling/buildinfo,target=/src,readonly" \
-                    --env GOTOOLCHAIN=local --env GOWORK=off \
-                    mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 \
-                    /bin/sh -ec 'go test -race -count=1 verify.go verify_test.go; go vet verify.go verify_test.go; test -z "$(gofmt -l .)"'
-
-            - name: Verify module checksums, race safety and formatting
-              run: |
-                  docker run --rm --workdir /src \
-                    --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
+                  docker run --rm --workdir /workspace \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE,target=/workspace,readonly" \
+                    --mount "type=bind,source=$GITHUB_WORKSPACE/coverage/go,target=/workspace/coverage/go" \
                     --mount "type=bind,source=$GITHUB_WORKSPACE/.cache/caddy-go/mod,target=/go/pkg/mod" \
                     --mount "type=bind,source=$GITHUB_WORKSPACE/.cache/caddy-go/build,target=/root/.cache/go-build" \
                     --env GOMODCACHE=/go/pkg/mod --env GOCACHE=/root/.cache/go-build \
                     --env GOTOOLCHAIN=local --env CGO_ENABLED=1 \
                     mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 \
-                    /bin/sh -ec 'GODEBUG=http2client=0 go mod download; go mod verify; go test -mod=readonly -race -count=1 ./...; go vet -mod=readonly ./...; test -z "$(gofmt -l .)"'
+                    /bin/sh /workspace/.github/scripts/ci/go-coverage.sh
+
+            - name: Store Go coverage profiles and complete package inventory
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: go-coverage-linux
+                  path: coverage/go
+                  if-no-files-found: error
+                  retention-days: 7
 
             - name: Save Caddy Go caches
               if: github.event_name != 'pull_request' && steps.caddy-go-cache.outputs.cache-hit != 'true'
@@ -461,9 +482,11 @@ jobs:
                   key: ${{ runner.os }}-${{ runner.arch }}-caddy-go-race-v1-${{ hashFiles('core/caddy-modules/responsecache/go.mod', 'core/caddy-modules/responsecache/go.sum', 'docker/proxy-runtime/Dockerfile', '.github/workflows/ci.yml') }}-${{ hashFiles('core/caddy-modules/responsecache/**') }}
 
             - name: Set up Docker Buildx
+              if: ${{ github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.caddy != 'false' }}
               uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
             - name: Build actual custom Caddy
+              if: ${{ github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.caddy != 'false' }}
               uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
               env:
                   DOCKER_BUILD_RECORD_UPLOAD: 'false'
@@ -480,9 +503,70 @@ jobs:
                   cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,version=2,scope=ci-caddy-build-v1,mode=max,timeout=2m,ignore-error=true' || '' }}
 
             - name: Verify counting upstream, security ordering, variants and ephemeral lifecycle
+              if: ${{ github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.caddy != 'false' }}
               run: |
                   docker run --rm --entrypoint /bin/sh --workdir /src \
                     --mount "type=bind,source=$GITHUB_WORKSPACE/core/caddy-modules/responsecache,target=/src,readonly" \
                     --env RENTNERPROXY_CADDY_TEST_BINARY=/usr/bin/caddy \
                     response-cache-caddy:test \
                     -ec 'go test -mod=readonly -run TestCaddyRuntime -count=1 -v ./...'
+
+    coverage:
+        name: Coverage
+        needs: [web-tests, rust, caddy-response-cache]
+        if: ${{ !cancelled() }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Download TypeScript coverage
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: typescript-coverage-linux
+                  path: coverage/typescript
+
+            - name: Download Go coverage
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: go-coverage-linux
+                  path: coverage/go
+
+            - name: Download Rust coverage
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: rust-coverage-linux
+                  path: core/target/coverage
+
+            - name: Verify and summarize every coverage target
+              env:
+                  TYPESCRIPT_RESULT: ${{ needs.web-tests.result }}
+                  RUST_RESULT: ${{ needs.rust.result }}
+                  GO_RESULT: ${{ needs.caddy-response-cache.result }}
+              run: |
+                  bun --no-env-file run coverage:report
+                  test "$TYPESCRIPT_RESULT" = success
+                  test "$RUST_RESULT" = success
+                  test "$GO_RESULT" = success
+
+            - name: Store combined coverage report
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: coverage-summary
+                  path: |
+                      coverage/summary.json
+                      coverage/summary.md
+                  if-no-files-found: error
+                  retention-days: 7

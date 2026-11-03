@@ -15,6 +15,10 @@ use crate::{
 };
 use std::{collections::BTreeMap, io::Read, path::Path};
 
+#[cfg(test)]
+#[path = "../../tests/private/configuration_boundaries.rs"]
+mod boundary_tests;
+
 impl ProxyRuntime {
     pub(super) fn restore_active_configuration(&self) -> Option<ValidatedProxyConfig> {
         // Recovery requires positive durable-writer authority, never inferred
