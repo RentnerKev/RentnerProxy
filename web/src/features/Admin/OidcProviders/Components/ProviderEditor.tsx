@@ -5,6 +5,7 @@ import { Modal } from '@/shared/Modal/index.tsx'
 import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
+import AccountPolicyEditor from './AccountPolicyEditor.tsx'
 
 /** Edits endpoint trust and explicit subject-to-local-user bindings in one provider draft. */
 export default function ProviderEditor({ state, handler, form }: OidcProvidersLogicResult) {
@@ -150,6 +151,7 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                         ))}
                     </div>
                 </details>
+                <AccountPolicyEditor form={form} state={state} handler={handler} />
                 <fieldset className="grid min-w-0 gap-3">
                     <legend className="font-bold">{t('oidc.bindings')}</legend>
                     <p className="text-sm text-muted">{t('oidc.bindingsHint')}</p>
@@ -209,9 +211,17 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                                                         userId: value ?? '',
                                                     })
                                                 }
-                                                disabled={state.isPending}
+                                                disabled={
+                                                    state.isPending ||
+                                                    binding.roleSource === 'provider'
+                                                }
                                             />
                                         </label>
+                                        {binding.roleSource === 'provider' ? (
+                                            <p className="text-sm text-muted">
+                                                {t('oidc.managedBinding')}
+                                            </p>
+                                        ) : null}
                                         <button
                                             type="button"
                                             disabled={state.isPending}

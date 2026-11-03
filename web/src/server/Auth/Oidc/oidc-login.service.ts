@@ -13,7 +13,7 @@ import { requireOidcAuthenticationInTransaction } from './oidc-authentication.se
 import { getOidcClientConfigurationService } from './oidc-providers.service.ts'
 import { oidcProtocolClient } from './oidc-client.server.ts'
 import { oidcFlowStore } from './oidc-state.server.ts'
-import { OidcDomainError } from './oidc.errors.ts'
+import { normalizeOidcFlowError, OidcDomainError } from './oidc.errors.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { resolveOidcAccountInTransaction } from './oidc-accounts.service.ts'
 import type {
@@ -64,8 +64,8 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
                     { ...flow, state: issued.state, ...(link ? { prompt: 'login' as const } : {}) },
                 )
                 return { ...issued, authorizationUrl }
-            }).catch(() => {
-                throw new OidcDomainError('provider_unavailable')
+            }).catch((error: unknown) => {
+                throw normalizeOidcFlowError(error)
             })
         },
         /** Consumes browser proof before redemption and rechecks trust before local authentication. */
@@ -75,41 +75,39 @@ export function createOidcLoginService(dependencies: OidcFlowDependencies) {
             linking = false,
         ): Promise<OidcFlowCompletion> {
             return admitted(async () => {
-                try {
-                    const state = callback.searchParams.get('state') ?? ''
-                    const flow = await dependencies.state.consume(state, browserToken)
-                    if (
-                        !flow ||
-                        !!flow.link !== linking ||
-                        flow.redirectUri !== redirectUri() ||
-                        callback.origin + callback.pathname !== flow.redirectUri
-                    )
-                        throw new OidcDomainError('challenge_expired')
-                    const configuration = await dependencies.configuration(flow.providerId)
-                    if (
-                        configuration.revision !== flow.providerRevision ||
-                        configuration.issuer !== flow.issuer
-                    )
-                        throw new OidcDomainError('authentication_failed')
-                    const identity = await dependencies.protocol.exchangeAuthorizationCode(
-                        configuration,
-                        { ...flow, state },
-                        callback,
-                    )
-                    if (identity.issuer !== flow.issuer)
-                        throw new OidcDomainError('authentication_failed')
-                    if (flow.link) {
-                        if (!dependencies.link) throw new OidcDomainError('authentication_failed')
-                        await dependencies.link(configuration, identity, flow.link)
-                        return { success: true as const, linked: true as const }
-                    }
-                    const result = await dependencies.authenticate(configuration, identity)
-                    if (!result.success) throw new OidcDomainError('authentication_failed')
-                    return result
-                } catch {
-                    await dependencies.failed().catch(() => {})
-                    throw new OidcDomainError('authentication_failed')
+                const state = callback.searchParams.get('state') ?? ''
+                const flow = await dependencies.state.consume(state, browserToken)
+                if (
+                    !flow ||
+                    !!flow.link !== linking ||
+                    flow.redirectUri !== redirectUri() ||
+                    callback.origin + callback.pathname !== flow.redirectUri
+                )
+                    throw new OidcDomainError('challenge_expired')
+                const configuration = await dependencies.configuration(flow.providerId)
+                if (
+                    configuration.revision !== flow.providerRevision ||
+                    configuration.issuer !== flow.issuer
+                )
+                    throw new OidcDomainError('configuration_conflict')
+                const identity = await dependencies.protocol.exchangeAuthorizationCode(
+                    configuration,
+                    { ...flow, state },
+                    callback,
+                )
+                if (identity.issuer !== flow.issuer)
+                    throw new OidcDomainError('identity_not_allowed')
+                if (flow.link) {
+                    if (!dependencies.link) throw new OidcDomainError('authentication_failed')
+                    await dependencies.link(configuration, identity, flow.link)
+                    return { success: true as const, linked: true as const }
                 }
+                const result = await dependencies.authenticate(configuration, identity)
+                if (!result.success) throw new OidcDomainError('identity_not_allowed')
+                return result
+            }).catch(async (error: unknown) => {
+                await dependencies.failed().catch(() => {})
+                throw normalizeOidcFlowError(error)
             })
         },
     }

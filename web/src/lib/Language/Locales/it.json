@@ -256,7 +256,19 @@
         },
         "oidc": {
             "signInWith": "Accedi con {{provider}}",
-            "failed": "Accesso non riuscito. Riprova o usa il tuo account locale."
+            "failed": "Accesso non riuscito. Riprova o usa il tuo account locale.",
+            "title": "Accedi con un provider di identità",
+            "loading": "Caricamento dei provider di accesso…",
+            "continuing": "Apertura del provider di identità…",
+            "retry": "Ricarica i provider di accesso",
+            "catalogUnavailable": "Impossibile caricare i provider di accesso. Ricarica l’elenco o usa il tuo account locale.",
+            "unavailable": "Impossibile contattare il provider di identità. Riprova o usa la tua password o passkey locale.",
+            "denied": "Questa identità non è autorizzata ad accedere. Contatta l’amministratore o usa il tuo account locale.",
+            "expired": "Questa richiesta di accesso è scaduta. Avvia nuovamente l’accesso.",
+            "reauthentication": "Accedi con la tua password o passkey locale, poi riprova.",
+            "conflict": "La configurazione di accesso è cambiata. Avvia nuovamente l’accesso.",
+            "localRecovery": "I proprietari locali possono continuare con una password o una passkey.",
+            "cancel": "Annulla accesso"
         },
         "logoutFailed": "Impossibile disconnettersi. Controlla la connessione e riprova.",
         "logoutRevocationFailed": "Hai effettuato la disconnessione in questo browser, ma non è stato possibile revocare la sessione sul server."
@@ -415,7 +427,8 @@
             "twoFactor": "Autenticazione a due fattori",
             "passkeys": "Passkey",
             "appearance": "Aspetto",
-            "notifications": "Notifiche"
+            "notifications": "Notifiche",
+            "linkedAccounts": "Account collegati"
         },
         "notifications": {
             "title": "Notifiche",
@@ -704,6 +717,35 @@
         "validation": {
             "passwordsDoNotMatch": "Le password non corrispondono.",
             "authenticatorCode": "Inserisci il codice a sei cifre dell’app di autenticazione."
+        },
+        "oidc": {
+            "title": "Account collegati",
+            "description": "Aggiungi un provider di identità al tuo account locale. Password, passkey e opzioni di recupero restano disponibili.",
+            "empty": "Nessun provider di identità disponibile.",
+            "external": "Il tuo account è gestito da un provider di identità. Contatta l’amministratore per modificarne i collegamenti.",
+            "link": "Collega account",
+            "unlink": "Scollega account",
+            "linked": "Collegato",
+            "unlinked": "Non collegato",
+            "disabled": "Provider disattivato",
+            "refresh": "Aggiorna",
+            "loading": "Caricamento degli account collegati…",
+            "pending": "Continua presso il tuo provider. Se hai annullato, aggiorna questo elenco.",
+            "unlinkedSuccess": "Account scollegato. L’accesso locale resta disponibile.",
+            "linkedSuccess": "Account collegato. Ora puoi accedere con questo provider.",
+            "noPermission": "Non hai il permesso di gestire gli account collegati.",
+            "error": {
+                "unavailable": "Impossibile caricare gli account collegati. Aggiorna l’elenco e riprova.",
+                "conflict": "I collegamenti sono cambiati. L’elenco è stato aggiornato: controllalo e riprova.",
+                "reauthenticate": "Conferma di nuovo la tua password o passkey, poi riprova.",
+                "denied": "Servono una password o passkey locale e il permesso di modificare questo account.",
+                "rateLimited": "Troppi tentativi. Attendi un minuto e riprova.",
+                "failed": "Impossibile modificare il collegamento. Aggiorna l’elenco e riprova.",
+                "expired": "Questa richiesta di collegamento è scaduta. Ricomincia e conferma la tua identità locale.",
+                "unavailableProvider": "Impossibile contattare il provider di identità. Riprova a collegare l’account più tardi.",
+                "deniedLink": "Impossibile collegare questa identità. Scegli un’altra identità del provider o contatta l’amministratore."
+            },
+            "cancel": "Annulla navigazione"
         }
     },
     "admin": {
@@ -4215,7 +4257,7 @@
     "oidc": {
         "title": "Provider di identità",
         "eyebrow": "Sicurezza",
-        "description": "Configurare l’accesso OpenID Connect per gli account locali esistenti.",
+        "description": "Configura l’accesso centralizzato, i collegamenti espliciti degli account e la creazione automatica facoltativa degli account.",
         "add": "Aggiungi provider",
         "edit": "Modifica provider",
         "delete": "Elimina provider",
@@ -4239,7 +4281,7 @@
         "copied": "URL di callback copiato.",
         "callbackHint": "Configurare PUBLIC_ORIGIN sul server per ottenere l’URL canonico.",
         "recovery": "Conservare un proprietario locale con password o passkey funzionante per il ripristino. Le modifiche richiedono autenticazione locale recente.",
-        "policy": "Solo associazioni esplicite di soggetti. Creazione automatica, corrispondenza email, gruppi e mappatura ruoli non disponibili.",
+        "policy": "Gli account locali esistenti mantengono i propri ruoli locali. La creazione automatica degli account è facoltativa; i gruppi del provider controllano i ruoli solo per gli account gestiti dal provider. Gli indirizzi e-mail non vengono mai collegati automaticamente.",
         "refresh": "Aggiorna",
         "refreshConflict": "Ricaricare la configurazione salvata?",
         "empty": "Nessun provider configurato.",
@@ -4282,6 +4324,33 @@
             "endpointOrigins": "Vuoto: origine dell’emittente automatica",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Soggetto esatto del provider"
-        }
+        },
+        "accountPolicy": "Account e ruoli",
+        "provisioning": "Crea utenti automaticamente",
+        "provisioningHint": "Solo gli indirizzi e-mail verificati dal provider possono creare nuovi account. Gli indirizzi esistenti non vengono mai collegati automaticamente.",
+        "groupClaim": "Claim dei gruppi",
+        "groupClaimHint": "Claim di primo livello nel token ID firmato, ad esempio groups.",
+        "defaultRoles": "Ruoli predefiniti",
+        "groupMappings": "Associazioni tra gruppi e ruoli",
+        "group": "Valore esatto del gruppo",
+        "mappedRoles": "Ruoli per questo gruppo",
+        "addMapping": "Aggiungi associazione di gruppo",
+        "removeMapping": "Rimuovi associazione di gruppo",
+        "rolePolicyHint": "I ruoli si applicano solo agli account creati da questo provider. I gruppi devono corrispondere esattamente, comprese maiuscole e minuscole. I gruppi mancanti rimuovono i ruoli associati. I ruoli effettivi devono consentire l’accesso all’applicazione; l’accesso del proprietario resta locale.",
+        "rolesUnavailable": "Impossibile caricare i ruoli. Ricarica prima di modificare la politica dei ruoli.",
+        "provisioningOn": "Creazione automatica degli account",
+        "provisioningOff": "Solo collegamenti espliciti degli account",
+        "rolePolicySummary": "Ruoli predefiniti: {{defaults}} · Associazioni di gruppi: {{mappings}}",
+        "managedBinding": "Ruoli gestiti da questo provider",
+        "setupTitle": "Esempi di configurazione: authentik e Keycloak",
+        "setupClient": "Crea un client riservato OpenID Connect con flusso del codice di autorizzazione, PKCE S256 e firma RS256. Registra l’URL di callback esatto riportato sopra, poi copia emittente, ID client e segreto client in questo provider.",
+        "setupAuthentik": "Usa l’emittente specifico dell’applicazione, ad esempio https://auth.example.com/application/o/rentnerproxy/. Seleziona una chiave di firma RSA. Per la creazione automatica degli account, configura le associazioni degli scope profile/email e un vero flusso di verifica dell’e-mail.",
+        "setupKeycloak": "Usa l’emittente del realm, ad esempio https://sso.example.com/realms/rentnerproxy. Abilita l’autenticazione del client e il flusso standard. Includi i gruppi richiesti in un claim di primo livello del token ID, ad esempio groups, tramite un mapper di appartenenza ai gruppi.",
+        "setupGroups": "La creazione automatica degli account richiede email ed email_verified=true nel token ID firmato. I valori dei gruppi devono corrispondere esattamente alle associazioni; i claim annidati non sono supportati.",
+        "setupVerify": "Salva, verifica i metadati del provider, poi prova un accesso reale mantenendo disponibile una sessione di proprietario locale.",
+        "setupAuthentikDocs": "Documentazione di authentik",
+        "setupKeycloakDocs": "Documentazione di Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

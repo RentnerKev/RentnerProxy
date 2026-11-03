@@ -4,6 +4,7 @@ export const USER_SETTINGS_SECTIONS = [
     'password',
     'two-factor',
     'passkeys',
+    'linked-accounts',
     'appearance',
     'notifications',
 ] as const

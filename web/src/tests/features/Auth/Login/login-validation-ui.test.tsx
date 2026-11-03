@@ -10,11 +10,16 @@ import { InputProvider } from '@rentnerkev/inputs'
 import { TooltipProvider } from '@rentnerkev/tooltips/tooltip'
 import type { ReactNode } from 'react'
 import type { Root } from 'react-dom/client'
+import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+// Happy DOM does not implement the browser's native navigation cancellation API.
+Object.defineProperty(window, 'stop', { configurable: true, writable: true, value: () => {} })
 
-let search: { oidcError?: 'failed' } = {}
+let search: {
+    oidcError?: 'failed' | 'denied' | 'unavailable' | 'expired' | 'reauthentication' | 'conflict'
+} = {}
 const navigate = mock(async (_options: unknown) => {})
 const errorToast = mock((_message: string, _options?: unknown) => {})
 const successToast = mock((_message: string, _options?: unknown) => {})
@@ -66,6 +71,10 @@ let client: QueryClient | null = null
 let state: LoginState | undefined
 
 function LoginHarness() {
+    return withTestLanguage(<LoginHarnessContent />)
+}
+
+function LoginHarnessContent() {
     const logic = useLoginLogic()
     useEffect(() => {
         state = logic
@@ -145,9 +154,9 @@ test.each(['focus', 'reconnect'] as const)(
         const localSubmit = container.querySelector<HTMLButtonElement>(
             'form button[type="submit"]',
         )!
-        const menuTrigger = [
+        const passkeyButton = [
             ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
-        ].find((button) => button.textContent === 'More sign-in options')!
+        ].find((button) => button.textContent === 'Sign in with passkey')!
         let releaseCatalog: (() => void) | undefined
         providerCatalogDelay = new Promise<void>((resolve) => {
             releaseCatalog = resolve
@@ -165,7 +174,7 @@ test.each(['focus', 'reconnect'] as const)(
         })
         expect(providerCatalogRequests).toBe(2)
         expect(client!.isFetching({ queryKey: ['auth', 'oidc-providers'] })).toBe(1)
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([false, false])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([false, false])
         await act(async () => {
             localSubmit.click()
             await new Promise((resolve) => setTimeout(resolve, 5))
@@ -183,85 +192,194 @@ test.each(['focus', 'reconnect'] as const)(
             email: 'owner@example.test',
             password: 'valid password',
         })
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([false, false])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([false, false])
         expect(providerCatalogRequests).toBe(2)
     },
 )
 
-test('canceled provider navigation recovers controls after its bounded window and cleans up timers', async () => {
-    providerListAvailable = true
-    const container = document.createElement('div')
-    document.body.append(container)
-    root = createRoot(container)
-    client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    await act(async () => {
-        root!.render(
-            <QueryClientProvider client={client!}>
-                <TooltipProvider>
-                    <InputProvider locale="en">
-                        <LoginHarness />
-                    </InputProvider>
-                </TooltipProvider>
-            </QueryClientProvider>,
+test.each(['local', 'provider'] as const)(
+    'explicit cancel stops the old navigation before admitting a new %s sign-in',
+    async (nextMethod) => {
+        providerListAvailable = true
+        const container = await mountLogin()
+        await act(async () => {
+            state!.form.setFieldValue('email', 'owner@example.test')
+            state!.form.setFieldValue('password', 'valid password')
+        })
+        const oidcForm = container.querySelector<HTMLFormElement>(
+            'form[action="/api/auth/oidc/start"]',
+        )!
+        const localForm = container.querySelector<HTMLFormElement>('form:not([action])')!
+        const localSubmit = localForm.querySelector<HTMLButtonElement>('button[type="submit"]')!
+        const events: string[] = []
+        const nativeSubmit = spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(
+            () => {
+                events.push('provider-navigation')
+                oidcForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            },
         )
-        await new Promise((resolve) => setTimeout(resolve, 5))
-    })
-    await act(async () => {
-        state!.form.setFieldValue('email', 'owner@example.test')
-        state!.form.setFieldValue('password', 'valid password')
-        await new Promise((resolve) => setTimeout(resolve, 5))
-    })
-    const localSubmit = container.querySelector<HTMLButtonElement>('form button[type="submit"]')!
-    const menuTrigger = [
-        ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
-    ].find((button) => button.textContent === 'More sign-in options')!
-    const oidcForm = container.querySelector<HTMLFormElement>(
-        'form[action="/api/auth/oidc/start"]',
-    )!
-    const scheduled = spyOn(window, 'setTimeout')
-    const cleared = spyOn(window, 'clearTimeout')
+        const scheduled = spyOn(window, 'setTimeout')
+        const stop = spyOn(window, 'stop').mockImplementation(() => {
+            events.push('stop-old-navigation')
+            expect(state!.state.isOidcPending).toBe(true)
+            // The previous document navigation can still complete until stop returns.
+            state!.handler.handleAlternativeSignIn('0194f777-4074-7000-8000-000000000003')
+            localForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            expect(nativeSubmit).toHaveBeenCalledTimes(1)
+            expect(login).not.toHaveBeenCalled()
+            events.push('old-navigation-stopped')
+        })
+        try {
+            await act(async () => directButton(container, 'Sign in with Office').click())
+            expect(state!.state.isOidcPending).toBe(true)
+            expect(localSubmit.disabled).toBe(true)
+            expect(directButton(container, 'Sign in with passkey').disabled).toBe(true)
+            // Advancing the former watchdog must never free a still-live native navigation.
+            const oldWatchdogs = scheduled.mock.calls.filter(([, delay]) => delay === 15_000)
+            await act(async () => {
+                for (const [callback] of oldWatchdogs)
+                    if (typeof callback === 'function') callback()
+                state!.handler.handleAlternativeSignIn('0194f777-4074-7000-8000-000000000003')
+                localForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            })
+            expect(state!.state.isOidcPending).toBe(true)
+            expect(nativeSubmit).toHaveBeenCalledTimes(1)
+            expect(login).not.toHaveBeenCalled()
+            expect(stop).not.toHaveBeenCalled()
+            expect(oldWatchdogs).toHaveLength(0)
+            await act(async () => directButton(container, 'Cancel sign-in').click())
+            expect(stop).toHaveBeenCalledTimes(1)
+            expect(events).toEqual([
+                'provider-navigation',
+                'stop-old-navigation',
+                'old-navigation-stopped',
+            ])
+            expect(state!.state.isOidcPending).toBe(false)
+            expect(localSubmit.disabled).toBe(false)
+            expect(directButton(container, 'Sign in with passkey').disabled).toBe(false)
+            expect(state!.form.state.values).toEqual({
+                email: 'owner@example.test',
+                password: 'valid password',
+            })
+            await act(async () => {
+                if (nextMethod === 'provider')
+                    directButton(container, 'Sign in with Office').click()
+                else
+                    localForm.dispatchEvent(
+                        new Event('submit', { bubbles: true, cancelable: true }),
+                    )
+                await new Promise((resolve) => setTimeout(resolve, 5))
+            })
+            expect(nativeSubmit.mock.calls.length).toBe(nextMethod === 'provider' ? 2 : 1)
+            expect(login.mock.calls.length).toBe(nextMethod === 'local' ? 1 : 0)
+            if (nextMethod === 'provider') expect(events.at(-1)).toBe('provider-navigation')
+        } finally {
+            stop.mockRestore()
+            scheduled.mockRestore()
+            nativeSubmit.mockRestore()
+        }
+    },
+)
+test('a stale cancel handler cannot stop a newer provider navigation', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const form = container.querySelector<HTMLFormElement>('form[action="/api/auth/oidc/start"]')!
+    const stop = spyOn(window, 'stop').mockImplementation(() => {})
     try {
-        await act(async () => {
-            oidcForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-        })
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([true, true])
-        const duplicate = new Event('submit', { bubbles: true, cancelable: true })
-        await act(async () => {
-            oidcForm.dispatchEvent(duplicate)
-        })
-        expect(duplicate.defaultPrevented).toBeTrue()
-        const index = scheduled.mock.calls.findIndex(([, delay]) => delay === 15_000)
-        const recover = scheduled.mock.calls[index]?.[0]
-        if (typeof recover !== 'function')
-            throw new Error('Missing bounded navigation recovery callback')
-        const recoveryTimer = scheduled.mock.results[index]?.value
-        // Simulate expiry while the original page remains mounted; no pageshow/unload is dispatched.
-        await act(async () => {
-            recover()
-        })
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([false, false])
-        expect(cleared).toHaveBeenCalledWith(recoveryTimer)
-        expect(state!.form.state.values).toEqual({
-            email: 'owner@example.test',
-            password: 'valid password',
-        })
-        await act(async () => {
-            localSubmit.click()
-            await new Promise((resolve) => setTimeout(resolve, 5))
-        })
-        expect(login).toHaveBeenCalledTimes(1)
-        await act(async () => {
-            oidcForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-        })
-        const lastIndex = scheduled.mock.calls.findLastIndex(([, delay]) => delay === 15_000)
-        expect(lastIndex).toBeGreaterThan(index)
-        const pendingTimer = scheduled.mock.results[lastIndex]?.value
-        await act(async () => root?.unmount())
-        root = null
-        expect(cleared).toHaveBeenCalledWith(pendingTimer)
+        await act(async () =>
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        )
+        const cancelAttemptA = state!.handler.handleCancelOidc
+        await act(async () => cancelAttemptA())
+        expect(stop).toHaveBeenCalledTimes(1)
+        expect(state!.state.isOidcPending).toBe(false)
+        await act(async () =>
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        )
+        const cancelAttemptB = state!.handler.handleCancelOidc
+        expect(state!.state.isOidcPending).toBe(true)
+        await act(async () => cancelAttemptA())
+        expect(stop).toHaveBeenCalledTimes(1)
+        expect(state!.state.isOidcPending).toBe(true)
+        expect(directButton(container, 'Sign in with Office').disabled).toBe(true)
+        await act(async () => cancelAttemptB())
+        expect(stop).toHaveBeenCalledTimes(2)
+        expect(state!.state.isOidcPending).toBe(false)
     } finally {
-        scheduled.mockRestore()
-        cleared.mockRestore()
+        stop.mockRestore()
+    }
+})
+
+test('reentrant cancellation during window.stop never stops the same navigation twice', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const form = container.querySelector<HTMLFormElement>('form[action="/api/auth/oidc/start"]')!
+    await act(async () =>
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    )
+    const cancelAttempt = state!.handler.handleCancelOidc
+    let stops = 0
+    const stop = spyOn(window, 'stop').mockImplementation(() => {
+        stops += 1
+        // Bound the regression probe even if a broken handler recurses.
+        if (stops === 1) cancelAttempt()
+        expect(state!.state.isOidcPending).toBe(true)
+    })
+    try {
+        await act(async () => cancelAttempt())
+        expect(stop).toHaveBeenCalledTimes(1)
+        expect(state!.state.isOidcPending).toBe(false)
+    } finally {
+        stop.mockRestore()
+    }
+})
+
+test('SPA unmount stops its active native navigation and invalidates retained cancel handlers', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const form = container.querySelector<HTMLFormElement>('form[action="/api/auth/oidc/start"]')!
+    const stop = spyOn(window, 'stop').mockImplementation(() => {})
+    try {
+        await act(async () =>
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        )
+        const cancelAttempt = state!.handler.handleCancelOidc
+        expect(state!.state.isOidcPending).toBe(true)
+        await act(async () => root!.unmount())
+        root = null
+        expect(stop).toHaveBeenCalledTimes(1)
+        cancelAttempt()
+        expect(stop).toHaveBeenCalledTimes(1)
+    } finally {
+        stop.mockRestore()
+    }
+})
+
+test('failed native cancellation keeps the old navigation exclusive until cancellation succeeds', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const form = container.querySelector<HTMLFormElement>('form[action="/api/auth/oidc/start"]')!
+    await act(async () =>
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    )
+    const failure = new Error('Browser could not stop navigation')
+    const stop = spyOn(window, 'stop').mockImplementation(() => {
+        throw failure
+    })
+    try {
+        expect(() => state!.handler.handleCancelOidc()).toThrow(failure)
+        expect(state!.state.isOidcPending).toBe(true)
+        const duplicate = new Event('submit', { bubbles: true, cancelable: true })
+        await act(async () => form.dispatchEvent(duplicate))
+        expect(duplicate.defaultPrevented).toBe(true)
+        expect(directButton(container, 'Sign in with passkey').disabled).toBe(true)
+        stop.mockImplementation(() => {})
+        await act(async () => directButton(container, 'Cancel sign-in').click())
+        expect(stop).toHaveBeenCalledTimes(2)
+        expect(state!.state.isOidcPending).toBe(false)
+        expect(directButton(container, 'Sign in with passkey').disabled).toBe(false)
+    } finally {
+        stop.mockRestore()
     }
 })
 
@@ -294,31 +412,31 @@ test('restoring login from BFCache unlocks OIDC pending controls and cleans up i
         const localSubmit = container.querySelector<HTMLButtonElement>(
             'form button[type="submit"]',
         )!
-        const menuTrigger = [
+        const passkeyButton = [
             ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
-        ].find((button) => button.textContent === 'More sign-in options')!
+        ].find((button) => button.textContent === 'Sign in with passkey')!
         const oidcForm = container.querySelector<HTMLFormElement>(
             'form[action="/api/auth/oidc/start"]',
         )!
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([false, false])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([false, false])
         const submit = new Event('submit', { bubbles: true, cancelable: true })
         await act(async () => {
             oidcForm.dispatchEvent(submit)
         })
         expect(submit.defaultPrevented).toBeFalse()
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([true, true])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([true, true])
         const ordinaryPageShow = new Event('pageshow')
         Object.defineProperty(ordinaryPageShow, 'persisted', { value: false })
         await act(async () => {
             window.dispatchEvent(ordinaryPageShow)
         })
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([true, true])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([true, true])
         const restoredPageShow = new Event('pageshow')
         Object.defineProperty(restoredPageShow, 'persisted', { value: true })
         await act(async () => {
             window.dispatchEvent(restoredPageShow)
         })
-        expect([localSubmit.disabled, menuTrigger.disabled]).toEqual([false, false])
+        expect([localSubmit.disabled, passkeyButton.disabled]).toEqual([false, false])
         await act(async () => {
             localSubmit.click()
             await new Promise((resolve) => setTimeout(resolve, 5))
@@ -411,21 +529,250 @@ async function mountLogin(strict = false) {
         root!.render(strict ? <StrictMode>{content}</StrictMode> : content)
         await new Promise((resolve) => setTimeout(resolve, 10))
     })
+    await waitForLogin(() => Boolean(state && !state.state.isProviderCatalogPending))
     return container
 }
 
-test('a validated OIDC callback failure toasts once in StrictMode and removes the callback search', async () => {
-    search = { oidcError: 'failed' }
-    const container = await mountLogin(true)
-    expect(errorToast).toHaveBeenCalledTimes(1)
-    expect(errorToast.mock.calls[0]?.[0]).toBe(
-        'Sign-in failed. Try again or use your local account.',
+async function waitForLogin(condition: () => boolean) {
+    const deadline = Date.now() + 2_000
+    while (!condition()) {
+        if (Date.now() >= deadline) throw new Error('Login UI did not settle')
+        // oxlint-disable-next-line no-await-in-loop -- Bounded React query-notification flush.
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+    }
+}
+
+function directButton(container: ParentNode, label: string): HTMLButtonElement {
+    const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (item) => item.textContent === label,
     )
-    expect(navigate).toHaveBeenCalledTimes(1)
-    expect(navigate).toHaveBeenCalledWith({ to: '/login', search: {}, replace: true })
-    expect(container.querySelector('[role="alert"], output')).toBeNull()
-    expect(container.querySelector('input[name="email"]')).not.toBeNull()
+    if (!button) throw new Error(`Missing direct login action: ${label}`)
+    return button
+}
+
+test('invalid local validation releases its admission so passkey recovery remains usable', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const localForm = container.querySelector<HTMLFormElement>('form:not([action])')!
+    await act(async () => {
+        localForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        directButton(container, 'Sign in with passkey').click()
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(login).not.toHaveBeenCalled()
+    expect(passkeyLogin).not.toHaveBeenCalled()
+    await act(async () => {
+        directButton(container, 'Sign in with passkey').click()
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(passkeyLogin).toHaveBeenCalledTimes(1)
+    expect(state!.form.state.values).toEqual({ email: '', password: '' })
 })
+
+test('explicit catalog refresh recovers providers without clearing or blocking local credentials', async () => {
+    const container = await mountLogin()
+    expect(state!.state.isProviderCatalogUnavailable).toBe(true)
+    await act(async () => {
+        state!.form.setFieldValue('email', 'owner@example.test')
+        state!.form.setFieldValue('password', 'private local password')
+    })
+    let release!: () => void
+    providerCatalogDelay = new Promise<void>((resolve) => {
+        release = resolve
+    })
+    providerListAvailable = true
+    await act(async () => {
+        directButton(container, 'Reload sign-in providers').click()
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(providerCatalogRequests).toBe(2)
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(
+        false,
+    )
+    expect(directButton(container, 'Sign in with passkey').disabled).toBe(false)
+    expect(state!.form.state.values).toEqual({
+        email: 'owner@example.test',
+        password: 'private local password',
+    })
+    await act(async () => {
+        release()
+        await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(state!.state.isProviderCatalogUnavailable).toBe(false)
+    expect(directButton(container, 'Sign in with Office').disabled).toBe(false)
+    expect(state!.form.state.values).toEqual({
+        email: 'owner@example.test',
+        password: 'private local password',
+    })
+    expect(login).not.toHaveBeenCalled()
+})
+
+test.each([
+    { marker: 'unknown' },
+    { marker: '<img src=x onerror=alert(1)>' },
+    { marker: 'https://provider.example/?code=private-token' },
+    { marker: ['failed', 'denied'] },
+])(
+    'ignores unrecognized external failure marker %j without rendering raw query data',
+    async ({ marker }) => {
+        Object.assign(search, { oidcError: marker })
+        const container = await mountLogin(true)
+        expect(errorToast).not.toHaveBeenCalled()
+        expect(navigate).not.toHaveBeenCalled()
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(container.querySelector('img')).toBeNull()
+        expect(container.textContent).not.toContain('private-token')
+        expect(container.textContent).not.toContain('onerror')
+        expect(container.querySelector('input[name="email"]')).not.toBeNull()
+    },
+)
+
+test.each(['provider', 'passkey', 'local'] as const)(
+    'synchronous double clicks admit only one %s authentication operation',
+    async (method) => {
+        providerListAvailable = true
+        let release!: () => void
+        const pending = new Promise<{ success: boolean; message: string }>((resolve) => {
+            release = () => resolve({ success: false, message: 'Unavailable.' })
+        })
+        login.mockImplementation(async () => pending)
+        passkeyLogin.mockImplementation(async () => pending)
+        const container = await mountLogin()
+        await act(async () => {
+            state!.form.setFieldValue('email', 'owner@example.test')
+            state!.form.setFieldValue('password', 'private local password')
+        })
+        const oidcForm = container.querySelector<HTMLFormElement>(
+            'form[action="/api/auth/oidc/start"]',
+        )!
+        let providerSubmissions = 0
+        const nativeSubmit = spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(
+            () => {
+                if (method === 'provider') providerSubmissions += 1
+                const submittedForm =
+                    method === 'provider'
+                        ? oidcForm
+                        : container.querySelector<HTMLFormElement>('form:not([action])')!
+                submittedForm.dispatchEvent(
+                    new Event('submit', { bubbles: true, cancelable: true }),
+                )
+            },
+        )
+        try {
+            const button =
+                method === 'local'
+                    ? container.querySelector<HTMLButtonElement>('button[type="submit"]')!
+                    : directButton(
+                          container,
+                          method === 'provider' ? 'Sign in with Office' : 'Sign in with passkey',
+                      )
+            await act(async () => {
+                button.click()
+                button.click()
+                await new Promise((resolve) => setTimeout(resolve, 5))
+            })
+            expect(providerSubmissions).toBe(method === 'provider' ? 1 : 0)
+            expect(passkeyLogin.mock.calls.length).toBe(method === 'passkey' ? 1 : 0)
+            expect(login.mock.calls.length).toBe(method === 'local' ? 1 : 0)
+            expect(
+                directButton(
+                    container,
+                    method === 'passkey' ? 'Checking passkey…' : 'Sign in with passkey',
+                ).disabled,
+            ).toBe(true)
+            expect(directButton(container, 'Sign in with Office').disabled).toBe(true)
+        } finally {
+            await act(async () => {
+                release()
+                await pending
+                await new Promise((resolve) => setTimeout(resolve, 5))
+            })
+            nativeSubmit.mockRestore()
+        }
+    },
+)
+
+test.each(['provider', 'passkey', 'local'] as const)(
+    'the first synchronous %s action excludes other sign-in methods before React rerenders',
+    async (method) => {
+        providerListAvailable = true
+        let release!: () => void
+        const pending = new Promise<{ success: boolean; message: string }>((resolve) => {
+            release = () => resolve({ success: false, message: 'Unavailable.' })
+        })
+        login.mockImplementation(async () => pending)
+        passkeyLogin.mockImplementation(async () => pending)
+        const container = await mountLogin()
+        await act(async () => {
+            state!.form.setFieldValue('email', 'owner@example.test')
+            state!.form.setFieldValue('password', 'private local password')
+        })
+        const form = container.querySelector<HTMLFormElement>(
+            'form[action="/api/auth/oidc/start"]',
+        )!
+        const nativeSubmit = spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(
+            () => {
+                form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            },
+        )
+        try {
+            const localForm = container.querySelector<HTMLFormElement>('form:not([action])')!
+            const start = {
+                local: () =>
+                    localForm.dispatchEvent(
+                        new Event('submit', { bubbles: true, cancelable: true }),
+                    ),
+                passkey: () => directButton(container, 'Sign in with passkey').click(),
+                provider: () => directButton(container, 'Sign in with Office').click(),
+            }
+            await act(async () => {
+                start[method]()
+                for (const alternate of ['local', 'passkey', 'provider'] as const)
+                    if (alternate !== method) start[alternate]()
+                await new Promise((resolve) => setTimeout(resolve, 5))
+            })
+            expect(nativeSubmit.mock.calls.length).toBe(method === 'provider' ? 1 : 0)
+            expect(login.mock.calls.length).toBe(method === 'local' ? 1 : 0)
+            expect(passkeyLogin.mock.calls.length).toBe(method === 'passkey' ? 1 : 0)
+        } finally {
+            await act(async () => {
+                release()
+                await pending
+                await new Promise((resolve) => setTimeout(resolve, 5))
+            })
+            nativeSubmit.mockRestore()
+        }
+    },
+)
+
+test.each([
+    ['failed', 'Sign-in failed. Try again or use your local account.'],
+    [
+        'denied',
+        'This identity is not allowed to sign in. Contact your administrator or use your local account.',
+    ],
+    [
+        'unavailable',
+        'The identity provider could not be reached. Try again or use your local password or passkey.',
+    ],
+    ['expired', 'This sign-in request has expired. Start sign-in again.'],
+    ['reauthentication', 'Sign in with your local password or passkey, then retry.'],
+    ['conflict', 'The sign-in configuration changed. Start sign-in again.'],
+] as const)(
+    'validated callback marker %s is consumed once in StrictMode and remains visible as a safe inline alert',
+    async (code, message) => {
+        search = { oidcError: code }
+        const container = await mountLogin(true)
+        expect(errorToast).toHaveBeenCalledTimes(1)
+        expect(errorToast.mock.calls[0]?.[0]).toBe(message)
+        expect(navigate).toHaveBeenCalledTimes(1)
+        expect(navigate).toHaveBeenCalledWith({ to: '/login', search: {}, replace: true })
+        expect(container.querySelector('[role="alert"]')?.textContent).toBe(message)
+        expect(container.querySelector('input[name="email"]')).not.toBeNull()
+    },
+)
 
 test('alternative provider selection forwards only its UUID through native submission and passkey stays local', async () => {
     providerListAvailable = true
@@ -448,15 +795,10 @@ test('alternative provider selection forwards only its UUID through native submi
             oidcForm.dispatchEvent(submission)
         },
     )
-    async function selectMenuItem(label: string) {
-        await act(async () =>
-            container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click(),
-        )
-        const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
-            (entry) =>
-                document.getElementById(entry.getAttribute('aria-labelledby') ?? '')
-                    ?.textContent === label,
-        )!
+    async function selectDirectButton(label: string) {
+        const item = [
+            ...container.querySelectorAll<HTMLButtonElement>('button[type="button"]'),
+        ].find((entry) => entry.textContent === label)!
         expect(item).toBeDefined()
         await act(async () => {
             item.click()
@@ -464,14 +806,14 @@ test('alternative provider selection forwards only its UUID through native submi
         })
     }
     try {
-        await selectMenuItem('Sign in with passkey')
+        await selectDirectButton('Sign in with passkey')
         expect(passkeyLogin).toHaveBeenCalledTimes(1)
         expect(nativeSubmit).not.toHaveBeenCalled()
         await act(async () => {
             await new Promise((resolve) => setTimeout(resolve, 25))
         })
         expect(state!.state.isPasskeyPending).toBeFalse()
-        await selectMenuItem('Sign in with Office')
+        await selectDirectButton('Sign in with Office')
         expect(nativeSubmit).toHaveBeenCalledTimes(1)
         expect(submission?.defaultPrevented).toBeFalse()
         expect(submittedFields).toEqual([['providerId', '0194f777-4074-7000-8000-000000000003']])

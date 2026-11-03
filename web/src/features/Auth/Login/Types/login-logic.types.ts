@@ -1,12 +1,19 @@
 import type { FormEventHandler, RefObject } from 'react'
-import type { MenuItem } from '@rentnerkev/menu'
+export interface AlternativeSignInOption {
+    readonly id: string
+    readonly label: string
+}
 export interface LoginLogicResult<TForm> {
     form: TForm
     state: {
         validationEpochs: Readonly<Record<string, number>>
         isPending: boolean
         isPasskeyPending: boolean
-        alternativeSignInItems: readonly MenuItem[]
+        isOidcPending: boolean
+        isProviderCatalogPending: boolean
+        isProviderCatalogUnavailable: boolean
+        oidcFeedback: string | null
+        alternativeSignInItems: readonly AlternativeSignInOption[]
     }
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
@@ -15,6 +22,8 @@ export interface LoginLogicResult<TForm> {
         handlePasskeyLogin: () => Promise<void>
         handleOidcSubmit: FormEventHandler<HTMLFormElement>
         handleAlternativeSignIn: (id: string) => void
+        handleRefreshProviders: () => void
+        handleCancelOidc: () => void
     }
     refs: {
         oidcForm: RefObject<HTMLFormElement | null>

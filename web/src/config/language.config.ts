@@ -65,6 +65,23 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'shell.home': 'RentnerProxy home',
     'auth.logoutFailed': 'Could not sign out. Check your connection and try again.',
     'auth.moreSignInOptions': 'More sign-in options',
+    'auth.oidc.signInWith': 'Sign in with {{provider}}',
+    'auth.oidc.failed': 'Sign-in failed. Try again or use your local account.',
+    'auth.oidc.title': 'Sign in with an identity provider',
+    'auth.oidc.loading': 'Loading sign-in providers…',
+    'auth.oidc.continuing': 'Opening identity provider…',
+    'auth.oidc.retry': 'Reload sign-in providers',
+    'auth.oidc.cancel': 'Cancel sign-in',
+    'auth.oidc.catalogUnavailable':
+        'Sign-in providers could not be loaded. Reload the list or use your local account.',
+    'auth.oidc.unavailable':
+        'The identity provider could not be reached. Try again or use your local password or passkey.',
+    'auth.oidc.denied':
+        'This identity is not allowed to sign in. Contact your administrator or use your local account.',
+    'auth.oidc.expired': 'This sign-in request has expired. Start sign-in again.',
+    'auth.oidc.reauthentication': 'Sign in with your local password or passkey, then retry.',
+    'auth.oidc.conflict': 'The sign-in configuration changed. Start sign-in again.',
+    'auth.oidc.localRecovery': 'Local owners can continue with a password or passkey.',
     'auth.twoFactor.unavailable': 'Authentication service temporarily unavailable. Try again.',
     'auth.twoFactor.showStatus': 'Show sign-in status',
     'auth.twoFactor.expired': 'This authentication request has expired. Start again.',

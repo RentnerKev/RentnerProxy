@@ -10,6 +10,7 @@ import UserAppearancePanel from './Components/UserAppearancePanel/index.tsx'
 import SecuritySettingsPanel from './Components/SecuritySettingsPanel/index.tsx'
 import UserSettingsNavigation from './Components/UserSettingsNavigation.tsx'
 import NotificationsPanel from './Components/NotificationsPanel/index.tsx'
+import OidcConnectionsPanel from './Components/OidcConnectionsPanel/index.tsx'
 import { getUserSettingsPageViewModel } from '@/lib/UserSettings/userSettingsPage.ts'
 import type { UserSettingsPageProps } from './Types/user-settings-component-props.types.ts'
 
@@ -58,6 +59,13 @@ export default function UserSettingsPage({ user, activeSection }: UserSettingsPa
                     <Activity mode={activeSection === 'appearance' ? 'visible' : 'hidden'}>
                         <UserAppearancePanel key={user.id} userId={user.id} />
                     </Activity>
+                    {activeSection === 'linked-accounts' ? (
+                        <OidcConnectionsPanel
+                            key={user.id}
+                            userId={user.id}
+                            canUpdate={viewModel.canUpdateConnections}
+                        />
+                    ) : null}
                     <Activity mode={activeSection === 'notifications' ? 'visible' : 'hidden'}>
                         <NotificationsPanel
                             key={user.id}

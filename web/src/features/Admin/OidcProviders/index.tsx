@@ -4,6 +4,7 @@ import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import ReauthenticationModal from '@/features/UserSettings/Components/SecuritySettingsPanel/Components/ReauthenticationModal.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ProviderEditor from './Components/ProviderEditor.tsx'
+import ProviderSetupHelp from './Components/ProviderSetupHelp.tsx'
 import useOidcProvidersLogic from './Hooks/useOidcProvidersLogic.ts'
 
 /** Presents the provider snapshot with explicit edit, conflict reload, and reauthentication actions. */
@@ -50,6 +51,7 @@ export default function OidcProvidersPage() {
                 <p className="text-sm text-muted">{t('oidc.recovery')}</p>
                 <p className="text-sm text-muted">{t('oidc.policy')}</p>
             </section>
+            <ProviderSetupHelp />
             <div className="mb-4 flex flex-wrap gap-3">
                 <button
                     type="button"
@@ -83,6 +85,21 @@ export default function OidcProvidersPage() {
                         <p className="text-sm text-muted">
                             {t('oidc.bindingCount', { count: provider.bindings.length })}
                         </p>
+                        <div className="grid gap-1 border-l-2 border-border pl-3 text-sm">
+                            <p>
+                                {t(
+                                    provider.accountPolicy?.provisioning
+                                        ? 'oidc.provisioningOn'
+                                        : 'oidc.provisioningOff',
+                                )}
+                            </p>
+                            <p className="text-muted">
+                                {t('oidc.rolePolicySummary', {
+                                    defaults: provider.accountPolicy?.defaultRoleKeys.length ?? 0,
+                                    mappings: provider.accountPolicy?.groupRoleMappings.length ?? 0,
+                                })}
+                            </p>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             <button
                                 type="button"

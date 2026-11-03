@@ -1,10 +1,10 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
-import { Menu } from '@rentnerkev/menu'
-import { ChevronDown } from 'lucide-react'
+import { Fingerprint, LogIn } from 'lucide-react'
+import FormMessage from '@/shared/Forms/FormMessage.tsx'
 import type { AlternativeLoginMethodsProps } from '../Types/login-component-props.types.ts'
 
-/** Groups passkey and provider actions without exposing credentials or replacing native OIDC navigation. */
+/** Shows direct provider choices alongside the independent local passkey sign-in. */
 export default function AlternativeLoginMethods({
     state,
     handler,
@@ -12,7 +12,7 @@ export default function AlternativeLoginMethods({
 }: AlternativeLoginMethodsProps) {
     const { t } = useTranslationStore()
     return (
-        <div className="mt-3">
+        <div className="mt-3 grid gap-3">
             <form
                 ref={oidcFormRef}
                 hidden
@@ -22,32 +22,66 @@ export default function AlternativeLoginMethods({
             >
                 <input ref={oidcProviderIdRef} type="hidden" name="providerId" />
             </form>
-            <Menu
-                asChild
-                openOnHover
-                ariaLabel={t('auth.moreSignInOptions', { defaultValue: 'More sign-in options' })}
-                items={state.alternativeSignInItems}
-                onAction={handler.handleAlternativeSignIn}
-                disabled={state.isPending || state.isPasskeyPending}
-                align="center"
-                sideOffset={6}
-                collisionPadding={8}
-                portalZIndex={90}
-                classNames={{
-                    content:
-                        'rounded-xl shadow-panel [--rentner-foreground:var(--theme-ink-soft)] [--rentner-surface:var(--theme-surface-raised)] [--rentner-control:var(--theme-surface-hover)] [--rentner-border:var(--theme-border)] [--rentner-muted:var(--theme-muted)]',
-                    item: 'min-h-12 rounded-lg px-3 transition-colors hover:bg-surface-hover aria-disabled:pointer-events-none aria-disabled:opacity-45 motion-reduce:transition-none',
-                    label: 'font-bold leading-snug',
-                }}
-                trigger={
-                    <button type="button" className={buttonClassName('secondary', 'w-full')}>
-                        {state.isPasskeyPending
+            {state.oidcFeedback ? (
+                <FormMessage tone="error">{state.oidcFeedback}</FormMessage>
+            ) : null}
+            {state.alternativeSignInItems.length > 1 ? (
+                <h2 className="mt-2 text-sm font-bold text-muted">{t('auth.moreSignInOptions')}</h2>
+            ) : null}
+            <div className="grid gap-2">
+                {state.alternativeSignInItems.map((item) => (
+                    <button
+                        type="button"
+                        key={item.id}
+                        disabled={state.isPending || state.isPasskeyPending}
+                        className={buttonClassName(
+                            'secondary',
+                            'min-h-12 w-full whitespace-normal break-words',
+                        )}
+                        onClick={() => handler.handleAlternativeSignIn(item.id)}
+                    >
+                        {item.id === 'passkey' ? (
+                            <Fingerprint aria-hidden="true" className="size-4 shrink-0" />
+                        ) : (
+                            <LogIn aria-hidden="true" className="size-4 shrink-0" />
+                        )}
+                        {state.isPasskeyPending && item.id === 'passkey'
                             ? t('Checking passkey…')
-                            : t('auth.moreSignInOptions', { defaultValue: 'More sign-in options' })}
-                        <ChevronDown aria-hidden="true" className="size-4" />
+                            : item.label}
                     </button>
-                }
-            />
+                ))}
+            </div>
+            {state.isOidcPending ? (
+                <div className="grid gap-2">
+                    <output className="text-sm text-muted">{t('auth.oidc.continuing')}</output>
+                    <button
+                        type="button"
+                        className={buttonClassName('secondary')}
+                        onClick={handler.handleCancelOidc}
+                    >
+                        {t('auth.oidc.cancel')}
+                    </button>
+                </div>
+            ) : null}
+            {state.isProviderCatalogPending ? (
+                <output className="text-sm text-muted">{t('auth.oidc.loading')}</output>
+            ) : null}
+            {state.isProviderCatalogUnavailable ? (
+                <div className="grid gap-2">
+                    <FormMessage tone="info">auth.oidc.catalogUnavailable</FormMessage>
+                    <button
+                        type="button"
+                        className={buttonClassName('secondary')}
+                        onClick={handler.handleRefreshProviders}
+                        disabled={state.isPending || state.isPasskeyPending}
+                    >
+                        {t('auth.oidc.retry')}
+                    </button>
+                </div>
+            ) : null}
+            {state.alternativeSignInItems.length > 1 ? (
+                <p className="text-sm text-muted">{t('auth.oidc.localRecovery')}</p>
+            ) : null}
         </div>
     )
 }

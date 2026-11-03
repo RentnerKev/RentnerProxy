@@ -256,7 +256,19 @@
         },
         "oidc": {
             "signInWith": "Iniciar sesión con {{provider}}",
-            "failed": "No se pudo iniciar sesión. Inténtalo de nuevo o utiliza tu cuenta local."
+            "failed": "No se pudo iniciar sesión. Inténtalo de nuevo o utiliza tu cuenta local.",
+            "title": "Iniciar sesión con un proveedor de identidad",
+            "loading": "Cargando proveedores de acceso…",
+            "continuing": "Abriendo el proveedor de identidad…",
+            "retry": "Recargar proveedores de acceso",
+            "catalogUnavailable": "No se pudieron cargar los proveedores de acceso. Recarga la lista o utiliza tu cuenta local.",
+            "unavailable": "No se pudo contactar con el proveedor de identidad. Inténtalo de nuevo o utiliza tu contraseña o clave de acceso local.",
+            "denied": "Esta identidad no tiene permiso para iniciar sesión. Contacta con la administración o utiliza tu cuenta local.",
+            "expired": "Esta solicitud de acceso ha caducado. Vuelve a iniciar sesión.",
+            "reauthentication": "Inicia sesión con tu contraseña o clave de acceso local y vuelve a intentarlo.",
+            "conflict": "La configuración de acceso ha cambiado. Vuelve a iniciar sesión.",
+            "localRecovery": "Los propietarios locales pueden continuar con una contraseña o clave de acceso.",
+            "cancel": "Cancelar inicio de sesión"
         },
         "logoutFailed": "No se pudo cerrar sesión. Comprueba tu conexión e inténtalo de nuevo.",
         "logoutRevocationFailed": "Has cerrado sesión en este navegador, pero no se pudo revocar la sesión del servidor."
@@ -415,7 +427,8 @@
             "twoFactor": "Dos factores",
             "passkeys": "Claves de acceso",
             "appearance": "Apariencia",
-            "notifications": "Notificaciones"
+            "notifications": "Notificaciones",
+            "linkedAccounts": "Cuentas vinculadas"
         },
         "notifications": {
             "title": "Notificaciones",
@@ -704,6 +717,35 @@
         "validation": {
             "passwordsDoNotMatch": "Las contraseñas no coinciden.",
             "authenticatorCode": "Introduce el código de seis dígitos de tu aplicación de autenticación."
+        },
+        "oidc": {
+            "title": "Cuentas vinculadas",
+            "description": "Añade un proveedor de identidad a tu cuenta local. Tu contraseña, claves de acceso y opciones de recuperación seguirán disponibles.",
+            "empty": "No hay proveedores de identidad disponibles.",
+            "external": "Un proveedor de identidad administra tu cuenta. Contacta con la administración para cambiar sus vínculos.",
+            "link": "Vincular cuenta",
+            "unlink": "Desvincular cuenta",
+            "linked": "Vinculada",
+            "unlinked": "Sin vincular",
+            "disabled": "Proveedor desactivado",
+            "refresh": "Actualizar",
+            "loading": "Cargando cuentas vinculadas…",
+            "pending": "Continúa en tu proveedor. Si has cancelado, actualiza esta lista.",
+            "unlinkedSuccess": "Cuenta desvinculada. El acceso local sigue disponible.",
+            "linkedSuccess": "Cuenta vinculada. Ya puedes iniciar sesión con este proveedor.",
+            "noPermission": "No tienes permiso para administrar las cuentas vinculadas.",
+            "error": {
+                "unavailable": "No se pudieron cargar las cuentas vinculadas. Actualiza la lista y vuelve a intentarlo.",
+                "conflict": "Los vínculos han cambiado. La lista se ha actualizado; revísala y vuelve a intentarlo.",
+                "reauthenticate": "Confirma de nuevo tu contraseña o clave de acceso y vuelve a intentarlo.",
+                "denied": "Necesitas una contraseña o clave de acceso local y permiso para modificar esta cuenta.",
+                "rateLimited": "Demasiados intentos. Espera un minuto y vuelve a intentarlo.",
+                "failed": "No se pudo cambiar el vínculo. Actualiza la lista y vuelve a intentarlo.",
+                "expired": "Esta solicitud de vinculación ha caducado. Empieza de nuevo y confirma tu identidad local.",
+                "unavailableProvider": "No se pudo contactar con el proveedor de identidad. Intenta vincular la cuenta más tarde.",
+                "deniedLink": "No se pudo vincular esta identidad. Elige otra identidad del proveedor o contacta con la administración."
+            },
+            "cancel": "Cancelar navegación"
         }
     },
     "admin": {
@@ -4202,7 +4244,7 @@
     "oidc": {
         "title": "Proveedores de identidad",
         "eyebrow": "Seguridad",
-        "description": "Configurar el acceso OpenID Connect para cuentas locales existentes.",
+        "description": "Configura el acceso centralizado, los vínculos explícitos de cuentas y la creación automática opcional de cuentas.",
         "add": "Añadir proveedor",
         "edit": "Editar proveedor",
         "delete": "Eliminar proveedor",
@@ -4226,7 +4268,7 @@
         "copied": "URL de retorno copiada.",
         "callbackHint": "Configurar PUBLIC_ORIGIN en el servidor para obtener la URL canónica.",
         "recovery": "Conservar un propietario local con contraseña o clave de acceso para recuperación. Los cambios requieren autenticación local reciente.",
-        "policy": "Solo se aceptan vínculos explícitos de sujetos. No hay creación automática, coincidencia por correo, grupos ni asignación de roles.",
+        "policy": "Las cuentas locales existentes conservan sus roles locales. La creación automática de cuentas es opcional; los grupos del proveedor solo controlan los roles de las cuentas administradas por él. Las direcciones de correo nunca se vinculan automáticamente.",
         "refresh": "Actualizar",
         "refreshConflict": "¿Recargar la configuración guardada?",
         "empty": "No hay proveedores configurados.",
@@ -4269,6 +4311,33 @@
             "endpointOrigins": "Vacío: origen del emisor automático",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Sujeto exacto del proveedor"
-        }
+        },
+        "accountPolicy": "Cuentas y roles",
+        "provisioning": "Crear usuarios automáticamente",
+        "provisioningHint": "Solo las direcciones de correo verificadas por el proveedor pueden crear cuentas nuevas. Las direcciones existentes nunca se vinculan automáticamente.",
+        "groupClaim": "Claim de grupos",
+        "groupClaimHint": "Claim de nivel superior en el token de ID firmado, por ejemplo groups.",
+        "defaultRoles": "Roles predeterminados",
+        "groupMappings": "Asignaciones de grupos a roles",
+        "group": "Valor exacto del grupo",
+        "mappedRoles": "Roles de este grupo",
+        "addMapping": "Añadir asignación de grupo",
+        "removeMapping": "Eliminar asignación de grupo",
+        "rolePolicyHint": "Los roles solo se aplican a las cuentas creadas por este proveedor. Los grupos deben coincidir exactamente, incluidas las mayúsculas y minúsculas. Si faltan grupos, se retiran los roles asignados. Los roles efectivos deben permitir el acceso a la aplicación; el acceso de propietario sigue siendo local.",
+        "rolesUnavailable": "No se pudieron cargar los roles. Recarga antes de cambiar la política de roles.",
+        "provisioningOn": "Creación automática de cuentas",
+        "provisioningOff": "Solo vínculos explícitos de cuentas",
+        "rolePolicySummary": "Roles predeterminados: {{defaults}} · Asignaciones de grupos: {{mappings}}",
+        "managedBinding": "Roles administrados por este proveedor",
+        "setupTitle": "Ejemplos de configuración: authentik y Keycloak",
+        "setupClient": "Crea un cliente confidencial de OpenID Connect con flujo de código de autorización, PKCE S256 y firma RS256. Registra la URL de retorno exacta indicada arriba y copia el emisor, el ID y el secreto del cliente en este proveedor.",
+        "setupAuthentik": "Utiliza el emisor específico de la aplicación, por ejemplo https://auth.example.com/application/o/rentnerproxy/. Selecciona una clave de firma RSA. Para la creación automática de cuentas, configura las asignaciones de los ámbitos profile/email y un flujo real de verificación del correo.",
+        "setupKeycloak": "Utiliza el emisor del realm, por ejemplo https://sso.example.com/realms/rentnerproxy. Activa la autenticación del cliente y el flujo estándar. Incluye los grupos necesarios en un claim de nivel superior del token de ID, por ejemplo groups, mediante un asignador de pertenencia a grupos.",
+        "setupGroups": "La creación automática de cuentas requiere email y email_verified=true en el token de ID firmado. Los valores de grupo deben coincidir exactamente con las asignaciones; no se admiten claims anidados.",
+        "setupVerify": "Guarda, prueba los metadatos del proveedor y después realiza un acceso real, manteniendo disponible una sesión de propietario local.",
+        "setupAuthentikDocs": "Documentación de authentik",
+        "setupKeycloakDocs": "Documentación de Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

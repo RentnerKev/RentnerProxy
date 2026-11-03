@@ -8,13 +8,46 @@ import type {
     OidcVerifiedIdentity,
 } from './Types/oidc.types.ts'
 import type { OidcProtocolOptions } from './Types/oidc-client.types.ts'
-import { OidcDomainError } from './oidc.errors.ts'
+import { normalizeOidcFlowError, OidcDomainError } from './oidc.errors.ts'
 import { createOidcHttpFetch, validateOidcEndpoint } from './oidc-http.server.ts'
 import { readVerifiedOidcClaims } from './oidc-claims.server.ts'
 
 /** Narrows untrusted protocol JSON without accepting arrays or null as metadata objects. */
 function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** Recognizes SDK error classes after their state/issuer checks, without forwarding protocol payloads. */
+function protocolFailure(error: unknown): OidcDomainError {
+    if (
+        error instanceof oidc.AuthorizationResponseError ||
+        error instanceof oidc.ResponseBodyError
+    ) {
+        switch (error.error) {
+            case 'access_denied':
+            case 'consent_required':
+            case 'interaction_required':
+            case 'login_required':
+            case 'account_selection_required':
+                return new OidcDomainError('identity_not_allowed')
+            case 'server_error':
+            case 'temporarily_unavailable':
+                return new OidcDomainError('provider_unavailable')
+        }
+    }
+    if (error instanceof oidc.ClientError) {
+        // openid-client wraps customFetch failures in ClientError.cause; only our own typed error is trusted.
+        if (error.cause instanceof OidcDomainError) return normalizeOidcFlowError(error.cause)
+        switch (error.code) {
+            case 'OAUTH_TIMEOUT':
+            case 'OAUTH_ABORT':
+                return new OidcDomainError('provider_unavailable')
+            case 'OAUTH_JWT_CLAIM_COMPARISON_FAILED':
+            case 'OAUTH_JWT_TIMESTAMP_CHECK_FAILED':
+                return new OidcDomainError('identity_not_allowed')
+        }
+    }
+    return normalizeOidcFlowError(error)
 }
 
 /** Caches bounded provider metadata while requiring cryptographically verified OIDC code exchanges. */
@@ -273,13 +306,17 @@ export function createOidcProtocolClient(options: OidcProtocolOptions = {}) {
                         claims.aud.length > 1 &&
                         claims.azp !== configuration.clientId)
                 )
-                    throw new Error()
-                return readVerifiedOidcClaims(
-                    { ...claims, iss: claims.iss, sub: claims.sub, exp: claims.exp },
-                    configuration.groupClaim,
-                )
-            } catch {
-                throw new OidcDomainError('authentication_failed')
+                    throw new OidcDomainError('identity_not_allowed')
+                try {
+                    return readVerifiedOidcClaims(
+                        { ...claims, iss: claims.iss, sub: claims.sub, exp: claims.exp },
+                        configuration.groupClaim,
+                    )
+                } catch {
+                    throw new OidcDomainError('identity_not_allowed')
+                }
+            } catch (error) {
+                throw protocolFailure(error)
             }
         },
     }

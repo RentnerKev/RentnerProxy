@@ -256,7 +256,19 @@
         },
         "oidc": {
             "signInWith": "Se connecter avec {{provider}}",
-            "failed": "La connexion a échoué. Réessayez ou utilisez votre compte local."
+            "failed": "La connexion a échoué. Réessayez ou utilisez votre compte local.",
+            "title": "Se connecter avec un fournisseur d’identité",
+            "loading": "Chargement des fournisseurs de connexion…",
+            "continuing": "Ouverture du fournisseur d’identité…",
+            "retry": "Recharger les fournisseurs de connexion",
+            "catalogUnavailable": "Impossible de charger les fournisseurs de connexion. Rechargez la liste ou utilisez votre compte local.",
+            "unavailable": "Le fournisseur d’identité est injoignable. Réessayez ou utilisez votre mot de passe ou votre clé d’accès locale.",
+            "denied": "Cette identité n’est pas autorisée à se connecter. Contactez votre administrateur ou utilisez votre compte local.",
+            "expired": "Cette demande de connexion a expiré. Recommencez la connexion.",
+            "reauthentication": "Connectez-vous avec votre mot de passe ou votre clé d’accès locale, puis réessayez.",
+            "conflict": "La configuration de connexion a changé. Recommencez la connexion.",
+            "localRecovery": "Les propriétaires locaux peuvent continuer avec un mot de passe ou une clé d’accès.",
+            "cancel": "Annuler la connexion"
         },
         "logoutFailed": "Impossible de vous déconnecter. Vérifiez votre connexion et réessayez.",
         "logoutRevocationFailed": "Vous êtes déconnecté dans ce navigateur, mais la session sur le serveur n’a pas pu être révoquée."
@@ -415,7 +427,8 @@
             "twoFactor": "2FA",
             "passkeys": "Clés d’accès",
             "appearance": "Apparence",
-            "notifications": "Notifications"
+            "notifications": "Notifications",
+            "linkedAccounts": "Comptes associés"
         },
         "notifications": {
             "title": "Notifications",
@@ -704,6 +717,35 @@
         "validation": {
             "passwordsDoNotMatch": "Les mots de passe ne correspondent pas.",
             "authenticatorCode": "Saisissez le code à six chiffres de votre application d’authentification."
+        },
+        "oidc": {
+            "title": "Comptes associés",
+            "description": "Ajoutez un fournisseur d’identité à votre compte local. Votre mot de passe, vos clés d’accès et vos options de récupération restent disponibles.",
+            "empty": "Aucun fournisseur d’identité n’est disponible.",
+            "external": "Votre compte est géré par un fournisseur d’identité. Contactez votre administrateur pour modifier ses associations.",
+            "link": "Associer un compte",
+            "unlink": "Dissocier un compte",
+            "linked": "Associé",
+            "unlinked": "Non associé",
+            "disabled": "Fournisseur désactivé",
+            "refresh": "Actualiser",
+            "loading": "Chargement des comptes associés…",
+            "pending": "Continuez chez votre fournisseur. Si vous avez annulé, actualisez cette liste.",
+            "unlinkedSuccess": "Compte dissocié. La connexion locale reste disponible.",
+            "linkedSuccess": "Compte associé. Vous pouvez désormais vous connecter avec ce fournisseur.",
+            "noPermission": "Vous n’avez pas l’autorisation de gérer les comptes associés.",
+            "error": {
+                "unavailable": "Impossible de charger les comptes associés. Actualisez la liste et réessayez.",
+                "conflict": "Les associations ont changé. La liste a été actualisée ; vérifiez-la et réessayez.",
+                "reauthenticate": "Confirmez à nouveau votre mot de passe ou votre clé d’accès, puis réessayez.",
+                "denied": "Vous devez disposer d’un mot de passe ou d’une clé d’accès locale et de l’autorisation de modifier ce compte.",
+                "rateLimited": "Trop de tentatives. Patientez une minute et réessayez.",
+                "failed": "Impossible de modifier l’association. Actualisez la liste et réessayez.",
+                "expired": "Cette demande d’association a expiré. Recommencez et confirmez votre identité locale.",
+                "unavailableProvider": "Le fournisseur d’identité est injoignable. Réessayez l’association plus tard.",
+                "deniedLink": "Impossible d’associer cette identité. Choisissez une autre identité chez le fournisseur ou contactez votre administrateur."
+            },
+            "cancel": "Annuler la navigation"
         }
     },
     "admin": {
@@ -4202,7 +4244,7 @@
     "oidc": {
         "title": "Fournisseurs d’identité",
         "eyebrow": "Sécurité",
-        "description": "Configurer la connexion OpenID Connect pour les comptes locaux existants.",
+        "description": "Configurez la connexion centralisée, les associations explicites de comptes et la création automatique facultative de comptes.",
         "add": "Ajouter un fournisseur",
         "edit": "Modifier le fournisseur",
         "delete": "Supprimer le fournisseur",
@@ -4226,7 +4268,7 @@
         "copied": "URL de rappel copiée.",
         "callbackHint": "Configurer PUBLIC_ORIGIN sur le serveur pour obtenir l’URL de rappel canonique.",
         "recovery": "Conserver un propriétaire local avec mot de passe ou clé d’accès fonctionnel pour la récupération. Les modifications exigent une authentification locale récente.",
-        "policy": "Seules les associations explicites de sujets sont acceptées. Création automatique, correspondance par e-mail, groupes et attribution de rôles indisponibles.",
+        "policy": "Les comptes locaux existants conservent leurs rôles locaux. La création automatique de comptes est facultative ; les groupes du fournisseur contrôlent les rôles uniquement pour les comptes qu’il gère. Les adresses e-mail ne sont jamais associées automatiquement.",
         "refresh": "Actualiser",
         "refreshConflict": "Recharger la configuration enregistrée ?",
         "empty": "Aucun fournisseur configuré.",
@@ -4269,6 +4311,33 @@
             "endpointOrigins": "Vide : origine de l’émetteur automatique",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Sujet exact du fournisseur"
-        }
+        },
+        "accountPolicy": "Comptes et rôles",
+        "provisioning": "Créer les utilisateurs automatiquement",
+        "provisioningHint": "Seules les adresses e-mail vérifiées par le fournisseur permettent de créer des comptes. Les adresses existantes ne sont jamais associées automatiquement.",
+        "groupClaim": "Claim des groupes",
+        "groupClaimHint": "Claim de premier niveau dans le jeton d’ID signé, par exemple groups.",
+        "defaultRoles": "Rôles par défaut",
+        "groupMappings": "Correspondances entre groupes et rôles",
+        "group": "Valeur exacte du groupe",
+        "mappedRoles": "Rôles de ce groupe",
+        "addMapping": "Ajouter une correspondance de groupe",
+        "removeMapping": "Supprimer la correspondance de groupe",
+        "rolePolicyHint": "Les rôles s’appliquent uniquement aux comptes créés par ce fournisseur. Les groupes doivent correspondre exactement, majuscules comprises. Les groupes absents entraînent le retrait des rôles correspondants. Les rôles effectifs doivent autoriser l’accès à l’application ; l’accès propriétaire reste local.",
+        "rolesUnavailable": "Impossible de charger les rôles. Rechargez avant de modifier la politique des rôles.",
+        "provisioningOn": "Création automatique de comptes",
+        "provisioningOff": "Associations explicites de comptes uniquement",
+        "rolePolicySummary": "Rôles par défaut : {{defaults}} · Correspondances de groupes : {{mappings}}",
+        "managedBinding": "Rôles gérés par ce fournisseur",
+        "setupTitle": "Exemples de configuration : authentik et Keycloak",
+        "setupClient": "Créez un client confidentiel OpenID Connect avec le flux de code d’autorisation, PKCE S256 et la signature RS256. Enregistrez exactement l’URL de rappel ci-dessus, puis copiez l’émetteur, l’ID et le secret du client dans ce fournisseur.",
+        "setupAuthentik": "Utilisez l’émetteur propre à l’application, par exemple https://auth.example.com/application/o/rentnerproxy/. Sélectionnez une clé de signature RSA. Pour la création automatique de comptes, configurez les correspondances des portées profile/email et un véritable flux de vérification de l’adresse e-mail.",
+        "setupKeycloak": "Utilisez l’émetteur du realm, par exemple https://sso.example.com/realms/rentnerproxy. Activez l’authentification du client et le flux standard. Incluez les groupes requis dans un claim de premier niveau du jeton d’ID, par exemple groups, à l’aide d’un mapper d’appartenance aux groupes.",
+        "setupGroups": "La création automatique de comptes nécessite email et email_verified=true dans le jeton d’ID signé. Les valeurs des groupes doivent correspondre exactement aux correspondances ; les claims imbriqués ne sont pas pris en charge.",
+        "setupVerify": "Enregistrez, testez les métadonnées du fournisseur, puis effectuez une véritable connexion tout en gardant une session de propriétaire local disponible.",
+        "setupAuthentikDocs": "Documentation authentik",
+        "setupKeycloakDocs": "Documentation Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

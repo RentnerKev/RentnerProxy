@@ -71,11 +71,19 @@ describe('production request peer addresses', () => {
                 expect(
                     responses
                         .slice(0, 21)
-                        .filter((response) => response.headers.get('location') === '/'),
+                        .filter(
+                            (response) =>
+                                response.headers.get('location') ===
+                                '/account?section=linked-accounts&oidcError=expired',
+                        ),
                 ).toHaveLength(20)
-                expect(responses[20]?.headers.get('location')).toBe('/login?oidcError=failed')
+                expect(responses[20]?.headers.get('location')).toBe(
+                    '/account?section=linked-accounts&oidcError=failed',
+                )
                 expect(responses[21]?.headers.get('location')).toBe(
-                    trustProxyHeaders ? '/' : '/login?oidcError=failed',
+                    trustProxyHeaders
+                        ? '/account?section=linked-accounts&oidcError=expired'
+                        : '/account?section=linked-accounts&oidcError=failed',
                 )
                 expect(windows).toEqual(new Set(['60000']))
                 expect(counts.size).toBe(trustProxyHeaders ? 2 : 1)

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { toast } from '@rentnerkev/toasts'
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
+import { OIDC_LIMITS } from '@/config/oidc.config.ts'
+import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import { getUsersHandler } from '@/features/Admin/UserManagement/middleware.ts'
 import { getRolesHandler } from '@/features/Admin/RoleManagement/middleware.ts'
 import useReauthentication from '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts'
@@ -12,12 +14,16 @@ import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.ty
 import { saveOidcProvidersSchema } from '@/lib/Auth/Oidc/validation.ts'
 import {
     providerDraft,
+    accountPolicyDraft,
     providerInput,
     providersResponseSchema,
     providerTestResponseSchema,
 } from '../validation.ts'
 import useOidcProviderForm from './useOidcProviderForm.ts'
-import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
+import type {
+    OidcProvidersLogicResult,
+    ProviderAccountPolicyDraft,
+} from '../Types/oidc-providers.types.ts'
 
 class ProviderRequestError extends Error {}
 class ProviderSecretRequiredError extends Error {}
@@ -115,6 +121,16 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     }, [users.error, roles.error, t])
     const [defaultValues, setDefaultValues] = useState(providerDraft)
     const form = useOidcProviderForm(defaultValues, handleSave)
+    /** Initializes optional policy only after an explicit edit; disabling JIT retains role synchronization. */
+    function updatePolicy(
+        update: (policy: ProviderAccountPolicyDraft) => ProviderAccountPolicyDraft,
+    ) {
+        if (busy.current || !roles.isSuccess || roles.isError) return
+        form.setFieldValue(
+            'accountPolicy',
+            update(form.state.values.accountPolicy ?? accountPolicyDraft()),
+        )
+    }
     /** Resets both draft state and TanStack Form state so modal sessions cannot inherit secrets. */
     function resetDraft(values: typeof defaultValues) {
         setDefaultValues(values)
@@ -215,7 +231,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             setReloadConfirm(true)
             return
         }
-        const result = await query.refetch()
+        const [result] = await Promise.all([query.refetch(), users.refetch(), roles.refetch()])
         if (result.data && !editorOpen && !deleteTarget) setBaseRevision(result.data.revision)
     }
     /** Replaces the draft only after an explicit reload confirms the latest server revision. */
@@ -316,6 +332,15 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             conflict,
             revision: query.data?.revision ?? null,
             userOptions: [...options, ...retained],
+            roleOptions: (roles.data ?? [])
+                .filter((role) => role.key !== SYSTEM_ROLES.OWNER)
+                .map((role) => ({
+                    value: role.key,
+                    label: role.isSystem
+                        ? t(`systemRoles.${role.key}.name`)
+                        : role.name || role.key,
+                })),
+            rolesAvailable: roles.isSuccess && !roles.isError,
             isAvailable: Boolean(query.data && !query.isError && !reauthOpen),
             reloadConfirm,
             reauthOpen,
@@ -376,6 +401,45 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 }
             },
             handleCredential: reauthentication.setter.setCredential,
+            handlePolicyProvisioning: (provisioning) =>
+                updatePolicy((policy) => ({ ...policy, provisioning })),
+            handlePolicyGroupClaim: (groupClaim) =>
+                updatePolicy((policy) => ({ ...policy, groupClaim })),
+            handlePolicyDefaultRoles: (defaultRoleKeys) =>
+                updatePolicy((policy) => ({ ...policy, defaultRoleKeys })),
+            handleAddMapping: () =>
+                updatePolicy((policy) =>
+                    policy.groupRoleMappings.length >= OIDC_LIMITS.groupMappings
+                        ? policy
+                        : {
+                              ...policy,
+                              groupRoleMappings: [
+                                  ...policy.groupRoleMappings,
+                                  { rowId: createOidcProviderId(), group: '', roleKeys: [] },
+                              ],
+                          },
+                ),
+            handleRemoveMapping: (rowId) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.filter(
+                        (mapping) => mapping.rowId !== rowId,
+                    ),
+                })),
+            handleMappingGroup: (rowId, group) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.map((mapping) =>
+                        mapping.rowId === rowId ? { ...mapping, group } : mapping,
+                    ),
+                })),
+            handleMappingRoles: (rowId, roleKeys) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.map((mapping) =>
+                        mapping.rowId === rowId ? { ...mapping, roleKeys } : mapping,
+                    ),
+                })),
         },
     }
 }

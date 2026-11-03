@@ -10,6 +10,9 @@ import { SESSION_COOKIE_NAME, MFA_CHALLENGE_COOKIE_NAME } from '@/config/auth.co
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { createOidcHttpHandlers } from '@/server/Auth/Oidc/oidc-response.server.ts'
 import type { OidcFlowCompletion } from '@/server/Auth/Oidc/Types/oidc-flow.types.ts'
+import { OidcDomainError } from '@/server/Auth/Oidc/oidc.errors.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { RateLimitError } from '@/server/Valkey/rate-limiter.service.ts'
 
 const providerId = '0194f777-4074-7000-8000-000000000001'
 function fixture(
@@ -25,7 +28,12 @@ function fixture(
     let linkBegins = 0
     const completionIntents: boolean[] = []
     let signedIn = false
-    let fail = false
+    let failure: unknown
+    let startFailure: unknown
+    let limitFailure: unknown
+    let sessionFailure: unknown
+    let limits = 0
+    let sessionChecks = 0
     let result: OidcFlowCompletion = {
         success: true,
         requiresTwoFactor: false,
@@ -43,11 +51,19 @@ function fixture(
     }
     const handlers = createOidcHttpHandlers({
         origin: () => origin,
-        limit: async () => {},
-        signedIn: async () => signedIn,
+        limit: async () => {
+            limits += 1
+            if (limitFailure) throw limitFailure
+        },
+        signedIn: async () => {
+            sessionChecks += 1
+            if (sessionFailure) throw sessionFailure
+            return signedIn
+        },
         begin: async (id) => {
             expect(id).toBe(providerId)
             begins += 1
+            if (startFailure) throw startFailure
             return {
                 state,
                 browserToken,
@@ -58,6 +74,7 @@ function fixture(
         beginLink: async (id) => {
             expect(id).toBe(providerId)
             linkBegins += 1
+            if (startFailure) throw startFailure
             return {
                 state,
                 browserToken: linkBrowserToken,
@@ -71,7 +88,7 @@ function fixture(
             expect(url.origin).toBe(origin)
             expect(url.pathname).toBe('/api/auth/oidc/callback')
             expect(token).toBe(linking ? linkBrowserToken : browserToken)
-            if (fail) throw new Error('provider-raw-token-payload')
+            if (failure) throw failure
             return result
         },
     })
@@ -103,11 +120,22 @@ function fixture(
         linkBegins: () => linkBegins,
         completionIntents,
         completes: () => completes,
+        limits: () => limits,
+        sessionChecks: () => sessionChecks,
         signedIn: () => {
             signedIn = true
         },
-        fail: () => {
-            fail = true
+        fail: (error: unknown = new Error('provider-raw-token-payload')) => {
+            failure = error
+        },
+        failStart: (error: unknown) => {
+            startFailure = error
+        },
+        failLimit: () => {
+            limitFailure = new RateLimitError(9, 8, 10_000, 'secret-rate-limit-scope')
+        },
+        failSession: () => {
+            sessionFailure = new Error('secret-session-lookup-error')
         },
         linked: () => {
             result = { success: true, linked: true }
@@ -199,7 +227,9 @@ describe('OIDC raw HTTP endpoints', () => {
                 `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}; ${OIDC_FLOW_COOKIE_NAME}=${value.browserToken}; ${SESSION_COOKIE_NAME}=existing-session; ${MFA_CHALLENGE_COOKIE_NAME}=existing-mfa`,
             ),
         )
-        expect(response.headers.get('location')).toBe('/account')
+        expect(response.headers.get('location')).toBe(
+            '/account?section=linked-accounts&oidcResult=linked',
+        )
         expect(value.completionIntents).toEqual([true])
         const cookies = response.headers.getSetCookie()
         expect(cookies).toHaveLength(1)
@@ -237,7 +267,9 @@ describe('OIDC raw HTTP endpoints', () => {
             const response = await value.handlers.callback(value.callback(undefined, cookies))
             expect(value.completes()).toBe(0)
             expect(response.headers.getSetCookie()).toHaveLength(0)
-            expect(response.headers.get('location')).toBe('/')
+            expect(response.headers.get('location')).toBe(
+                '/account?section=linked-accounts&oidcError=expired',
+            )
         })
     }
     test('starts with a no-store HTML navigation bridge and host-only browser binding under form-action self', async () => {
@@ -477,7 +509,7 @@ describe('OIDC raw HTTP endpoints', () => {
             ),
         )
         for (const response of responses)
-            expect(response.headers.get('location')).toBe('/login?oidcError=failed')
+            expect(response.headers.get('location')).toBe('/login?oidcError=expired')
         expect(value.completes()).toBe(0)
     })
 
@@ -505,7 +537,227 @@ describe('OIDC raw HTTP endpoints', () => {
         )
         expect(response.headers.getSetCookie()[0]).not.toContain('Secure')
         value.signedIn()
-        expect((await value.handlers.callback(value.callback())).headers.get('location')).toBe('/')
+        expect((await value.handlers.callback(value.callback())).headers.get('location')).toBe(
+            '/account?section=linked-accounts&oidcError=expired',
+        )
+        expect(value.completes()).toBe(0)
+    })
+
+    const safeFailures = [
+        [new OidcDomainError('challenge_expired'), 'expired'],
+        [new OidcDomainError('identity_not_allowed'), 'denied'],
+        [new OidcDomainError('provider_unavailable'), 'unavailable'],
+        [new OidcDomainError('configuration_unavailable'), 'unavailable'],
+        [new OidcDomainError('configuration_conflict'), 'conflict'],
+        [new AuthDomainError('permission_denied', 'secret-subject-token'), 'denied'],
+        [
+            new AuthDomainError('reauthentication_required', 'secret-subject-token'),
+            'reauthentication',
+        ],
+        [new Error('secret-subject-token: denied unavailable'), 'failed'],
+        [{ code: 'identity_not_allowed', message: 'secret-subject-token' }, 'failed'],
+    ] as const
+    for (const [error, code] of safeFailures) {
+        for (const linking of [false, true]) {
+            test(`returns only ${code} for a ${linking ? 'linked account' : 'login'} callback failure`, async () => {
+                const value = fixture()
+                value.fail(error)
+                if (linking) value.signedIn()
+                const response = await value.handlers.callback(
+                    value.callback(
+                        undefined,
+                        linking
+                            ? `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}`
+                            : undefined,
+                    ),
+                )
+                expect(response.headers.get('location')).toBe(
+                    linking
+                        ? `/account?section=linked-accounts&oidcError=${code}`
+                        : `/login?oidcError=${code}`,
+                )
+                expect(response.status).toBe(303)
+                expect(response.headers.get('cache-control')).toBe('private, no-store')
+                expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+                expect(response.headers.getSetCookie()).toHaveLength(0)
+                expect(JSON.stringify([...response.headers])).not.toContain('secret-subject-token')
+                expect(await response.text()).toBe('')
+            })
+        }
+    }
+
+    test('uses the account destination for failed native link starts, including invalid provider input', async () => {
+        for (const [error, code] of safeFailures) {
+            const value = fixture()
+            value.signedIn()
+            value.failStart(error)
+            // oxlint-disable-next-line no-await-in-loop -- Each request has independent fixture state.
+            const response = await value.handlers.start(
+                new Request('https://proxy.example.test/api/auth/oidc/start', {
+                    method: 'POST',
+                    headers: {
+                        origin: 'https://proxy.example.test',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({ providerId, intent: 'link' }),
+                }),
+            )
+            expect(response.headers.get('location')).toBe(
+                `/account?section=linked-accounts&oidcError=${code}`,
+            )
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+            expect(JSON.stringify([...response.headers])).not.toContain('secret-subject-token')
+            expect(value.begins()).toBe(0)
+        }
+        const value = fixture()
+        value.signedIn()
+        const response = await value.handlers.start(
+            new Request('https://proxy.example.test/api/auth/oidc/start', {
+                method: 'POST',
+                headers: {
+                    origin: 'https://proxy.example.test',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ providerId: 'secret-subject-token', intent: 'link' }),
+            }),
+        )
+        expect(response.headers.get('location')).toBe(
+            '/account?section=linked-accounts&oidcError=failed',
+        )
+        expect(value.linkBegins()).toBe(0)
+    })
+
+    test('does not infer link intent from duplicate intents or untrusted redirect parameters', async () => {
+        const value = fixture()
+        value.signedIn()
+        const response = await value.handlers.start(
+            new Request('https://proxy.example.test/api/auth/oidc/start', {
+                method: 'POST',
+                headers: {
+                    origin: 'https://proxy.example.test',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `providerId=${providerId}&intent=link&intent=link&returnTo=https://attacker.example.test`,
+            }),
+        )
+        expect(response.headers.get('location')).toBe('/login?oidcError=failed')
+        expect(value.linkBegins()).toBe(0)
+        expect(value.begins()).toBe(0)
+    })
+
+    test('returns to login when the session expires during native link authorization or completion', async () => {
+        const value = fixture()
+        value.signedIn()
+        const error = new AuthDomainError('authentication_required', 'secret-session-state')
+        value.failStart(error)
+        value.fail(error)
+        const start = await value.handlers.start(
+            new Request('https://proxy.example.test/api/auth/oidc/start', {
+                method: 'POST',
+                headers: {
+                    origin: 'https://proxy.example.test',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ providerId, intent: 'link' }),
+            }),
+        )
+        const callback = await value.handlers.callback(
+            value.callback(undefined, `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}`),
+        )
+        for (const response of [start, callback]) {
+            expect(response.headers.get('location')).toBe('/login?oidcError=failed')
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+        }
+    })
+
+    test('missing browser flow or state reports expiry without redeeming a code or reflecting the callback', async () => {
+        const anonymous = fixture()
+        const authenticated = fixture()
+        authenticated.signedIn()
+        const responses = await Promise.all([
+            anonymous.handlers.callback(
+                anonymous.callback(
+                    undefined,
+                    `${OIDC_LINK_FLOW_COOKIE_NAME}=${anonymous.linkBrowserToken}`,
+                ),
+            ),
+            anonymous.handlers.callback(
+                anonymous.callback('code=secret-token&returnTo=https://attacker.example.test'),
+            ),
+            authenticated.handlers.callback(authenticated.callback(undefined, '')),
+            authenticated.handlers.callback(
+                authenticated.callback(
+                    'code=secret-token',
+                    `${OIDC_LINK_FLOW_COOKIE_NAME}=${authenticated.linkBrowserToken}`,
+                ),
+            ),
+        ])
+        for (const [index, response] of responses.entries()) {
+            expect(response.headers.get('location')).toBe(
+                index < 2
+                    ? '/login?oidcError=expired'
+                    : '/account?section=linked-accounts&oidcError=expired',
+            )
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+        }
+        expect(anonymous.completes()).toBe(0)
+        expect(authenticated.completes()).toBe(0)
+    })
+
+    for (const authenticated of [false, true]) {
+        for (const endpoint of ['start', 'callback'] as const) {
+            test(`early ${endpoint} rate rejection selects only verified session context authenticated=${authenticated}`, async () => {
+                const value = fixture()
+                if (authenticated) value.signedIn()
+                value.failLimit()
+                const request =
+                    endpoint === 'start'
+                        ? new Request('https://proxy.example.test/api/auth/oidc/start', {
+                              method: 'POST',
+                              headers: {
+                                  origin: 'https://proxy.example.test',
+                                  'Content-Type': 'application/x-www-form-urlencoded',
+                              },
+                              body: new URLSearchParams({ providerId, intent: 'link' }),
+                          })
+                        : value.callback(
+                              undefined,
+                              `${OIDC_LINK_FLOW_COOKIE_NAME}=${value.linkBrowserToken}`,
+                          )
+                const response = await value.handlers[endpoint](request)
+                expect(response.headers.get('location')).toBe(
+                    authenticated
+                        ? '/account?section=linked-accounts&oidcError=failed'
+                        : '/login?oidcError=failed',
+                )
+                expect(request.bodyUsed).toBe(false)
+                expect(value.limits()).toBe(1)
+                expect(value.sessionChecks()).toBe(1)
+                expect(value.begins()).toBe(0)
+                expect(value.linkBegins()).toBe(0)
+                expect(value.completes()).toBe(0)
+                expect(response.headers.getSetCookie()).toHaveLength(0)
+                expect(JSON.stringify([...response.headers])).not.toContain(
+                    'secret-rate-limit-scope',
+                )
+            })
+        }
+    }
+
+    test('a failed best-effort session check never claims an authenticated destination', async () => {
+        const value = fixture()
+        value.signedIn()
+        value.failLimit()
+        value.failSession()
+        const responses = await Promise.all([
+            value.handlers.start(value.start()),
+            value.handlers.callback(value.callback()),
+        ])
+        for (const response of responses) {
+            expect(response.headers.get('location')).toBe('/login?oidcError=failed')
+            expect(response.headers.getSetCookie()).toHaveLength(0)
+        }
+        expect(value.begins()).toBe(0)
         expect(value.completes()).toBe(0)
     })
 })

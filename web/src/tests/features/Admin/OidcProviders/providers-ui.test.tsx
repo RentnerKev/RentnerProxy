@@ -15,6 +15,7 @@ if (!GlobalRegistrator.isRegistered)
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const userId = '11111111-1111-4111-8111-111111111111'
+let rolesUnavailable = false
 mock.module('@/features/Admin/UserManagement/middleware.ts', () => ({
     getUsersHandler: mock(async () => [
         {
@@ -27,9 +28,19 @@ mock.module('@/features/Admin/UserManagement/middleware.ts', () => ({
     ]),
 }))
 mock.module('@/features/Admin/RoleManagement/middleware.ts', () => ({
-    getRolesHandler: mock(async () => [
-        { key: 'member', permissionKeys: [PERMISSIONS.APP_ACCESS] },
-    ]),
+    getRolesHandler: mock(async () => {
+        if (rolesUnavailable) throw new Error('Role catalog unavailable')
+        return [
+            { key: 'member', name: 'Member', permissionKeys: [PERMISSIONS.APP_ACCESS] },
+            { key: 'operator', name: 'Operator', permissionKeys: [] },
+            {
+                key: SYSTEM_ROLES.OWNER,
+                name: 'Owner',
+                isSystem: true,
+                permissionKeys: Object.values(PERMISSIONS),
+            },
+        ]
+    }),
 }))
 mock.module('@/features/Auth/middleware.ts', () => ({
     getAuthStateHandler: mock(async () => ({ setupRequired: false, user: null })),
@@ -87,6 +98,7 @@ function initial(): OidcProvidersSummary {
     }
 }
 beforeEach(() => {
+    rolesUnavailable = false
     snapshot = initial()
     failure = null
     pendingSave = null
@@ -226,6 +238,16 @@ async function submit() {
 function dialog() {
     return document.querySelector<HTMLElement>('[role="dialog"]')!
 }
+async function selectRole(id: string, label: string) {
+    await click(document.getElementById(id)!)
+    await waitFor(() => document.querySelector('[role="option"]') !== null)
+    const options = [...document.querySelectorAll('[role="option"]')]
+    expect(options.some((option) => option.textContent?.trim() === 'Owner')).toBe(false)
+    const option = options.find((entry) => entry.textContent?.includes(label))
+    expect(option).toBeDefined()
+    await click(option!)
+    await click(document.getElementById(id)!)
+}
 function visible(account: AuthenticatedUser) {
     return getApplicationShellViewModel(account, (key) => key).navigationItems.some(
         (item) => item.to === '/identity-providers',
@@ -233,6 +255,129 @@ function visible(account: AuthenticatedUser) {
 }
 
 describe('OIDC provider setup UI', () => {
+    test('freezes policy controls when roles fail to load and refresh recovers the role catalog', async () => {
+        rolesUnavailable = true
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).disabled).toBe(
+            true,
+        )
+        expect((document.getElementById('oidc-default-roles') as HTMLButtonElement).disabled).toBe(
+            true,
+        )
+        await click(button('Cancel', dialog()))
+        rolesUnavailable = false
+        await click(button('Refresh'))
+        await click(button('Edit provider'))
+        await waitFor(
+            () => !(document.getElementById('oidc-provisioning') as HTMLInputElement).disabled,
+        )
+        await fill('oidc-name', 'Catalog recovered')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]).not.toHaveProperty('accountPolicy')
+    })
+    test('configures provisioning and exact group grants using existing nonowner roles', async () => {
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).checked).toBe(
+            false,
+        )
+        await click(document.getElementById('oidc-provisioning')!)
+        await fill('oidc-group-claim', 'teams')
+        await selectRole('oidc-default-roles', 'Member')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-0', 'Operators:EU')
+        await selectRole('oidc-group-roles-0', 'Operator')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]!.accountPolicy).toEqual({
+            provisioning: true,
+            groupClaim: 'teams',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [{ group: 'Operators:EU', roleKeys: ['operator'] }],
+        })
+        expect(writes[0]!.providers[0]).not.toHaveProperty('clientSecret')
+        expect(writes[0]!.expectedRevision).toBe(7)
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).checked).toBe(
+            true,
+        )
+        expect((document.getElementById('oidc-group-0') as HTMLInputElement).value).toBe(
+            'Operators:EU',
+        )
+    })
+    test('preserves managed bindings and roles when provisioning is disabled and mapping rows are removed', async () => {
+        snapshot.providers[0]!.accountPolicy = {
+            provisioning: true,
+            groupClaim: 'groups',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [
+                { group: 'Remove', roleKeys: ['member'] },
+                { group: 'Keep', roleKeys: ['operator'] },
+            ],
+        }
+        snapshot.providers[0]!.bindings = [
+            { subject: 'managed-subject', userId, roleSource: 'provider', generation: 6 },
+        ]
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-user-0') as HTMLButtonElement).disabled).toBe(true)
+        await click(document.getElementById('oidc-provisioning')!)
+        await click(document.getElementById('oidc-remove-mapping-0')!)
+        await fill('oidc-group-0', 'Keep Exact Case')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-1', 'Extra')
+        await selectRole('oidc-group-roles-1', 'Member')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]!.accountPolicy).toEqual({
+            provisioning: false,
+            groupClaim: 'groups',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [
+                { group: 'Keep Exact Case', roleKeys: ['operator'] },
+                { group: 'Extra', roleKeys: ['member'] },
+            ],
+        })
+        expect(writes[0]!.providers[0]!.bindings).toEqual([
+            { subject: 'managed-subject', userId, roleSource: 'provider', generation: 6 },
+        ])
+    })
+    test('rejects duplicate exact group mappings before issuing any provider mutation', async () => {
+        await render()
+        await click(button('Edit provider'))
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-0', 'Operators')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-1', 'Operators')
+        await submit()
+        await waitFor(() => feedback.some((item) => item.kind === 'error'))
+        expect(writes).toHaveLength(0)
+        expect(dialog()).not.toBeNull()
+        expect((document.getElementById('oidc-group-0') as HTMLInputElement).value).toBe(
+            'Operators',
+        )
+        await fill('oidc-group-1', 'operators')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(
+            writes[0]!.providers[0]!.accountPolicy!.groupRoleMappings.map(
+                (mapping) => mapping.group,
+            ),
+        ).toEqual(['Operators', 'operators'])
+    })
+    test('unrelated edits leave old providers without account policy unchanged', async () => {
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-group-claim') as HTMLInputElement).value).toBe(
+            'groups',
+        )
+        await fill('oidc-name', 'Legacy SSO')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]).not.toHaveProperty('accountPolicy')
+    })
     test('only owners receive navigation and the actual route guard redirects a fully privileged nonowner', async () => {
         const user: AuthenticatedUser = {
             id: userId,

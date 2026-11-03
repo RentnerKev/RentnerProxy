@@ -254,7 +254,19 @@
         },
         "oidc": {
             "signInWith": "Mit {{provider}} anmelden",
-            "failed": "Anmeldung fehlgeschlagen. Versuche es erneut oder nutze dein lokales Konto."
+            "failed": "Anmeldung fehlgeschlagen. Versuche es erneut oder nutze dein lokales Konto.",
+            "title": "Mit einem Identitätsanbieter anmelden",
+            "loading": "Anmeldeanbieter werden geladen…",
+            "continuing": "Identitätsanbieter wird geöffnet…",
+            "retry": "Anmeldeanbieter neu laden",
+            "catalogUnavailable": "Anmeldeanbieter konnten nicht geladen werden. Lade die Liste neu oder verwende dein lokales Konto.",
+            "unavailable": "Der Identitätsanbieter ist nicht erreichbar. Versuche es erneut oder nutze dein lokales Passwort oder deinen Passkey.",
+            "denied": "Diese Identität darf sich nicht anmelden. Wende dich an deine Administration oder nutze dein lokales Konto.",
+            "expired": "Diese Anmeldeanfrage ist abgelaufen. Starte die Anmeldung erneut.",
+            "reauthentication": "Melde dich mit deinem lokalen Passwort oder Passkey an und versuche es erneut.",
+            "conflict": "Die Anmeldekonfiguration hat sich geändert. Starte die Anmeldung erneut.",
+            "localRecovery": "Lokale Owner können sich weiterhin mit Passwort oder Passkey anmelden.",
+            "cancel": "Anmeldung abbrechen"
         },
         "logoutFailed": "Abmelden fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
         "logoutRevocationFailed": "Du bist in diesem Browser abgemeldet, aber die Sitzung auf dem Server konnte nicht widerrufen werden."
@@ -413,7 +425,8 @@
             "twoFactor": "Zwei-Faktor",
             "passkeys": "Passkeys",
             "appearance": "Darstellung",
-            "notifications": "Benachrichtigungen"
+            "notifications": "Benachrichtigungen",
+            "linkedAccounts": "Verknüpfte Konten"
         },
         "page": {
             "eyebrow": "Dein Konto",
@@ -702,6 +715,35 @@
                 "configuration_unavailable": "Konfiguration nicht verfügbar"
             },
             "conflict": "Die Einstellungen wurden inzwischen geändert. Dein Entwurf bleibt erhalten. Öffne den Kanal erneut, um die Änderungen abzugleichen."
+        },
+        "oidc": {
+            "title": "Verknüpfte Konten",
+            "description": "Ergänze dein lokales Konto um einen Identitätsanbieter. Passwort, Passkeys und Wiederherstellungsoptionen bleiben verfügbar.",
+            "empty": "Keine Identitätsanbieter verfügbar.",
+            "external": "Dein Konto wird von einem Identitätsanbieter verwaltet. Änderungen an Verknüpfungen übernimmt deine Administration.",
+            "link": "Konto verknüpfen",
+            "unlink": "Verknüpfung entfernen",
+            "linked": "Verknüpft",
+            "unlinked": "Nicht verknüpft",
+            "disabled": "Anbieter deaktiviert",
+            "refresh": "Aktualisieren",
+            "loading": "Verknüpfte Konten werden geladen…",
+            "pending": "Fahre beim Anbieter fort. Falls du abgebrochen hast, aktualisiere diese Liste.",
+            "unlinkedSuccess": "Verknüpfung entfernt. Die lokale Anmeldung bleibt verfügbar.",
+            "linkedSuccess": "Konto verknüpft. Du kannst dich jetzt mit diesem Anbieter anmelden.",
+            "noPermission": "Du hast keine Berechtigung, verknüpfte Konten zu verwalten.",
+            "error": {
+                "unavailable": "Verknüpfte Konten konnten nicht geladen werden. Aktualisiere die Liste und versuche es erneut.",
+                "conflict": "Die Verknüpfungen haben sich geändert. Prüfe die aktualisierte Liste und versuche es erneut.",
+                "reauthenticate": "Bestätige erneut dein Passwort oder deinen Passkey und versuche es noch einmal.",
+                "denied": "Du benötigst ein lokales Passwort oder einen Passkey und die Berechtigung, dieses Konto zu ändern.",
+                "rateLimited": "Zu viele Versuche. Warte eine Minute und versuche es erneut.",
+                "failed": "Die Verknüpfung konnte nicht geändert werden. Aktualisiere die Liste und versuche es erneut.",
+                "expired": "Diese Verknüpfungsanfrage ist abgelaufen. Starte erneut und bestätige deine lokale Identität.",
+                "unavailableProvider": "Der Identitätsanbieter ist nicht erreichbar. Versuche die Verknüpfung später erneut.",
+                "deniedLink": "Diese Identität konnte nicht verknüpft werden. Wähle eine andere Anbieteridentität oder wende dich an deine Administration."
+            },
+            "cancel": "Navigation abbrechen"
         }
     },
     "admin": {
@@ -4200,7 +4242,7 @@
     "oidc": {
         "title": "Identitätsanbieter",
         "eyebrow": "Sicherheit",
-        "description": "OpenID-Connect-Anmeldung für bestehende lokale Konten einrichten.",
+        "description": "Zentrale Anmeldung, ausdrückliche Kontoverknüpfungen und optionale automatische Kontoanlage einrichten.",
         "add": "Anbieter hinzufügen",
         "edit": "Anbieter bearbeiten",
         "delete": "Anbieter löschen",
@@ -4224,7 +4266,7 @@
         "copied": "Callback-URL kopiert.",
         "callbackHint": "PUBLIC_ORIGIN auf dem Server konfigurieren, um die verbindliche Callback-URL zu erhalten.",
         "recovery": "Ein lokales Eigentümerkonto mit funktionierendem Passwort oder Passkey zur Wiederherstellung behalten. Verwaltungsänderungen erfordern eine frische lokale Eigentümerbestätigung.",
-        "policy": "Nur ausdrückliche Subject-Zuordnungen werden akzeptiert. Automatische Kontoerstellung, E-Mail-Abgleich, Gruppen und Rollenzuordnung sind nicht verfügbar.",
+        "policy": "Bestehende lokale Konten behalten ihre lokalen Rollen. Die automatische Kontoanlage ist optional; Anbietergruppen steuern Rollen nur für vom Anbieter verwaltete Konten. E-Mail-Adressen werden nie automatisch verknüpft.",
         "refresh": "Aktualisieren",
         "refreshConflict": "Gespeicherte Konfiguration neu laden?",
         "empty": "Keine Identitätsanbieter eingerichtet.",
@@ -4267,6 +4309,33 @@
             "endpointOrigins": "Leer: Issuer-Origin wird automatisch verwendet",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Exaktes Subject des Identitätsanbieters"
-        }
+        },
+        "accountPolicy": "Konten und Rollen",
+        "provisioning": "Benutzer automatisch anlegen",
+        "provisioningHint": "Nur bestätigte E-Mail-Adressen des Anbieters können neue Konten anlegen. Bestehende E-Mail-Adressen werden nie automatisch verknüpft.",
+        "groupClaim": "Gruppen-Claim",
+        "groupClaimHint": "Claim auf oberster Ebene im signierten ID-Token, zum Beispiel groups.",
+        "defaultRoles": "Standardrollen",
+        "groupMappings": "Gruppe-Rollen-Zuordnungen",
+        "group": "Exakter Gruppenwert",
+        "mappedRoles": "Rollen für diese Gruppe",
+        "addMapping": "Gruppenzuordnung hinzufügen",
+        "removeMapping": "Gruppenzuordnung entfernen",
+        "rolePolicyHint": "Rollen gelten nur für von diesem Anbieter angelegte Konten. Gruppen werden exakt einschließlich Groß-/Kleinschreibung verglichen. Fehlende Gruppen entfernen zugeordnete Rollen. Die wirksamen Rollen müssen den Anwendungszugriff erlauben; Owner-Zugriff bleibt lokal.",
+        "rolesUnavailable": "Rollen konnten nicht geladen werden. Lade sie neu, bevor du die Rollenpolitik änderst.",
+        "provisioningOn": "Automatische Kontoanlage",
+        "provisioningOff": "Nur ausdrücklich verknüpfte Konten",
+        "rolePolicySummary": "Standardrollen: {{defaults}} · Gruppenzuordnungen: {{mappings}}",
+        "managedBinding": "Rollen werden von diesem Anbieter verwaltet",
+        "setupTitle": "Einrichtungsbeispiele: authentik und Keycloak",
+        "setupClient": "Erstelle einen vertraulichen OpenID-Connect-Client mit Authorization-Code-Flow, PKCE S256 und RS256-Signaturen. Registriere die exakte Callback-URL oben und übernimm Issuer, Client-ID und Client-Secret in diesen Anbieter.",
+        "setupAuthentik": "Verwende den anwendungsbezogenen Issuer, zum Beispiel https://auth.example.com/application/o/rentnerproxy/. Wähle einen RSA-Signaturschlüssel. Für die automatische Kontoanlage sind profile/email-Scope-Mappings und eine tatsächliche E-Mail-Verifizierung nötig.",
+        "setupKeycloak": "Verwende den Realm-Issuer, zum Beispiel https://sso.example.com/realms/rentnerproxy. Aktiviere Client-Authentifizierung und Standard-Flow. Übernimm benötigte Gruppen mit einem Gruppenmitgliedschafts-Mapper in einen ID-Token-Claim auf oberster Ebene, zum Beispiel groups.",
+        "setupGroups": "Die automatische Kontoanlage benötigt email und email_verified=true im signierten ID-Token. Gruppenwerte müssen exakt zu den Zuordnungen passen; verschachtelte Claims werden nicht unterstützt.",
+        "setupVerify": "Speichere und teste die Anbieter-Metadaten. Teste anschließend eine echte Anmeldung und halte dabei eine lokale Owner-Sitzung verfügbar.",
+        "setupAuthentikDocs": "authentik-Dokumentation",
+        "setupKeycloakDocs": "Keycloak-Dokumentation",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

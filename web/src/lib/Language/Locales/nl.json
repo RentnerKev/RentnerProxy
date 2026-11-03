@@ -235,7 +235,19 @@
         },
         "oidc": {
             "signInWith": "Inloggen met {{provider}}",
-            "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account."
+            "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account.",
+            "title": "Aanmelden met een identiteitsprovider",
+            "loading": "Aanmeldproviders laden…",
+            "continuing": "Identiteitsprovider openen…",
+            "retry": "Aanmeldproviders opnieuw laden",
+            "catalogUnavailable": "De aanmeldproviders konden niet worden geladen. Laad de lijst opnieuw of gebruik je lokale account.",
+            "unavailable": "De identiteitsprovider kon niet worden bereikt. Probeer het opnieuw of gebruik je lokale wachtwoord of passkey.",
+            "denied": "Deze identiteit mag zich niet aanmelden. Neem contact op met je beheerder of gebruik je lokale account.",
+            "expired": "Dit aanmeldverzoek is verlopen. Start de aanmelding opnieuw.",
+            "reauthentication": "Meld je aan met je lokale wachtwoord of passkey en probeer het opnieuw.",
+            "conflict": "De aanmeldconfiguratie is gewijzigd. Start de aanmelding opnieuw.",
+            "localRecovery": "Lokale eigenaren kunnen doorgaan met een wachtwoord of passkey.",
+            "cancel": "Aanmelden annuleren"
         },
         "logoutFailed": "Afmelden is mislukt. Controleer je verbinding en probeer het opnieuw.",
         "logoutRevocationFailed": "Je bent afgemeld in deze browser, maar de serversessie kon niet worden ingetrokken."
@@ -394,7 +406,8 @@
             "twoFactor": "Twee factoren",
             "passkeys": "Passkeys",
             "appearance": "Weergave",
-            "notifications": "Meldingen"
+            "notifications": "Meldingen",
+            "linkedAccounts": "Gekoppelde accounts"
         },
         "notifications": {
             "title": "Meldingen",
@@ -683,6 +696,35 @@
         "validation": {
             "passwordsDoNotMatch": "Wachtwoorden komen niet overeen.",
             "authenticatorCode": "Voer de zescijferige code uit je authenticator-app in."
+        },
+        "oidc": {
+            "title": "Gekoppelde accounts",
+            "description": "Voeg een identiteitsprovider toe aan je lokale account. Je wachtwoord, passkeys en herstelopties blijven beschikbaar.",
+            "empty": "Er zijn geen identiteitsproviders beschikbaar.",
+            "external": "Je account wordt beheerd door een identiteitsprovider. Neem contact op met je beheerder om de koppelingen te wijzigen.",
+            "link": "Account koppelen",
+            "unlink": "Account ontkoppelen",
+            "linked": "Gekoppeld",
+            "unlinked": "Niet gekoppeld",
+            "disabled": "Provider uitgeschakeld",
+            "refresh": "Vernieuwen",
+            "loading": "Gekoppelde accounts laden…",
+            "pending": "Ga verder bij je provider. Heb je geannuleerd, vernieuw dan deze lijst.",
+            "unlinkedSuccess": "Account ontkoppeld. Lokaal aanmelden blijft beschikbaar.",
+            "linkedSuccess": "Account gekoppeld. Je kunt je nu aanmelden met deze provider.",
+            "noPermission": "Je hebt geen toestemming om gekoppelde accounts te beheren.",
+            "error": {
+                "unavailable": "De gekoppelde accounts konden niet worden geladen. Vernieuw de lijst en probeer het opnieuw.",
+                "conflict": "De koppelingen zijn gewijzigd. De lijst is vernieuwd; controleer deze en probeer het opnieuw.",
+                "reauthenticate": "Bevestig je wachtwoord of passkey opnieuw en probeer het nogmaals.",
+                "denied": "Je hebt een lokaal wachtwoord of een lokale passkey en toestemming nodig om dit account te wijzigen.",
+                "rateLimited": "Te veel pogingen. Wacht een minuut en probeer het opnieuw.",
+                "failed": "De koppeling kon niet worden gewijzigd. Vernieuw de lijst en probeer het opnieuw.",
+                "expired": "Dit koppelverzoek is verlopen. Begin opnieuw en bevestig je lokale identiteit.",
+                "unavailableProvider": "De identiteitsprovider kon niet worden bereikt. Probeer het account later opnieuw te koppelen.",
+                "deniedLink": "Deze identiteit kon niet worden gekoppeld. Kies een andere identiteit bij de provider of neem contact op met je beheerder."
+            },
+            "cancel": "Navigatie annuleren"
         }
     },
     "admin": {
@@ -4200,7 +4242,7 @@
     "oidc": {
         "title": "Identiteitsproviders",
         "eyebrow": "Beveiliging",
-        "description": "OpenID Connect-aanmelding voor bestaande lokale accounts instellen.",
+        "description": "Configureer centraal aanmelden, expliciete accountkoppelingen en het optioneel automatisch aanmaken van accounts.",
         "add": "Provider toevoegen",
         "edit": "Provider bewerken",
         "delete": "Provider verwijderen",
@@ -4224,7 +4266,7 @@
         "copied": "Callback-URL gekopieerd.",
         "callbackHint": "Configureer PUBLIC_ORIGIN op de server voor de canonieke callback-URL.",
         "recovery": "Behoud een lokale eigenaar met werkend wachtwoord of passkey voor herstel. Wijzigingen vereisen recente lokale authenticatie.",
-        "policy": "Alleen expliciete subjectkoppelingen. Automatische accounts, e-mailmatching, groepen en roltoewijzing zijn niet beschikbaar.",
+        "policy": "Bestaande lokale accounts behouden hun lokale rollen. Automatisch accounts aanmaken is optioneel; providergroepen bepalen alleen de rollen voor accounts die door de provider worden beheerd. E-mailadressen worden nooit automatisch gekoppeld.",
         "refresh": "Vernieuwen",
         "refreshConflict": "Opgeslagen configuratie opnieuw laden?",
         "empty": "Geen identiteitsproviders ingesteld.",
@@ -4267,6 +4309,33 @@
             "endpointOrigins": "Leeg: issuer-origin automatisch",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Exact subject van de provider"
-        }
+        },
+        "accountPolicy": "Accounts en rollen",
+        "provisioning": "Gebruikers automatisch aanmaken",
+        "provisioningHint": "Alleen e-mailadressen die door de provider zijn geverifieerd kunnen nieuwe accounts aanmaken. Bestaande e-mailadressen worden nooit automatisch gekoppeld.",
+        "groupClaim": "Groepenclaim",
+        "groupClaimHint": "Claim op het hoogste niveau in het ondertekende ID-token, bijvoorbeeld groups.",
+        "defaultRoles": "Standaardrollen",
+        "groupMappings": "Koppelingen tussen groepen en rollen",
+        "group": "Exacte groepswaarde",
+        "mappedRoles": "Rollen voor deze groep",
+        "addMapping": "Groepskoppeling toevoegen",
+        "removeMapping": "Groepskoppeling verwijderen",
+        "rolePolicyHint": "Rollen gelden alleen voor accounts die door deze provider zijn aangemaakt. Groepen moeten exact overeenkomen, inclusief hoofdletters. Ontbrekende groepen verwijderen de gekoppelde rollen. De effectieve rollen moeten toegang tot de applicatie geven; eigenaarstoegang blijft lokaal.",
+        "rolesUnavailable": "De rollen konden niet worden geladen. Laad opnieuw voordat je het rollenbeleid wijzigt.",
+        "provisioningOn": "Accounts automatisch aanmaken",
+        "provisioningOff": "Alleen expliciete accountkoppelingen",
+        "rolePolicySummary": "Standaardrollen: {{defaults}} · Groepskoppelingen: {{mappings}}",
+        "managedBinding": "Rollen beheerd door deze provider",
+        "setupTitle": "Configuratievoorbeelden: authentik en Keycloak",
+        "setupClient": "Maak een vertrouwelijke OpenID Connect-client met de autorisatiecodeflow, PKCE S256 en RS256-ondertekening. Registreer exact de bovenstaande callback-URL en kopieer daarna de issuer, client-ID en het clientgeheim naar deze provider.",
+        "setupAuthentik": "Gebruik de issuer per applicatie, bijvoorbeeld https://auth.example.com/application/o/rentnerproxy/. Selecteer een RSA-ondertekeningssleutel. Configureer voor het automatisch aanmaken van accounts de scopekoppelingen voor profile/email en een daadwerkelijke e-mailverificatieflow.",
+        "setupKeycloak": "Gebruik de realm-issuer, bijvoorbeeld https://sso.example.com/realms/rentnerproxy. Schakel clientauthenticatie en de standaardflow in. Neem de vereiste groepen op in een claim op het hoogste niveau van het ID-token, bijvoorbeeld groups, met een mapper voor groepslidmaatschap.",
+        "setupGroups": "Het automatisch aanmaken van accounts vereist email en email_verified=true in het ondertekende ID-token. Groepswaarden moeten exact overeenkomen met de koppelingen; geneste claims worden niet ondersteund.",
+        "setupVerify": "Sla op, test de metadata van de provider en test daarna een echte aanmelding terwijl je een lokale eigenaarssessie beschikbaar houdt.",
+        "setupAuthentikDocs": "Documentatie van authentik",
+        "setupKeycloakDocs": "Documentatie van Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

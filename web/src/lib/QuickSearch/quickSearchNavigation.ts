@@ -60,6 +60,7 @@ export function getQuickSearchNavigation(
             password: 'password',
             'two-factor': 'twoFactor',
             passkeys: 'passkeys',
+            'linked-accounts': 'linkedAccounts',
         } as const
         for (const section of USER_SETTINGS_SECTIONS) {
             pages.push({

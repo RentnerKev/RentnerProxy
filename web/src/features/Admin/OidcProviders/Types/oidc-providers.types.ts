@@ -1,5 +1,11 @@
 import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import type useOidcProviderForm from '../Hooks/useOidcProviderForm.ts'
+export interface ProviderAccountPolicyDraft {
+    provisioning: boolean
+    groupClaim: string
+    defaultRoleKeys: string[]
+    groupRoleMappings: { rowId: string; group: string; roleKeys: string[] }[]
+}
 export interface ProviderDraft {
     id: string
     name: string
@@ -17,7 +23,7 @@ export interface ProviderDraft {
         roleSource?: 'local' | 'provider' | undefined
         generation?: number | undefined
     }[]
-    accountPolicy?: OidcProviderSummary['accountPolicy']
+    accountPolicy?: ProviderAccountPolicyDraft
 }
 export interface OidcProvidersLogicResult {
     state: {
@@ -31,6 +37,8 @@ export interface OidcProvidersLogicResult {
         conflict: boolean
         revision: number | null
         userOptions: { value: string; label: string; disabled?: boolean }[]
+        roleOptions: { value: string; label: string }[]
+        rolesAvailable: boolean
         reloadConfirm: boolean
         isAvailable: boolean
         reauthOpen: boolean
@@ -52,6 +60,28 @@ export interface OidcProvidersLogicResult {
         handleReloadConfirm: (open: boolean) => void
         handleReload: () => Promise<void>
         handleCredential: (value: string) => void
+        handlePolicyProvisioning: (value: boolean) => void
+        handlePolicyGroupClaim: (value: string) => void
+        handlePolicyDefaultRoles: (value: string[]) => void
+        handleAddMapping: () => void
+        handleRemoveMapping: (rowId: string) => void
+        handleMappingGroup: (rowId: string, value: string) => void
+        handleMappingRoles: (rowId: string, value: string[]) => void
     }
     form: ReturnType<typeof useOidcProviderForm>
+}
+
+export interface AccountPolicyEditorProps {
+    form: OidcProvidersLogicResult['form']
+    state: Pick<OidcProvidersLogicResult['state'], 'isPending' | 'rolesAvailable' | 'roleOptions'>
+    handler: Pick<
+        OidcProvidersLogicResult['handler'],
+        | 'handlePolicyProvisioning'
+        | 'handlePolicyGroupClaim'
+        | 'handlePolicyDefaultRoles'
+        | 'handleAddMapping'
+        | 'handleRemoveMapping'
+        | 'handleMappingGroup'
+        | 'handleMappingRoles'
+    >
 }

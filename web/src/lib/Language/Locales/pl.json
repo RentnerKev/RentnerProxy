@@ -258,7 +258,19 @@
         },
         "oidc": {
             "signInWith": "Zaloguj się przez {{provider}}",
-            "failed": "Logowanie nie powiodło się. Spróbuj ponownie lub użyj konta lokalnego."
+            "failed": "Logowanie nie powiodło się. Spróbuj ponownie lub użyj konta lokalnego.",
+            "title": "Zaloguj się przez dostawcę tożsamości",
+            "loading": "Ładowanie dostawców logowania…",
+            "continuing": "Otwieranie dostawcy tożsamości…",
+            "retry": "Załaduj ponownie dostawców logowania",
+            "catalogUnavailable": "Nie udało się załadować dostawców logowania. Załaduj listę ponownie lub użyj konta lokalnego.",
+            "unavailable": "Nie udało się połączyć z dostawcą tożsamości. Spróbuj ponownie lub użyj lokalnego hasła albo klucza dostępu.",
+            "denied": "Ta tożsamość nie ma uprawnień do logowania. Skontaktuj się z administratorem lub użyj konta lokalnego.",
+            "expired": "To żądanie logowania wygasło. Rozpocznij logowanie ponownie.",
+            "reauthentication": "Zaloguj się lokalnym hasłem lub kluczem dostępu, a następnie spróbuj ponownie.",
+            "conflict": "Konfiguracja logowania uległa zmianie. Rozpocznij logowanie ponownie.",
+            "localRecovery": "Lokalni właściciele mogą kontynuować przy użyciu hasła lub klucza dostępu.",
+            "cancel": "Anuluj logowanie"
         },
         "logoutFailed": "Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.",
         "logoutRevocationFailed": "Wylogowano w tej przeglądarce, ale nie udało się unieważnić sesji na serwerze."
@@ -417,7 +429,8 @@
             "twoFactor": "Uwierzytelnianie dwuskładnikowe",
             "passkeys": "Klucze dostępu",
             "appearance": "Wygląd",
-            "notifications": "Powiadomienia"
+            "notifications": "Powiadomienia",
+            "linkedAccounts": "Połączone konta"
         },
         "notifications": {
             "title": "Powiadomienia",
@@ -706,6 +719,35 @@
         "validation": {
             "passwordsDoNotMatch": "Hasła nie są zgodne.",
             "authenticatorCode": "Wpisz sześciocyfrowy kod z aplikacji uwierzytelniającej."
+        },
+        "oidc": {
+            "title": "Połączone konta",
+            "description": "Dodaj dostawcę tożsamości do swojego konta lokalnego. Hasło, klucze dostępu i opcje odzyskiwania pozostaną dostępne.",
+            "empty": "Brak dostępnych dostawców tożsamości.",
+            "external": "Twoje konto jest zarządzane przez dostawcę tożsamości. Aby zmienić jego połączenia, skontaktuj się z administratorem.",
+            "link": "Połącz konto",
+            "unlink": "Odłącz konto",
+            "linked": "Połączone",
+            "unlinked": "Niepołączone",
+            "disabled": "Dostawca wyłączony",
+            "refresh": "Odśwież",
+            "loading": "Ładowanie połączonych kont…",
+            "pending": "Kontynuuj u dostawcy. Jeśli anulowano operację, odśwież tę listę.",
+            "unlinkedSuccess": "Konto odłączone. Logowanie lokalne pozostaje dostępne.",
+            "linkedSuccess": "Konto połączone. Możesz teraz logować się przez tego dostawcę.",
+            "noPermission": "Nie masz uprawnień do zarządzania połączonymi kontami.",
+            "error": {
+                "unavailable": "Nie udało się załadować połączonych kont. Odśwież listę i spróbuj ponownie.",
+                "conflict": "Połączenia uległy zmianie. Lista została odświeżona; sprawdź ją i spróbuj ponownie.",
+                "reauthenticate": "Potwierdź ponownie hasło lub klucz dostępu i spróbuj jeszcze raz.",
+                "denied": "Potrzebujesz lokalnego hasła lub klucza dostępu oraz uprawnień do zmiany tego konta.",
+                "rateLimited": "Zbyt wiele prób. Poczekaj minutę i spróbuj ponownie.",
+                "failed": "Nie udało się zmienić połączenia. Odśwież listę i spróbuj ponownie.",
+                "expired": "To żądanie połączenia wygasło. Zacznij od nowa i potwierdź swoją lokalną tożsamość.",
+                "unavailableProvider": "Nie udało się połączyć z dostawcą tożsamości. Spróbuj połączyć konto później.",
+                "deniedLink": "Nie udało się połączyć tej tożsamości. Wybierz inną tożsamość u dostawcy lub skontaktuj się z administratorem."
+            },
+            "cancel": "Anuluj nawigację"
         }
     },
     "admin": {
@@ -4230,7 +4272,7 @@
     "oidc": {
         "title": "Dostawcy tożsamości",
         "eyebrow": "Bezpieczeństwo",
-        "description": "Skonfiguruj logowanie OpenID Connect dla istniejących kont lokalnych.",
+        "description": "Skonfiguruj centralne logowanie, jawne połączenia kont i opcjonalne automatyczne tworzenie kont.",
         "add": "Dodaj dostawcę",
         "edit": "Edytuj dostawcę",
         "delete": "Usuń dostawcę",
@@ -4254,7 +4296,7 @@
         "copied": "Skopiowano adres callback.",
         "callbackHint": "Ustaw PUBLIC_ORIGIN na serwerze, aby uzyskać kanoniczny adres callback.",
         "recovery": "Zachowaj lokalne konto właściciela z działającym hasłem lub kluczem dostępu do odzyskiwania. Zmiany wymagają świeżego lokalnego uwierzytelnienia.",
-        "policy": "Dozwolone są tylko jawne powiązania subject. Automatyczne konta, dopasowanie e-mail, grupy i mapowanie ról są niedostępne.",
+        "policy": "Istniejące konta lokalne zachowują swoje lokalne role. Automatyczne tworzenie kont jest opcjonalne; grupy dostawcy sterują rolami wyłącznie kont zarządzanych przez niego. Adresy e-mail nigdy nie są łączone automatycznie.",
         "refresh": "Odśwież",
         "refreshConflict": "Wczytać zapisaną konfigurację?",
         "empty": "Nie skonfigurowano dostawców.",
@@ -4297,6 +4339,33 @@
             "endpointOrigins": "Puste: automatyczny origin wystawcy",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Dokładny subject od dostawcy"
-        }
+        },
+        "accountPolicy": "Konta i role",
+        "provisioning": "Twórz użytkowników automatycznie",
+        "provisioningHint": "Tylko adresy e-mail zweryfikowane przez dostawcę mogą tworzyć nowe konta. Istniejące adresy nigdy nie są łączone automatycznie.",
+        "groupClaim": "Claim grup",
+        "groupClaimHint": "Claim najwyższego poziomu w podpisanym tokenie ID, na przykład groups.",
+        "defaultRoles": "Role domyślne",
+        "groupMappings": "Mapowania grup na role",
+        "group": "Dokładna wartość grupy",
+        "mappedRoles": "Role dla tej grupy",
+        "addMapping": "Dodaj mapowanie grupy",
+        "removeMapping": "Usuń mapowanie grupy",
+        "rolePolicyHint": "Role dotyczą tylko kont utworzonych przez tego dostawcę. Grupy muszą pasować dokładnie, z uwzględnieniem wielkości liter. Brak grup usuwa przypisane role. Wynikowe role muszą zezwalać na dostęp do aplikacji; dostęp właściciela pozostaje lokalny.",
+        "rolesUnavailable": "Nie udało się załadować ról. Załaduj ponownie przed zmianą zasad ról.",
+        "provisioningOn": "Automatyczne tworzenie kont",
+        "provisioningOff": "Tylko jawne połączenia kont",
+        "rolePolicySummary": "Role domyślne: {{defaults}} · Mapowania grup: {{mappings}}",
+        "managedBinding": "Role zarządzane przez tego dostawcę",
+        "setupTitle": "Przykłady konfiguracji: authentik i Keycloak",
+        "setupClient": "Utwórz poufnego klienta OpenID Connect z przepływem kodu autoryzacji, PKCE S256 i podpisem RS256. Zarejestruj dokładny adres URL wywołania zwrotnego podany powyżej, a następnie skopiuj wystawcę, identyfikator i sekret klienta do tego dostawcy.",
+        "setupAuthentik": "Użyj wystawcy dla danej aplikacji, na przykład https://auth.example.com/application/o/rentnerproxy/. Wybierz klucz podpisujący RSA. Aby automatycznie tworzyć konta, skonfiguruj mapowania zakresów profile/email oraz rzeczywisty przepływ weryfikacji adresu e-mail.",
+        "setupKeycloak": "Użyj wystawcy obszaru realm, na przykład https://sso.example.com/realms/rentnerproxy. Włącz uwierzytelnianie klienta i przepływ standardowy. Dodaj wymagane grupy do claimu najwyższego poziomu w tokenie ID, na przykład groups, za pomocą mappera członkostwa w grupach.",
+        "setupGroups": "Automatyczne tworzenie kont wymaga email i email_verified=true w podpisanym tokenie ID. Wartości grup muszą dokładnie pasować do mapowań; zagnieżdżone claimy nie są obsługiwane.",
+        "setupVerify": "Zapisz, przetestuj metadane dostawcy, a następnie sprawdź rzeczywiste logowanie, zachowując dostępną sesję lokalnego właściciela.",
+        "setupAuthentikDocs": "Dokumentacja authentik",
+        "setupKeycloakDocs": "Dokumentacja Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }

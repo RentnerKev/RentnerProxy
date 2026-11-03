@@ -254,7 +254,19 @@
         },
         "oidc": {
             "signInWith": "Sign in with {{provider}}",
-            "failed": "Sign-in failed. Try again or use your local account."
+            "failed": "Sign-in failed. Try again or use your local account.",
+            "title": "Sign in with an identity provider",
+            "loading": "Loading sign-in providers…",
+            "continuing": "Opening identity provider…",
+            "retry": "Reload sign-in providers",
+            "catalogUnavailable": "Sign-in providers could not be loaded. Reload the list or use your local account.",
+            "unavailable": "The identity provider could not be reached. Try again or use your local password or passkey.",
+            "denied": "This identity is not allowed to sign in. Contact your administrator or use your local account.",
+            "expired": "This sign-in request has expired. Start sign-in again.",
+            "reauthentication": "Sign in with your local password or passkey, then retry.",
+            "conflict": "The sign-in configuration changed. Start sign-in again.",
+            "localRecovery": "Local owners can continue with a password or passkey.",
+            "cancel": "Cancel sign-in"
         },
         "logoutFailed": "Could not sign out. Check your connection and try again.",
         "logoutRevocationFailed": "Signed out in this browser, but the server session could not be revoked."
@@ -413,7 +425,8 @@
             "twoFactor": "Two-factor",
             "passkeys": "Passkeys",
             "appearance": "Appearance",
-            "notifications": "Notifications"
+            "notifications": "Notifications",
+            "linkedAccounts": "Linked accounts"
         },
         "page": {
             "eyebrow": "Your account",
@@ -702,6 +715,35 @@
                 "configuration_unavailable": "Configuration unavailable"
             },
             "conflict": "Settings have changed. Your draft is preserved. Reopen the channel to reconcile the changes."
+        },
+        "oidc": {
+            "title": "Linked accounts",
+            "description": "Add an identity provider to your local account. Your password, passkeys and recovery options remain available.",
+            "empty": "No identity providers are available.",
+            "external": "Your account is managed by an identity provider. Contact your administrator to change its connections.",
+            "link": "Link account",
+            "unlink": "Unlink account",
+            "linked": "Linked",
+            "unlinked": "Not linked",
+            "disabled": "Provider disabled",
+            "refresh": "Refresh",
+            "loading": "Loading linked accounts…",
+            "pending": "Continue at your provider. If you cancelled, refresh this list.",
+            "unlinkedSuccess": "Account unlinked. Local sign-in remains available.",
+            "linkedSuccess": "Account linked. You can now sign in with this provider.",
+            "noPermission": "You do not have permission to manage linked accounts.",
+            "error": {
+                "unavailable": "Linked accounts could not be loaded. Refresh and try again.",
+                "conflict": "Connections changed. The list has been refreshed; review it and try again.",
+                "reauthenticate": "Confirm your password or passkey again, then retry.",
+                "denied": "You need a local password or passkey and permission to change this account.",
+                "rateLimited": "Too many attempts. Wait a minute and try again.",
+                "failed": "The connection could not be changed. Refresh and try again.",
+                "expired": "This connection request has expired. Start again and confirm your local identity.",
+                "unavailableProvider": "The identity provider could not be reached. Try linking again later.",
+                "deniedLink": "This identity could not be linked. Choose another provider identity or contact your administrator."
+            },
+            "cancel": "Cancel navigation"
         }
     },
     "admin": {
@@ -4200,7 +4242,7 @@
     "oidc": {
         "title": "Identity providers",
         "eyebrow": "Security",
-        "description": "Configure OpenID Connect sign-in for existing local accounts.",
+        "description": "Configure central sign-in, explicit account links and optional automatic account creation.",
         "add": "Add provider",
         "edit": "Edit provider",
         "delete": "Delete provider",
@@ -4224,7 +4266,7 @@
         "copied": "Callback URL copied.",
         "callbackHint": "Configure PUBLIC_ORIGIN on the server to obtain the canonical callback URL.",
         "recovery": "Keep a local owner account with a working password or passkey for recovery. Administrative changes require recent local owner authentication.",
-        "policy": "Only explicit subject bindings are accepted. Automatic account creation, email matching, groups and role mapping are unavailable.",
+        "policy": "Existing local accounts keep their local roles. Automatic account creation is optional; provider groups control roles only for provider-managed accounts. Email addresses are never linked automatically.",
         "refresh": "Refresh",
         "refreshConflict": "Reload saved configuration?",
         "empty": "No identity providers configured.",
@@ -4267,6 +4309,33 @@
             "endpointOrigins": "Automatically uses the issuer origin when blank",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Exact subject from the identity provider"
-        }
+        },
+        "accountPolicy": "Accounts and roles",
+        "provisioning": "Create users automatically",
+        "provisioningHint": "Only verified provider email addresses can create new accounts. Existing email addresses are never linked automatically.",
+        "groupClaim": "Groups claim",
+        "groupClaimHint": "Top-level claim in the signed ID token, for example groups.",
+        "defaultRoles": "Default roles",
+        "groupMappings": "Group-to-role mappings",
+        "group": "Exact group value",
+        "mappedRoles": "Roles for this group",
+        "addMapping": "Add group mapping",
+        "removeMapping": "Remove group mapping",
+        "rolePolicyHint": "Roles apply only to accounts created by this provider. Groups match exactly, including case. Missing groups remove mapped roles. Effective roles must allow application access; owner access stays local.",
+        "rolesUnavailable": "Roles could not be loaded. Reload before changing the role policy.",
+        "provisioningOn": "Automatic account creation",
+        "provisioningOff": "Explicit account links only",
+        "rolePolicySummary": "Default roles: {{defaults}} · Group mappings: {{mappings}}",
+        "managedBinding": "Roles managed by this provider",
+        "setupTitle": "Setup examples: authentik and Keycloak",
+        "setupClient": "Create a confidential OpenID Connect client with authorization code flow, PKCE S256 and RS256 signing. Register the exact callback URL above, then copy issuer, client ID and client secret into this provider.",
+        "setupAuthentik": "Use the per-application issuer, for example https://auth.example.com/application/o/rentnerproxy/. Select an RSA signing key. For automatic account creation, configure profile/email scope mappings and an actual email-verification flow.",
+        "setupKeycloak": "Use the realm issuer, for example https://sso.example.com/realms/rentnerproxy. Enable client authentication and standard flow. Include the required groups in a top-level ID-token claim, for example groups, using a group membership mapper.",
+        "setupGroups": "Automatic account creation requires email and email_verified=true in the signed ID token. Group values must match the mappings exactly; nested claims are not supported.",
+        "setupVerify": "Save, test the provider metadata, then test a real sign-in while keeping a local owner session available.",
+        "setupAuthentikDocs": "authentik documentation",
+        "setupKeycloakDocs": "Keycloak documentation",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak"
     }
 }
