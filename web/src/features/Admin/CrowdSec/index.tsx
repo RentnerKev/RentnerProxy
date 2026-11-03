@@ -89,15 +89,6 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                     severity="error"
                     title={t('admin.crowdSec.statesPage.unavailableTitle')}
                     description={t('admin.crowdSec.statesPage.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : state.isLoading || !state.configuration ? (
                 <ContentState

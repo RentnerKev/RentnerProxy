@@ -38,9 +38,7 @@ export default function AccessPolicyManagementPage(props: AccessPolicyManagement
                 canApply={state.canApply}
                 isApplying={state.isApplying}
                 isError={state.runtimeStatusError}
-                isRetrying={state.runtimeStatusRetrying}
                 onApply={handler.apply}
-                onRetry={handler.retryRuntime}
                 status={state.runtimeStatus}
             />
             {state.isError ? (
@@ -48,15 +46,6 @@ export default function AccessPolicyManagementPage(props: AccessPolicyManagement
                     severity="error"
                     title={t('admin.accessPolicies.states.unavailableTitle')}
                     description={t('admin.accessPolicies.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <AccessPoliciesTable

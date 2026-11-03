@@ -23,15 +23,6 @@ export default function TwoFactorLoginPage() {
                 />
             ) : state.isLoading ? null : (
                 <div className="mt-7 grid gap-4">
-                    {state.isStatusError ? (
-                        <button
-                            type="button"
-                            className="min-h-12 rounded-xl border border-border-strong px-4 py-2 text-sm font-bold text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
-                            onClick={handler.handleRetryStatus}
-                        >
-                            Try again
-                        </button>
-                    ) : null}
                     <button
                         type="button"
                         className="min-h-12 rounded-xl border border-border-strong px-4 py-2 text-sm font-bold text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"

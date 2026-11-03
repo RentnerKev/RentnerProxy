@@ -5,7 +5,6 @@ import PageHeader from '@/shared/Management/PageHeader.tsx'
 import type { ProxyAccessLogsPageProps } from './Types/proxy-access-logs.types.ts'
 import useProxyAccessLogsLogic from './Hooks/useProxyAccessLogsLogic.ts'
 import ProxyAccessLogsTable from './Components/ProxyAccessLogsTable/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function ProxyAccessLogsPage(props: ProxyAccessLogsPageProps) {
     const { state, handler } = useProxyAccessLogsLogic(props)
@@ -32,15 +31,6 @@ export default function ProxyAccessLogsPage(props: ProxyAccessLogsPageProps) {
                     severity="error"
                     title={t('admin.proxyAccessLogs.states.unavailableTitle')}
                     description={t('admin.proxyAccessLogs.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <ProxyAccessLogsTable

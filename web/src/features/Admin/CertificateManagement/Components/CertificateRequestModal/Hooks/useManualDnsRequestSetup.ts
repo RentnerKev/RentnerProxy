@@ -317,7 +317,6 @@ export default function useManualDnsRequestSetup({
         onOpenChange: (value) => {
             if (!busyRef.current) setOpen(value)
         },
-        onRetry: () => void certificates.refetch(),
         onDone: () => {
             if (current.blocked || loadFailed || (!current.complete && !current.recordsReady))
                 return

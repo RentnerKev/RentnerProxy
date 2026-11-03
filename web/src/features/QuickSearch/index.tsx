@@ -83,13 +83,6 @@ export default function QuickSearch(props: QuickSearchProps) {
                         <p role="status" className="m-0">
                             {t('quickSearch.unavailable')}
                         </p>
-                        <button
-                            type="button"
-                            onClick={handler.retry}
-                            className="min-h-11 cursor-pointer rounded-lg px-3 font-bold underline focus-visible:outline-2 focus-visible:outline-accent-ring"
-                        >
-                            {t('quickSearch.retry')}
-                        </button>
                     </div>
                 ) : null}
                 <div

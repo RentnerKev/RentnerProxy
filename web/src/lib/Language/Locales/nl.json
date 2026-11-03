@@ -94,7 +94,8 @@
         "moreDomains": "Nog {{count}} domeinen tonen",
         "clearSelection": "Selectie wissen",
         "edit": "Bewerken",
-        "delete": "Verwijderen"
+        "delete": "Verwijderen",
+        "automaticRecovery": "Automatisch opnieuw proberen…"
     },
     "shell": {
         "backups": "Back-ups",
@@ -143,7 +144,6 @@
         "loading": "Zoeken…",
         "noResults": "Geen resultaten gevonden.",
         "unavailable": "Sommige resultaten zijn niet beschikbaar. Probeer het opnieuw.",
-        "retry": "Zoeken opnieuw proberen",
         "targetUnavailable": "Dit item is niet meer beschikbaar of je machtigingen zijn gewijzigd.",
         "opening": "Openen…",
         "resultsLabel": "Zoekresultaten",
@@ -238,8 +238,7 @@
             "title": "Aanmelden met een identiteitsprovider",
             "loading": "Aanmeldproviders laden…",
             "continuing": "Identiteitsprovider openen…",
-            "retry": "Aanmeldproviders opnieuw laden",
-            "catalogUnavailable": "De aanmeldproviders konden niet worden geladen. Laad de lijst opnieuw of gebruik je lokale account.",
+            "catalogUnavailable": "Aanmeldproviders zijn tijdelijk niet beschikbaar. Je kunt je lokale account gebruiken.",
             "unavailable": "De identiteitsprovider kon niet worden bereikt. Probeer het opnieuw of gebruik je lokale wachtwoord of passkey.",
             "denied": "Deze identiteit mag zich niet aanmelden. Neem contact op met je beheerder of gebruik je lokale account.",
             "expired": "Dit aanmeldverzoek is verlopen. Start de aanmelding opnieuw.",
@@ -686,7 +685,6 @@
             "linked": "Gekoppeld",
             "unlinked": "Niet gekoppeld",
             "disabled": "Provider uitgeschakeld",
-            "refresh": "Vernieuwen",
             "loading": "Gekoppelde accounts laden…",
             "pending": "Ga verder bij je provider. Heb je geannuleerd, vernieuw dan deze lijst.",
             "unlinkedSuccess": "Account ontkoppeld. Lokaal aanmelden blijft beschikbaar.",
@@ -1048,7 +1046,6 @@
                 "disabling": "Gebruiker uitschakelen…",
                 "enable": "Inschakelen",
                 "enabling": "Gebruiker inschakelen…",
-                "retryRoles": "Rollen opnieuw laden",
                 "open": "Acties voor {{name}} openen",
                 "none": "Geen acties beschikbaar",
                 "ownerEdit": "Alleen een eigenaar kan dit account bewerken.",
@@ -1550,7 +1547,6 @@
                     "ownerHint": "Sommige providers voegen het domein automatisch toe. Voer de naam volgens je provider in zodat de volledige naam overeenkomt met de getoonde TXT-naam.",
                     "valuesHint": "Meerdere waarden kunnen dezelfde naam hebben. Voeg elke waarde toe en behoud andere bestaande TXT-waarden.",
                     "finish": "Gereed",
-                    "retry": "TXT-records opnieuw laden",
                     "reused": "De certificaatautoriteit heeft een bestaande autorisatie hergebruikt. Er zijn geen TXT-records nodig. Kies Gereed en ga verder in het hoofdvenster.",
                     "blocked": "Sluit de handleiding en controleer de huidige certificaatvalidatie.",
                     "expires": "TXT-records verlopen op {{expires}}"
@@ -3780,7 +3776,6 @@
             "observationPoint": "Controles worden uitgevoerd vanaf deze RentnerProxy-instantie. Bereikbaarheid vanaf het openbare internet wordt niet gecontroleerd.",
             "permissionDenied": "Je hebt geen toestemming om de bewaking te bekijken.",
             "loadError": "De bewaking kon niet worden geladen. Probeer het opnieuw om de status te vernieuwen.",
-            "retry": "Opnieuw proberen",
             "loading": "Bewaking laden…",
             "noData": "Er zijn nog geen controles vastgelegd.",
             "configure": "Bewaking instellen",
@@ -3817,8 +3812,7 @@
             "historyCap": "De 300 nieuwste controles zijn geladen. Verklein de periode of filter op status om meer te bekijken.",
             "save": "Wijzigingen opslaan",
             "close": "Sluiten",
-            "conflict": "De bewaking is ergens anders gewijzigd. Je wijzigingen zijn bewaard. Laad de instellingen opnieuw om de nieuwste versie te gebruiken.",
-            "reload": "Instellingen opnieuw laden",
+            "conflict": "De instellingen zijn gewijzigd. Je concept blijft behouden.",
             "saveError": "De instellingen voor bewaking konden niet worden opgeslagen.",
             "saved": "Instellingen voor bewaking opgeslagen.",
             "invalid": "Controleer de instellingen en toegestane waarden.",
@@ -4129,7 +4123,6 @@
         "url": "Omleidings-URL",
         "html": "HTML-broncode",
         "loading": "Standaardsite laden…",
-        "reload": "Opgeslagen instellingen laden",
         "discard": "Wijzigingen verwerpen",
         "dirty": "Niet-opgeslagen wijzigingen",
         "clean": "Geen niet-opgeslagen wijzigingen",
@@ -4149,7 +4142,7 @@
             "custom-html": "Aangepaste HTML"
         },
         "errors": {
-            "conflict": "De instellingen zijn elders gewijzigd. Laad de opgeslagen instellingen opnieuw voordat je het nog eens probeert.",
+            "conflict": "De opgeslagen instellingen zijn gewijzigd. Je concept blijft behouden.",
             "loadFailed": "De standaardsite kon niet worden geladen.",
             "saveFailed": "De standaardsite kon niet worden opgeslagen.",
             "invalidSettings": "Kies geldige instellingen voor de standaardsite.",
@@ -4242,8 +4235,6 @@
         "copy": "Callback-URL kopiëren",
         "copied": "Callback-URL gekopieerd.",
         "callbackHint": "Configureer PUBLIC_ORIGIN op de server voor de canonieke callback-URL.",
-        "refresh": "Vernieuwen",
-        "refreshConflict": "Opgeslagen configuratie opnieuw laden?",
         "empty": "Geen identiteitsproviders ingesteld.",
         "bindingCount": "Koppelingen: {{count}}",
         "test": "Opgeslagen provider testen",
@@ -4262,7 +4253,7 @@
         "errors": {
             "authentication_required": "Meld u opnieuw aan.",
             "owner_required": "Een lokale eigenaar is vereist.",
-            "configuration_conflict": "Configuratie gewijzigd. Uw concept blijft bewaard. Vernieuw en probeer expliciet opnieuw.",
+            "configuration_conflict": "De provider is gewijzigd. Je concept blijft behouden.",
             "invalid_input": "Controleer namen, HTTPS-URL’s, origins, CIDR, unieke subjects en accounts. Een nieuw geheim kan nodig zijn.",
             "identity_not_allowed": "Selecteer actieve lokale accounts met toegang tot de toepassing.",
             "rate_limited": "Te veel aanvragen. Wacht voordat u opnieuw probeert.",
@@ -4272,8 +4263,6 @@
             "copy": "Callback-URL kon niet worden gekopieerd.",
             "secret": "Een nieuw clientgeheim is vereist voor deze provider of vertrouwenswijziging."
         },
-        "reloadTitle": "Opgeslagen configuratie opnieuw laden?",
-        "reloadDescription": "Niet-opgeslagen wijzigingen worden verwijderd en de nieuwste provider wordt geladen. Controleer deze voordat u wijzigingen maakt.",
         "placeholders": {
             "name": "Voorbeeldprovider",
             "issuer": "https://login.voorbeeld.nl",
@@ -4295,7 +4284,7 @@
         "addMapping": "Groepskoppeling toevoegen",
         "removeMapping": "Groepskoppeling verwijderen",
         "rolePolicyHint": "Alleen provideraccounts. Groepen moeten exact overeenkomen; ontbrekende groepen trekken toegewezen rollen in.",
-        "rolesUnavailable": "De rollen konden niet worden geladen. Laad opnieuw voordat je het rollenbeleid wijzigt.",
+        "rolesUnavailable": "Rollen zijn tijdelijk niet beschikbaar.",
         "provisioningOn": "Accounts automatisch aanmaken",
         "provisioningOff": "Alleen expliciete accountkoppelingen",
         "rolePolicySummary": "Standaardrollen: {{defaults}} · Groepskoppelingen: {{mappings}}",
@@ -4308,6 +4297,7 @@
         "setupAuthentikDocs": "Documentatie van authentik",
         "setupKeycloakDocs": "Documentatie van Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Wijzigingen verwerpen"
     }
 }

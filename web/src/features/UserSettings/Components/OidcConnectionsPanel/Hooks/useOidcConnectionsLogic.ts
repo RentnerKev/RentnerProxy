@@ -37,7 +37,13 @@ export default function useOidcConnectionsLogic(
         queryKey,
         queryFn: ({ signal }) => getOidcConnections(signal),
         enabled: canUpdate,
-        retry: false,
+        retry: (count, error) =>
+            !(
+                error instanceof OidcConnectionsError &&
+                (error.code === 'authentication_required' || error.code === 'permission_denied')
+            ) && count < 3,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
         gcTime: 0,
         staleTime: 0,
     })
@@ -244,13 +250,6 @@ export default function useOidcConnectionsLogic(
         handler: {
             handleRequest: request,
             handleCancelNavigation: () => cancelNavigation(action),
-            handleRefresh: () => {
-                if (!lock.current && !nativeNavigation.current) {
-                    close()
-                    setIsNavigating(false)
-                    void query.refetch()
-                }
-            },
         },
     } satisfies OidcConnectionsLogicResult
 }

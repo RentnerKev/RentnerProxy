@@ -55,7 +55,6 @@ export interface QuickSearchLogicResult {
         readonly inputKeyDown: KeyboardEventHandler<HTMLInputElement>
         readonly highlight: (id: string) => void
         readonly select: (result: QuickSearchResult) => void
-        readonly retry: () => void
     }
     readonly refs: { readonly input: RefObject<HTMLInputElement | null> }
 }

@@ -36,13 +36,6 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
                     className="grid min-h-screen place-content-center gap-4 bg-navy-950 p-8 text-white"
                 >
                     <p>{state.identityErrorMessage}</p>
-                    <button
-                        type="button"
-                        className="rounded-xl bg-accent px-5 py-3 font-bold text-accent-foreground"
-                        onClick={handler.handleRetryIdentity}
-                    >
-                        {state.retryLabel}
-                    </button>
                 </main>
             ) : null}
             <Activity

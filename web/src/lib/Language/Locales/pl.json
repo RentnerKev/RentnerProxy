@@ -98,7 +98,8 @@
         "moreDomains": "Pokaż jeszcze {{count}} domen",
         "clearSelection": "Wyczyść wybór",
         "edit": "Edytuj",
-        "delete": "Usuń"
+        "delete": "Usuń",
+        "automaticRecovery": "Automatyczne ponawianie…"
     },
     "inputs": {
         "invalidPhone": "Wpisz prawidłowy numer telefonu.",
@@ -166,7 +167,6 @@
         "loading": "Wyszukiwanie…",
         "noResults": "Nie znaleziono wyników.",
         "unavailable": "Niektóre wyniki są niedostępne. Spróbuj ponownie.",
-        "retry": "Ponów wyszukiwanie",
         "targetUnavailable": "Ten wpis jest już niedostępny lub Twoje uprawnienia uległy zmianie.",
         "opening": "Otwieranie…",
         "resultsLabel": "Wyniki wyszukiwania",
@@ -261,8 +261,7 @@
             "title": "Zaloguj się przez dostawcę tożsamości",
             "loading": "Ładowanie dostawców logowania…",
             "continuing": "Otwieranie dostawcy tożsamości…",
-            "retry": "Załaduj ponownie dostawców logowania",
-            "catalogUnavailable": "Nie udało się załadować dostawców logowania. Załaduj listę ponownie lub użyj konta lokalnego.",
+            "catalogUnavailable": "Dostawcy logowania są chwilowo niedostępni. Możesz użyć konta lokalnego.",
             "unavailable": "Nie udało się połączyć z dostawcą tożsamości. Spróbuj ponownie lub użyj lokalnego hasła albo klucza dostępu.",
             "denied": "Ta tożsamość nie ma uprawnień do logowania. Skontaktuj się z administratorem lub użyj konta lokalnego.",
             "expired": "To żądanie logowania wygasło. Rozpocznij logowanie ponownie.",
@@ -709,7 +708,6 @@
             "linked": "Połączone",
             "unlinked": "Niepołączone",
             "disabled": "Dostawca wyłączony",
-            "refresh": "Odśwież",
             "loading": "Ładowanie połączonych kont…",
             "pending": "Kontynuuj u dostawcy. Jeśli anulowano operację, odśwież tę listę.",
             "unlinkedSuccess": "Konto odłączone. Logowanie lokalne pozostaje dostępne.",
@@ -1071,7 +1069,6 @@
                 "disabling": "Wyłączanie użytkownika…",
                 "enable": "Włącz",
                 "enabling": "Włączanie użytkownika…",
-                "retryRoles": "Ponów próbę wczytania ról",
                 "open": "Otwórz działania dla {{name}}",
                 "none": "Brak dostępnych działań",
                 "ownerEdit": "Tylko właściciel może edytować to konto.",
@@ -1585,7 +1582,6 @@
                     "ownerHint": "Niektórzy dostawcy automatycznie dodają domenę. Wpisz nazwę zgodnie z wymaganiami dostawcy, aby pełna nazwa odpowiadała wyświetlanej nazwie TXT.",
                     "valuesHint": "Kilka wartości może mieć tę samą nazwę. Dodaj każdą wartość i zachowaj inne istniejące wartości TXT.",
                     "finish": "Gotowe",
-                    "retry": "Wczytaj rekordy TXT ponownie",
                     "reused": "Urząd certyfikacji użył istniejącej autoryzacji. Rekordy TXT nie są potrzebne. Wybierz Gotowe i kontynuuj w głównym oknie.",
                     "blocked": "Zamknij instrukcję i sprawdź bieżącą walidację certyfikatu.",
                     "expires": "Rekordy TXT wygasają {{expires}}"
@@ -3829,7 +3825,6 @@
             "observationPoint": "Kontrole są wykonywane z tej instancji RentnerProxy. Dostępność z publicznego Internetu nie jest sprawdzana.",
             "permissionDenied": "Nie masz uprawnień do wyświetlania monitorowania.",
             "loadError": "Nie udało się wczytać monitorowania. Ponów próbę, aby odświeżyć stan.",
-            "retry": "Ponów próbę",
             "loading": "Wczytywanie monitorowania…",
             "noData": "Nie zapisano jeszcze żadnych kontroli.",
             "configure": "Skonfiguruj monitorowanie",
@@ -3866,8 +3861,7 @@
             "historyCap": "Wczytano 300 najnowszych kontroli. Zawęź okres lub filtruj według stanu, aby zobaczyć więcej.",
             "save": "Zapisz zmiany",
             "close": "Zamknij",
-            "conflict": "Monitorowanie zostało zmienione w innym miejscu. Twoje zmiany są zachowane. Wczytaj ustawienia ponownie, aby użyć najnowszej wersji.",
-            "reload": "Wczytaj ustawienia ponownie",
+            "conflict": "Ustawienia zostały zmienione. Szkic jest zachowany.",
             "saveError": "Nie udało się zapisać ustawień monitorowania.",
             "saved": "Zapisano ustawienia monitorowania.",
             "invalid": "Sprawdź ustawienia i dozwolone zakresy wartości.",
@@ -4159,7 +4153,6 @@
         "url": "Adres URL przekierowania",
         "html": "Kod HTML",
         "loading": "Wczytywanie witryny domyślnej…",
-        "reload": "Wczytaj zapisane ustawienia",
         "discard": "Odrzuć zmiany",
         "dirty": "Niezapisane zmiany",
         "clean": "Brak niezapisanych zmian",
@@ -4179,7 +4172,7 @@
             "custom-html": "Własny kod HTML"
         },
         "errors": {
-            "conflict": "Ustawienia zostały zmienione w innym miejscu. Wczytaj zapisane ustawienia ponownie przed kolejną próbą.",
+            "conflict": "Zapisane ustawienia zostały zmienione. Szkic jest zachowany.",
             "loadFailed": "Nie udało się wczytać witryny domyślnej.",
             "saveFailed": "Nie udało się zapisać witryny domyślnej.",
             "invalidSettings": "Wybierz prawidłowe ustawienia witryny domyślnej.",
@@ -4272,8 +4265,6 @@
         "copy": "Kopiuj adres callback",
         "copied": "Skopiowano adres callback.",
         "callbackHint": "Ustaw PUBLIC_ORIGIN na serwerze, aby uzyskać kanoniczny adres callback.",
-        "refresh": "Odśwież",
-        "refreshConflict": "Wczytać zapisaną konfigurację?",
         "empty": "Nie skonfigurowano dostawców.",
         "bindingCount": "Powiązania: {{count}}",
         "test": "Testuj zapisanego dostawcę",
@@ -4292,7 +4283,7 @@
         "errors": {
             "authentication_required": "Zaloguj się ponownie.",
             "owner_required": "Wymagane lokalne konto właściciela.",
-            "configuration_conflict": "Konfiguracja się zmieniła. Zachowano wersję roboczą. Odśwież i jawnie ponów.",
+            "configuration_conflict": "Dostawca został zmieniony. Szkic jest zachowany.",
             "invalid_input": "Sprawdź nazwy, adresy HTTPS, originy, CIDR, unikalne subject i konta. Może być wymagany nowy sekret.",
             "identity_not_allowed": "Wybierz aktywne konta lokalne z dostępem do aplikacji.",
             "rate_limited": "Zbyt wiele żądań. Poczekaj przed ponowieniem.",
@@ -4302,8 +4293,6 @@
             "copy": "Nie można skopiować adresu.",
             "secret": "Ten dostawca lub zmiana zaufania wymaga nowego sekretu klienta."
         },
-        "reloadTitle": "Wczytać zapisaną konfigurację?",
-        "reloadDescription": "Niezapisane zmiany zostaną odrzucone. Zostanie wczytany ostatni zapisany dostawca. Sprawdź go przed zmianami.",
         "placeholders": {
             "name": "Przykładowy dostawca",
             "issuer": "https://login.przyklad.pl",
@@ -4325,7 +4314,7 @@
         "addMapping": "Dodaj mapowanie grupy",
         "removeMapping": "Usuń mapowanie grupy",
         "rolePolicyHint": "Tylko konta dostawcy. Grupy muszą pasować dokładnie; brakujące grupy odbierają przypisane role.",
-        "rolesUnavailable": "Nie udało się załadować ról. Załaduj ponownie przed zmianą zasad ról.",
+        "rolesUnavailable": "Role są chwilowo niedostępne.",
         "provisioningOn": "Automatyczne tworzenie kont",
         "provisioningOff": "Tylko jawne połączenia kont",
         "rolePolicySummary": "Role domyślne: {{defaults}} · Mapowania grup: {{mappings}}",
@@ -4338,6 +4327,7 @@
         "setupAuthentikDocs": "Dokumentacja authentik",
         "setupKeycloakDocs": "Dokumentacja Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Odrzuć zmiany"
     }
 }

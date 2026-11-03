@@ -555,7 +555,7 @@ describe('global quick search', () => {
         expect(router.state.location.pathname).toBe('/redirect-hosts')
     })
 
-    test('bounds results, hides unauthorized categories and shows unavailable data with a working retry', async () => {
+    test('bounds results, hides unauthorized categories and shows unavailable data until its query cache recovers', async () => {
         lookups[0]!.mockImplementation(async () =>
             Array.from({ length: 12 }, (_, index) => ({ ...entities[0]!, id: String(index) })),
         )
@@ -578,11 +578,14 @@ describe('global quick search', () => {
         expect(lookups[1]).not.toHaveBeenCalled()
         expect(lookups[3]).not.toHaveBeenCalled()
         lookups[2]!.mockImplementation(async () => [entities[2]!])
-        await click(
-            [...document.querySelectorAll('button')].find(
+        expect(
+            [...document.querySelectorAll('button')].some(
                 (button) => button.textContent === 'Retry search',
-            )!,
-        )
+            ),
+        ).toBeFalse()
+        await act(async () => {
+            await client!.invalidateQueries({ queryKey: ['quick-search'] })
+        })
         await act(async () => {
             await Bun.sleep(20)
         })

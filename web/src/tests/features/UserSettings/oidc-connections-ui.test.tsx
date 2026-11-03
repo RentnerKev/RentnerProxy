@@ -59,7 +59,7 @@ async function render(
 ) {
     container = document.createElement('div')
     document.body.append(container)
-    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client = new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0 } } })
     root = createRoot(container)
     await act(async () => {
         root?.render(
@@ -103,6 +103,29 @@ afterEach(async () => {
 })
 
 describe('linked identity accounts', () => {
+    test('automatically recovers a transient load and reflects subsequent live invalidation', async () => {
+        fetchMock.mockRejectedValueOnce(new Error('offline')).mockImplementation(
+            Object.assign(async () => Response.json(connections()), {
+                preconnect: fetch.preconnect,
+            }),
+        )
+        await render()
+        await flush()
+        expect(container.textContent).toContain('Example ID')
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        expect(container.textContent).not.toContain('account.oidc.refresh')
+        fetchMock.mockImplementation(
+            Object.assign(async () => Response.json(connections(true)), {
+                preconnect: fetch.preconnect,
+            }),
+        )
+        await act(async () => {
+            await client!.invalidateQueries({ queryKey: ['auth', 'account', 'oidc-connections'] })
+        })
+        await flush()
+        expect(container.querySelector('[aria-label^="account.oidc.unlink:"]')).not.toBeNull()
+    })
+
     test('submits exactly one same-origin native link form using the active session', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
@@ -318,7 +341,7 @@ describe('linked identity accounts', () => {
         expect(success).not.toHaveBeenCalled()
         expect(container.textContent).toContain('account.oidc.error.failed')
         expect(error).toHaveBeenCalledTimes(1)
-        expect(fetchMock).toHaveBeenCalledTimes(1)
+        expect(fetchMock).toHaveBeenCalledTimes(4)
     })
     test('ordinary pageshow preserves active navigation and does not refresh', async () => {
         fetchMock.mockResolvedValue(Response.json(connections()))

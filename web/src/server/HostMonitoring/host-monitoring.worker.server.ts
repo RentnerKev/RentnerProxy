@@ -6,6 +6,7 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { inspectControllerDomain } from '@/server/Controller/domain-diagnostics.server.ts'
 import { readHostMonitoringContextInTransaction } from '@/server/RuntimeDiagnostics/domain-diagnostics-data.ts'
 import { DomainDiagnosticsError } from '@/server/RuntimeDiagnostics/domain-diagnostics.errors.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import { createHostMonitoringWorker } from './host-monitoring.worker.ts'
 import { createHostMonitoringProbe } from './host-monitoring.probe.ts'
 import {
@@ -52,8 +53,8 @@ const runClaim = createHostMonitoringProbe({
             { isolationLevel: 'repeatable read', accessMode: 'read only' },
         ),
     inspect: inspectControllerDomain,
-    complete: (claim, outcome, before) =>
-        completeHostMonitoringClaim(
+    complete: async (claim, outcome, before) => {
+        const completed = await completeHostMonitoringClaim(
             claim,
             outcome,
             async (transaction, policy) => {
@@ -75,7 +76,10 @@ const runClaim = createHostMonitoringProbe({
                 }
             },
             before.availability,
-        ),
+        )
+        if (completed) publishApplicationChange()
+        return completed
+    },
     release: releaseHostMonitoringClaim,
 })
 

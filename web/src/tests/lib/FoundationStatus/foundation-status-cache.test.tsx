@@ -84,11 +84,11 @@ class FakeSocket {
         if (type === 'message') this.listeners.add(listener)
     }
 
-    deliver(data: unknown) {
+    deliver(data: unknown, topic: 'foundation' | 'crowdsec-configuration' = 'foundation') {
         const event = {
             data: JSON.stringify({
                 type: 'snapshot',
-                topic: 'foundation',
+                topic,
                 query: {},
                 payload: data,
             }),
@@ -213,6 +213,24 @@ test('shows CrowdSec state only to users with view permission', async () => {
     expect(container.querySelector('[data-state="disabled"]')?.textContent).toContain('Disabled')
     expect(container.textContent).toContain('Inactive')
     expect(container.textContent).toContain('Manage CrowdSec')
+
+    await act(async () => {
+        FakeSocket.instances[0]?.deliver(
+            {
+                ...disabledCrowdSec,
+                mode: 'managed',
+                runtime: {
+                    ...disabledCrowdSec.runtime!,
+                    mode: 'managed',
+                    state: 'connected',
+                    enforcementActive: true,
+                },
+            },
+            'crowdsec-configuration',
+        )
+    })
+    await waitFor(() => container.querySelector('[data-state="connected"]') !== null)
+    expect(getCrowdSecConfigurationHandlerMock).toHaveBeenCalledTimes(1)
 })
 
 test('shows degraded managed protection and pending synchronization without changing foundation health', async () => {

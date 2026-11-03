@@ -36,10 +36,5 @@ export default function useFoundationStatusLogic(permissions: readonly string[])
             isPending: healthQuery.isPending,
             liveStatus,
         },
-        handler: {
-            retry: () => {
-                void healthQuery.refetch()
-            },
-        },
     } satisfies FoundationStatusLogicResult
 }

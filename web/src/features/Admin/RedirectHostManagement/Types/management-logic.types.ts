@@ -27,7 +27,6 @@ export interface RedirectHostManagementLogicResult {
         readonly redirectHosts: readonly RedirectHostSummary[]
         readonly runtimeStatus: ProxyRuntimeSyncStatus | undefined
         readonly runtimeStatusError: boolean
-        readonly runtimeStatusRetrying: boolean
         readonly selected: RedirectHostSummary | null
         readonly showCreate: boolean
     }
@@ -45,8 +44,6 @@ export interface RedirectHostManagementLogicResult {
         readonly openDelete: (value: RedirectHostSummary) => void
         readonly openDisable: (value: RedirectHostSummary) => void
         readonly openEditor: (value: RedirectHostSummary) => void
-        readonly retry: () => void
-        readonly retryRuntime: () => void
         readonly setCreateOpen: (open: boolean) => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly setDisableOpen: (open: boolean) => void

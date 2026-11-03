@@ -22,7 +22,6 @@ export interface LoginLogicResult<TForm> {
         handlePasskeyLogin: () => Promise<void>
         handleOidcSubmit: FormEventHandler<HTMLFormElement>
         handleAlternativeSignIn: (id: string) => void
-        handleRefreshProviders: () => void
         handleCancelOidc: () => void
     }
     refs: {

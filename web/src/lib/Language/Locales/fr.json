@@ -96,7 +96,8 @@
         "moreDomains": "Afficher {{count}} domaines supplémentaires",
         "clearSelection": "Effacer la sélection",
         "edit": "Modifier",
-        "delete": "Supprimer"
+        "delete": "Supprimer",
+        "automaticRecovery": "Nouvelle tentative automatique…"
     },
     "inputs": {
         "invalidPhone": "Saisissez un numéro de téléphone valide.",
@@ -164,7 +165,6 @@
         "loading": "Recherche en cours…",
         "noResults": "Aucun résultat trouvé.",
         "unavailable": "Certains résultats sont indisponibles. Réessayez.",
-        "retry": "Relancer la recherche",
         "targetUnavailable": "Cette entrée n’est plus disponible ou vos autorisations ont changé.",
         "opening": "Ouverture…",
         "resultsLabel": "Résultats de recherche",
@@ -259,8 +259,7 @@
             "title": "Se connecter avec un fournisseur d’identité",
             "loading": "Chargement des fournisseurs de connexion…",
             "continuing": "Ouverture du fournisseur d’identité…",
-            "retry": "Recharger les fournisseurs de connexion",
-            "catalogUnavailable": "Impossible de charger les fournisseurs de connexion. Rechargez la liste ou utilisez votre compte local.",
+            "catalogUnavailable": "Les fournisseurs de connexion sont temporairement indisponibles. Vous pouvez utiliser votre compte local.",
             "unavailable": "Le fournisseur d’identité est injoignable. Réessayez ou utilisez votre mot de passe ou votre clé d’accès locale.",
             "denied": "Cette identité n’est pas autorisée à se connecter. Contactez votre administrateur ou utilisez votre compte local.",
             "expired": "Cette demande de connexion a expiré. Recommencez la connexion.",
@@ -707,7 +706,6 @@
             "linked": "Associé",
             "unlinked": "Non associé",
             "disabled": "Fournisseur désactivé",
-            "refresh": "Actualiser",
             "loading": "Chargement des comptes associés…",
             "pending": "Continuez chez votre fournisseur. Si vous avez annulé, actualisez cette liste.",
             "unlinkedSuccess": "Compte dissocié. La connexion locale reste disponible.",
@@ -1072,7 +1070,6 @@
                 "disabling": "Désactivation de l’utilisateur…",
                 "enable": "Activer",
                 "enabling": "Activation de l’utilisateur…",
-                "retryRoles": "Réessayer les rôles",
                 "open": "Ouvrir les actions pour {{name}}",
                 "none": "Aucune action disponible",
                 "ownerEdit": "Seul un propriétaire peut modifier ce compte.",
@@ -1571,7 +1568,6 @@
                     "ownerHint": "Certains fournisseurs ajoutent automatiquement le domaine. Adapte le nom à ton fournisseur pour que le nom complet corresponde au nom TXT affiché.",
                     "valuesHint": "Plusieurs valeurs peuvent partager un nom. Ajoute chaque valeur et conserve les autres valeurs TXT existantes.",
                     "finish": "Terminé",
-                    "retry": "Recharger les enregistrements TXT",
                     "reused": "L’autorité de certification a réutilisé une autorisation existante. Aucun enregistrement TXT n’est nécessaire. Sélectionne Terminé, puis continue dans la fenêtre principale.",
                     "blocked": "Ferme le guide et vérifie la validation actuelle du certificat.",
                     "expires": "Les enregistrements TXT expirent le {{expires}}"
@@ -3801,7 +3797,6 @@
             "observationPoint": "Les vérifications sont effectuées depuis cette instance de RentnerProxy. L’accessibilité depuis l’Internet public n’est pas vérifiée.",
             "permissionDenied": "Vous n’avez pas l’autorisation de consulter la surveillance.",
             "loadError": "Impossible de charger la surveillance. Réessayez pour actualiser l’état.",
-            "retry": "Réessayer",
             "loading": "Chargement de la surveillance…",
             "noData": "Aucune vérification n’a encore été enregistrée.",
             "configure": "Configurer la surveillance",
@@ -3838,8 +3833,7 @@
             "historyCap": "Les 300 vérifications les plus récentes sont chargées. Réduisez la période ou filtrez par état pour explorer davantage.",
             "save": "Enregistrer les modifications",
             "close": "Fermer",
-            "conflict": "La surveillance a été modifiée ailleurs. Vos modifications sont conservées. Rechargez les paramètres pour utiliser la version la plus récente.",
-            "reload": "Recharger les paramètres",
+            "conflict": "Les paramètres ont changé. Votre brouillon est conservé.",
             "saveError": "Impossible d’enregistrer les paramètres de surveillance.",
             "saved": "Paramètres de surveillance enregistrés.",
             "invalid": "Vérifiez les paramètres et les plages autorisées.",
@@ -4131,7 +4125,6 @@
         "url": "URL de redirection",
         "html": "Code HTML",
         "loading": "Chargement du site par défaut…",
-        "reload": "Recharger les paramètres enregistrés",
         "discard": "Abandonner les modifications",
         "dirty": "Modifications non enregistrées",
         "clean": "Aucune modification non enregistrée",
@@ -4151,7 +4144,7 @@
             "custom-html": "HTML personnalisé"
         },
         "errors": {
-            "conflict": "Les paramètres ont été modifiés ailleurs. Rechargez les paramètres enregistrés avant de réessayer.",
+            "conflict": "Les paramètres enregistrés ont changé. Votre brouillon est conservé.",
             "loadFailed": "Impossible de charger le site par défaut.",
             "saveFailed": "Impossible d’enregistrer le site par défaut.",
             "invalidSettings": "Choisissez des paramètres valides pour le site par défaut.",
@@ -4244,8 +4237,6 @@
         "copy": "Copier l’URL de rappel",
         "copied": "URL de rappel copiée.",
         "callbackHint": "Configurer PUBLIC_ORIGIN sur le serveur pour obtenir l’URL de rappel canonique.",
-        "refresh": "Actualiser",
-        "refreshConflict": "Recharger la configuration enregistrée ?",
         "empty": "Aucun fournisseur configuré.",
         "bindingCount": "Associations : {{count}}",
         "test": "Tester le fournisseur enregistré",
@@ -4264,7 +4255,7 @@
         "errors": {
             "authentication_required": "Reconnectez-vous.",
             "owner_required": "Un propriétaire local est requis.",
-            "configuration_conflict": "Configuration modifiée. Brouillon conservé. Actualiser puis réessayer explicitement.",
+            "configuration_conflict": "Le fournisseur a changé. Votre brouillon est conservé.",
             "invalid_input": "Vérifier noms, URL HTTPS, origines, CIDR, sujets uniques et comptes. Un nouveau secret peut être nécessaire.",
             "identity_not_allowed": "Choisir des comptes locaux actifs autorisés à utiliser l’application.",
             "rate_limited": "Trop de requêtes. Patienter avant de réessayer.",
@@ -4274,8 +4265,6 @@
             "copy": "Impossible de copier l’URL.",
             "secret": "Un nouveau secret client est requis pour ce fournisseur ou changement de confiance."
         },
-        "reloadTitle": "Recharger la configuration enregistrée ?",
-        "reloadDescription": "Les modifications non enregistrées seront abandonnées. Le dernier fournisseur enregistré sera chargé. Le vérifier avant toute modification.",
         "placeholders": {
             "name": "Exemple de fournisseur",
             "issuer": "https://connexion.exemple.fr",
@@ -4297,7 +4286,7 @@
         "addMapping": "Ajouter une correspondance de groupe",
         "removeMapping": "Supprimer la correspondance de groupe",
         "rolePolicyHint": "Comptes du fournisseur uniquement. Correspondance exacte des groupes ; leur absence retire les rôles associés.",
-        "rolesUnavailable": "Impossible de charger les rôles. Rechargez avant de modifier la politique des rôles.",
+        "rolesUnavailable": "Les rôles sont temporairement indisponibles.",
         "provisioningOn": "Création automatique de comptes",
         "provisioningOff": "Associations explicites de comptes uniquement",
         "rolePolicySummary": "Rôles par défaut : {{defaults}} · Correspondances de groupes : {{mappings}}",
@@ -4310,6 +4299,7 @@
         "setupAuthentikDocs": "Documentation authentik",
         "setupKeycloakDocs": "Documentation Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Annuler les modifications"
     }
 }

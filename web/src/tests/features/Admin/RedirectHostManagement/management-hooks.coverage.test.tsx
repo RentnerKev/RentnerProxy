@@ -129,8 +129,6 @@ test('redirect manager keeps domain inspection current, edits and duplicates mut
     await hook.run((value) => value.handler.setEditorOpen(false))
     expect(hook.current.state.selected).toBeNull()
     await hook.run((value) => {
-        value.handler.retry()
-        value.handler.retryRuntime()
         value.handler.handleFormSuccess()
     })
     expect(hook.current.state.showCreate).toBe(false)
@@ -285,7 +283,7 @@ test('redirect edit snapshots disabling values for confirmation and retains the 
     })
     expect(hook.current.state.disableConfirmationOpen).toBe(false)
     expect(saved).toHaveBeenCalledTimes(1)
-    await hook.run((value) => value.handler.retryAssignableCertificates())
+    await hook.run(() => hook.client.invalidateQueries())
     expect(certificates).toHaveBeenCalled()
 })
 

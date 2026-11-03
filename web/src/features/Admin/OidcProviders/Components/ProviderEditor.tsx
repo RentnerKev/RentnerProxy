@@ -45,15 +45,19 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                 }}
             >
                 {state.conflict ? (
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary', 'justify-self-start')}
-                        onClick={() => {
-                            void handler.handleRefresh()
-                        }}
-                    >
-                        {t('oidc.refreshConflict')}
-                    </button>
+                    <div className="grid gap-3">
+                        <p className="text-sm text-muted">
+                            {t('oidc.errors.configuration_conflict')}
+                        </p>
+                        <button
+                            type="button"
+                            className={buttonClassName('secondary', 'justify-self-start')}
+                            onClick={handler.handleDiscard}
+                            disabled={state.isPending || !state.isAvailable}
+                        >
+                            {t('oidc.discard')}
+                        </button>
+                    </div>
                 ) : null}
                 {(['name', 'issuer', 'clientId'] as const).map((name) => (
                     <form.Field key={name} name={name}>

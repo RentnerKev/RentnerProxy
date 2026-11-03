@@ -21,7 +21,6 @@ export type ProxyHostCertificateFieldsProps = Pick<
     | 'canRequestCertificate'
     | 'assignableCertificatesLoading'
     | 'assignableCertificatesLoadFailed'
-    | 'retryAssignableCertificates'
     | 'requestNewCertificate'
     | 'certificateRequestForm'
 > &
@@ -38,7 +37,6 @@ export type ProxyHostAccessFieldsProps = Pick<
     | 'assignableAccessPolicies'
     | 'assignableAccessPoliciesLoading'
     | 'assignableAccessPoliciesLoadFailed'
-    | 'retryAssignableAccessPolicies'
     | 'assignableTrustedCas'
     | 'trustedCasLoading'
     | 'trustedCasLoadFailed'

@@ -96,7 +96,8 @@
         "moreDomains": "Mostrar {{count}} dominios más",
         "clearSelection": "Borrar selección",
         "edit": "Editar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "automaticRecovery": "Reintentando automáticamente…"
     },
     "inputs": {
         "invalidPhone": "Introduce un número de teléfono válido.",
@@ -164,7 +165,6 @@
         "loading": "Buscando…",
         "noResults": "No se encontraron resultados.",
         "unavailable": "Algunos resultados no están disponibles. Inténtalo de nuevo.",
-        "retry": "Reintentar búsqueda",
         "targetUnavailable": "Esta entrada ya no está disponible o tus permisos han cambiado.",
         "opening": "Abriendo…",
         "resultsLabel": "Resultados de búsqueda",
@@ -259,8 +259,7 @@
             "title": "Iniciar sesión con un proveedor de identidad",
             "loading": "Cargando proveedores de acceso…",
             "continuing": "Abriendo el proveedor de identidad…",
-            "retry": "Recargar proveedores de acceso",
-            "catalogUnavailable": "No se pudieron cargar los proveedores de acceso. Recarga la lista o utiliza tu cuenta local.",
+            "catalogUnavailable": "Los proveedores de acceso no están disponibles temporalmente. Puedes usar tu cuenta local.",
             "unavailable": "No se pudo contactar con el proveedor de identidad. Inténtalo de nuevo o utiliza tu contraseña o clave de acceso local.",
             "denied": "Esta identidad no tiene permiso para iniciar sesión. Contacta con la administración o utiliza tu cuenta local.",
             "expired": "Esta solicitud de acceso ha caducado. Vuelve a iniciar sesión.",
@@ -707,7 +706,6 @@
             "linked": "Vinculada",
             "unlinked": "Sin vincular",
             "disabled": "Proveedor desactivado",
-            "refresh": "Actualizar",
             "loading": "Cargando cuentas vinculadas…",
             "pending": "Continúa en tu proveedor. Si has cancelado, actualiza esta lista.",
             "unlinkedSuccess": "Cuenta desvinculada. El acceso local sigue disponible.",
@@ -1072,7 +1070,6 @@
                 "disabling": "Desactivando usuario…",
                 "enable": "Activar",
                 "enabling": "Activando usuario…",
-                "retryRoles": "Reintentar roles",
                 "open": "Abrir acciones para {{name}}",
                 "none": "No hay acciones disponibles",
                 "ownerEdit": "Solo un propietario puede editar esta cuenta.",
@@ -1571,7 +1568,6 @@
                     "ownerHint": "Algunos proveedores añaden el dominio automáticamente. Introduce el nombre según tu proveedor para que el nombre completo coincida con el nombre TXT mostrado.",
                     "valuesHint": "Varios valores pueden compartir un nombre. Añade todos los valores y conserva los demás valores TXT existentes.",
                     "finish": "Listo",
-                    "retry": "Volver a cargar los registros TXT",
                     "reused": "La autoridad de certificación ha reutilizado una autorización existente. No se necesitan registros TXT. Selecciona Listo y continúa en el diálogo principal.",
                     "blocked": "Cierra la guía y revisa la validación actual del certificado.",
                     "expires": "Los registros TXT caducan el {{expires}}"
@@ -3801,7 +3797,6 @@
             "observationPoint": "Las comprobaciones se ejecutan desde esta instancia de RentnerProxy. No se comprueba la accesibilidad desde Internet pública.",
             "permissionDenied": "No tienes permiso para ver la monitorización.",
             "loadError": "No se pudo cargar la monitorización. Vuelve a intentarlo para actualizar el estado.",
-            "retry": "Reintentar",
             "loading": "Cargando monitorización…",
             "noData": "Aún no se han registrado comprobaciones.",
             "configure": "Configurar monitorización",
@@ -3838,8 +3833,7 @@
             "historyCap": "Se han cargado las 300 comprobaciones más recientes. Limita el periodo o el estado para explorar más.",
             "save": "Guardar cambios",
             "close": "Cerrar",
-            "conflict": "La monitorización ha cambiado en otro lugar. Se conservan tus cambios. Vuelve a cargar la configuración para usar la versión más reciente.",
-            "reload": "Volver a cargar la configuración",
+            "conflict": "La configuración cambió. Se conserva tu borrador.",
             "saveError": "No se pudo guardar la configuración de monitorización.",
             "saved": "Configuración de monitorización guardada.",
             "invalid": "Comprueba la configuración y los límites permitidos.",
@@ -4131,7 +4125,6 @@
         "url": "URL de redirección",
         "html": "Código HTML",
         "loading": "Cargando el sitio predeterminado…",
-        "reload": "Recargar ajustes guardados",
         "discard": "Descartar cambios",
         "dirty": "Cambios sin guardar",
         "clean": "No hay cambios sin guardar",
@@ -4151,7 +4144,7 @@
             "custom-html": "HTML personalizado"
         },
         "errors": {
-            "conflict": "Los ajustes cambiaron en otro lugar. Vuelve a cargar los ajustes guardados antes de intentarlo de nuevo.",
+            "conflict": "La configuración guardada cambió. Se conserva tu borrador.",
             "loadFailed": "No se pudo cargar el sitio predeterminado.",
             "saveFailed": "No se pudo guardar el sitio predeterminado.",
             "invalidSettings": "Elige unos ajustes válidos para el sitio predeterminado.",
@@ -4244,8 +4237,6 @@
         "copy": "Copiar URL de retorno",
         "copied": "URL de retorno copiada.",
         "callbackHint": "Configurar PUBLIC_ORIGIN en el servidor para obtener la URL canónica.",
-        "refresh": "Actualizar",
-        "refreshConflict": "¿Recargar la configuración guardada?",
         "empty": "No hay proveedores configurados.",
         "bindingCount": "Vínculos: {{count}}",
         "test": "Probar proveedor guardado",
@@ -4264,7 +4255,7 @@
         "errors": {
             "authentication_required": "Inicie sesión de nuevo.",
             "owner_required": "Se requiere un propietario local.",
-            "configuration_conflict": "La configuración cambió. Se conserva el borrador. Actualizar y reintentar expresamente.",
+            "configuration_conflict": "El proveedor cambió. Se conserva tu borrador.",
             "invalid_input": "Comprobar nombres, URL HTTPS, orígenes, CIDR, sujetos únicos y cuentas. Puede requerirse un secreto nuevo.",
             "identity_not_allowed": "Seleccionar cuentas locales activas con acceso a la aplicación.",
             "rate_limited": "Demasiadas solicitudes. Esperar antes de reintentar.",
@@ -4274,8 +4265,6 @@
             "copy": "No se pudo copiar la URL.",
             "secret": "Se requiere un secreto de cliente nuevo para este proveedor o cambio de confianza."
         },
-        "reloadTitle": "¿Recargar la configuración guardada?",
-        "reloadDescription": "Se descartarán los cambios sin guardar y se cargará el último proveedor guardado. Revisarlo antes de modificarlo.",
         "placeholders": {
             "name": "Proveedor de ejemplo",
             "issuer": "https://acceso.ejemplo.es",
@@ -4297,7 +4286,7 @@
         "addMapping": "Añadir asignación de grupo",
         "removeMapping": "Eliminar asignación de grupo",
         "rolePolicyHint": "Solo cuentas del proveedor. Los grupos deben coincidir exactamente; si faltan, se retiran los roles asignados.",
-        "rolesUnavailable": "No se pudieron cargar los roles. Recarga antes de cambiar la política de roles.",
+        "rolesUnavailable": "Los roles no están disponibles temporalmente.",
         "provisioningOn": "Creación automática de cuentas",
         "provisioningOff": "Solo vínculos explícitos de cuentas",
         "rolePolicySummary": "Roles predeterminados: {{defaults}} · Asignaciones de grupos: {{mappings}}",
@@ -4310,6 +4299,7 @@
         "setupAuthentikDocs": "Documentación de authentik",
         "setupKeycloakDocs": "Documentación de Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Descartar cambios"
     }
 }

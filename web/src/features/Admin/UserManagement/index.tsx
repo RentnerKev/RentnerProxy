@@ -6,7 +6,6 @@ import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import UserFormModal from './Components/UserFormModal/index.tsx'
 import UsersTable from './Components/UsersTable/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function UserManagementPage(props: UserManagementPageProps) {
     const { state, handler } = useUserManagementLogic(props)
@@ -25,15 +24,6 @@ export default function UserManagementPage(props: UserManagementPageProps) {
                     severity="error"
                     title={t('admin.roles.page.title')}
                     description={t('admin.users.messages.rolesUnavailable')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retryRoles}
-                        >
-                            {t('admin.users.actions.retryRoles')}
-                        </button>
-                    }
                 />
             ) : null}
 
@@ -42,15 +32,6 @@ export default function UserManagementPage(props: UserManagementPageProps) {
                     severity="error"
                     title={t('admin.users.states.unavailableTitle')}
                     description={t('admin.users.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retryUsers}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <UsersTable

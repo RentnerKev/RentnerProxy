@@ -684,3 +684,44 @@ test('initial onResolved cannot overtake an explicit newer session check', async
     ).toBeUndefined()
     expect(invalidateSpy).toHaveBeenCalledTimes(1)
 })
+
+test('ordinary data events refresh queries without reloading identity or losing a draft', async () => {
+    invalidateSpy = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    await mountProbe()
+    const identityVersion = 'a'.repeat(64)
+    const socket = FakeSocket.instances[0]!
+    await act(async () =>
+        socket.deliver({ revision: 'before', userVersion: 'same-user', identityVersion }),
+    )
+    await flush()
+    const before = activeFetches
+    const draft = container.querySelector<HTMLInputElement>('input')!
+    draft.value = 'preserved edit'
+    await act(async () =>
+        socket.deliver({ revision: 'after', userVersion: 'same-user', identityVersion }),
+    )
+    await flush()
+    expect(activeFetches).toBe(before + 1)
+    expect(invalidateSpy).not.toHaveBeenCalled()
+    expect(container.querySelector('input')).toBe(draft)
+    expect(draft.value).toBe('preserved edit')
+})
+
+test('a failed identity read recovers automatically without pressing a retry control', async () => {
+    invalidateSpy = spyOn(router, 'invalidate')
+        .mockRejectedValueOnce(new Error('Temporary network failure'))
+        .mockResolvedValue(undefined)
+    await mountProbe()
+    const draft = container.querySelector<HTMLInputElement>('input')!
+    draft.value = 'keep while reconnecting'
+    await resumeTab()
+    expectProtectedHidden()
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    await flush()
+    expect(invalidateSpy).toHaveBeenCalledTimes(2)
+    expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+    expect(container.querySelector('input')).toBe(draft)
+    expect(draft.value).toBe('keep while reconnecting')
+})

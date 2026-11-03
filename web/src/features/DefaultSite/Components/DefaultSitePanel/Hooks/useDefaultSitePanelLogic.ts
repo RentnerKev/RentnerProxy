@@ -25,8 +25,8 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
     const query = useQuery({
         queryKey: ['default-site'],
         queryFn: () => getDefaultSiteHandler(),
-        refetchOnWindowFocus: false,
-        retry: false,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
     })
     const mutation = useMutation({
         mutationFn: (settings: DefaultSiteSettings) =>
@@ -59,6 +59,7 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             try {
                 const result = await mutation.mutateAsync(settings.data)
                 if (!result.success) {
+                    if (result.message === 'defaultSite.errors.conflict') void query.refetch()
                     setError(t(result.message))
                     toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
@@ -109,17 +110,20 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
               : { mode: values.mode }
     const validated = defaultSiteSettingsSchema.safeParse(settings)
     const isDirty = !!baseline && JSON.stringify(settings) !== JSON.stringify(baseline.settings)
+    useEffect(() => {
+        if (!query.data || isDirty || saveInFlight.current || baseline === query.data) return
+        setBaseline(query.data)
+    }, [query.data, isDirty, baseline])
     const isSaving = mutation.isPending
 
     return {
         form,
         state: {
             isLoading: query.isPending,
-            loadFailed: query.isError,
+            loadFailed: query.isError && query.data === undefined,
             isSaving,
-            isReloading: query.isFetching,
             mode: values.mode,
-            savedMode: baseline?.settings.mode ?? null,
+            savedMode: query.data?.settings.mode ?? null,
             canSave: canUpdate && isDirty && validated.success && !isSaving && !query.isFetching,
             isDirty,
             isValid: validated.success,
@@ -136,18 +140,15 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
                 event.preventDefault()
                 void form.handleSubmit()
             },
-            handleReload: () => {
+            handleDiscard: () => {
                 setError(null)
-                void query.refetch().then((result) => {
-                    if (result.isSuccess) {
-                        setBaseline(result.data)
-                        const { settings: loaded } = result.data
-                        form.reset({
-                            mode: loaded.mode,
-                            url: loaded.mode === 'redirect' ? loaded.url : '',
-                            html: loaded.mode === 'custom-html' ? loaded.html : '',
-                        })
-                    }
+                if (!query.data) return
+                setBaseline(query.data)
+                const { settings: loaded } = query.data
+                form.reset({
+                    mode: loaded.mode,
+                    url: loaded.mode === 'redirect' ? loaded.url : '',
+                    html: loaded.mode === 'custom-html' ? loaded.html : '',
                 })
             },
             handleModeChange: (value) => {

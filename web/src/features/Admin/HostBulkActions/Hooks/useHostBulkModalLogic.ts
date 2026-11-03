@@ -169,9 +169,6 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
                 previewMutation.mutate()
             },
             handleApply: () => applyMutation.mutate(),
-            handleRetryOptions: () => {
-                void optionsQuery.refetch()
-            },
         },
     }
 }

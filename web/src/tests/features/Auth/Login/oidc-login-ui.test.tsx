@@ -11,14 +11,12 @@ const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 let root: Root | null = null
 const select = mock((_id: string) => {})
-const refresh = mock(() => {})
 const cancel = mock(() => {})
 
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = null
     select.mockClear()
-    refresh.mockClear()
     cancel.mockClear()
     document.body.replaceChildren()
 })
@@ -58,7 +56,6 @@ async function render(state = initialState) {
                             handlePasskeyLogin: async () => {},
                             handleOidcSubmit: () => {},
                             handleAlternativeSignIn: select,
-                            handleRefreshProviders: refresh,
                             handleCancelOidc: cancel,
                         }}
                         refs={{ oidcForm: { current: null }, oidcProviderId: { current: null } }}
@@ -105,7 +102,6 @@ test.each([
         expect(buttons.every((button) => button.disabled)).toBe(true)
         await act(async () => buttons.forEach((button) => button.click()))
         expect(select).not.toHaveBeenCalled()
-        expect(refresh).not.toHaveBeenCalled()
         if (pending.isOidcPending) {
             const cancelButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
                 (button) => button.textContent === 'Cancel sign-in',
@@ -204,13 +200,11 @@ test.each(['loading', 'unavailable'] as const)(
             (button) => button.textContent === 'Sign in with passkey',
         )!
         expect(passkey.disabled).toBe(false)
-        if (status === 'unavailable') {
-            const retry = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        expect(
+            [...container.querySelectorAll('button')].some(
                 (button) => button.textContent === 'Reload sign-in providers',
-            )!
-            await act(async () => retry.click())
-            expect(refresh).toHaveBeenCalledTimes(1)
-        }
+            ),
+        ).toBe(false)
         expect(email.value).toBe('local-owner@example.test')
         expect(password.value).toBe('private local recovery')
     },

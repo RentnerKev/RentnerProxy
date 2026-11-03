@@ -2,6 +2,49 @@ import { describe, expect, test } from 'bun:test'
 import { createHostMonitoringWorker } from '@/server/HostMonitoring/host-monitoring.worker.ts'
 import type { HostMonitoringWorkerDependencies } from '@/server/HostMonitoring/Types/host-monitoring-worker.types.ts'
 import { HOST_MONITORING_LIMITS } from '@/config/host-monitoring.config.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
+
+test('monitoring completion publishes only after accepted durable writes', async () => {
+    const stdout = await runBunScript(
+        `
+        import { mock } from 'bun:test'
+        let probe
+        let complete
+        let publications = 0
+        mock.module('./server/Auth/Core/database.server.ts', () => ({ getAuthDatabase: () => { throw new Error('Unexpected database access') } }))
+        mock.module('./server/Controller/domain-diagnostics.server.ts', () => ({ inspectControllerDomain: async () => {} }))
+        mock.module('./server/RuntimeDiagnostics/domain-diagnostics-data.ts', () => ({ readHostMonitoringContextInTransaction: async () => {} }))
+        mock.module('./server/HostMonitoring/host-monitoring.probe.ts', () => ({ createHostMonitoringProbe: dependencies => { probe = dependencies; return async () => {} } }))
+        mock.module('./server/HostMonitoring/host-monitoring.repository.ts', () => ({
+            claimDueHostMonitoringPolicy: async () => null,
+            completeHostMonitoringClaim: (...args) => complete(...args),
+            releaseHostMonitoringClaim: async () => {},
+            pruneHostMonitoringHistory: async () => {},
+        }))
+        mock.module('./server/WebSockets/applicationChanges.ts', () => ({ publishApplicationChange: () => publications++ }))
+        await import('./server/HostMonitoring/host-monitoring.worker.server.ts')
+        const pending = Promise.withResolvers()
+        complete = () => pending.promise
+        const result = probe.complete({}, {}, { availability: {} })
+        if (publications !== 0) throw new Error('Published before commit')
+        pending.resolve(true)
+        const accepted = await result
+        complete = async () => false
+        const stale = await probe.complete({}, {}, { availability: {} })
+        complete = async () => { throw new Error('commit failed') }
+        let rejected = false
+        try { await probe.complete({}, {}, { availability: {} }) } catch { rejected = true }
+        console.log(JSON.stringify({ accepted, stale, rejected, publications }))
+        `,
+        { cwd: new URL('../../..', import.meta.url) },
+    )
+    expect(JSON.parse(stdout)).toEqual({
+        accepted: true,
+        stale: false,
+        rejected: true,
+        publications: 1,
+    })
+})
 
 function dependencies(overrides: Partial<HostMonitoringWorkerDependencies<string>> = {}) {
     return {

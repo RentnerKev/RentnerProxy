@@ -18,6 +18,6 @@ export interface UseGlobalErrorPageLogicParams {
 export interface GlobalErrorPageLogicResult {
     readonly state: {
         readonly details: ReturnType<typeof import('@/lib/Errors/pageError.ts').getPageErrorDetails>
+        readonly automaticRecovery: boolean
     }
-    readonly handler: { readonly retry: () => void }
 }

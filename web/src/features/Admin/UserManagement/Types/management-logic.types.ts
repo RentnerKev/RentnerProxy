@@ -29,8 +29,6 @@ export interface UserManagementLogicResult {
         readonly openDisable: (value: UserSummary) => void
         readonly openEditor: (value: UserSummary) => void
         readonly refreshCurrentUser: () => Promise<void>
-        readonly retryRoles: () => void
-        readonly retryUsers: () => void
         readonly setCreateOpen: (open: boolean) => void
         readonly setDisableOpen: (open: boolean) => void
         readonly setEditorOpen: (open: boolean) => void

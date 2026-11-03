@@ -96,7 +96,8 @@
         "moreDomains": "Mostrar mais {{count}} domínios",
         "clearSelection": "Limpar seleção",
         "edit": "Editar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "automaticRecovery": "A tentar novamente automaticamente…"
     },
     "inputs": {
         "invalidPhone": "Introduza um número de telefone válido.",
@@ -164,7 +165,6 @@
         "loading": "A pesquisar…",
         "noResults": "Não foram encontrados resultados.",
         "unavailable": "Alguns resultados não estão disponíveis. Tente novamente.",
-        "retry": "Tentar novamente",
         "targetUnavailable": "Esta entrada já não está disponível ou as suas permissões foram alteradas.",
         "opening": "A abrir…",
         "resultsLabel": "Resultados da pesquisa",
@@ -259,8 +259,7 @@
             "title": "Iniciar sessão com um fornecedor de identidade",
             "loading": "A carregar fornecedores de autenticação…",
             "continuing": "A abrir o fornecedor de identidade…",
-            "retry": "Recarregar fornecedores de autenticação",
-            "catalogUnavailable": "Não foi possível carregar os fornecedores de autenticação. Recarregue a lista ou utilize a sua conta local.",
+            "catalogUnavailable": "Os fornecedores de acesso estão temporariamente indisponíveis. Podes usar a tua conta local.",
             "unavailable": "Não foi possível contactar o fornecedor de identidade. Tente novamente ou utilize a sua palavra-passe ou chave de acesso local.",
             "denied": "Esta identidade não tem permissão para iniciar sessão. Contacte o administrador ou utilize a sua conta local.",
             "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
@@ -707,7 +706,6 @@
             "linked": "Associada",
             "unlinked": "Não associada",
             "disabled": "Fornecedor desativado",
-            "refresh": "Atualizar",
             "loading": "A carregar contas associadas…",
             "pending": "Continue no seu fornecedor. Se cancelou, atualize esta lista.",
             "unlinkedSuccess": "Conta desassociada. A autenticação local continua disponível.",
@@ -1069,7 +1067,6 @@
                 "disabling": "A desativar utilizador…",
                 "enable": "Ativar",
                 "enabling": "A ativar utilizador…",
-                "retryRoles": "Tentar carregar funções novamente",
                 "open": "Abrir ações de {{name}}",
                 "none": "Não há ações disponíveis",
                 "ownerEdit": "Só um proprietário pode editar esta conta.",
@@ -1583,7 +1580,6 @@
                     "ownerHint": "Alguns fornecedores acrescentam o domínio automaticamente. Introduz o nome conforme o teu fornecedor para que o nome completo corresponda ao nome TXT apresentado.",
                     "valuesHint": "Vários valores podem partilhar o mesmo nome. Adiciona cada valor e mantém os outros valores TXT existentes.",
                     "finish": "Concluído",
-                    "retry": "Recarregar os registos TXT",
                     "reused": "A autoridade de certificação reutilizou uma autorização existente. Não são necessários registos TXT. Seleciona Concluído e continua na janela principal.",
                     "blocked": "Fecha o guia e verifica a validação atual do certificado.",
                     "expires": "Os registos TXT expiram em {{expires}}"
@@ -3827,7 +3823,6 @@
             "observationPoint": "As verificações são executadas a partir desta instância do RentnerProxy. A acessibilidade a partir da Internet pública não é verificada.",
             "permissionDenied": "Não tem permissão para ver a monitorização.",
             "loadError": "Não foi possível carregar a monitorização. Tente novamente para atualizar o estado.",
-            "retry": "Tentar novamente",
             "loading": "A carregar a monitorização…",
             "noData": "Ainda não foram registadas verificações.",
             "configure": "Configurar monitorização",
@@ -3864,8 +3859,7 @@
             "historyCap": "Foram carregadas as 300 verificações mais recentes. Restrinja o período ou filtre por estado para explorar mais.",
             "save": "Guardar alterações",
             "close": "Fechar",
-            "conflict": "A monitorização foi alterada noutro local. As suas alterações foram preservadas. Volte a carregar as definições para usar a versão mais recente.",
-            "reload": "Voltar a carregar definições",
+            "conflict": "As definições mudaram. O rascunho é mantido.",
             "saveError": "Não foi possível guardar as definições de monitorização.",
             "saved": "Definições de monitorização guardadas.",
             "invalid": "Verifique as definições e os intervalos permitidos.",
@@ -4157,7 +4151,6 @@
         "url": "URL de redirecionamento",
         "html": "Código HTML",
         "loading": "A carregar o site predefinido…",
-        "reload": "Recarregar definições guardadas",
         "discard": "Descartar alterações",
         "dirty": "Alterações por guardar",
         "clean": "Sem alterações por guardar",
@@ -4177,7 +4170,7 @@
             "custom-html": "HTML personalizado"
         },
         "errors": {
-            "conflict": "As definições foram alteradas noutro local. Recarregue as definições guardadas antes de tentar novamente.",
+            "conflict": "As definições guardadas mudaram. O rascunho é mantido.",
             "loadFailed": "Não foi possível carregar o site predefinido.",
             "saveFailed": "Não foi possível guardar o site predefinido.",
             "invalidSettings": "Escolha definições válidas para o site predefinido.",
@@ -4270,8 +4263,6 @@
         "copy": "Copiar URL de retorno",
         "copied": "URL de retorno copiado.",
         "callbackHint": "Configurar PUBLIC_ORIGIN no servidor para obter o URL canónico.",
-        "refresh": "Atualizar",
-        "refreshConflict": "Recarregar a configuração guardada?",
         "empty": "Nenhum provedor configurado.",
         "bindingCount": "Associações: {{count}}",
         "test": "Testar provedor guardado",
@@ -4290,7 +4281,7 @@
         "errors": {
             "authentication_required": "Iniciar sessão novamente.",
             "owner_required": "É necessário um proprietário local.",
-            "configuration_conflict": "A configuração mudou. Rascunho preservado. Atualizar e repetir explicitamente.",
+            "configuration_conflict": "O fornecedor mudou. O rascunho é mantido.",
             "invalid_input": "Verificar nomes, URLs HTTPS, origens, CIDR, sujeitos únicos e contas. Pode ser necessário um novo segredo.",
             "identity_not_allowed": "Selecionar contas locais ativas com acesso à aplicação.",
             "rate_limited": "Demasiados pedidos. Aguardar antes de repetir.",
@@ -4300,8 +4291,6 @@
             "copy": "Não foi possível copiar o URL.",
             "secret": "É necessário um novo segredo de cliente para este provedor ou alteração de confiança."
         },
-        "reloadTitle": "Recarregar a configuração guardada?",
-        "reloadDescription": "As alterações não guardadas serão descartadas e será carregado o último provedor guardado. Rever antes de alterar.",
         "placeholders": {
             "name": "Provedor de exemplo",
             "issuer": "https://acesso.exemplo.pt",
@@ -4323,7 +4312,7 @@
         "addMapping": "Adicionar mapeamento de grupo",
         "removeMapping": "Remover mapeamento de grupo",
         "rolePolicyHint": "Apenas contas do fornecedor. Os grupos devem corresponder exatamente; grupos ausentes retiram as funções associadas.",
-        "rolesUnavailable": "Não foi possível carregar as funções. Recarregue antes de alterar a política de funções.",
+        "rolesUnavailable": "As funções estão temporariamente indisponíveis.",
         "provisioningOn": "Criação automática de contas",
         "provisioningOff": "Apenas associações explícitas de contas",
         "rolePolicySummary": "Funções predefinidas: {{defaults}} · Mapeamentos de grupos: {{mappings}}",
@@ -4336,6 +4325,7 @@
         "setupAuthentikDocs": "Documentação do authentik",
         "setupKeycloakDocs": "Documentação do Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Descartar alterações"
     }
 }

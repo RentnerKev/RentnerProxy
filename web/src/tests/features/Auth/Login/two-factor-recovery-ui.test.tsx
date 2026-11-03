@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+    QueryClient,
+    QueryClientProvider,
+    focusManager,
+    onlineManager,
+} from '@tanstack/react-query'
 import { InputProvider } from '@rentnerkev/inputs'
 import { TooltipProvider } from '@rentnerkev/tooltips/tooltip'
 import type { ReactNode } from 'react'
@@ -87,6 +92,8 @@ afterEach(async () => {
     client?.clear()
     client = null
     document.body.replaceChildren()
+    focusManager.setFocused(undefined)
+    onlineManager.setOnline(true)
 })
 
 test('an expired second-factor request has an actionable sign-in link', async () => {
@@ -98,21 +105,18 @@ test('an expired second-factor request has an actionable sign-in link', async ()
     expect(document.querySelector('button')?.textContent).toBe('Show sign-in status')
 })
 
-test('a failed second-factor status check reports availability and offers a working retry', async () => {
+test('a transient status failure recovers automatically without a retry button', async () => {
     status.mockRejectedValueOnce(new Error('private transport diagnostic'))
     await mount(<TwoFactorLoginPage />)
-    await until(() => Boolean(document.querySelector('button')))
-    expect(errorToast.mock.calls[0]?.[0]).toContain('temporarily unavailable')
-    expect(document.querySelector('[role="alert"], output')).toBeNull()
-    expect(document.body.textContent).not.toContain('expired')
-    expect(document.body.textContent).not.toContain('private transport diagnostic')
-    expect(document.querySelector('a[href="/login"]')).not.toBeNull()
-    await act(async () => document.querySelector('button')!.click())
     await until(() => warningToast.mock.calls.length === 1)
     expect(warningToast.mock.calls[0]?.[0]).toContain('expired')
-    expect(JSON.stringify([...errorToast.mock.calls, ...warningToast.mock.calls])).not.toContain(
-        'private transport diagnostic',
-    )
+    expect(errorToast).not.toHaveBeenCalled()
+    expect(document.body.textContent).not.toContain('private transport diagnostic')
+    expect(
+        [...document.querySelectorAll('button')].some(
+            (button) => button.textContent === 'Try again',
+        ),
+    ).toBeFalse()
     expect(status).toHaveBeenCalledTimes(2)
 })
 
@@ -120,7 +124,7 @@ test('a failed recheck does not keep displaying a previously valid second-factor
     status.mockResolvedValueOnce({ valid: true, methods: ['totp'] })
     await mount(<TwoFactorLoginPage />)
     await until(() => Boolean(document.querySelector('input[name="credential"]')))
-    status.mockRejectedValueOnce(new Error('private transport diagnostic'))
+    status.mockRejectedValue(new Error('private transport diagnostic'))
     await act(async () => {
         await client!.invalidateQueries({ queryKey: ['auth', 'two-factor-challenge'] })
     })
@@ -129,22 +133,49 @@ test('a failed recheck does not keep displaying a previously valid second-factor
     expect(errorToast.mock.calls[0]?.[0]).toContain('temporarily unavailable')
     expect(document.querySelector('[role="alert"], output')).toBeNull()
     expect(document.body.textContent).not.toContain('expired')
-    expect(document.querySelector('button')?.textContent).toBe('Try again')
+    expect(document.querySelector('button')?.textContent).toBe('Show sign-in status')
 })
 
-test('a retried unavailable challenge notifies again without exposing transport diagnostics', async () => {
+test('an unavailable challenge retries a bounded number and can replay safe feedback', async () => {
     status.mockRejectedValue(new Error('private transport diagnostic'))
     await mount(<TwoFactorLoginPage />)
     await until(() => errorToast.mock.calls.length === 1)
     await act(async () => document.querySelector('button')!.click())
     await until(() => errorToast.mock.calls.length === 2)
-    expect(status).toHaveBeenCalledTimes(2)
+    expect(status).toHaveBeenCalledTimes(3)
     expect(
         errorToast.mock.calls.every(([message]) => message.includes('temporarily unavailable')),
     ).toBeTrue()
     expect(JSON.stringify(errorToast.mock.calls)).not.toContain('private transport diagnostic')
     expect(document.querySelector('[role="alert"], output')).toBeNull()
 })
+
+test.each(['focus', 'online'] as const)(
+    'recovers an unavailable challenge automatically on %s',
+    async (trigger) => {
+        status.mockRejectedValue(new Error('private transport diagnostic'))
+        await mount(<TwoFactorLoginPage />)
+        await until(() => errorToast.mock.calls.length === 1)
+        expect(status).toHaveBeenCalledTimes(3)
+        status.mockResolvedValue({ valid: false, methods: [] })
+        await act(async () => {
+            if (trigger === 'focus') {
+                focusManager.setFocused(false)
+                focusManager.setFocused(true)
+            } else {
+                onlineManager.setOnline(false)
+                onlineManager.setOnline(true)
+            }
+        })
+        await until(() => warningToast.mock.calls.length === 1)
+        expect(status).toHaveBeenCalledTimes(4)
+        expect(
+            [...document.querySelectorAll('button')].some(
+                (button) => button.textContent === 'Try again',
+            ),
+        ).toBeFalse()
+    },
+)
 
 test('an invalid second-factor credential uses toast feedback and retains invalid marking', async () => {
     status.mockResolvedValueOnce({ valid: true, methods: ['totp'] })
@@ -176,7 +207,7 @@ test.each(['expired', 'unavailable'] as const)(
     'the keyboard-focusable status action replays %s feedback without a new request',
     async (kind) => {
         if (kind === 'unavailable')
-            status.mockRejectedValueOnce(new Error('private transport diagnostic'))
+            status.mockRejectedValue(new Error('private transport diagnostic'))
         await mount(<TwoFactorLoginPage />)
         const feedback = kind === 'expired' ? warningToast : errorToast
         await until(() => feedback.mock.calls.length === 1)
@@ -194,7 +225,7 @@ test.each(['expired', 'unavailable'] as const)(
             kind === 'expired' ? 'expired' : 'temporarily unavailable',
         )
         expect(JSON.stringify(feedback.mock.calls)).not.toContain('private transport diagnostic')
-        expect(status).toHaveBeenCalledTimes(1)
+        expect(status).toHaveBeenCalledTimes(kind === 'unavailable' ? 3 : 1)
         expect(document.querySelector('[role="alert"], output')).toBeNull()
         expect(document.body.textContent).not.toContain(
             kind === 'expired' ? 'expired' : 'temporarily unavailable',

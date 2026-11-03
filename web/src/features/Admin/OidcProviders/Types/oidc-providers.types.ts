@@ -39,7 +39,7 @@ export interface OidcProvidersLogicResult {
         userOptions: { value: string; label: string; disabled?: boolean }[]
         roleOptions: { value: string; label: string }[]
         rolesAvailable: boolean
-        reloadConfirm: boolean
+        hasLoadError: boolean
         isAvailable: boolean
     }
     handler: {
@@ -47,13 +47,11 @@ export interface OidcProvidersLogicResult {
         handleEdit: (provider: OidcProviderSummary) => void
         handleClose: () => void
         handleSave: () => Promise<void>
-        handleRefresh: () => Promise<void>
         handleTest: (provider: OidcProviderSummary) => Promise<void>
         handleCopy: () => Promise<void>
         handleDelete: (provider: OidcProviderSummary | null) => void
         handleConfirmDelete: () => Promise<void>
-        handleReloadConfirm: (open: boolean) => void
-        handleReload: () => Promise<void>
+        handleDiscard: () => void
         handlePolicyProvisioning: (value: boolean) => void
         handlePolicyGroupClaim: (value: string) => void
         handlePolicyDefaultRoles: (value: string[]) => void

@@ -243,7 +243,7 @@ function visible(account: AuthenticatedUser) {
 }
 
 describe('OIDC provider setup UI', () => {
-    test('freezes policy controls when roles fail to load and refresh recovers the role catalog', async () => {
+    test('freezes unavailable roles and recovers from live invalidation without a refresh control', async () => {
         rolesUnavailable = true
         await render()
         await click(button('Edit provider'))
@@ -255,7 +255,10 @@ describe('OIDC provider setup UI', () => {
         )
         await click(button('Cancel', dialog()))
         rolesUnavailable = false
-        await click(button('Refresh'))
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-binding-roles'] })
+        })
+        expect(document.body.textContent).not.toContain('Refresh')
         await click(button('Edit provider'))
         await waitFor(
             () => !(document.getElementById('oidc-provisioning') as HTMLInputElement).disabled,
@@ -406,21 +409,29 @@ describe('OIDC provider setup UI', () => {
             }),
         )
     })
-    test('keeps saved cards visible through refresh and reports an unavailable refresh with a toast', async () => {
+    test('keeps saved cards through live reads and automatically adopts recovered query data', async () => {
         await render()
         const card = document.querySelector('article')!
         let release!: () => void
         pendingRead = new Promise((resolve) => {
             release = resolve
         })
-        await click(button('Refresh'))
+        await act(async () => {
+            void client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
         expect(document.querySelector('article') === card).toBe(true)
         expect(document.querySelector('[role="status"]')).toBeNull()
         readUnavailable = true
         await act(async () => release())
-        await waitFor(() => feedback.some((item) => item.kind === 'error'))
+        await waitFor(() => document.querySelector('[role="alert"]') !== null)
         expect(button('Add provider').disabled).toBe(true)
         expect(writes).toHaveLength(0)
+        readUnavailable = false
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        await waitFor(() => !button('Add provider').disabled)
+        expect(document.querySelector('article') === card).toBe(true)
     })
     test('Escape closes the editor and clears a draft client secret before reopening', async () => {
         await render()
@@ -546,10 +557,19 @@ describe('OIDC provider setup UI', () => {
         expect(document.body.textContent).toContain('Company SSO')
         expect(document.body.textContent).not.toContain('fixture-secret')
     })
-    test('a conflict preserves the draft and blocks repeat writes until an explicit reload', async () => {
+    test('a conflict preserves the draft while latest data arrives and discard is local', async () => {
         await render()
         await click(button('Edit provider'))
         await fill('oidc-name', 'My unsaved name')
+        snapshot = {
+            ...snapshot,
+            revision: 9,
+            providers: snapshot.providers.map((provider) => ({
+                ...provider,
+                name: 'Remote name',
+                revision: 9,
+            })),
+        }
         failure = 'configuration_conflict'
         await submit()
         await waitFor(() => feedback.some((item) => item.kind === 'error'))
@@ -559,22 +579,73 @@ describe('OIDC provider setup UI', () => {
         expect(button('Save changes', dialog()).disabled).toBe(true)
         await submit()
         expect(writes).toHaveLength(1)
-        snapshot = { ...snapshot, revision: 9 }
         failure = null
-        await click(button('Reload saved configuration?', dialog()))
-        const confirmation = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
-            (item) => item !== dialog(),
-        )!
+        await waitFor(
+            () => document.querySelector('article')?.textContent?.includes('Remote name') === true,
+        )
         expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe(
             'My unsaved name',
         )
-        await click(button('Confirm', confirmation))
+        readUnavailable = true
+        await click(button('Discard changes', dialog()))
         await waitFor(() => !button('Save changes', dialog()).disabled)
-        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('Company SSO')
+        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('Remote name')
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+        readUnavailable = false
         await fill('oidc-name', 'Explicit retry')
         await submit()
         await waitFor(() => writes.length === 2 && !dialog())
         expect(writes[1]!.expectedRevision).toBe(9)
+    })
+    test('a clean open editor follows new provider data without remounting its fields', async () => {
+        await render()
+        await click(button('Edit provider'))
+        const input = document.getElementById('oidc-name') as HTMLInputElement
+        snapshot = {
+            ...snapshot,
+            revision: 8,
+            providers: snapshot.providers.map((provider) => ({
+                ...provider,
+                revision: 8,
+                name: 'Live name',
+            })),
+        }
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        await waitFor(() => input.value === 'Live name')
+        expect(document.getElementById('oidc-name')).toBe(input)
+        expect(button('Save changes', dialog()).disabled).toBe(false)
+    })
+    test('unrelated provider changes update the save revision while retaining dirty fields', async () => {
+        await render()
+        await click(button('Edit provider'))
+        await fill('oidc-name', 'My draft')
+        snapshot = {
+            ...snapshot,
+            revision: 10,
+            providers: [
+                ...snapshot.providers,
+                {
+                    ...snapshot.providers[0]!,
+                    id: '33333333-3333-4333-8333-333333333333',
+                    name: 'Other provider',
+                    revision: 10,
+                },
+            ],
+        }
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('My draft')
+        expect(button('Save changes', dialog()).disabled).toBe(false)
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.expectedRevision).toBe(10)
+        expect(writes[0]!.providers.map((provider) => provider.name)).toEqual([
+            'Other provider',
+            'My draft',
+        ])
     })
     test('deletion requires confirmation and cancel leaves configuration intact', async () => {
         await render()

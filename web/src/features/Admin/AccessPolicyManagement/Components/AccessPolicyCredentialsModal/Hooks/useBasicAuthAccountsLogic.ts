@@ -128,10 +128,6 @@ export default function useBasicAuthAccountsLogic({
         await invalidateAccounts()
     }, [invalidateAccounts])
 
-    const retry = useCallback(() => {
-        void accountsQuery.refetch()
-    }, [accountsQuery])
-
     const handleOpenChange = useCallback(
         (nextOpen: boolean) => {
             if (!nextOpen) {
@@ -165,7 +161,6 @@ export default function useBasicAuthAccountsLogic({
             openCreate,
             openDelete,
             openEdit,
-            retry,
             setDeleteOpen,
             setFormOpen,
         },

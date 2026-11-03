@@ -19,7 +19,6 @@ export interface BasicAuthAccountsLogicResult {
         readonly openCreate: () => void
         readonly openDelete: (account: BasicAuthAccount) => void
         readonly openEdit: (account: BasicAuthAccount) => void
-        readonly retry: () => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly setFormOpen: (open: boolean) => void
     }

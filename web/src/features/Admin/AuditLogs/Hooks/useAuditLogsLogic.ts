@@ -152,9 +152,6 @@ export default function useAuditLogsLogic({
             onToggleDetails: toggleDetails,
             previousPage,
             resetFilters,
-            retry: () => {
-                void Promise.all([auditQuery.refetch(), actorOptionsQuery.refetch()])
-            },
         },
     }
 }

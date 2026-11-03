@@ -61,6 +61,7 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'common.hidePassword': 'Hide password',
     'common.openActions': 'Open actions',
     'common.retry': 'Try again',
+    'common.automaticRecovery': 'Retrying automatically…',
     'common.backHome': 'Back to home',
     'shell.home': 'RentnerProxy home',
     'auth.logoutFailed': 'Could not sign out. Check your connection and try again.',
@@ -70,10 +71,9 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'auth.oidc.title': 'Sign in with an identity provider',
     'auth.oidc.loading': 'Loading sign-in providers…',
     'auth.oidc.continuing': 'Opening identity provider…',
-    'auth.oidc.retry': 'Reload sign-in providers',
     'auth.oidc.cancel': 'Cancel sign-in',
     'auth.oidc.catalogUnavailable':
-        'Sign-in providers could not be loaded. Reload the list or use your local account.',
+        'Sign-in providers are temporarily unavailable. You can use your local account.',
     'auth.oidc.unavailable':
         'The identity provider could not be reached. Try again or use your local password or passkey.',
     'auth.oidc.denied':

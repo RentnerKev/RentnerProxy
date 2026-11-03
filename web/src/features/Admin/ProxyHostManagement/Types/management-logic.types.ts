@@ -31,7 +31,6 @@ export interface ProxyHostManagementLogicResult {
         readonly proxyHosts: readonly ProxyHostSummary[]
         readonly runtimeStatus: ProxyRuntimeSyncStatus | undefined
         readonly runtimeStatusError: boolean
-        readonly runtimeStatusRetrying: boolean
         readonly selectedProxyHost: ProxyHostSummary | null
         readonly showCreate: boolean
         readonly duplicateSource: ProxyHostSummary | null
@@ -61,8 +60,6 @@ export interface ProxyHostManagementLogicResult {
         readonly openDelete: (value: ProxyHostSummary) => void
         readonly openDisable: (value: ProxyHostSummary) => void
         readonly openEditor: (value: ProxyHostSummary) => void
-        readonly retry: () => void
-        readonly retryRuntime: () => void
         readonly setCreateOpen: (open: boolean) => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly setDisableOpen: (open: boolean) => void

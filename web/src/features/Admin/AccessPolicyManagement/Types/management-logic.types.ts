@@ -18,7 +18,6 @@ export interface AccessPolicyManagementLogicResult {
         readonly policies: readonly AccessPolicySummary[]
         readonly runtimeStatus: ProxyRuntimeSyncStatus | undefined
         readonly runtimeStatusError: boolean
-        readonly runtimeStatusRetrying: boolean
         readonly selectedPolicy: AccessPolicySummary | null
         readonly showCreate: boolean
     }
@@ -31,8 +30,6 @@ export interface AccessPolicyManagementLogicResult {
         readonly openCredentials: (value: AccessPolicySummary) => void
         readonly openDelete: (value: AccessPolicySummary) => void
         readonly openEditor: (value: AccessPolicySummary) => void
-        readonly retry: () => void
-        readonly retryRuntime: () => void
         readonly setCreateOpen: (open: boolean) => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly setEditorOpen: (open: boolean) => void

@@ -310,12 +310,6 @@ export default function useProxyHostManagementLogic({
         setShowCreate(false)
         setSelectedProxyHost(null)
     }, [])
-    const retry = useCallback(() => {
-        void proxyHostsQuery.refetch()
-    }, [proxyHostsQuery])
-    const retryRuntime = useCallback(() => {
-        void runtimeStatusQuery.refetch()
-    }, [runtimeStatusQuery])
     const currentCertificateRequestTarget = certificateRequestTarget
         ? (proxyHostsQuery.data?.hosts.find((host) => host.id === certificateRequestTarget.id) ??
           certificateRequestTarget)
@@ -365,7 +359,6 @@ export default function useProxyHostManagementLogic({
             },
             runtimeStatus: runtimeStatusQuery.data,
             runtimeStatusError: runtimeStatusQuery.isError,
-            runtimeStatusRetrying: runtimeStatusQuery.isFetching,
             selectedProxyHost,
             showCreate,
             duplicateSource,
@@ -395,8 +388,6 @@ export default function useProxyHostManagementLogic({
             openDelete,
             openDisable,
             openEditor,
-            retry,
-            retryRuntime,
             setCreateOpen,
             setDeleteOpen,
             setDisableOpen,

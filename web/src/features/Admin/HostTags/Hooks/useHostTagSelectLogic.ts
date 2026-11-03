@@ -17,10 +17,5 @@ export default function useHostTagSelectLogic(kind: HostKind) {
             loading: query.isPending,
             error: query.isError,
         },
-        handler: {
-            retry: () => {
-                void query.refetch()
-            },
-        },
     }
 }

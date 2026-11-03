@@ -8,7 +8,7 @@ import ProviderEditor from './Components/ProviderEditor.tsx'
 import ProviderSetupHelp from './Components/ProviderSetupHelp.tsx'
 import useOidcProvidersLogic from './Hooks/useOidcProvidersLogic.ts'
 
-/** Presents the provider snapshot with explicit edit and conflict reload actions. */
+/** Presents live provider data with explicit configuration actions. */
 export default function OidcProvidersPage() {
     const { state, handler, form } = useOidcProvidersLogic()
     const { t } = useTranslationStore()
@@ -62,18 +62,11 @@ export default function OidcProvidersPage() {
                 ) : null}
             </section>
             <ProviderSetupHelp />
-            <div className="mb-4 flex flex-wrap gap-3">
-                <button
-                    type="button"
-                    className={buttonClassName('secondary')}
-                    onClick={() => {
-                        void handler.handleRefresh()
-                    }}
-                    disabled={state.isLoading || state.isPending}
-                >
-                    {t('oidc.refresh')}
-                </button>
-            </div>
+            {state.hasLoadError ? (
+                <p role="alert" className="mb-4 text-sm text-danger-text">
+                    {t('oidc.errors.configuration_unavailable')}
+                </p>
+            ) : null}
             {state.isLoading ? (
                 <output>{t('common.loading')}</output>
             ) : state.isAvailable && state.providers.length === 0 ? (
@@ -152,14 +145,6 @@ export default function OidcProvidersPage() {
                 destructive
                 isPending={state.isPending}
                 onConfirm={handler.handleConfirmDelete}
-            />
-            <ConfirmDialog
-                open={state.reloadConfirm}
-                onOpenChange={handler.handleReloadConfirm}
-                title={t('oidc.reloadTitle')}
-                description={t('oidc.reloadDescription')}
-                destructive
-                onConfirm={handler.handleReload}
             />
         </>
     )

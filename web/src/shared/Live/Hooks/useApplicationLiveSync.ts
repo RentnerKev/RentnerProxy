@@ -11,6 +11,8 @@ import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAcces
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
+import useQueryFailureRecovery from './useQueryFailureRecovery.ts'
+import { LIVE_READ_RETRY_INITIAL_MS, LIVE_READ_RETRY_MAX_MS } from '@/config/realtime.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import principalVersion from '@/lib/Auth/principalVersion.ts'
@@ -80,7 +82,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const initialVerificationPending = useRef(true)
     const [isIdentityPending, setIsIdentityPending] = useState(true)
     const [identityGeneration, setIdentityGeneration] = useState(0)
-    const [hasIdentityError, setHasIdentityError] = useState(false)
+    const [identityFailures, setIdentityFailures] = useState(0)
     const [liveGeneration, setLiveGeneration] = useState(0)
     const wasSuspended = useRef(suspended)
 
@@ -92,7 +94,6 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 identityPending.current = true
                 setIsIdentityPending(true)
             }
-            setHasIdentityError(false)
             void (async () => {
                 try {
                     if (!initial) await router.invalidate({ sync: true })
@@ -121,7 +122,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     }
                     if (!scope) {
                         initialVerificationPending.current = false
-                        setHasIdentityError(true)
+                        setIdentityFailures((failures) => failures + 1)
                         return
                     }
                     if (changed) {
@@ -134,12 +135,13 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     if (generation === syncGeneration.current) {
                         identityPending.current = true
                         setIsIdentityPending(true)
-                        setHasIdentityError(true)
+                        setIdentityFailures((failures) => failures + 1)
                     }
                     return
                 }
                 if (generation !== syncGeneration.current) return
                 identityPending.current = false
+                setIdentityFailures(0)
                 setIsIdentityPending(false)
                 setLiveGeneration((current) => current + 1)
                 if (!initial) await refreshApplicationQueries(queryClient)
@@ -169,6 +171,36 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
         wasSuspended.current = suspended
     }, [suspended, revalidateIdentity])
 
+    useEffect(() => {
+        if (identityFailures === 0 || suspended) return
+        const retry = () => {
+            if (document.visibilityState !== 'hidden' && navigator.onLine !== false)
+                revalidateIdentity()
+        }
+        const timer = setTimeout(
+            retry,
+            Math.min(
+                LIVE_READ_RETRY_INITIAL_MS * 2 ** Math.min(identityFailures - 1, 6),
+                LIVE_READ_RETRY_MAX_MS,
+            ),
+        )
+        window.addEventListener('online', retry)
+        window.addEventListener('focus', retry)
+        document.addEventListener('visibilitychange', retry)
+        return () => {
+            clearTimeout(timer)
+            window.removeEventListener('online', retry)
+            window.removeEventListener('focus', retry)
+            document.removeEventListener('visibilitychange', retry)
+        }
+    }, [identityFailures, suspended, revalidateIdentity])
+
+    useQueryFailureRecovery(
+        !isIdentityPending && !suspended,
+        identityGeneration,
+        isOwnedByWebSocket,
+    )
+
     const handleSnapshot = useCallback(
         (snapshot: ApplicationLiveSnapshot) => {
             if (!isApplicationLiveSnapshot(snapshot)) return
@@ -188,6 +220,10 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 const background =
                     previous.identityVersion !== undefined &&
                     previous.identityVersion === snapshot.identityVersion
+                if (background && previous.userVersion === snapshot.userVersion) {
+                    void refreshApplicationQueries(queryClient).catch(() => undefined)
+                    return
+                }
                 revalidateIdentity(false, background)
             } else void refreshApplicationQueries(queryClient).catch(() => undefined)
         },
@@ -207,7 +243,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
         status,
         isIdentityPending,
         identityGeneration,
-        hasIdentityError,
+        hasIdentityError: identityFailures > 0,
         retryIdentity: () => revalidateIdentity(),
     }
 }

@@ -52,15 +52,6 @@ export default function ServerCertificates(props: CertificateManagementPageProps
                     severity="error"
                     title={t('admin.certificates.states.unavailableTitle')}
                     description={t('admin.certificates.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <CertificatesTable

@@ -13,7 +13,6 @@ export interface ManualDnsSetupGuideProps {
     readonly records: ManualDnsChallengeMetadata['records']
     readonly expiresAt: string | null
     readonly onOpenChange: (open: boolean) => void
-    readonly onRetry: () => void
     readonly onDone: () => void
     readonly onCopy: (value: string) => void | Promise<void>
 }

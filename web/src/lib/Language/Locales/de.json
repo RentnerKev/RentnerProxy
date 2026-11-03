@@ -94,7 +94,8 @@
         "moreDomains": "{{count}} weitere Domains anzeigen",
         "clearSelection": "Auswahl löschen",
         "edit": "Bearbeiten",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "automaticRecovery": "Wird automatisch erneut versucht."
     },
     "inputs": {
         "invalidPhone": "Gib eine gültige Telefonnummer ein.",
@@ -162,7 +163,6 @@
         "loading": "Suche läuft…",
         "noResults": "Keine Ergebnisse gefunden.",
         "unavailable": "Einige Ergebnisse sind nicht verfügbar. Versuche es erneut.",
-        "retry": "Suche erneut versuchen",
         "targetUnavailable": "Dieser Eintrag ist nicht mehr verfügbar oder deine Berechtigungen haben sich geändert.",
         "opening": "Wird geöffnet…",
         "resultsLabel": "Suchergebnisse",
@@ -257,8 +257,7 @@
             "title": "Mit einem Identitätsanbieter anmelden",
             "loading": "Anmeldeanbieter werden geladen…",
             "continuing": "Identitätsanbieter wird geöffnet…",
-            "retry": "Anmeldeanbieter neu laden",
-            "catalogUnavailable": "Anmeldeanbieter konnten nicht geladen werden. Lade die Liste neu oder verwende dein lokales Konto.",
+            "catalogUnavailable": "Anmeldeanbieter sind vorübergehend nicht verfügbar. Du kannst dein lokales Konto verwenden.",
             "unavailable": "Der Identitätsanbieter ist nicht erreichbar. Versuche es erneut oder nutze dein lokales Passwort oder deinen Passkey.",
             "denied": "Diese Identität darf sich nicht anmelden. Wende dich an deine Administration oder nutze dein lokales Konto.",
             "expired": "Diese Anmeldeanfrage ist abgelaufen. Starte die Anmeldung erneut.",
@@ -705,7 +704,6 @@
             "linked": "Verknüpft",
             "unlinked": "Nicht verknüpft",
             "disabled": "Anbieter deaktiviert",
-            "refresh": "Aktualisieren",
             "loading": "Verknüpfte Konten werden geladen…",
             "pending": "Fahre beim Anbieter fort. Falls du abgebrochen hast, aktualisiere diese Liste.",
             "unlinkedSuccess": "Verknüpfung entfernt. Die lokale Anmeldung bleibt verfügbar.",
@@ -1070,7 +1068,6 @@
                 "disabling": "Benutzer wird deaktiviert…",
                 "enable": "Aktivieren",
                 "enabling": "Benutzer wird aktiviert…",
-                "retryRoles": "Rollen erneut laden",
                 "open": "Aktionen für {{name}} öffnen",
                 "none": "Keine Aktionen verfügbar",
                 "ownerEdit": "Nur ein Eigentümer kann dieses Konto bearbeiten.",
@@ -1569,7 +1566,6 @@
                     "ownerHint": "Manche Anbieter ergänzen die Domain automatisch. Gib den Namen so ein, dass der vollständige Name dem angezeigten TXT-Namen entspricht.",
                     "valuesHint": "Mehrere Werte können denselben Namen haben. Füge jeden Wert hinzu und behalte andere vorhandene TXT-Werte bei.",
                     "finish": "Fertig",
-                    "retry": "TXT-Einträge erneut laden",
                     "reused": "Die Zertifizierungsstelle hat eine bestehende Autorisierung wiederverwendet. Es sind keine TXT-Einträge nötig. Wähle Fertig und fahre im Hauptdialog fort.",
                     "blocked": "Schließe die Anleitung und prüfe die aktuelle Zertifikatsvalidierung.",
                     "expires": "TXT-Einträge laufen am {{expires}} ab"
@@ -3799,7 +3795,6 @@
             "observationPoint": "Die Prüfungen laufen von dieser RentnerProxy-Instanz aus. Die Erreichbarkeit aus dem öffentlichen Internet wird nicht geprüft.",
             "permissionDenied": "Du hast keine Berechtigung, das Monitoring anzusehen.",
             "loadError": "Das Monitoring konnte nicht geladen werden. Versuche es erneut, um den Status zu aktualisieren.",
-            "retry": "Erneut versuchen",
             "loading": "Monitoring wird geladen…",
             "noData": "Es wurden noch keine Prüfungen gespeichert.",
             "configure": "Monitoring einrichten",
@@ -3836,8 +3831,7 @@
             "historyCap": "Die neuesten 300 Prüfungen sind geladen. Grenze Zeitraum oder Status ein, um weitere Ergebnisse zu finden.",
             "save": "Änderungen speichern",
             "close": "Schließen",
-            "conflict": "Das Monitoring wurde an anderer Stelle geändert. Deine Eingaben bleiben erhalten. Lade die Einstellungen neu, um die aktuelle Version zu verwenden.",
-            "reload": "Einstellungen neu laden",
+            "conflict": "Die Einstellungen wurden geändert. Dein Entwurf bleibt erhalten.",
             "saveError": "Die Monitoring-Einstellungen konnten nicht gespeichert werden.",
             "saved": "Monitoring-Einstellungen gespeichert.",
             "invalid": "Prüfe die Einstellungen und zulässigen Wertebereiche.",
@@ -4129,7 +4123,6 @@
         "url": "Weiterleitungs-URL",
         "html": "HTML-Quelltext",
         "loading": "Standardseite wird geladen…",
-        "reload": "Gespeicherte Einstellungen laden",
         "discard": "Änderungen verwerfen",
         "dirty": "Ungespeicherte Änderungen",
         "clean": "Keine ungespeicherten Änderungen",
@@ -4149,7 +4142,7 @@
             "custom-html": "Eigenes HTML"
         },
         "errors": {
-            "conflict": "Die Einstellungen wurden anderswo geändert. Lade vor dem nächsten Versuch die gespeicherten Einstellungen neu.",
+            "conflict": "Die gespeicherten Einstellungen wurden geändert. Dein Entwurf bleibt erhalten.",
             "loadFailed": "Die Standardseite konnte nicht geladen werden.",
             "saveFailed": "Die Standardseite konnte nicht gespeichert werden.",
             "invalidSettings": "Wähle gültige Einstellungen für die Standardseite.",
@@ -4242,8 +4235,6 @@
         "copy": "Callback-URL kopieren",
         "copied": "Callback-URL kopiert.",
         "callbackHint": "PUBLIC_ORIGIN auf dem Server konfigurieren, um die verbindliche Callback-URL zu erhalten.",
-        "refresh": "Aktualisieren",
-        "refreshConflict": "Gespeicherte Konfiguration neu laden?",
         "empty": "Keine Identitätsanbieter eingerichtet.",
         "bindingCount": "Zuordnungen: {{count}}",
         "test": "Gespeicherten Anbieter testen",
@@ -4262,7 +4253,7 @@
         "errors": {
             "authentication_required": "Erneut anmelden.",
             "owner_required": "Ein lokales Eigentümerkonto ist erforderlich.",
-            "configuration_conflict": "Die Konfiguration wurde geändert. Dein Entwurf bleibt erhalten. Aktualisieren und ausdrücklich erneut versuchen.",
+            "configuration_conflict": "Der Anbieter wurde geändert. Dein Entwurf bleibt erhalten.",
             "invalid_input": "Namen, HTTPS-URLs, Origins, CIDR-Netze, eindeutige Subjects und Konten prüfen. Möglicherweise ist ein neues Geheimnis erforderlich.",
             "identity_not_allowed": "Aktive lokale Konten mit Anwendungszugriff auswählen.",
             "rate_limited": "Zu viele Anfragen. Vor dem nächsten Versuch warten.",
@@ -4272,8 +4263,6 @@
             "copy": "Callback-URL konnte nicht kopiert werden.",
             "secret": "Für diesen Anbieter oder diese Vertrauensänderung ist ein neues Client-Geheimnis erforderlich."
         },
-        "reloadTitle": "Gespeicherte Konfiguration neu laden?",
-        "reloadDescription": "Dies verwirft deine ungespeicherten Änderungen und lädt den zuletzt gespeicherten Anbieter. Vor neuen Änderungen prüfen.",
         "placeholders": {
             "name": "Beispiel-Identitätsanbieter",
             "issuer": "https://login.beispiel.de",
@@ -4295,7 +4284,7 @@
         "addMapping": "Gruppenzuordnung hinzufügen",
         "removeMapping": "Gruppenzuordnung entfernen",
         "rolePolicyHint": "Nur für Anbieterkonten. Gruppen exakt angeben; fehlende Gruppen entziehen zugeordnete Rollen.",
-        "rolesUnavailable": "Rollen konnten nicht geladen werden. Lade sie neu, bevor du die Rollenpolitik änderst.",
+        "rolesUnavailable": "Rollen sind vorübergehend nicht verfügbar.",
         "provisioningOn": "Automatische Kontoanlage",
         "provisioningOff": "Nur ausdrücklich verknüpfte Konten",
         "rolePolicySummary": "Standardrollen: {{defaults}} · Gruppenzuordnungen: {{mappings}}",
@@ -4308,6 +4297,7 @@
         "setupAuthentikDocs": "authentik-Dokumentation",
         "setupKeycloakDocs": "Keycloak-Dokumentation",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Änderungen verwerfen"
     }
 }

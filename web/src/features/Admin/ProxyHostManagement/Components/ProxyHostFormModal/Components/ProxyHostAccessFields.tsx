@@ -12,7 +12,6 @@ export default function ProxyHostAccessFields({
     assignableAccessPolicies,
     assignableAccessPoliciesLoading,
     assignableAccessPoliciesLoadFailed,
-    retryAssignableAccessPolicies,
     assignableTrustedCas,
     trustedCasLoading,
     trustedCasLoadFailed,
@@ -79,8 +78,6 @@ export default function ProxyHostAccessFields({
                             <QueryFieldFeedback
                                 isLoading={assignableAccessPoliciesLoading}
                                 isError={assignableAccessPoliciesLoadFailed}
-                                isPending={isPending}
-                                onRetry={retryAssignableAccessPolicies}
                             />
                         </div>
                     ) : null

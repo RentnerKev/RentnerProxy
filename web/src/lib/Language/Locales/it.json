@@ -96,7 +96,8 @@
         "moreDomains": "Mostra altri {{count}} domini",
         "clearSelection": "Cancella selezione",
         "edit": "Modifica",
-        "delete": "Elimina"
+        "delete": "Elimina",
+        "automaticRecovery": "Nuovo tentativo automatico…"
     },
     "inputs": {
         "invalidPhone": "Inserisci un numero di telefono valido.",
@@ -164,7 +165,6 @@
         "loading": "Ricerca in corso…",
         "noResults": "Nessun risultato trovato.",
         "unavailable": "Alcuni risultati non sono disponibili. Riprova.",
-        "retry": "Riprova la ricerca",
         "targetUnavailable": "Questa voce non è più disponibile oppure le tue autorizzazioni sono cambiate.",
         "opening": "Apertura…",
         "resultsLabel": "Risultati della ricerca",
@@ -259,8 +259,7 @@
             "title": "Accedi con un provider di identità",
             "loading": "Caricamento dei provider di accesso…",
             "continuing": "Apertura del provider di identità…",
-            "retry": "Ricarica i provider di accesso",
-            "catalogUnavailable": "Impossibile caricare i provider di accesso. Ricarica l’elenco o usa il tuo account locale.",
+            "catalogUnavailable": "I provider di accesso non sono temporaneamente disponibili. Puoi usare il tuo account locale.",
             "unavailable": "Impossibile contattare il provider di identità. Riprova o usa la tua password o passkey locale.",
             "denied": "Questa identità non è autorizzata ad accedere. Contatta l’amministratore o usa il tuo account locale.",
             "expired": "Questa richiesta di accesso è scaduta. Avvia nuovamente l’accesso.",
@@ -707,7 +706,6 @@
             "linked": "Collegato",
             "unlinked": "Non collegato",
             "disabled": "Provider disattivato",
-            "refresh": "Aggiorna",
             "loading": "Caricamento degli account collegati…",
             "pending": "Continua presso il tuo provider. Se hai annullato, aggiorna questo elenco.",
             "unlinkedSuccess": "Account scollegato. L’accesso locale resta disponibile.",
@@ -1069,7 +1067,6 @@
                 "disabling": "Disattivazione utente…",
                 "enable": "Attiva",
                 "enabling": "Attivazione utente…",
-                "retryRoles": "Riprova a caricare i ruoli",
                 "open": "Apri le azioni per {{name}}",
                 "none": "Nessuna azione disponibile",
                 "ownerEdit": "Solo un proprietario può modificare questo account.",
@@ -1577,7 +1574,6 @@
                     "ownerHint": "Alcuni provider aggiungono automaticamente il dominio. Inserisci il nome secondo le indicazioni del provider affinché il nome completo corrisponda al nome TXT mostrato.",
                     "valuesHint": "Più valori possono condividere lo stesso nome. Aggiungi ogni valore e conserva gli altri valori TXT esistenti.",
                     "finish": "Fine",
-                    "retry": "Ricarica i record TXT",
                     "reused": "L’autorità di certificazione ha riutilizzato un’autorizzazione esistente. Non servono record TXT. Seleziona Fine e continua nella finestra principale.",
                     "blocked": "Chiudi la guida e controlla la convalida attuale del certificato.",
                     "expires": "I record TXT scadono il {{expires}}"
@@ -3814,7 +3810,6 @@
             "observationPoint": "I controlli vengono eseguiti da questa istanza di RentnerProxy. Non viene verificata la raggiungibilità da Internet pubblico.",
             "permissionDenied": "Non hai l’autorizzazione per visualizzare il monitoraggio.",
             "loadError": "Impossibile caricare il monitoraggio. Riprova per aggiornare lo stato.",
-            "retry": "Riprova",
             "loading": "Caricamento del monitoraggio…",
             "noData": "Non è ancora stato registrato alcun controllo.",
             "configure": "Configura il monitoraggio",
@@ -3851,8 +3846,7 @@
             "historyCap": "Sono stati caricati i 300 controlli più recenti. Limita il periodo o filtra per stato per consultare altri risultati.",
             "save": "Salva modifiche",
             "close": "Chiudi",
-            "conflict": "Il monitoraggio è stato modificato altrove. Le tue modifiche sono conservate. Ricarica le impostazioni per usare la versione più recente.",
-            "reload": "Ricarica impostazioni",
+            "conflict": "Le impostazioni sono cambiate. La bozza viene conservata.",
             "saveError": "Impossibile salvare le impostazioni di monitoraggio.",
             "saved": "Impostazioni di monitoraggio salvate.",
             "invalid": "Controlla le impostazioni e gli intervalli consentiti.",
@@ -4144,7 +4138,6 @@
         "url": "URL di reindirizzamento",
         "html": "Sorgente HTML",
         "loading": "Caricamento del sito predefinito…",
-        "reload": "Ricarica le impostazioni salvate",
         "discard": "Scarta le modifiche",
         "dirty": "Modifiche non salvate",
         "clean": "Nessuna modifica non salvata",
@@ -4164,7 +4157,7 @@
             "custom-html": "HTML personalizzato"
         },
         "errors": {
-            "conflict": "Le impostazioni sono state modificate altrove. Ricarica le impostazioni salvate prima di riprovare.",
+            "conflict": "Le impostazioni salvate sono cambiate. La bozza viene conservata.",
             "loadFailed": "Impossibile caricare il sito predefinito.",
             "saveFailed": "Impossibile salvare il sito predefinito.",
             "invalidSettings": "Scegli impostazioni valide per il sito predefinito.",
@@ -4257,8 +4250,6 @@
         "copy": "Copia URL di callback",
         "copied": "URL di callback copiato.",
         "callbackHint": "Configurare PUBLIC_ORIGIN sul server per ottenere l’URL canonico.",
-        "refresh": "Aggiorna",
-        "refreshConflict": "Ricaricare la configurazione salvata?",
         "empty": "Nessun provider configurato.",
         "bindingCount": "Associazioni: {{count}}",
         "test": "Verifica provider salvato",
@@ -4277,7 +4268,7 @@
         "errors": {
             "authentication_required": "Accedere di nuovo.",
             "owner_required": "È richiesto un proprietario locale.",
-            "configuration_conflict": "Configurazione modificata. Bozza conservata. Aggiornare e riprovare esplicitamente.",
+            "configuration_conflict": "Il provider è cambiato. La bozza viene conservata.",
             "invalid_input": "Verificare nomi, URL HTTPS, origini, CIDR, soggetti univoci e account. Potrebbe servire un nuovo segreto.",
             "identity_not_allowed": "Selezionare account locali attivi con accesso all’applicazione.",
             "rate_limited": "Troppe richieste. Attendere prima di riprovare.",
@@ -4287,8 +4278,6 @@
             "copy": "Impossibile copiare l’URL.",
             "secret": "È richiesto un nuovo segreto client per questo provider o modifica di fiducia."
         },
-        "reloadTitle": "Ricaricare la configurazione salvata?",
-        "reloadDescription": "Le modifiche non salvate verranno eliminate e verrà caricato l’ultimo provider salvato. Verificarlo prima di modificarlo.",
         "placeholders": {
             "name": "Provider di esempio",
             "issuer": "https://accesso.esempio.it",
@@ -4310,7 +4299,7 @@
         "addMapping": "Aggiungi associazione di gruppo",
         "removeMapping": "Rimuovi associazione di gruppo",
         "rolePolicyHint": "Solo account del provider. I gruppi devono corrispondere esattamente; quelli mancanti revocano i ruoli associati.",
-        "rolesUnavailable": "Impossibile caricare i ruoli. Ricarica prima di modificare la politica dei ruoli.",
+        "rolesUnavailable": "I ruoli non sono temporaneamente disponibili.",
         "provisioningOn": "Creazione automatica degli account",
         "provisioningOff": "Solo collegamenti espliciti degli account",
         "rolePolicySummary": "Ruoli predefiniti: {{defaults}} · Associazioni di gruppi: {{mappings}}",
@@ -4323,6 +4312,7 @@
         "setupAuthentikDocs": "Documentazione di authentik",
         "setupKeycloakDocs": "Documentazione di Keycloak",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Annulla modifiche"
     }
 }

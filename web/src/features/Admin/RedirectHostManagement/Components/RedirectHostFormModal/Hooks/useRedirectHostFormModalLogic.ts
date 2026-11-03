@@ -78,9 +78,6 @@ export default function useRedirectHostFormModalLogic({
                 title: t('toast.titles.error'),
             }),
     })
-    const retryAssignableCertificates = useCallback(() => {
-        void certificatesQuery.refetch()
-    }, [certificatesQuery])
     const form = useForm({
         defaultValues,
         validators: { onSubmit: redirectHostFormSchema },
@@ -139,7 +136,6 @@ export default function useRedirectHostFormModalLogic({
             handleSubmit,
             addDomain: domainHandler.addDomain,
             removeDomain: domainHandler.removeDomain,
-            retryAssignableCertificates,
             confirmDisable: async () => {
                 if (pendingDisableValues)
                     await mutation.mutateAsync(pendingDisableValues).catch(() => undefined)

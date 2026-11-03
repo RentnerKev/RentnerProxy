@@ -69,14 +69,6 @@ export default function AlternativeLoginMethods({
             {state.isProviderCatalogUnavailable ? (
                 <div className="grid gap-2">
                     <FormMessage tone="info">auth.oidc.catalogUnavailable</FormMessage>
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        onClick={handler.handleRefreshProviders}
-                        disabled={state.isPending || state.isPasskeyPending}
-                    >
-                        {t('auth.oidc.retry')}
-                    </button>
                 </div>
             ) : null}
             {state.alternativeSignInItems.length > 1 ? (

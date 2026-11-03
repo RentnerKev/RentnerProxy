@@ -159,7 +159,7 @@ test('unauthorized dialog mounts without requests or editable controls', async (
     expect(document.body.textContent).toContain('permission')
     expect(document.querySelector('form input') === null).toBe(true)
 })
-test('read-only monitoring polls only while open and hides retained health after authorization failure', async () => {
+test('read-only monitoring uses live invalidation and hides retained health after authorization failure', async () => {
     const container = await render({ ...props, permissions: [PERMISSIONS.PROXY_HOSTS_VIEW] })
     expect(container.querySelector('output')?.dataset.availability).toBe('healthy')
     expect(logic.state.canUpdate).toBe(false)
@@ -170,10 +170,10 @@ test('read-only monitoring polls only while open and hides retained health after
         refetchOnWindowFocus: boolean
         refetchIntervalInBackground: boolean
     }
-    expect(options.refetchInterval).toBe(15_000)
+    expect(options.refetchInterval).toBeUndefined()
     expect(options.refetchOnReconnect).toBe(true)
     expect(options.refetchOnWindowFocus).toBe(true)
-    expect(options.refetchIntervalInBackground).toBe(false)
+    expect(options.refetchIntervalInBackground).toBeUndefined()
     getStatus = 403
     await act(async () => {
         await client.refetchQueries({ queryKey: hostMonitoringQueryKeys.all })
@@ -182,7 +182,7 @@ test('read-only monitoring polls only while open and hides retained health after
     expect(container.textContent).toBe('denied')
     expect(container.querySelector('output')?.dataset.availability).toBe('unavailable')
 })
-test('polling preserves a dirty draft and its original optimistic version; conflict preserves edits', async () => {
+test('live invalidation preserves a dirty draft and its original optimistic version; conflict preserves edits', async () => {
     await render()
     await act(async () => {
         logic.form.setFieldValue('intervalSeconds', 90)
@@ -199,7 +199,7 @@ test('polling preserves a dirty draft and its original optimistic version; confl
     expect(logic.form.getFieldValue('intervalSeconds')).toBe(90)
     expect(logic.state.conflict).toBe(true)
     await act(async () => {
-        logic.handler.handleReload()
+        logic.handler.handleDiscard()
     })
     await flush()
     expect(logic.form.getFieldValue('intervalSeconds')).toBe(120)
@@ -298,7 +298,7 @@ test('a viewer can inspect unknown checks without the removed summary and incide
     expect(document.querySelector('form input') === null).toBe(true)
 })
 
-test('discard works locally after a failed reload and allows closing while offline', async () => {
+test('discard works locally after a failed background update and allows closing while offline', async () => {
     const close = spyOn(props, 'onOpenChange')
     try {
         await render()
@@ -307,7 +307,7 @@ test('discard works locally after a failed reload and allows closing while offli
         })
         getStatus = 503
         await act(async () => {
-            logic.handler.handleReload()
+            await client.refetchQueries({ queryKey: hostMonitoringQueryKeys.policy(hostId) })
         })
         await flush()
         expect(logic.state.dirty).toBe(true)
@@ -445,4 +445,36 @@ test('an initial load failure still blocks the dialog when there is no cached da
         'Monitoring could not be loaded.',
     )
     expect(document.querySelector('form') === null).toBe(true)
+})
+
+test('live invalidation recovers an initial failure and clean settings adopt a later version', async () => {
+    getStatus = 503
+    const container = await render(props, true)
+    await flush()
+    expect(document.body.textContent).toContain('Monitoring could not be loaded.')
+    expect(
+        [...container.querySelectorAll('button')].some((button) =>
+            /Try again|Reload/.test(button.textContent ?? ''),
+        ),
+    ).toBe(false)
+    getStatus = 200
+    await act(async () => {
+        await client.invalidateQueries({ queryKey: hostMonitoringQueryKeys.all })
+    })
+    await flush()
+    expect(document.body.textContent).not.toContain('Monitoring could not be loaded.')
+    await act(async () => root!.unmount())
+    root = null
+    await render()
+    responsePolicy = {
+        ...policy,
+        version: nextVersion,
+        settings: { ...policy.settings, intervalSeconds: 120 },
+    }
+    await act(async () => {
+        await client.invalidateQueries({ queryKey: hostMonitoringQueryKeys.all })
+    })
+    await flush()
+    expect(logic.form.getFieldValue('intervalSeconds')).toBe(120)
+    expect(logic.state.dirty).toBe(false)
 })

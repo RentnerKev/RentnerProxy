@@ -73,7 +73,7 @@ export default function useLoginLogic() {
     const providers = useQuery({
         queryKey: ['auth', 'oidc-providers'],
         queryFn: () => getPublicOidcProvidersHandler(),
-        retry: false,
+        retry: 3,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
         staleTime: 30_000,
@@ -269,9 +269,6 @@ export default function useLoginLogic() {
             handlePasskeyLogin,
             handleOidcSubmit,
             handleAlternativeSignIn,
-            handleRefreshProviders: () => {
-                if (!oidcBusy.current) void providers.refetch()
-            },
             handleCancelOidc: () => {
                 if (
                     !oidcBusy.current ||

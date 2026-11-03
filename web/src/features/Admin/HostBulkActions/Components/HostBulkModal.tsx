@@ -1,7 +1,6 @@
 import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { Modal } from '@/shared/Modal/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import HostTagSelect from '@/features/Admin/HostTags/Components/HostTagSelect.tsx'
 import type { BulkHostAction } from '@/lib/HostBulkActions/Types/bulk-hosts.types.ts'
@@ -80,18 +79,7 @@ export default function HostBulkModal(props: BulkHostModalProps) {
                         onValueChange={handler.handleAssignmentChange}
                     />
                 ) : null}
-                {state.optionsError ? (
-                    <div role="alert">
-                        {t('admin.bulkHosts.error')}{' '}
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.handleRetryOptions}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    </div>
-                ) : null}
+                {state.optionsError ? <div role="alert">{t('admin.bulkHosts.error')}</div> : null}
                 {state.error ? (
                     <p role="alert" className="text-danger-text">
                         {state.error}

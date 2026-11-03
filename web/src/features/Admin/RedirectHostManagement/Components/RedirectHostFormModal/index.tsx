@@ -37,7 +37,6 @@ export default function RedirectHostFormModal(props: RedirectHostFormModalProps)
                         form={form}
                         addDomain={handler.addDomain}
                         removeDomain={handler.removeDomain}
-                        retryAssignableCertificates={handler.retryAssignableCertificates}
                     />
                     <form.Field name="tagIds">
                         {(field) => (

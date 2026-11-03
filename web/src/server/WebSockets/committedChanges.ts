@@ -5,8 +5,7 @@ const changedTransactions = new WeakSet<object>()
 
 export function markAuditedApplicationMutation(transaction: object, event: AuditEventInput): void {
     if (
-        event.actorKind !== 'user' ||
-        !event.actorUserId ||
+        (event.actorKind !== 'system' && (event.actorKind !== 'user' || !event.actorUserId)) ||
         event.result !== 'success' ||
         event.resource === 'config-export' ||
         event.action === 'login' ||

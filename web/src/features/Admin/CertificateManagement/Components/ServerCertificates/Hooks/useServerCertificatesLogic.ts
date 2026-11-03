@@ -200,9 +200,6 @@ export default function useServerCertificatesLogic({
         },
         [invalidateCertificateQueries, queryClient],
     )
-    const retry = useCallback(() => {
-        void certificatesQuery.refetch()
-    }, [certificatesQuery])
     const currentDetailsTarget = detailsTarget
         ? (certificatesQuery.data?.find((certificate) => certificate.id === detailsTarget.id) ??
           detailsTarget)
@@ -253,7 +250,6 @@ export default function useServerCertificatesLogic({
             openReplace,
             openRequest,
             openRenew,
-            retry,
             setDeleteDialogOpen,
             setDetailsDialogOpen,
             setImportDialogOpen,

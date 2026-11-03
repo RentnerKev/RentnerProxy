@@ -36,25 +36,14 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                 canApply={state.canApply}
                 isApplying={state.isApplying}
                 onApply={handler.apply}
-                onRetry={handler.retryRuntime}
                 status={state.runtimeStatus}
                 isError={state.runtimeStatusError}
-                isRetrying={state.runtimeStatusRetrying}
             />
             {state.isError ? (
                 <PageAlert
                     severity="error"
                     title={t('admin.redirectHosts.states.unavailableTitle')}
                     description={t('admin.redirectHosts.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <RedirectHostsTable

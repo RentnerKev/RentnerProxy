@@ -27,6 +27,5 @@ export interface TrustedCaManagementLogicResult {
         readonly setReplaceOpen: (open: boolean) => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly confirmDelete: () => Promise<void>
-        readonly retry: () => void
     }
 }

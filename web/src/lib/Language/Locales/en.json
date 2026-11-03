@@ -94,7 +94,8 @@
         "moreDomains": "Show {{count}} more domains",
         "clearSelection": "Clear selection",
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "automaticRecovery": "Retrying automatically…"
     },
     "inputs": {
         "invalidPhone": "Enter a valid phone number.",
@@ -162,7 +163,6 @@
         "loading": "Searching…",
         "noResults": "No results found.",
         "unavailable": "Some results are unavailable. Try again.",
-        "retry": "Retry search",
         "targetUnavailable": "This entry is no longer available or your permissions have changed.",
         "opening": "Opening…",
         "resultsLabel": "Search results",
@@ -257,8 +257,7 @@
             "title": "Sign in with an identity provider",
             "loading": "Loading sign-in providers…",
             "continuing": "Opening identity provider…",
-            "retry": "Reload sign-in providers",
-            "catalogUnavailable": "Sign-in providers could not be loaded. Reload the list or use your local account.",
+            "catalogUnavailable": "Sign-in providers are temporarily unavailable. You can use your local account.",
             "unavailable": "The identity provider could not be reached. Try again or use your local password or passkey.",
             "denied": "This identity is not allowed to sign in. Contact your administrator or use your local account.",
             "expired": "This sign-in request has expired. Start sign-in again.",
@@ -705,7 +704,6 @@
             "linked": "Linked",
             "unlinked": "Not linked",
             "disabled": "Provider disabled",
-            "refresh": "Refresh",
             "loading": "Loading linked accounts…",
             "pending": "Continue at your provider. If you cancelled, refresh this list.",
             "unlinkedSuccess": "Account unlinked. Local sign-in remains available.",
@@ -1067,7 +1065,6 @@
                 "disabling": "Disabling user…",
                 "enable": "Enable",
                 "enabling": "Enabling user…",
-                "retryRoles": "Retry roles",
                 "open": "Open actions for {{name}}",
                 "none": "No actions available",
                 "ownerEdit": "Only an owner can edit this account.",
@@ -1569,7 +1566,6 @@
                     "ownerHint": "Some providers append the domain automatically. Enter the owner as required by your provider so the final full name matches the displayed TXT owner.",
                     "valuesHint": "Several values may share the same owner. Add every value and keep unrelated existing TXT values.",
                     "finish": "Done",
-                    "retry": "Retry loading TXT records",
                     "reused": "The certificate authority reused an existing authorization. No TXT records are needed. Select Done, then continue in the main dialog.",
                     "blocked": "Close the guide and review the current certificate validation.",
                     "expires": "TXT records expire at {{expires}}"
@@ -3799,7 +3795,6 @@
             "observationPoint": "Checks run from this RentnerProxy instance. Public internet reachability is not checked.",
             "permissionDenied": "You do not have permission to view monitoring.",
             "loadError": "Monitoring could not be loaded. Retry to refresh the status.",
-            "retry": "Retry",
             "loading": "Loading monitoring…",
             "noData": "No checks have been recorded yet.",
             "configure": "Configure monitoring",
@@ -3836,8 +3831,7 @@
             "historyCap": "The newest 300 checks are loaded. Narrow the period or status to explore further.",
             "save": "Save changes",
             "close": "Close",
-            "conflict": "Monitoring changed elsewhere. Your edits are preserved. Reload settings to use the latest version.",
-            "reload": "Reload settings",
+            "conflict": "Settings changed. Your draft is preserved.",
             "saveError": "Monitoring settings could not be saved.",
             "saved": "Monitoring settings saved.",
             "invalid": "Check the settings and allowed ranges.",
@@ -4129,7 +4123,6 @@
         "url": "Redirect URL",
         "html": "HTML source",
         "loading": "Loading default site…",
-        "reload": "Reload saved settings",
         "discard": "Discard changes",
         "dirty": "Unsaved changes",
         "clean": "No unsaved changes",
@@ -4149,7 +4142,7 @@
             "custom-html": "Custom HTML"
         },
         "errors": {
-            "conflict": "Settings changed elsewhere. Reload the saved settings before trying again.",
+            "conflict": "Saved settings changed. Your draft is preserved.",
             "loadFailed": "Could not load the default site.",
             "saveFailed": "Could not save the default site.",
             "invalidSettings": "Choose valid default-site settings.",
@@ -4242,8 +4235,6 @@
         "copy": "Copy callback URL",
         "copied": "Callback URL copied.",
         "callbackHint": "Configure PUBLIC_ORIGIN on the server to obtain the canonical callback URL.",
-        "refresh": "Refresh",
-        "refreshConflict": "Reload saved configuration?",
         "empty": "No identity providers configured.",
         "bindingCount": "Bindings: {{count}}",
         "test": "Test saved provider",
@@ -4262,7 +4253,7 @@
         "errors": {
             "authentication_required": "Sign in again.",
             "owner_required": "A local owner account is required.",
-            "configuration_conflict": "Configuration changed. Your draft is preserved. Refresh and explicitly retry.",
+            "configuration_conflict": "The provider changed. Your draft is preserved.",
             "invalid_input": "Check names, HTTPS URLs, origins, CIDRs, unique subjects and account selections. A new secret may be required.",
             "identity_not_allowed": "Select active local accounts with application access.",
             "rate_limited": "Too many requests. Wait before retrying.",
@@ -4272,8 +4263,6 @@
             "copy": "Callback URL could not be copied.",
             "secret": "A new client secret is required for this provider or trust change."
         },
-        "reloadTitle": "Reload saved configuration?",
-        "reloadDescription": "This discards your unsaved changes and loads the latest saved provider. Review it before making new changes.",
         "placeholders": {
             "name": "Example identity provider",
             "issuer": "https://login.example.com",
@@ -4295,7 +4284,7 @@
         "addMapping": "Add group mapping",
         "removeMapping": "Remove group mapping",
         "rolePolicyHint": "Provider-managed accounts only. Groups match exactly; missing groups revoke mapped roles.",
-        "rolesUnavailable": "Roles could not be loaded. Reload before changing the role policy.",
+        "rolesUnavailable": "Roles are temporarily unavailable.",
         "provisioningOn": "Automatic account creation",
         "provisioningOff": "Explicit account links only",
         "rolePolicySummary": "Default roles: {{defaults}} · Group mappings: {{mappings}}",
@@ -4308,6 +4297,7 @@
         "setupAuthentikDocs": "authentik documentation",
         "setupKeycloakDocs": "Keycloak documentation",
         "authentikName": "authentik",
-        "keycloakName": "Keycloak"
+        "keycloakName": "Keycloak",
+        "discard": "Discard changes"
     }
 }

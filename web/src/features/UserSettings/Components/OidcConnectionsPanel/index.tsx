@@ -34,16 +34,6 @@ export default function OidcConnectionsPanel({ userId, canUpdate }: OidcConnecti
                         ) : null}
                     </div>
                 </div>
-                {state.canUpdate ? (
-                    <button
-                        type="button"
-                        className={buttonClass}
-                        disabled={state.isPending || state.isLoading}
-                        onClick={handler.handleRefresh}
-                    >
-                        {t('account.oidc.refresh')}
-                    </button>
-                ) : null}
             </div>
             {!state.canUpdate ? (
                 <FormMessage tone="info">account.oidc.noPermission</FormMessage>

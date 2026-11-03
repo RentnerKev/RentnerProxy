@@ -21,6 +21,7 @@ let shouldReconnect = false
 let isConnecting = false
 let isPageSuspended = false
 let lifecycleListenersRegistered = false
+let needsReconnectResync = false
 
 function getRealtimeUrl(): URL {
     const url = new URL('/api/live', window.location.href)
@@ -101,6 +102,7 @@ function scheduleReconnect(): void {
 }
 
 function handleUnauthorized(): void {
+    needsReconnectResync = false
     shouldReconnect = false
     clearReconnectTimeout()
     notifyStatus('disconnected')
@@ -118,9 +120,12 @@ async function connect(): Promise<void> {
         websocket = current
         current.addEventListener('open', () => {
             if (websocket !== current) return
+            const resuming = needsReconnectResync
+            needsReconnectResync = false
             reconnectDelay = MIN_RECONNECT_DELAY_MS
             notifyStatus('connected')
             sendAllSubscriptions()
+            if (resuming) for (const listener of listeners.values()) listener.onResume?.()
         })
         current.addEventListener('message', (event) => {
             if (websocket !== current) return
@@ -145,8 +150,10 @@ async function connect(): Promise<void> {
         current.addEventListener('close', () => {
             if (websocket !== current) return
             websocket = null
-            if (shouldReconnect && !isPageSuspended) scheduleReconnect()
-            else notifyStatus(isPageSuspended ? 'inactive' : 'disconnected')
+            if (shouldReconnect && !isPageSuspended) {
+                needsReconnectResync = true
+                scheduleReconnect()
+            } else notifyStatus(isPageSuspended ? 'inactive' : 'disconnected')
         })
     } catch {
         scheduleReconnect()
@@ -158,6 +165,7 @@ async function connect(): Promise<void> {
 function setSuspended(suspended: boolean): void {
     isPageSuspended = suspended
     if (suspended) {
+        needsReconnectResync = false
         closeCurrentWebSocket()
         notifyStatus('inactive')
     }
@@ -234,6 +242,7 @@ export function subscribeToRealtimeEvents<T>({
             sendMessage({ type: 'unsubscribe', topic: current.topic })
         if (listeners.size > 0) return
         shouldReconnect = false
+        needsReconnectResync = false
         closeCurrentWebSocket()
         notifyStatus('inactive')
     }

@@ -73,6 +73,7 @@ afterEach(async () => {
     activeRoot = null
     document.body.replaceChildren()
     document.documentElement.lang = 'en'
+    sessionStorage.clear()
 })
 
 describe('global error page', () => {
@@ -172,7 +173,7 @@ describe('global error page', () => {
             expect(alert.textContent).toContain('RP_DATABASE_SCHEMA')
             expect(alert.textContent).toContain(getPageErrorDetails(error).reference!)
             expect(container.querySelector('pre code')?.textContent).toBe('bun run db:migrate')
-            expect(container.querySelector('button')?.textContent).toBe('Try again')
+            expect(container.querySelector('button')).toBeNull()
             expect(container.textContent).not.toContain('synthetic SQL')
             expect(container.textContent).not.toContain('system.error.')
             for (const loader of loaders) expect(loader).not.toHaveBeenCalled()
@@ -221,29 +222,40 @@ describe('global error page', () => {
         expect(container.querySelector('script')).toBeNull()
     })
 
-    test('reloads the document when an application or language file could not be loaded', async () => {
-        const router = errorRouter(() => {
-            throw new Error('language.loadFailed')
-        })
-        const container = await render(router)
+    test('automatically reloads broken application files with a durable cooldown', async () => {
+        sessionStorage.clear()
+        jest.useFakeTimers()
         const reload = spyOn(window.location, 'reload').mockImplementation(() => {})
-        const invalidate = spyOn(router, 'invalidate')
         try {
+            const router = errorRouter(() => {
+                throw new Error('language.loadFailed')
+            })
+            const invalidate = spyOn(router, 'invalidate')
+            const container = await render(router)
             expect(container.querySelector('h1')?.textContent).toBe(
                 'Application files could not be loaded',
             )
-            await act(async () => {
-                container.querySelector<HTMLButtonElement>('button')!.click()
-            })
+            await act(async () => jest.advanceTimersByTime(1_000))
             expect(reload).toHaveBeenCalledTimes(1)
             expect(invalidate).not.toHaveBeenCalled()
+            await act(async () => activeRoot?.unmount())
+            activeRoot = null
+            await render(
+                errorRouter(() => {
+                    throw new Error('language.loadFailed')
+                }),
+            )
+            await act(async () => jest.advanceTimersByTime(30_000))
+            expect(reload).toHaveBeenCalledTimes(1)
+            invalidate.mockRestore()
         } finally {
             reload.mockRestore()
-            invalidate.mockRestore()
+            jest.useRealTimers()
+            sessionStorage.clear()
         }
     })
 
-    test('retries the failed loader and recovers after the underlying error is resolved', async () => {
+    test('automatically retries the failed loader and recovers after the underlying error is resolved', async () => {
         let unavailable = true
         let attempts = 0
         const container = await render(
@@ -255,11 +267,124 @@ describe('global error page', () => {
         expect(container.querySelector('h1')?.textContent).toBe('Database connection limit reached')
         const previousAttempts = attempts
         unavailable = false
-        await act(async () => {
-            container.querySelector<HTMLButtonElement>('button')!.click()
-        })
         await waitFor(() => container.querySelector('[data-testid="recovered"]') !== null)
         expect(attempts).toBeGreaterThan(previousAttempts)
         expect(container.querySelector('[role="alert"]')).toBeNull()
+    })
+
+    test.each([401, 403, 404])(
+        'keeps permanent %s errors visible without automatic retries',
+        async (status) => {
+            jest.useFakeTimers()
+            let attempts = 0
+            try {
+                const container = await render(
+                    errorRouter(() => {
+                        attempts += 1
+                        throw Object.assign(new Error('permanent'), { status })
+                    }),
+                )
+                const original = attempts
+                await act(async () => {
+                    window.dispatchEvent(new Event('online'))
+                    window.dispatchEvent(new Event('focus'))
+                    jest.advanceTimersByTime(60_000)
+                })
+                expect(attempts).toBe(original)
+                expect(container.querySelector('button')).toBeNull()
+                expect(container.querySelector('a')?.getAttribute('href')).toBe('/')
+                expect(container.querySelector('[role="alert"]')).not.toBeNull()
+            } finally {
+                jest.useRealTimers()
+            }
+        },
+    )
+
+    test('pauses recovery offline and cancels queued recovery on unmount', async () => {
+        jest.useFakeTimers()
+        const originalOnline = Object.getOwnPropertyDescriptor(navigator, 'onLine')
+        Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+        let attempts = 0
+        try {
+            await render(
+                errorRouter(() => {
+                    attempts += 1
+                    throw new Error('Failed to fetch')
+                }),
+            )
+            const original = attempts
+            await act(async () => jest.advanceTimersByTime(30_000))
+            expect(attempts).toBe(original)
+            Object.defineProperty(navigator, 'onLine', { configurable: true, value: true })
+            await act(async () => {
+                window.dispatchEvent(new Event('online'))
+                jest.advanceTimersByTime(1)
+            })
+            expect(attempts).toBeGreaterThan(original)
+            const retried = attempts
+            await act(async () => activeRoot?.unmount())
+            activeRoot = null
+            await act(async () => jest.advanceTimersByTime(60_000))
+            expect(attempts).toBe(retried)
+        } finally {
+            if (originalOnline) Object.defineProperty(navigator, 'onLine', originalOnline)
+            else Reflect.deleteProperty(navigator, 'onLine')
+            jest.useRealTimers()
+        }
+    })
+
+    test('keeps backoff across repeated boundary failures and pauses hidden asset recovery', async () => {
+        jest.useFakeTimers()
+        let attempts = 0
+        try {
+            await render(
+                errorRouter(() => {
+                    attempts += 1
+                    throw new Error('Failed to fetch')
+                }),
+            )
+            const original = attempts
+            await act(async () => jest.advanceTimersByTime(1_000))
+            expect(attempts).toBe(original + 1)
+            await act(async () => {
+                window.dispatchEvent(new Event('focus'))
+                jest.advanceTimersByTime(1_000)
+            })
+            expect(attempts).toBe(original + 1)
+            await act(async () => jest.advanceTimersByTime(1_000))
+            expect(attempts).toBe(original + 2)
+            await act(async () => activeRoot?.unmount())
+            activeRoot = null
+            const visibility = Object.getOwnPropertyDescriptor(document, 'visibilityState')
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                value: 'hidden',
+            })
+            const reload = spyOn(window.location, 'reload').mockImplementation(() => {})
+            try {
+                await render(
+                    errorRouter(() => {
+                        throw new Error('language.loadFailed')
+                    }),
+                )
+                await act(async () => jest.advanceTimersByTime(30_000))
+                expect(reload).not.toHaveBeenCalled()
+                Object.defineProperty(document, 'visibilityState', {
+                    configurable: true,
+                    value: 'visible',
+                })
+                await act(async () => {
+                    document.dispatchEvent(new Event('visibilitychange'))
+                    jest.advanceTimersByTime(1)
+                })
+                expect(reload).toHaveBeenCalledTimes(1)
+            } finally {
+                reload.mockRestore()
+                if (visibility) Object.defineProperty(document, 'visibilityState', visibility)
+                else Reflect.deleteProperty(document, 'visibilityState')
+            }
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })

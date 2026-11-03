@@ -8,7 +8,7 @@ import useGlobalErrorPageLogic from './Hooks/useGlobalErrorPageLogic.ts'
 
 export default function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
     const { t } = useTranslationStore()
-    const { state, handler } = useGlobalErrorPageLogic({ error, reset })
+    const { state } = useGlobalErrorPageLogic({ error, reset })
 
     return (
         <SystemStatePage
@@ -51,13 +51,9 @@ export default function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
                 </div>
             }
         >
-            <button
-                type="button"
-                className="inline-flex h-12 cursor-pointer items-center justify-center rounded-xl bg-accent px-5 py-0 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
-                onClick={handler.retry}
-            >
-                {t('common.retry')}
-            </button>
+            {state.automaticRecovery ? (
+                <output className="text-sm text-mist-300">{t('common.automaticRecovery')}</output>
+            ) : null}
             <Link
                 to="/"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-0 text-sm font-bold text-white transition-colors hover:border-white/25 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"

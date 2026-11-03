@@ -13,17 +13,6 @@ const HtmlSourceEditor = lazy(() => import('./Components/HtmlSourceEditor/index.
 export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: boolean }) {
     const { t } = useTranslationStore()
     const { state, handler, form } = useDefaultSitePanelLogic(canUpdate)
-    const retryButton = (
-        <button
-            type="button"
-            className={buttonClassName('secondary')}
-            onClick={handler.handleReload}
-            disabled={state.isReloading}
-            aria-busy={state.isReloading}
-        >
-            {t('common.retry')}
-        </button>
-    )
 
     return (
         <section
@@ -65,14 +54,10 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                         severity="error"
                         title={t('defaultSite.title')}
                         description={t('defaultSite.errors.loadFailed')}
-                        action={retryButton}
                     />
-                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
-                        <p className="text-sm text-danger-text">
-                            {t('defaultSite.errors.loadFailed')}
-                        </p>
-                        {retryButton}
-                    </div>
+                    <p className="mt-4 text-sm text-danger-text">
+                        {t('defaultSite.errors.loadFailed')}
+                    </p>
                 </>
             ) : null}
             {state.error ? (
@@ -105,7 +90,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                             value={state.mode}
                             options={state.modeOptions}
                             onValueChange={handler.handleModeChange}
-                            disabled={!canUpdate || state.isSaving || state.isReloading}
+                            disabled={!canUpdate || state.isSaving}
                         />
                     </div>
                     {state.mode === 'redirect' ? (
@@ -125,7 +110,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                         value={field.state.value}
                                         onValueChange={field.handleChange}
                                         onBlur={field.handleBlur}
-                                        disabled={!canUpdate || state.isSaving || state.isReloading}
+                                        disabled={!canUpdate || state.isSaving}
                                         maxLength={2048}
                                         autoCapitalize="none"
                                         autoCorrect="off"
@@ -162,9 +147,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                             value={field.state.value}
                                             onChange={field.handleChange}
                                             onBlur={field.handleBlur}
-                                            disabled={
-                                                !canUpdate || state.isSaving || state.isReloading
-                                            }
+                                            disabled={!canUpdate || state.isSaving}
                                             invalid={!state.isValid}
                                             describedBy="default-site-html-hint"
                                         />
@@ -206,18 +189,16 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                             <p className="text-xs text-muted">{t('defaultSite.readOnly')}</p>
                         )}
                         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                            <button
-                                type="button"
-                                onClick={handler.handleReload}
-                                disabled={
-                                    state.isSaving ||
-                                    state.isReloading ||
-                                    (canUpdate && !state.isDirty && !state.error)
-                                }
-                                className={buttonClassName(canUpdate ? 'ghost' : 'secondary')}
-                            >
-                                {t(canUpdate ? 'defaultSite.discard' : 'defaultSite.reload')}
-                            </button>
+                            {canUpdate ? (
+                                <button
+                                    type="button"
+                                    onClick={handler.handleDiscard}
+                                    disabled={state.isSaving || (!state.isDirty && !state.error)}
+                                    className={buttonClassName('ghost')}
+                                >
+                                    {t('defaultSite.discard')}
+                                </button>
+                            ) : null}
                             {canUpdate ? (
                                 <button
                                     type="submit"

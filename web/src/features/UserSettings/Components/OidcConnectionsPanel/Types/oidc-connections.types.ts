@@ -24,6 +24,5 @@ export interface OidcConnectionsLogicResult {
     handler: {
         handleRequest: (providerId: string, kind: 'link' | 'unlink') => void
         handleCancelNavigation: () => void
-        handleRefresh: () => void
     }
 }
