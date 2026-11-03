@@ -12,6 +12,7 @@ export const REQUIRED_CI_JOBS = [
     'Rust',
     'Build',
     'Caddy Response Cache',
+    'Coverage',
 ] as const
 const REPOSITORY = 'rentnerkev/rentnerproxy'
 const API_PATH = `/repos/${REPOSITORY}/actions`

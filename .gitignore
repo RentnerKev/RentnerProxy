@@ -10,7 +10,7 @@ build/
 .vite/
 .tanstack/
 web/public/assets/country-flags/
-coverage/
+/coverage/
 *.tsbuildinfo
 
 # Bun cache

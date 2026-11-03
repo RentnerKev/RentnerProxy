@@ -1,6 +1,84 @@
 use super::*;
 
 #[tokio::test]
+async fn scheduler_first_tick_preserves_candidate_backoff_and_can_be_cancelled() {
+    const ID: &str = "0198d98a-0000-7000-8000-000000000531";
+    let path = std::env::temp_dir().join(format!(
+        "rentnerproxy-renewal-backoff-{}-{}",
+        std::process::id(),
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
+    ));
+    std::fs::create_dir_all(&path).unwrap();
+    let runtime = ProxyRuntime::new(super::super::RuntimeSettings::new(path.clone(), 0), None);
+    runtime.certificate_store.initialize().await.unwrap();
+    let request = certificates::CertificateIssueRequest {
+        domains: vec!["example.com".into()],
+        environment: certificates::CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_mode: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+    runtime
+        .certificate_store
+        .begin_issue(ID, request.clone(), false)
+        .await
+        .unwrap();
+    let pem = rcgen::generate_simple_self_signed(request.domains.clone()).unwrap();
+    let staged = runtime
+        .certificate_store
+        .stage_acme(
+            ID,
+            &request,
+            pem.cert.pem(),
+            pem.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    runtime
+        .certificate_store
+        .finish_candidate_failed(&staged, certificates::CertificateError::RuntimeApplyFailed)
+        .await;
+    let before = runtime.certificate_store.get(ID).await.unwrap();
+    assert!(before.candidate.as_ref().unwrap().next_attempt_at.is_some());
+    runtime
+        .start_renewal_scheduler(crate::server::challenges::ChallengeStore::new())
+        .await;
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while runtime.candidate_cursor.load(Ordering::Relaxed) == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("scheduler must inspect the pending candidate on its first tick");
+    let task = runtime.renewal_task.lock().await.take().unwrap();
+    assert!(!task.is_finished());
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    assert_eq!(runtime.certificate_store.get(ID).await.unwrap(), before);
+    assert_eq!(
+        runtime
+            .certificate_store
+            .pending_candidate_ids()
+            .await
+            .unwrap(),
+        [ID]
+    );
+    runtime
+        .renew_due_certificates(crate::server::challenges::ChallengeStore::new(), usize::MAX)
+        .await;
+    assert_eq!(runtime.certificate_store.get(ID).await.unwrap(), before);
+    runtime.begin_shutdown();
+    runtime.retry_certificate_candidates().await;
+    runtime
+        .renew_due_certificates(crate::server::challenges::ChallengeStore::new(), 0)
+        .await;
+    assert_eq!(runtime.certificate_store.get(ID).await.unwrap(), before);
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[tokio::test]
 async fn empty_scheduler_is_idempotent_and_can_be_stopped() {
     let path = std::env::temp_dir().join(format!(
         "rentnerproxy-renewal-scheduler-{}-{}",

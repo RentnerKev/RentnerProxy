@@ -319,3 +319,7 @@ impl CertificateStore {
         self.release_lease(&staged.id).await;
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/certificate_commit_issuance.rs"]
+mod tests;
