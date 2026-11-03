@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,7 @@ import {
     accentArtAssets,
     createAccentMask,
     generateAccentMask,
+    writeAccentMask,
 } from '../../../../../../scripts/assets/generate-accent-art-masks.ts'
 
 const publicDirectory = fileURLToPath(new URL('../../../../../public/', import.meta.url))
@@ -120,6 +121,46 @@ describe('accent artwork generator', () => {
             await writeFile(webp, 'damaged WebP artwork')
             await expect(generateAccentMask(webp)).rejects.toThrow()
             await expect(generateAccentMask(join(directory, 'missing.png'))).rejects.toThrow()
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    })
+
+    test('publishes complete masks in parallel and removes their temporary files', async () => {
+        const parent = resolve(tmpdir())
+        const directory = await mkdtemp(join(parent, 'rentnerproxy-accent-publication-'))
+        if (!resolve(directory).startsWith(parent + sep))
+            throw new Error('Invalid fixture directory')
+        const png = encode({
+            width: 1,
+            height: 1,
+            channels: 4,
+            data: Uint8Array.of(255, 255, 255, 128),
+        })
+        const names = ['existing.png', 'new.png', 'parallel.png']
+        try {
+            await writeFile(join(directory, names[0]!), 'old mask')
+            await Promise.all(names.map((name) => writeAccentMask(join(directory, name), png)))
+            const contents = await Promise.all(names.map((name) => readFile(join(directory, name))))
+            for (const content of contents) expect(content.equals(Buffer.from(png))).toBeTrue()
+            expect((await readdir(directory)).toSorted()).toEqual(names.toSorted())
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    })
+
+    test('preserves the target and removes staging when publication fails', async () => {
+        const parent = resolve(tmpdir())
+        const directory = await mkdtemp(join(parent, 'rentnerproxy-accent-publication-'))
+        if (!resolve(directory).startsWith(parent + sep))
+            throw new Error('Invalid fixture directory')
+        const destination = join(directory, 'existing.png')
+        try {
+            await mkdir(destination)
+            await writeFile(join(destination, 'caller-owned'), 'preserve me')
+            await expect(writeAccentMask(destination, Uint8Array.of(1, 2, 3))).rejects.toThrow()
+            expect(await readdir(directory)).toEqual(['existing.png'])
+            expect(await readFile(join(destination, 'caller-owned'), 'utf8')).toBe('preserve me')
         } finally {
             await rm(directory, { recursive: true, force: true })
         }

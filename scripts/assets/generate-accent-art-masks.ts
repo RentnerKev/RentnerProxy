@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import { basename, extname, join, relative } from 'node:path'
+import { mkdtemp, readFile, rename, rm, rmdir, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { decode, encode } from 'fast-png'
 import type { RgbaArtwork } from './Types/accent-art-masks.types.ts'
@@ -126,6 +126,18 @@ export async function generateAccentMask(source: string): Promise<Uint8Array> {
     )
 }
 
+export async function writeAccentMask(destination: string, png: Uint8Array): Promise<void> {
+    const staging = await mkdtemp(join(dirname(destination), '.accent-mask-'))
+    const temporary = join(staging, 'mask.png')
+    try {
+        await writeFile(temporary, png)
+        await rename(temporary, destination)
+    } finally {
+        await rm(temporary, { force: true })
+        await rmdir(staging)
+    }
+}
+
 if (import.meta.main) {
     const root = fileURLToPath(new URL('../..', import.meta.url))
     await Promise.all(
@@ -137,7 +149,7 @@ if (import.meta.main) {
                 basename(asset, extname(asset)) + '-accent-mask.png',
             )
             const png = await generateAccentMask(source)
-            await writeFile(destination, png)
+            await writeAccentMask(destination, png)
             const { width, height } = decode(png)
             console.log(`${relative(root, destination)} (${width}x${height}, ${png.length} bytes)`)
         }),
