@@ -117,7 +117,7 @@ test.skipIf(!isolated)(
             const liveSession = '00000000-0000-4000-8000-000000000003'
             await command(
                 psql,
-                `INSERT INTO rentnerproxy.users(id,display_name,email,status) VALUES ('${actorId}','Restore fixture','fixture@example.invalid','active'); INSERT INTO rentnerproxy.sessions(id,user_id,token_hash,expires_at) VALUES ('${oldSession}','${actorId}','${'a'.repeat(64)}',now()+interval '1 day'); INSERT INTO rentnerproxy.system_settings(key,value) VALUES ('restore_fixture','1');`,
+                `INSERT INTO rentnerproxy.users(id,display_name,email,status) VALUES ('${actorId}','Restore fixture','fixture@example.invalid','active'); INSERT INTO rentnerproxy.sessions(id,user_id,token_hash,expires_at,oidc_proof) VALUES ('${oldSession}','${actorId}','${'a'.repeat(64)}',now()+interval '1 day',NULL); INSERT INTO rentnerproxy.system_settings(key,value) VALUES ('restore_fixture','1');`,
             )
             await writeFile('/var/lib/rentnerproxy/proxy/restore-fixture.json', 'old state', {
                 mode: 0o600,
@@ -183,7 +183,7 @@ test.skipIf(!isolated)(
             expect((await engine.status()).jobs[0]?.state).toBe('succeeded')
             await command(
                 psql,
-                `DELETE FROM rentnerproxy.sessions; INSERT INTO rentnerproxy.sessions(id,user_id,token_hash,expires_at) VALUES ('${liveSession}','${actorId}','${'b'.repeat(64)}',now()+interval '1 day'); UPDATE rentnerproxy.system_settings SET value='2' WHERE key='restore_fixture';`,
+                `DELETE FROM rentnerproxy.sessions; INSERT INTO rentnerproxy.sessions(id,user_id,token_hash,expires_at,oidc_proof) VALUES ('${liveSession}','${actorId}','${'b'.repeat(64)}',now()+interval '1 day',NULL); UPDATE rentnerproxy.system_settings SET value='2' WHERE key='restore_fixture';`,
             )
             await writeFile('/var/lib/rentnerproxy/proxy/restore-fixture.json', 'new state', {
                 mode: 0o600,
