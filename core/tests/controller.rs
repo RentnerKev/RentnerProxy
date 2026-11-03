@@ -1,4 +1,6 @@
 mod common;
+#[path = "controller/configuration.rs"]
+mod configuration;
 #[path = "controller/healthcheck.rs"]
 mod healthcheck;
 

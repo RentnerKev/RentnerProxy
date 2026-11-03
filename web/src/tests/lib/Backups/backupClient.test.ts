@@ -6,7 +6,9 @@ import {
     saveBackupConfiguration,
     deleteBackup,
     restoreBackup,
+    saveOffHostConfiguration,
 } from '@/lib/Backups/backupClient.ts'
+import { createDemoOffHostStatus } from '@/lib/Backups/demoStatus.ts'
 import { BACKUP_UI_POLICY } from '@/config/backups.config.ts'
 
 const id = '00000000-0000-4000-8000-000000000001'
@@ -135,3 +137,57 @@ test('mutations require a matching admission receipt or an advanced configuratio
     fetchSpy.mockResolvedValue(Response.json(saved))
     expect(await saveBackupConfiguration(configuration)).toEqual(saved)
 })
+
+test('off-host updates validate input and require an advanced verified server revision', async () => {
+    const fetchSpy = respond(Response.json(status))
+    const input = {
+        requestId: id,
+        expectedRevision: 0,
+        enabled: false,
+        endpoint: '',
+        region: '',
+        bucket: '',
+        prefix: '',
+    }
+    await expect(saveOffHostConfiguration({ ...input, endpoint: '\n' })).rejects.toMatchObject({
+        code: 'invalid_input',
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+    await expect(saveOffHostConfiguration(input)).rejects.toMatchObject({
+        code: 'invalid_response',
+    })
+    fetchSpy.mockResolvedValue(Response.json({ ...status, offHost: createDemoOffHostStatus() }))
+    await expect(
+        saveOffHostConfiguration({
+            ...input,
+            expectedRevision: createDemoOffHostStatus().revision,
+        }),
+    ).rejects.toMatchObject({ code: 'invalid_response' })
+    const advanced = {
+        ...status,
+        offHost: { ...createDemoOffHostStatus(), revision: 1, enabled: false },
+    }
+    fetchSpy.mockResolvedValue(Response.json(advanced))
+    expect(await saveOffHostConfiguration(input)).toEqual(advanced)
+    expect(fetchSpy.mock.calls.at(-1)).toMatchObject([
+        '/api/admin/backups/off-host',
+        { method: 'POST', body: JSON.stringify(input) },
+    ])
+})
+
+test.each([401, 200])(
+    'HTTP %s preserves domain errors even if canceling an unreadable response body rejects',
+    async (code) => {
+        const body = new ReadableStream<Uint8Array>({
+            cancel() {
+                throw new Error('synthetic transport cancellation failure')
+            },
+        })
+        respond(new Response(body, { status: code, headers: { 'content-type': 'text/plain' } }))
+        await expect(getBackupsStatus()).rejects.toMatchObject({
+            code: code === 401 ? 'authentication_required' : 'invalid_response',
+        })
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(body.locked).toBe(false)
+    },
+)

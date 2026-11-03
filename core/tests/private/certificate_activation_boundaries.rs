@@ -54,6 +54,291 @@ async fn assert_lease_released(store: &CertificateStore) {
 }
 
 #[tokio::test]
+async fn candidate_validation_rejects_corrupt_recovery_metadata() {
+    let (store, _, _directory) = retryable_candidate().await;
+    let candidate = store.index.lock().await.pending_candidates[ID].clone();
+    assert!(recovery::candidate_is_valid(ID, &candidate));
+    for mutation in 0..25 {
+        let mut bad = candidate.clone();
+        match mutation {
+            0 => bad.version += 1,
+            1 => bad.staged.metadata.id = "another-id".into(),
+            2 => bad.staged.metadata.source = CertificateSource::Manual,
+            3 => bad.staged.metadata.environment = None,
+            4 => bad.staged.metadata.status = CertificateStatus::Failed,
+            5 => bad.staged.metadata.operation = CertificateOperation::Issuing,
+            6 => bad.staged.metadata.domains.clear(),
+            7 => bad.staged.metadata.domains = vec!["not a domain".into()],
+            8 => bad.staged.material_id = None,
+            9 => bad.staged.material_id = Some("z".repeat(64)),
+            10 => bad.staged.metadata.fingerprint = None,
+            11 => bad.staged.metadata.issued_at = Some("invalid".into()),
+            12 => bad.staged.metadata.expires_at = Some("invalid".into()),
+            13 => bad.staged.metadata.updated_at = "invalid".into(),
+            14 => bad.staged.metadata.issuer = Some("x".repeat(513)),
+            15 => bad.staged.next_attempt_at = Some("invalid".into()),
+            16 => bad.staged.retry_delay_seconds = Some(0),
+            17 => bad.base_material_id = Some("short".into()),
+            18 => bad.activation_operation = CertificateOperation::Idle,
+            19 => bad.activation.next_attempt_at = Some("invalid".into()),
+            20 => bad.activation.last_attempt_at = Some("invalid".into()),
+            21 => bad.activation.last_error_code = Some("x".repeat(129)),
+            22 => bad.activation.retry_delay_seconds = Some(0),
+            23 => bad.staged.acme = None,
+            _ => bad.staged.metadata.domains = vec!["example.com".into(); 101],
+        }
+        assert!(
+            !recovery::candidate_is_valid(ID, &bad),
+            "mutation {mutation}"
+        );
+    }
+    assert!(!recovery::candidate_is_valid("../invalid", &candidate));
+    let mut extended = candidate;
+    extended.staged.next_attempt_at = Some("2030-01-01T00:00:00Z".into());
+    extended.staged.retry_delay_seconds = Some(MIN_ACME_RETRY_DELAY_SECONDS);
+    extended.activation.retry_delay_seconds = Some(MIN_CANDIDATE_RETRY_DELAY_SECONDS);
+    assert!(recovery::candidate_is_valid(ID, &extended));
+}
+
+#[tokio::test]
+async fn candidate_commit_rolls_back_journal_and_material_on_persistence_failure() {
+    let (store, _, directory) = retryable_candidate().await;
+    let staged = store
+        .begin_candidate_activation(ID, false)
+        .await
+        .unwrap()
+        .unwrap();
+    let path = directory
+        .0
+        .join("certificates")
+        .join(CERTIFICATE_INDEX_FILE);
+    let bytes = std::fs::read(&path).unwrap();
+    let before = serde_json::to_value(&*store.index.lock().await).unwrap();
+    let fingerprint = store.get(ID).await.unwrap().fingerprint;
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir(&path).unwrap();
+    assert!(matches!(
+        store.commit_staged(&staged).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(
+        serde_json::to_value(&*store.index.lock().await).unwrap(),
+        before
+    );
+    assert_eq!(store.get(ID).await.unwrap().fingerprint, fingerprint);
+    assert!(
+        directory
+            .0
+            .join("certificates")
+            .join(ID)
+            .join(CANDIDATE_MANIFEST_FILE)
+            .is_file()
+    );
+    std::fs::remove_dir(&path).unwrap();
+    std::fs::write(path, bytes).unwrap();
+    let committed = store.commit_staged(&staged).await.unwrap();
+    assert_ne!(committed.fingerprint, fingerprint);
+    assert!(store.pending_candidate_ids().await.unwrap().is_empty());
+    assert_lease_released(&store).await;
+}
+
+#[tokio::test]
+async fn stale_candidate_commit_cannot_replace_missing_or_changed_active_material() {
+    let (store, staged, _directory) = retryable_candidate().await;
+    let before = serde_json::to_value(&*store.index.lock().await).unwrap();
+    let mut wrong = staged.clone();
+    wrong.stored.material_id = Some("0".repeat(64));
+    assert!(matches!(
+        store.commit_staged(&wrong).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(
+        serde_json::to_value(&*store.index.lock().await).unwrap(),
+        before
+    );
+    let active = store.index.lock().await.certificates.remove(ID).unwrap();
+    assert!(matches!(
+        store.commit_staged(&staged).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    store
+        .index
+        .lock()
+        .await
+        .certificates
+        .insert(ID.into(), active.clone());
+    store
+        .index
+        .lock()
+        .await
+        .certificates
+        .get_mut(ID)
+        .unwrap()
+        .material_id = None;
+    assert!(matches!(
+        store.commit_staged(&staged).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    store
+        .index
+        .lock()
+        .await
+        .certificates
+        .insert(ID.into(), active);
+    assert_eq!(
+        serde_json::to_value(&*store.index.lock().await).unwrap(),
+        before
+    );
+}
+
+#[tokio::test]
+async fn legacy_candidate_recovery_reconstructs_missing_operation_and_sidecar() {
+    for indexed_only in [false, true] {
+        let (store, _, _directory) = retryable_candidate().await;
+        let directory = store.certificates_dir().unwrap();
+        let mut index = store.index.lock().await;
+        let mut candidate = index.pending_candidates[ID].clone();
+        candidate.staged.metadata.current_operation = None;
+        index
+            .certificates
+            .get_mut(ID)
+            .unwrap()
+            .metadata
+            .current_operation = None;
+        if indexed_only {
+            index.pending_candidates.insert(ID.into(), candidate);
+            recovery::remove_candidate_manifest(&directory, ID).unwrap();
+        } else {
+            recovery::persist_candidate_manifest(&directory, ID, &candidate).unwrap();
+            index.pending_candidates.remove(ID);
+        }
+        assert!(recovery::reconcile_candidate_manifests(&directory, &mut index).unwrap());
+        let restored = &index.pending_candidates[ID];
+        let operation = restored.staged.metadata.current_operation.as_ref().unwrap();
+        assert_eq!(operation.kind, OperationKind::Renew);
+        assert_eq!(
+            index.certificates[ID]
+                .metadata
+                .current_operation
+                .as_ref()
+                .unwrap()
+                .id,
+            operation.id
+        );
+        if !indexed_only {
+            assert!(
+                index
+                    .events
+                    .iter()
+                    .any(|event| event.operation_id == operation.id
+                        && event.kind == CertificateEventKind::Issued)
+            );
+        }
+        assert!(
+            recovery::read_candidate_manifest(&directory, ID)
+                .unwrap()
+                .is_some()
+        );
+        let operation_id = operation.id.clone();
+        let event_count = index.events.len();
+        recovery::reconcile_candidate_manifests(&directory, &mut index).unwrap();
+        assert_eq!(
+            index.pending_candidates[ID]
+                .staged
+                .metadata
+                .current_operation
+                .as_ref()
+                .unwrap()
+                .id,
+            operation_id
+        );
+        assert_eq!(index.events.len(), event_count);
+    }
+}
+
+#[tokio::test]
+async fn recovered_candidate_cannot_cross_an_active_material_generation() {
+    let (store, _, _directory) = retryable_candidate().await;
+    let directory = store.certificates_dir().unwrap();
+    let mut index = store.index.lock().await;
+    let candidate = index.pending_candidates[ID].clone();
+    let active = index.certificates[ID].clone();
+    index.certificates.get_mut(ID).unwrap().material_id = Some("0".repeat(64));
+    assert!(matches!(
+        recovery::reconcile_candidate_manifests(&directory, &mut index),
+        Err(CertificateError::StoreUnavailable)
+    ));
+    index.pending_candidates.remove(ID);
+    assert!(matches!(
+        recovery::reconcile_candidate_manifests(&directory, &mut index),
+        Err(CertificateError::StoreUnavailable)
+    ));
+    index.certificates.insert(ID.into(), active);
+    recovery::remove_candidate_manifest(&directory, ID).unwrap();
+    index.pending_candidates.insert(ID.into(), candidate);
+    index.certificates.get_mut(ID).unwrap().material_id = Some("0".repeat(64));
+    assert!(matches!(
+        recovery::reconcile_candidate_manifests(&directory, &mut index),
+        Err(CertificateError::StoreUnavailable)
+    ));
+}
+
+#[tokio::test]
+async fn deleting_certificate_rolls_back_renamed_material_when_index_write_fails() {
+    let (store, directory) = active_store().await;
+    let certificates = directory.0.join("certificates");
+    let index_path = certificates.join(CERTIFICATE_INDEX_FILE);
+    let bytes = std::fs::read(&index_path).unwrap();
+    let before = store.get(ID).await.unwrap();
+    let material = store.material(ID).await.unwrap();
+    std::fs::remove_file(&index_path).unwrap();
+    std::fs::create_dir(&index_path).unwrap();
+    assert!(matches!(
+        store.delete_if_unused(ID, false).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(store.get(ID).await.unwrap(), before);
+    assert!(certificates.join(ID).is_dir());
+    assert!(material.fullchain_path.is_file());
+    assert_lease_released(&store).await;
+    std::fs::remove_dir(&index_path).unwrap();
+    std::fs::write(index_path, bytes).unwrap();
+    store.delete_if_unused(ID, false).await.unwrap();
+    assert!(matches!(
+        store.get(ID).await,
+        Err(CertificateError::NotFound)
+    ));
+    assert!(!certificates.join(ID).exists());
+    assert_lease_released(&store).await;
+}
+
+#[tokio::test]
+async fn lost_or_nonregular_material_directory_cannot_be_deleted_as_a_valid_certificate() {
+    let (store, directory) = active_store().await;
+    let path = directory.0.join("certificates").join(ID);
+    let moved = directory.0.join("saved-certificate");
+    let before = store.get(ID).await.unwrap();
+    std::fs::rename(&path, &moved).unwrap();
+    assert!(matches!(
+        store.delete_if_unused(ID, false).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(store.get(ID).await.unwrap(), before);
+    assert_lease_released(&store).await;
+    std::fs::write(&path, b"invalid directory").unwrap();
+    assert!(matches!(
+        store.delete_if_unused(ID, false).await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    assert_eq!(std::fs::read(&path).unwrap(), b"invalid directory");
+    assert_eq!(store.get(ID).await.unwrap(), before);
+    assert_lease_released(&store).await;
+    std::fs::remove_file(&path).unwrap();
+    std::fs::rename(moved, path).unwrap();
+    assert!(store.material(ID).await.is_ok());
+}
+
+#[tokio::test]
 async fn stale_or_busy_candidate_activation_preserves_material_and_releases_lease() {
     let (store, _, _directory) = retryable_candidate().await;
     let (active, candidate, events) = {

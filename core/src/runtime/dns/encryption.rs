@@ -19,6 +19,10 @@ const AES_GCM_NONCE_BYTES: usize = 12;
 const ENCRYPTED_DNS_CONFIG_VERSION: u8 = 1;
 const MAX_KEY_FILE_BYTES: u64 = 4 * 1024;
 
+#[cfg(test)]
+#[path = "../../../tests/private/dns_encryption_boundaries.rs"]
+mod boundary_tests;
+
 pub(crate) fn encrypt(
     config: &DnsProviderConfig,
     certificate_id: &str,

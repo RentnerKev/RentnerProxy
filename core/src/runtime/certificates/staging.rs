@@ -315,3 +315,7 @@ impl CertificateStore {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/private/certificate_staging_boundaries.rs"]
+mod tests;

@@ -113,7 +113,7 @@ export default function useTwoFactorLoginLogic() {
 
     function toggleMode() {
         const nextMode: TwoFactorLoginMode = form.state.values.mode === 'totp' ? 'recovery' : 'totp'
-        form.reset({ mode: nextMode, credential: '' })
+        form.reset({ mode: nextMode, credential: '' }, { keepDefaultValues: true })
         mutation.reset()
     }
     const methods: ReadonlyArray<TwoFactorLoginMode> = status.data?.methods ?? []
