@@ -1,5 +1,6 @@
 import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
+import { Plus, Trash2 } from 'lucide-react'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -105,10 +106,11 @@ export default function AccountPolicyEditor({ form, state, handler }: AccountPol
                                     <button
                                         id={`oidc-remove-mapping-${index}`}
                                         type="button"
-                                        className={buttonClassName('secondary')}
+                                        className={buttonClassName('danger', 'justify-self-start')}
                                         onClick={() => handler.handleRemoveMapping(mapping.rowId)}
                                         disabled={state.isPending || !state.rolesAvailable}
                                     >
+                                        <Trash2 className="size-4" aria-hidden="true" />
                                         {t('oidc.removeMapping')}
                                     </button>
                                 </div>
@@ -116,7 +118,7 @@ export default function AccountPolicyEditor({ form, state, handler }: AccountPol
                             <button
                                 id="oidc-add-mapping"
                                 type="button"
-                                className={buttonClassName('secondary')}
+                                className={buttonClassName('secondary', 'justify-self-start')}
                                 onClick={handler.handleAddMapping}
                                 disabled={
                                     state.isPending ||
@@ -125,6 +127,7 @@ export default function AccountPolicyEditor({ form, state, handler }: AccountPol
                                         OIDC_LIMITS.groupMappings
                                 }
                             >
+                                <Plus className="size-4" aria-hidden="true" />
                                 {t('oidc.addMapping')}
                             </button>
                         </div>

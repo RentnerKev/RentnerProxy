@@ -1,8 +1,10 @@
 import { TextInput, PasswordInput, Textarea, CheckboxInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
+import { Plus, Trash2 } from 'lucide-react'
 import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
 import { ModalActionButton, ModalCancelButton } from '@/shared/Modal/Components/ModalActions.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
 import AccountPolicyEditor from './AccountPolicyEditor.tsx'
@@ -17,7 +19,7 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                 if (!open) handler.handleClose()
             }}
             title={t(state.editing ? 'oidc.edit' : 'oidc.add')}
-            description={t('oidc.editorDescription')}
+            description={null}
             size="lg"
             closeDisabled={state.isPending}
             footer={
@@ -45,6 +47,7 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                 {state.conflict ? (
                     <button
                         type="button"
+                        className={buttonClassName('secondary', 'justify-self-start')}
                         onClick={() => {
                             void handler.handleRefresh()
                         }}
@@ -224,15 +227,21 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                                         ) : null}
                                         <button
                                             type="button"
+                                            className={buttonClassName(
+                                                'danger',
+                                                'justify-self-start',
+                                            )}
                                             disabled={state.isPending}
                                             onClick={() => field.removeValue(index)}
                                         >
+                                            <Trash2 className="size-4" aria-hidden="true" />
                                             {t('oidc.removeBinding')}
                                         </button>
                                     </div>
                                 ))}
                                 <button
                                     type="button"
+                                    className={buttonClassName('secondary', 'justify-self-start')}
                                     disabled={state.isPending || field.state.value.length >= 128}
                                     onClick={() =>
                                         field.pushValue({
@@ -242,6 +251,7 @@ export default function ProviderEditor({ state, handler, form }: OidcProvidersLo
                                         })
                                     }
                                 >
+                                    <Plus className="size-4" aria-hidden="true" />
                                     {t('oidc.addBinding')}
                                 </button>
                             </>

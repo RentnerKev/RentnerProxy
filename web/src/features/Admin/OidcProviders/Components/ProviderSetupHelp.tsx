@@ -35,7 +35,6 @@ export default function ProviderSetupHelp() {
                     </section>
                 </div>
                 <p className="text-muted">{t('oidc.setupGroups')}</p>
-                <p>{t('oidc.setupVerify')}</p>
             </div>
         </details>
     )

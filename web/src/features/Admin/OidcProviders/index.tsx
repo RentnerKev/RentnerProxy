@@ -1,3 +1,5 @@
+import { TextInput } from '@rentnerkev/inputs'
+import { Copy } from 'lucide-react'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
@@ -30,26 +32,35 @@ export default function OidcProvidersPage() {
                     </button>
                 }
             />
-            <section className="mb-6 grid gap-3 rounded-2xl border border-border bg-surface-subtle p-5">
-                <h2 className="font-bold">{t('oidc.callback')}</h2>
+            <section className="mb-6 grid min-w-0 gap-3 rounded-2xl border border-border bg-surface-subtle p-5">
+                <label className="font-bold" htmlFor="oidc-callback-url">
+                    {t('oidc.callback')}
+                </label>
                 {state.callbackUrl ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                        <code className="break-all">{state.callbackUrl}</code>
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                        <div className="min-w-0">
+                            <TextInput
+                                id="oidc-callback-url"
+                                value={state.callbackUrl}
+                                onValueChange={() => undefined}
+                                readOnly
+                            />
+                        </div>
                         <button
                             type="button"
-                            className={buttonClassName('secondary')}
+                            className={buttonClassName('secondary', 'size-12 px-0')}
+                            aria-label={t('oidc.copy')}
+                            title={t('oidc.copy')}
                             onClick={() => {
                                 void handler.handleCopy()
                             }}
                         >
-                            {t('oidc.copy')}
+                            <Copy className="size-4" aria-hidden="true" />
                         </button>
                     </div>
                 ) : state.revision !== null ? (
                     <p className="text-muted">{t('oidc.callbackHint')}</p>
                 ) : null}
-                <p className="text-sm text-muted">{t('oidc.recovery')}</p>
-                <p className="text-sm text-muted">{t('oidc.policy')}</p>
             </section>
             <ProviderSetupHelp />
             <div className="mb-4 flex flex-wrap gap-3">

@@ -515,7 +515,9 @@ describe('OIDC provider setup UI', () => {
     })
     test('loads safe summaries, creates disabled providers, and closes only after a successful save', async () => {
         await render()
-        expect(document.body.textContent).toContain(snapshot.callbackUrl!)
+        const callback = document.getElementById('oidc-callback-url') as HTMLInputElement
+        expect(callback.value).toBe(snapshot.callbackUrl!)
+        expect(callback.readOnly).toBe(true)
         await click(button('Add provider'))
         expect(dialog()).not.toBeNull()
         expect(dialog().getAttribute('aria-labelledby')).toBeTruthy()
