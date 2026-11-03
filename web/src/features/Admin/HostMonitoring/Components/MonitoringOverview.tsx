@@ -71,13 +71,6 @@ export default function MonitoringOverview({
                     className="grid justify-items-start gap-2 text-sm text-danger-text"
                 >
                     <p>{t('admin.hostMonitoring.loadError')}</p>
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        onClick={handler.handleRetry}
-                    >
-                        {t('admin.hostMonitoring.retry')}
-                    </button>
                 </div>
             ) : state.historyLoading ? (
                 <output className="text-sm text-muted">{t('admin.hostMonitoring.loading')}</output>

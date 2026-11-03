@@ -15,7 +15,7 @@ const stateStyles = {
 } as const
 
 export default function CrowdSecOverview({ enabled }: { readonly enabled: boolean }) {
-    const { state, handler } = useCrowdSecOverviewLogic(enabled)
+    const { state } = useCrowdSecOverviewLogic(enabled)
     const { t } = useTranslationStore()
     const configuration = state.configuration
     const runtimeState = configuration?.runtime?.state ?? 'unavailable'
@@ -54,15 +54,6 @@ export default function CrowdSecOverview({ enabled }: { readonly enabled: boolea
                     severity="error"
                     title={t('admin.crowdSec.page.title')}
                     description={t('foundation.crowdSec.loadError')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <div className="mt-5 border-t border-border pt-4" aria-live="polite">

@@ -63,17 +63,24 @@ test('second-factor login distinguishes proof payloads, restart failures and exp
             title: 'toast.titles.error',
         })
         valid = false
-        await hook.run(() => hook.value.handler.handleRetryStatus())
+        await hook.run(() =>
+            hook.client.invalidateQueries({ queryKey: ['auth', 'two-factor-challenge'] }),
+        )
         await flushHook()
         expect(hook.value.state.isValid).toBe(false)
         expect(warning).toHaveBeenCalled()
         await hook.run(() => hook.value.handler.handleShowStatus())
-        status.mockRejectedValueOnce(new Error('status-offline'))
-        await hook.run(() => hook.value.handler.handleRetryStatus())
-        await flushHook()
+        status.mockRejectedValue(new Error('status-offline'))
+        await hook.run(() =>
+            hook.client.invalidateQueries({ queryKey: ['auth', 'two-factor-challenge'] }),
+        )
+        await hook.run(() => new Promise((resolve) => setTimeout(resolve, 800)))
         expect(hook.value.state.isStatusError).toBe(true)
         expect(error).toHaveBeenCalled()
-        await hook.run(() => hook.value.handler.handleRetryStatus())
+        status.mockResolvedValue({ valid, methods: ['totp', 'recovery'] })
+        await hook.run(() =>
+            hook.client.invalidateQueries({ queryKey: ['auth', 'two-factor-challenge'] }),
+        )
         await flushHook()
         expect(hook.value.state.isStatusError).toBe(false)
     } finally {

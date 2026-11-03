@@ -496,7 +496,7 @@ jobs:
               with:
                   context: .
                   file: docker/proxy-runtime/Dockerfile
-                  target: caddy-build
+                  target: caddy-reload-tests
                   load: true
                   push: false
                   tags: response-cache-caddy:test

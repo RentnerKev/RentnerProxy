@@ -172,12 +172,6 @@ export default function useRedirectHostManagementLogic({
         setShowCreate(false)
         setSelected(null)
     }, [])
-    const retry = useCallback(() => {
-        void hostsQuery.refetch()
-    }, [hostsQuery])
-    const retryRuntime = useCallback(() => {
-        void runtimeQuery.refetch()
-    }, [runtimeQuery])
     const openDelete = useCallback(
         (host: RedirectHostSummary) => {
             deleteMutation.reset()
@@ -225,7 +219,6 @@ export default function useRedirectHostManagementLogic({
             },
             runtimeStatus: runtimeQuery.data,
             runtimeStatusError: runtimeQuery.isError,
-            runtimeStatusRetrying: runtimeQuery.isFetching,
             selected,
             showCreate,
         },
@@ -251,8 +244,6 @@ export default function useRedirectHostManagementLogic({
             openDelete,
             openDisable,
             openEditor,
-            retry,
-            retryRuntime,
             setCreateOpen: setShowCreate,
             setDeleteOpen: (open: boolean) => {
                 if (!open) {

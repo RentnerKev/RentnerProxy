@@ -1,11 +1,11 @@
 import '@tanstack/react-start/server-only'
 
-import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
-import { getCurrentSessionService } from './sessions.service.ts'
+import { getCurrentSessionService, requireActiveSessionInTransaction } from './sessions.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 
 export async function requireSessionService(): Promise<CurrentSession> {
     const session = await getCurrentSessionService()
@@ -43,15 +43,8 @@ export async function requireSessionPermission(
     }
 }
 
-export function isSessionRecentlyAuthenticated(session: CurrentSession, now = Date.now()): boolean {
-    const authenticationAge = now - session.reauthenticatedAt.getTime()
-    return authenticationAge >= 0 && authenticationAge <= RECENT_AUTHENTICATION_DURATION_MS
-}
-
-export async function requireRecentAuthenticationForSession(
-    session: CurrentSession,
-): Promise<void> {
-    if (!isSessionRecentlyAuthenticated(session)) {
-        throw new AuthDomainError('reauthentication_required', 'Recent authentication is required.')
-    }
+export async function requireActiveSessionForSession(session: CurrentSession): Promise<void> {
+    await getAuthDatabase().transaction((transaction) =>
+        requireActiveSessionInTransaction(transaction, session),
+    )
 }

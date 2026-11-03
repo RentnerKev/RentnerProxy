@@ -59,9 +59,16 @@ test.each(['expired', 'unavailable'] as const)(
             )
             await new Promise((resolve) => setTimeout(resolve, 20))
         })
-        await act(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 20))
-        })
+        const deadline = Date.now() + 1_500
+        while (!document.querySelector('.rentnerproxy-toast') && Date.now() < deadline) {
+            // oxlint-disable-next-line no-await-in-loop -- Observe the toast only after bounded status retries settle.
+            await act(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 10))
+            })
+        }
+        expect(client!.isFetching()).toBe(0)
+        expect(status).toHaveBeenCalledTimes(kind === 'unavailable' ? 3 : 1)
+        const statusRequestsBeforeReplay = status.mock.calls.length
         const message =
             kind === 'expired'
                 ? 'This authentication request has expired. Start again.'
@@ -85,6 +92,6 @@ test.each(['expired', 'unavailable'] as const)(
         expect(document.querySelector('.rentnerproxy-toast')?.textContent).toContain(message)
         expect(container.textContent).not.toContain(message)
         expect(document.body.textContent).not.toContain('private transport diagnostic')
-        expect(status).toHaveBeenCalledTimes(1)
+        expect(status).toHaveBeenCalledTimes(statusRequestsBeforeReplay)
     },
 )

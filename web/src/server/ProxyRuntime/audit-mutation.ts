@@ -10,7 +10,6 @@ function isPermissionDenial(error: unknown): boolean {
     return (
         code === 'permission_denied' ||
         code === 'authentication_required' ||
-        code === 'reauthentication_required' ||
         code === 'owner_required'
     )
 }

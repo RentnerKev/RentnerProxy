@@ -1,6 +1,14 @@
 import { z } from 'zod'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 
+export const oidcFeedbackCodeSchema = z.enum([
+    'failed',
+    'denied',
+    'unavailable',
+    'expired',
+    'conflict',
+])
+
 /** Rejects hidden URL delimiters and credentials before parsing can normalize provider trust input. */
 function isOidcHttpsUrl(value: string): boolean {
     try {

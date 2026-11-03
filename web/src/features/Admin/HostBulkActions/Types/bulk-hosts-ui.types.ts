@@ -46,7 +46,6 @@ export interface BulkHostModalLogicResult {
         readonly handleAssignmentChange: (assignmentId: string) => void
         readonly handlePreview: () => void
         readonly handleApply: () => void
-        readonly handleRetryOptions: () => void
     }
 }
 export interface BulkHostSelectionParams {

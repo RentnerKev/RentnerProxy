@@ -103,14 +103,14 @@ test('fails closed without canonical PUBLIC_ORIGIN before network activity', asy
     await expect(service(input)).rejects.toMatchObject({ code: 'configuration_unavailable' })
     expect(verify).not.toHaveBeenCalled()
 })
-test('rechecks session freshness after network work', async () => {
+test('rechecks session validity after network work', async () => {
     let checks = 0
     const { service } = fixture({
         authorize: async () => {
-            if (++checks === 2) throw new AuthDomainError('reauthentication_required', 'Expired.')
+            if (++checks === 2) throw new AuthDomainError('authentication_required', 'Expired.')
         },
     })
-    await expect(service(input)).rejects.toMatchObject({ code: 'reauthentication_required' })
+    await expect(service(input)).rejects.toMatchObject({ code: 'authentication_required' })
 })
 test.each(['revision', 'trust', 'removed'] as const)(
     'rejects concurrent %s changes',

@@ -46,6 +46,5 @@ export interface AuditLogsLogicResult {
         readonly previousPage: () => void
         readonly onToggleDetails: (eventId: string) => void
         readonly resetFilters: () => void
-        readonly retry: () => void
     }
 }

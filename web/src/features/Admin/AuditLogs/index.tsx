@@ -5,7 +5,6 @@ import PageHeader from '@/shared/Management/PageHeader.tsx'
 import type { AuditLogsPageProps } from './Types/audit-logs.types.ts'
 import useAuditLogsLogic from './Hooks/useAuditLogsLogic.ts'
 import AuditLogsTable from './Components/AuditLogsTable/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function AuditLogsPage(props: AuditLogsPageProps) {
     const { state, handler } = useAuditLogsLogic(props)
@@ -32,15 +31,6 @@ export default function AuditLogsPage(props: AuditLogsPageProps) {
                     severity="error"
                     title={t('admin.auditLogs.states.unavailableTitle')}
                     description={t('admin.auditLogs.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <AuditLogsTable

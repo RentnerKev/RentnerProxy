@@ -4,6 +4,7 @@ import type { CustomFetch } from 'openid-client'
 import { OIDC_LIMITS } from '@/config/oidc.config.ts'
 import { createOidcProtocolClient } from '@/server/Auth/Oidc/oidc-client.server.ts'
 import type { OidcClientConfiguration } from '@/server/Auth/Oidc/Types/oidc.types.ts'
+import { OidcDomainError } from '@/server/Auth/Oidc/oidc.errors.ts'
 
 const configuration: OidcClientConfiguration = {
     providerId: 'provider',
@@ -114,6 +115,82 @@ function fixture(overrides: Record<string, unknown> = {}, invalidSignature = fal
 const callback = () => new URL(authorization.redirectUri + '?code=one-use&state=state')
 
 describe('OIDC protocol with real signed tokens', () => {
+    test.each([
+        ['access_denied', 'identity_not_allowed'],
+        ['consent_required', 'identity_not_allowed'],
+        ['server_error', 'provider_unavailable'],
+        ['temporarily_unavailable', 'provider_unavailable'],
+        ['secret-provider-specific-error', 'authentication_failed'],
+    ] as const)(
+        'classifies verified SDK authorization response %s without exposing its description',
+        async (protocolCode, code) => {
+            const provider = fixture()
+            const response = new URL(authorization.redirectUri)
+            response.search = new URLSearchParams({
+                state: authorization.state,
+                error: protocolCode,
+                error_description: 'secret-subject-token',
+                error_uri: 'https://attacker.example.test/private',
+            }).toString()
+            const error = await provider.client
+                .exchangeAuthorizationCode(configuration, authorization, response)
+                .catch((caught: unknown) => caught)
+            expect(error).toBeInstanceOf(OidcDomainError)
+            expect(error).toMatchObject({ code, message: code })
+            expect(JSON.stringify(error)).not.toContain('secret')
+            expect(JSON.stringify(error)).not.toContain('attacker')
+            expect(provider.calls.some((url) => url.endsWith('/token'))).toBe(false)
+        },
+    )
+
+    test('does not classify an access denial before the SDK verifies response state', async () => {
+        const provider = fixture()
+        await expect(
+            provider.client.exchangeAuthorizationCode(
+                configuration,
+                authorization,
+                new URL(
+                    authorization.redirectUri +
+                        '?state=wrong&error=access_denied&error_description=secret',
+                ),
+            ),
+        ).rejects.toMatchObject({ code: 'authentication_failed', message: 'authentication_failed' })
+        expect(provider.calls.some((url) => url.endsWith('/token'))).toBe(false)
+    })
+
+    test.each(['/token', '/jwks'])(
+        'preserves provider outage through the SDK customFetch wrapper at %s',
+        async (endpoint) => {
+            const provider = fixture()
+            const client = createOidcProtocolClient({
+                fetch: () => async (url, init) =>
+                    url.endsWith(endpoint)
+                        ? new Response('secret-provider-payload', { status: 503 })
+                        : provider.fetch(url, init),
+            })
+            await expect(
+                client.exchangeAuthorizationCode(configuration, authorization, callback()),
+            ).rejects.toMatchObject({
+                code: 'provider_unavailable',
+                message: 'provider_unavailable',
+            })
+        },
+    )
+
+    test('does not trust a provider error-shaped exception as a domain classification', async () => {
+        const provider = fixture()
+        const client = createOidcProtocolClient({
+            fetch: () => async (url, init) => {
+                if (url.endsWith('/token'))
+                    throw { code: 'identity_not_allowed', message: 'secret-subject-token' }
+                return provider.fetch(url, init)
+            },
+        })
+        await expect(
+            client.exchangeAuthorizationCode(configuration, authorization, callback()),
+        ).rejects.toMatchObject({ code: 'authentication_failed', message: 'authentication_failed' })
+    })
+
     test('builds only code/S256/openid and verifies signature, nonce and identity', async () => {
         const provider = fixture({
             roles: ['owner'],
@@ -140,25 +217,26 @@ describe('OIDC protocol with real signed tokens', () => {
         expect(calls.filter((call) => call.includes('well-known'))).toHaveLength(1)
         await expect(
             client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
     })
     test.each([
-        ['nonce', { nonce: 'other' }],
-        ['issuer', { iss: 'https://other.example' }],
-        ['audience', { aud: 'other' }],
-        ['azp', { azp: 'other' }],
-        ['multiple audiences without azp', { aud: ['client', 'other'] }],
-        ['expired', { exp: 1 }],
-        ['future issued', { iat: Math.floor(Date.now() / 1000) + 120 }],
-        ['empty subject', { sub: '' }],
-        ['non-string subject', { sub: 123 }],
-        ['control subject', { sub: 'bad\nsubject' }],
-        ['missing exp', { exp: undefined }],
-    ])('rejects %s', async (_label, claims) => {
+        ['nonce', { nonce: 'other' }, 'identity_not_allowed'],
+        ['issuer', { iss: 'https://other.example' }, 'identity_not_allowed'],
+        ['audience', { aud: 'other' }, 'identity_not_allowed'],
+        ['azp', { azp: 'other' }, 'identity_not_allowed'],
+        ['multiple audiences without azp', { aud: ['client', 'other'] }, 'identity_not_allowed'],
+        ['expired', { exp: 1 }, 'identity_not_allowed'],
+        ['future issued', { iat: Math.floor(Date.now() / 1000) + 120 }, 'identity_not_allowed'],
+        ['empty subject', { sub: '' }, 'identity_not_allowed'],
+        ['non-string subject', { sub: 123 }, 'authentication_failed'],
+        ['control subject', { sub: 'bad\nsubject' }, 'identity_not_allowed'],
+        ['invalid signed groups', { groups: 'secret-subject-token' }, 'identity_not_allowed'],
+        ['missing exp', { exp: undefined }, 'authentication_failed'],
+    ] as const)('rejects %s', async (_label, claims, code) => {
         const { client } = fixture(claims)
         await expect(
             client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code })
     })
     test.each([1, 5])('accepts issuance clock skew of %s seconds', async (skew) => {
         setSystemTime(new Date('2030-01-01T12:00:00.000Z'))
@@ -182,11 +260,11 @@ describe('OIDC protocol with real signed tokens', () => {
             const future = fixture({ iat: seconds + 6 })
             await expect(
                 future.client.exchangeAuthorizationCode(configuration, authorization, callback()),
-            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            ).rejects.toMatchObject({ code: 'identity_not_allowed' })
             const expired = fixture({ iat: seconds - 10, exp: seconds - 1 })
             await expect(
                 expired.client.exchangeAuthorizationCode(configuration, authorization, callback()),
-            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            ).rejects.toMatchObject({ code: 'identity_not_allowed' })
         } finally {
             setSystemTime()
         }
@@ -360,7 +438,7 @@ describe('OIDC protocol with real signed tokens', () => {
 
         await expect(
             client.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
         expect(provider.calls.filter((url) => url.includes('well-known'))).toHaveLength(2)
         expect(provider.calls.filter((url) => url.endsWith('/token'))).toHaveLength(1)
         expect(provider.calls.filter((url) => url.endsWith('/jwks'))).toHaveLength(0)
@@ -487,7 +565,7 @@ describe('OIDC protocol with real signed tokens', () => {
         })
         await expect(
             oversized.exchangeAuthorizationCode(configuration, authorization, callback()),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'provider_unavailable' })
     })
 })
 

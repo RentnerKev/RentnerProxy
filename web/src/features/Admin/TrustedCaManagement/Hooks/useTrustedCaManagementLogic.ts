@@ -93,9 +93,6 @@ export default function useTrustedCaManagementLogic({
                 if (deleteTarget)
                     await deleteMutation.mutateAsync(deleteTarget.id).catch(() => undefined)
             },
-            retry: () => {
-                void trustedCasQuery.refetch()
-            },
         },
     }
 }

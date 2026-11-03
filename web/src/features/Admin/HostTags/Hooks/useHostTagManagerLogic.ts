@@ -150,9 +150,6 @@ export default function useHostTagManagerLogic(kind: HostKind) {
                         })
                         .catch(() => undefined)
             },
-            retry: () => {
-                void query.refetch()
-            },
         },
         setter: { setIsColorValid },
         refs: { pickerContainer: setPickerContainer },

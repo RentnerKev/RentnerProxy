@@ -5,7 +5,6 @@ import PageHeader from '@/shared/Management/PageHeader.tsx'
 import FoundationStatus from './Components/FoundationStatus/index.tsx'
 import CrowdSecOverview from './Components/CrowdSecOverview/index.tsx'
 import useFoundationStatusLogic from './Hooks/useFoundationStatusLogic.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function FoundationStatusPage({
     permissions,
@@ -13,7 +12,7 @@ export default function FoundationStatusPage({
     readonly permissions: readonly string[]
 }) {
     const { t } = useTranslationStore()
-    const { state, handler } = useFoundationStatusLogic(permissions)
+    const { state } = useFoundationStatusLogic(permissions)
 
     return (
         <>
@@ -33,15 +32,6 @@ export default function FoundationStatusPage({
                     severity="error"
                     title={t('foundation.error.title')}
                     description={t('foundation.error.description')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <FoundationStatus health={state.data} liveStatus={state.liveStatus} compact />

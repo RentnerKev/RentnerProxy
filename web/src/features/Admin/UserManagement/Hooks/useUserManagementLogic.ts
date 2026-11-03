@@ -141,12 +141,6 @@ export default function useUserManagementLogic({
         setShowCreate(false)
         setSelectedUser(null)
     }, [])
-    const retryUsers = useCallback(() => {
-        void usersQuery.refetch()
-    }, [usersQuery])
-    const retryRoles = useCallback(() => {
-        void rolesQuery.refetch()
-    }, [rolesQuery])
     const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
     useQuickAction('createUser', openCreate, canCreate)
@@ -180,8 +174,6 @@ export default function useUserManagementLogic({
             openDisable,
             openEditor,
             refreshCurrentUser,
-            retryRoles,
-            retryUsers,
             setCreateOpen: setShowCreate,
             setDisableOpen,
             setEditorOpen,

@@ -70,8 +70,7 @@ const {
     createSessionService,
     getSessionByTokenService,
     pruneExpiredSessionsInTransaction,
-    requireRecentSessionInTransaction,
-    markSessionReauthenticatedInTransaction,
+    requireActiveSessionInTransaction,
 } = await import('@/server/Auth/Access/sessions.service.ts')
 
 let checks = 0
@@ -258,21 +257,27 @@ try {
     await client`update rentnerproxy.sessions set reauthenticated_at=${old} where id=${current.id}`
     const oldAuthentication = await getSessionByTokenService(current.token)
     assert.ok(oldAuthentication)
-    await assert.rejects(
-        database.transaction((transaction) =>
-            requireRecentSessionInTransaction(transaction, oldAuthentication),
-        ),
-        (error: unknown) => (error as { code?: string }).code === 'reauthentication_required',
+    await database.transaction((transaction) =>
+        requireActiveSessionInTransaction(transaction, oldAuthentication),
     )
     await client`update rentnerproxy.sessions set expires_at=${new Date(Date.now() - 1)} where id=${current.id}`
     assert.equal(await getSessionByTokenService(current.token), null)
-    assert.equal(
-        await database.transaction((transaction) =>
-            markSessionReauthenticatedInTransaction(transaction, oldAuthentication),
+    await assert.rejects(
+        database.transaction((transaction) =>
+            requireActiveSessionInTransaction(transaction, oldAuthentication),
         ),
-        false,
+        (error: unknown) => (error as { code?: string }).code === 'authentication_required',
     )
-    passed('permission denial, expiration and recent-authentication boundaries remain enforced')
+    await client`delete from rentnerproxy.sessions where id=${current.id}`
+    await assert.rejects(
+        database.transaction((transaction) =>
+            requireActiveSessionInTransaction(transaction, oldAuthentication),
+        ),
+        (error: unknown) => (error as { code?: string }).code === 'authentication_required',
+    )
+    passed(
+        'permission denial and expired/revoked sessions remain enforced; authentication age does not gate an active session',
+    )
     console.log(
         'PASS: ' +
             checks +

@@ -3,6 +3,8 @@ import { createOidcLoginService } from '@/server/Auth/Oidc/oidc-login.service.ts
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import type { OidcFlow, OidcFlowDependencies } from '@/server/Auth/Oidc/Types/oidc-flow.types.ts'
 import type { OidcClientConfiguration } from '@/server/Auth/Oidc/Types/oidc.types.ts'
+import { OidcDomainError } from '@/server/Auth/Oidc/oidc.errors.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 function fixture() {
     let flow: OidcFlow | undefined
@@ -123,7 +125,7 @@ describe('OIDC login orchestration', () => {
         expect(value.exchanges()).toBe(1)
         await expect(
             value.service.completeOidcLoginService(value.callback(), value.browserToken, true),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'challenge_expired' })
         expect(value.linked()).toBe(1)
     })
     for (const linking of [false, true]) {
@@ -139,7 +141,7 @@ describe('OIDC login orchestration', () => {
                     value.browserToken,
                     linking,
                 ),
-            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            ).rejects.toMatchObject({ code: 'challenge_expired' })
             expect(value.exchanges()).toBe(0)
             expect(value.linked()).toBe(0)
             expect(value.accepted()).toBe(0)
@@ -177,7 +179,7 @@ describe('OIDC login orchestration', () => {
                 fixtureValue.callback(),
                 createOpaqueToken(),
             ),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'challenge_expired' })
         expect(fixtureValue.accepted()).toBe(0)
         expect(
             await fixtureValue.service.completeOidcLoginService(
@@ -190,7 +192,7 @@ describe('OIDC login orchestration', () => {
                 fixtureValue.callback(),
                 fixtureValue.browserToken,
             ),
-        ).rejects.toMatchObject({ code: 'authentication_failed' })
+        ).rejects.toMatchObject({ code: 'challenge_expired' })
         expect(fixtureValue.accepted()).toBe(1)
     })
 
@@ -202,7 +204,9 @@ describe('OIDC login orchestration', () => {
             else value.changeOrigin()
             await expect(
                 value.service.completeOidcLoginService(value.callback(), value.browserToken),
-            ).rejects.toMatchObject({ code: 'authentication_failed' })
+            ).rejects.toMatchObject({
+                code: change === 'revision' ? 'configuration_conflict' : 'challenge_expired',
+            })
             expect(value.accepted()).toBe(0)
             expect(value.failed()).toBe(1)
         })
@@ -219,7 +223,7 @@ describe('OIDC login orchestration', () => {
         expect(value.accepted()).toBe(0)
         await expect(
             value.service.completeOidcLoginService(value.callback(), value.browserToken),
-        ).rejects.toThrow('authentication_failed')
+        ).rejects.toThrow('challenge_expired')
     })
 
     test('caps concurrent exchanges and releases admission after a rejected operation', async () => {
@@ -245,6 +249,60 @@ describe('OIDC login orchestration', () => {
         await Promise.all(pending)
         await expect(
             service.beginOidcLoginService(value.configuration.providerId),
-        ).rejects.toMatchObject({ code: 'provider_unavailable' })
+        ).rejects.toMatchObject({ code: 'authentication_failed' })
+    })
+
+    test('preserves only recognized failure categories and still audits every unsuccessful completion', async () => {
+        const failures = [
+            [new OidcDomainError('identity_not_allowed'), 'identity_not_allowed'],
+            [new OidcDomainError('provider_unavailable'), 'provider_unavailable'],
+            [new OidcDomainError('configuration_conflict'), 'configuration_conflict'],
+            [
+                new AuthDomainError('authentication_required', 'secret-subject-token'),
+                'authentication_required',
+            ],
+            [new Error('secret-subject-token'), 'authentication_failed'],
+            [
+                { code: 'identity_not_allowed', message: 'secret-subject-token' },
+                'authentication_failed',
+            ],
+        ] as const
+        for (const [failure, code] of failures) {
+            const value = fixture()
+            value.dependencies.protocol.exchangeAuthorizationCode = async () => {
+                throw failure
+            }
+            // oxlint-disable-next-line no-await-in-loop -- Each case owns a fresh single-use browser flow.
+            await value.service.beginOidcLoginService(value.configuration.providerId)
+            // oxlint-disable-next-line no-await-in-loop -- Each case owns a fresh single-use browser flow.
+            const error = await value.service
+                .completeOidcLoginService(value.callback(), value.browserToken)
+                .catch((caught: unknown) => caught)
+            expect(error).toBeInstanceOf(OidcDomainError)
+            expect(error).toMatchObject({ code, message: code })
+            expect(JSON.stringify(error)).not.toContain('secret-subject-token')
+            expect(value.failed()).toBe(1)
+            expect(value.accepted()).toBe(0)
+            // oxlint-disable-next-line no-await-in-loop -- Replay must not redeem the same exchange again.
+            await expect(
+                value.service.completeOidcLoginService(value.callback(), value.browserToken),
+            ).rejects.toMatchObject({ code: 'challenge_expired' })
+            expect(value.failed()).toBe(2)
+        }
+    })
+
+    test('a denied local account does not issue a session and cannot escape the failure audit', async () => {
+        const value = fixture()
+        const service = createOidcLoginService({
+            ...value.dependencies,
+            authenticate: async () => ({ success: false, code: 'invalid_credentials' }),
+            failed: async () => {
+                throw new Error('private-audit-backend-error')
+            },
+        })
+        await service.beginOidcLoginService(value.configuration.providerId)
+        await expect(
+            service.completeOidcLoginService(value.callback(), value.browserToken),
+        ).rejects.toMatchObject({ code: 'identity_not_allowed', message: 'identity_not_allowed' })
     })
 })

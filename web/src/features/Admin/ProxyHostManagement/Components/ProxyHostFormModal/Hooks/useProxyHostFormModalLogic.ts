@@ -228,12 +228,6 @@ export default function useProxyHostFormModalLogic({
                 { title: t('toast.titles.error') },
             ),
     })
-    const retryAssignableCertificates = useCallback(() => {
-        void certificatesQuery.refetch()
-    }, [certificatesQuery])
-    const retryAssignableAccessPolicies = useCallback(() => {
-        void accessPoliciesQuery.refetch()
-    }, [accessPoliciesQuery])
     const form = useForm({
         defaultValues,
         validators: { onSubmit: proxyHostFormSchema },
@@ -453,8 +447,6 @@ export default function useProxyHostFormModalLogic({
             handleSubmit,
             addDomain: domainHandler.addDomain,
             removeDomain: domainHandler.removeDomain,
-            retryAssignableCertificates,
-            retryAssignableAccessPolicies,
             confirmDisable,
             setDisableConfirmationOpen,
             setRequestNewCertificate: (request) => {

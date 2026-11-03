@@ -17,6 +17,7 @@ func fixture(profile string) *debug.BuildInfo {
 			{Path: "github.com/crowdsecurity/crowdsec", Version: "v1.8.2"},
 			{Path: "github.com/hslatman/caddy-crowdsec-bouncer", Version: "v0.14.2-0.20261030164527-4a6ce1d3094d"},
 			{Path: "github.com/mholt/caddy-l4", Version: "v0.1.3-0.20261029145729-f607ccea1b7d"},
+			{Path: caddyModule, Version: "v2.11.7", Replace: &debug.Module{Path: caddySource}},
 			{Path: responseCache, Replace: &debug.Module{Path: "/opt/rentnerproxy-responsecache", Version: "(devel)"}},
 		}
 		info.Settings = []debug.BuildSetting{{Key: "CGO_ENABLED", Value: "0"}}
@@ -101,12 +102,12 @@ func TestCaddyReplacementPolicy(t *testing.T) {
 	}
 	for _, version := range []string{"", "(devel)"} {
 		info = fixture("caddy")
-		info.Deps[4].Replace.Version = version
+		info.Deps[5].Replace.Version = version
 		if err := validate("caddy", info); err != nil {
 			t.Fatalf("rejected local cache version %q: %v", version, err)
 		}
 		for _, path := range []string{"/tmp/wrong-cache-source", "/opt/rentnerproxy-responsecache/other", "github.com/foreign/cache"} {
-			info.Deps[4].Replace.Path = path
+			info.Deps[5].Replace.Path = path
 			if err := validate("caddy", info); err == nil {
 				t.Fatalf("accepted wrong cache source %s with version %q", path, version)
 			}
@@ -164,5 +165,39 @@ func TestReadBinaryAndCLI(t *testing.T) {
 	}
 	if err := validate("caddy", nil); err == nil {
 		t.Fatal("accepted missing metadata")
+	}
+}
+
+func TestCaddyPatchedSourcePolicy(t *testing.T) {
+	for _, version := range []string{"", "(devel)"} {
+		info := fixture("caddy")
+		info.Deps[4].Replace.Version = version
+		if err := validate("caddy", info); err != nil {
+			t.Fatalf("rejected reviewed Caddy source %q: %v", version, err)
+		}
+	}
+	cases := map[string]func(*debug.BuildInfo){
+		"unpatched release":        func(i *debug.BuildInfo) { i.Deps[4].Replace = nil },
+		"wrong original version":   func(i *debug.BuildInfo) { i.Deps[4].Version = "v2.11.8" },
+		"missing original version": func(i *debug.BuildInfo) { i.Deps[4].Version = "" },
+		"wrong source":             func(i *debug.BuildInfo) { i.Deps[4].Replace.Path = "/tmp/caddy-source" },
+		"nested source path":       func(i *debug.BuildInfo) { i.Deps[4].Replace.Path = caddySource + "/other" },
+		"unclean source path":      func(i *debug.BuildInfo) { i.Deps[4].Replace.Path = caddySource + "/../rentnerproxy-caddy-source" },
+		"versioned local source":   func(i *debug.BuildInfo) { i.Deps[4].Replace.Version = "v2.11.7" },
+		"unreviewed fork":          func(i *debug.BuildInfo) { i.Deps[4].Replace.Path = "github.com/foreign/caddy/v2" },
+		"same module replacement":  func(i *debug.BuildInfo) { i.Deps[4].Replace = &debug.Module{Path: caddyModule, Version: "v2.11.7"} },
+		"nested replacement":       func(i *debug.BuildInfo) { i.Deps[4].Replace.Replace = &debug.Module{Path: caddySource} },
+		"missing Caddy":            func(i *debug.BuildInfo) { i.Deps = append(i.Deps[:4], i.Deps[5:]...) },
+		"duplicate Caddy":          func(i *debug.BuildInfo) { i.Deps = append(i.Deps, i.Deps[4]) },
+		"nil dependency":           func(i *debug.BuildInfo) { i.Deps = append(i.Deps, nil) },
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			info := fixture("caddy")
+			mutate(info)
+			if err := validate("caddy", info); err == nil {
+				t.Fatal("accepted unreviewed Caddy build metadata")
+			}
+		})
 	}
 }

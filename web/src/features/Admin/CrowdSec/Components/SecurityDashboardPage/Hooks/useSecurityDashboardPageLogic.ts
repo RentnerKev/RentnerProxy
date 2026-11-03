@@ -41,8 +41,6 @@ export default function useSecurityDashboardPageLogic(permissions: readonly stri
                 query.isError ||
                 liveStatus === 'disconnected' ||
                 (query.data === undefined && query.errorUpdatedAt > 0),
-            isRetrying: query.isFetching,
         },
-        handler: { handleRetry: () => void query.refetch() },
     }
 }

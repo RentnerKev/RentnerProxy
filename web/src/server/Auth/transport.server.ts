@@ -74,7 +74,6 @@ function setDomainErrorStatus(error: unknown): void {
         case 'authentication_required':
             setResponseStatus(401)
             return
-        case 'reauthentication_required':
         case 'permission_denied':
         case 'owner_required':
             setResponseStatus(403)
@@ -110,8 +109,6 @@ function getDomainErrorMessage(error: unknown, fallback: string): string {
     switch (error.code) {
         case 'authentication_required':
             return 'Your session has expired. Sign in again.'
-        case 'reauthentication_required':
-            return 'Confirm your identity to continue.'
         case 'email_conflict':
             return 'This email address is already in use.'
         case 'last_active_owner':

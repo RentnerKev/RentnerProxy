@@ -2,12 +2,10 @@ import { beforeEach, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
-import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import type { PasskeyTestDatabase } from './Types/passkey-state-test.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 const userId = '0198f2f0-0000-7000-8000-000000000001'
-const currentSession = { id: 'existing-session', user: { id: userId } } as CurrentSession
 let stored = {
     id: 'passkey-1',
     counter: 1,
@@ -92,7 +90,7 @@ mock.module('@/server/Valkey/auth-challenges.service.ts', () => ({
     consumeAuthChallenge: async (kind: string, flowId: string) => {
         if (consumed.has(flowId)) return null
         consumed.add(flowId)
-        return { kind, challenge: 'challenge', userId, sessionId: currentSession.id }
+        return { kind, challenge: 'challenge', userId }
     },
 }))
 mock.module('@simplewebauthn/server', () => ({
@@ -118,7 +116,7 @@ mock.module('@simplewebauthn/server', () => ({
     },
 }))
 mock.module('@/server/Auth/Access/authorization.service.ts', () => ({
-    requireRecentAuthenticationForSession: async () => undefined,
+    requireActiveSessionForSession: async () => undefined,
     requireSessionPermission: async () => undefined,
 }))
 mock.module('@/server/Auth/Access/rbac.service.ts', () => ({
@@ -130,11 +128,7 @@ mock.module('@/server/Auth/Access/sessions.service.ts', () => ({
         events.push('session-created')
         return { id: 'new-session', token: 'unit-token', expiresAt: new Date(0) }
     },
-    markSessionReauthenticatedInTransaction: async () => {
-        events.push('session-refreshed')
-        return active
-    },
-    requireRecentSessionInTransaction: async () => undefined,
+    requireActiveSessionInTransaction: async () => undefined,
     revokeOtherUserSessionsInTransaction: async () => {
         events.push('others-revoked')
     },
@@ -145,16 +139,14 @@ mock.module('@/server/Audit/audit.service.ts', () => ({
     },
     recordAuditEventBestEffortService: async () => undefined,
 }))
-const { finishDiscoverablePasskeyAuthenticationService, finishPasskeyReauthenticationService } =
+const { finishDiscoverablePasskeyAuthenticationService } =
     await import('@/server/Auth/Passkey/passkey.service.ts')
 const response = {
     id: 'credential-1',
     response: { userHandle: Buffer.from(userId.replaceAll('-', ''), 'hex').toString('base64url') },
 } as AuthenticationResponseJSON
-function complete(kind: 'login' | 'reauthentication', flowId = 'flow-1') {
-    return kind === 'login'
-        ? finishDiscoverablePasskeyAuthenticationService({ flowId, response })
-        : finishPasskeyReauthenticationService({ currentSession, flowId, response })
+function complete(flowId = 'flow-1') {
+    return finishDiscoverablePasskeyAuthenticationService({ flowId, response })
 }
 beforeEach(() => {
     stored = { ...stored, id: 'passkey-1', counter: 1, backedUp: false, deviceType: 'singleDevice' }
@@ -165,32 +157,32 @@ beforeEach(() => {
     verificationHook = null
     transactionTail = Promise.resolve()
 })
-for (const kind of ['login', 'reauthentication'] as const) {
-    test(`${kind} commits credential metadata before issuing or refreshing a session`, async () => {
-        expect(await complete(kind)).toMatchObject({ success: true })
+{
+    test(`login commits credential metadata before issuing a session`, async () => {
+        expect(await complete()).toMatchObject({ success: true })
         expect(stored).toMatchObject({ counter: 2, backedUp: true, deviceType: 'multiDevice' })
         expect(events[0]).toBe('credential-updated')
-        expect(events[1]).toBe(kind === 'login' ? 'session-created' : 'session-refreshed')
-        expect(await complete(kind)).toEqual({ code: 'challenge_expired', success: false })
+        expect(events[1]).toBe('session-created')
+        expect(await complete()).toEqual({ code: 'challenge_expired', success: false })
     })
     for (const changed of ['counter', 'id'] as const) {
-        test(`${kind} rejects a credential ${changed} changed after verification`, async () => {
+        test(`login rejects a credential ${changed} changed after verification`, async () => {
             beforeTransaction = () => {
                 if (changed === 'counter') stored.counter = 3
                 else stored.id = 'replacement'
             }
-            expect(await complete(kind)).toEqual({ code: 'authentication_failed', success: false })
+            expect(await complete()).toEqual({ code: 'authentication_failed', success: false })
             expect(events).toEqual([])
         })
     }
-    test(`${kind} admits one of two verifications of the same stored counter`, async () => {
+    test(`login admits one of two verifications of the same stored counter`, async () => {
         const barrier = Promise.withResolvers<void>()
         let arrivals = 0
         verificationHook = async () => {
             if (++arrivals === 2) barrier.resolve()
             await barrier.promise
         }
-        const results = await Promise.all([complete(kind, 'first'), complete(kind, 'second')])
+        const results = await Promise.all([complete('first'), complete('second')])
         expect(results.filter((result) => result.success)).toHaveLength(1)
         expect(events.filter((event) => event === 'credential-updated')).toHaveLength(1)
     })
@@ -199,7 +191,7 @@ test('login rechecks inactive users in the session transaction and rolls back th
     beforeTransaction = () => {
         active = false
     }
-    expect(await complete('login')).toEqual({ code: 'authentication_failed', success: false })
+    expect(await complete()).toEqual({ code: 'authentication_failed', success: false })
     expect(stored.counter).toBe(1)
     expect(events).not.toContain('session-created')
 })

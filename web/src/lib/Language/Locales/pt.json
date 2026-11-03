@@ -96,7 +96,8 @@
         "moreDomains": "Mostrar mais {{count}} domínios",
         "clearSelection": "Limpar seleção",
         "edit": "Editar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "automaticRecovery": "A tentar novamente automaticamente…"
     },
     "inputs": {
         "invalidPhone": "Introduza um número de telefone válido.",
@@ -164,7 +165,6 @@
         "loading": "A pesquisar…",
         "noResults": "Não foram encontrados resultados.",
         "unavailable": "Alguns resultados não estão disponíveis. Tente novamente.",
-        "retry": "Tentar novamente",
         "targetUnavailable": "Esta entrada já não está disponível ou as suas permissões foram alteradas.",
         "opening": "A abrir…",
         "resultsLabel": "Resultados da pesquisa",
@@ -230,7 +230,6 @@
         "rateLimited": "Demasiados pedidos. Tente novamente mais tarde.",
         "authUnavailable": "O serviço de autenticação está temporariamente indisponível.",
         "authentication_required": "A sua sessão expirou. Inicie sessão novamente.",
-        "reauthentication_required": "Confirme a sua identidade para continuar.",
         "email_conflict": "Este endereço de e-mail já está a ser utilizado.",
         "last_active_owner": "O último proprietário ativo não pode ser desativado nem alterado.",
         "owner_required": "Só um proprietário pode fazer esta alteração.",
@@ -256,7 +255,17 @@
         },
         "oidc": {
             "signInWith": "Iniciar sessão com {{provider}}",
-            "failed": "Não foi possível iniciar sessão. Tente novamente ou use a sua conta local."
+            "failed": "Não foi possível iniciar sessão. Tente novamente ou use a sua conta local.",
+            "title": "Iniciar sessão com um fornecedor de identidade",
+            "loading": "A carregar fornecedores de autenticação…",
+            "continuing": "A abrir o fornecedor de identidade…",
+            "catalogUnavailable": "Os fornecedores de acesso estão temporariamente indisponíveis. Podes usar a tua conta local.",
+            "unavailable": "Não foi possível contactar o fornecedor de identidade. Tente novamente ou utilize a sua palavra-passe ou chave de acesso local.",
+            "denied": "Esta identidade não tem permissão para iniciar sessão. Contacte o administrador ou utilize a sua conta local.",
+            "expired": "Este pedido de autenticação expirou. Inicie a sessão novamente.",
+            "conflict": "A configuração de autenticação foi alterada. Inicie a sessão novamente.",
+            "localRecovery": "Os proprietários locais podem continuar com uma palavra-passe ou chave de acesso.",
+            "cancel": "Cancelar início de sessão"
         },
         "logoutFailed": "Não foi possível terminar sessão. Verifique a ligação e tente novamente.",
         "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
@@ -415,7 +424,8 @@
             "twoFactor": "Dois fatores",
             "passkeys": "Chaves de acesso",
             "appearance": "Aspeto",
-            "notifications": "Notificações"
+            "notifications": "Notificações",
+            "linkedAccounts": "Contas associadas"
         },
         "notifications": {
             "title": "Notificações",
@@ -528,7 +538,6 @@
         "password": {
             "sectionEyebrow": "Credenciais",
             "title": "Alterar palavra-passe",
-            "currentPassword": "Palavra-passe atual",
             "newPassword": "Nova palavra-passe",
             "confirmNewPassword": "Confirmar nova palavra-passe",
             "changing": "A alterar a palavra-passe…",
@@ -537,8 +546,7 @@
                 "changed": "Palavra-passe alterada. As outras sessões foram terminadas."
             },
             "error": {
-                "update": "Não foi possível alterar a palavra-passe.",
-                "incorrectCurrentPassword": "A palavra-passe atual está incorreta."
+                "update": "Não foi possível alterar a palavra-passe."
             }
         },
         "profileImage": {
@@ -665,23 +673,6 @@
                 "remove": "Não foi possível remover a chave de acesso."
             }
         },
-        "reauthentication": {
-            "title": "Confirmar esta alteração de segurança",
-            "description": "Volte a autenticar-se para continuar. A sessão atual, por si só, não é suficiente.",
-            "currentPassword": "Palavra-passe atual",
-            "confirm": "Confirmar",
-            "usePasskey": "Utilizar uma chave de acesso",
-            "success": {
-                "confirmed": "Identidade confirmada.",
-                "passkeyStarted": "Verificação com chave de acesso iniciada."
-            },
-            "error": {
-                "failed": "A confirmação de identidade falhou.",
-                "incorrectPassword": "A palavra-passe está incorreta.",
-                "passkeyStart": "Não foi possível iniciar a autenticação com chave de acesso.",
-                "passkeyVerification": "A verificação com chave de acesso falhou."
-            }
-        },
         "recoveryCodes": {
             "title": "Guarde os seus códigos de recuperação",
             "description": "Estes códigos só são apresentados uma vez. Cada código só pode ser utilizado uma vez.",
@@ -704,6 +695,33 @@
         "validation": {
             "passwordsDoNotMatch": "As palavras-passe não coincidem.",
             "authenticatorCode": "Introduza o código de seis dígitos da aplicação autenticadora."
+        },
+        "oidc": {
+            "title": "Contas associadas",
+            "description": "Inicia sessão com outro fornecedor.",
+            "empty": "Não existem fornecedores de identidade disponíveis.",
+            "external": "A sua conta é gerida por um fornecedor de identidade. Contacte o administrador para alterar as associações.",
+            "link": "Associar conta",
+            "unlink": "Desassociar conta",
+            "linked": "Associada",
+            "unlinked": "Não associada",
+            "disabled": "Fornecedor desativado",
+            "loading": "A carregar contas associadas…",
+            "pending": "Continue no seu fornecedor. Se cancelou, atualize esta lista.",
+            "unlinkedSuccess": "Conta desassociada. A autenticação local continua disponível.",
+            "linkedSuccess": "Conta associada. Já pode iniciar sessão com este fornecedor.",
+            "noPermission": "Não tem permissão para gerir contas associadas.",
+            "error": {
+                "unavailable": "Não foi possível carregar as contas associadas. Atualize a lista e tente novamente.",
+                "conflict": "As associações foram alteradas. A lista foi atualizada; reveja-a e tente novamente.",
+                "denied": "Precisa de uma palavra-passe ou chave de acesso local e de permissão para alterar esta conta.",
+                "rateLimited": "Demasiadas tentativas. Aguarde um minuto e tente novamente.",
+                "failed": "Não foi possível alterar a associação. Atualize a lista e tente novamente.",
+                "expired": "Este pedido de associação expirou. Comece de novo e confirme a sua identidade local.",
+                "unavailableProvider": "Não foi possível contactar o fornecedor de identidade. Tente associar a conta mais tarde.",
+                "deniedLink": "Não foi possível associar esta identidade. Escolha outra identidade no fornecedor ou contacte o administrador."
+            },
+            "cancel": "Cancelar navegação"
         }
     },
     "admin": {
@@ -1049,7 +1067,6 @@
                 "disabling": "A desativar utilizador…",
                 "enable": "Ativar",
                 "enabling": "A ativar utilizador…",
-                "retryRoles": "Tentar carregar funções novamente",
                 "open": "Abrir ações de {{name}}",
                 "none": "Não há ações disponíveis",
                 "ownerEdit": "Só um proprietário pode editar esta conta.",
@@ -1563,7 +1580,6 @@
                     "ownerHint": "Alguns fornecedores acrescentam o domínio automaticamente. Introduz o nome conforme o teu fornecedor para que o nome completo corresponda ao nome TXT apresentado.",
                     "valuesHint": "Vários valores podem partilhar o mesmo nome. Adiciona cada valor e mantém os outros valores TXT existentes.",
                     "finish": "Concluído",
-                    "retry": "Recarregar os registos TXT",
                     "reused": "A autoridade de certificação reutilizou uma autorização existente. Não são necessários registos TXT. Seleciona Concluído e continua na janela principal.",
                     "blocked": "Fecha o guia e verifica a validação atual do certificado.",
                     "expires": "Os registos TXT expiram em {{expires}}"
@@ -3807,7 +3823,6 @@
             "observationPoint": "As verificações são executadas a partir desta instância do RentnerProxy. A acessibilidade a partir da Internet pública não é verificada.",
             "permissionDenied": "Não tem permissão para ver a monitorização.",
             "loadError": "Não foi possível carregar a monitorização. Tente novamente para atualizar o estado.",
-            "retry": "Tentar novamente",
             "loading": "A carregar a monitorização…",
             "noData": "Ainda não foram registadas verificações.",
             "configure": "Configurar monitorização",
@@ -3844,8 +3859,7 @@
             "historyCap": "Foram carregadas as 300 verificações mais recentes. Restrinja o período ou filtre por estado para explorar mais.",
             "save": "Guardar alterações",
             "close": "Fechar",
-            "conflict": "A monitorização foi alterada noutro local. As suas alterações foram preservadas. Volte a carregar as definições para usar a versão mais recente.",
-            "reload": "Voltar a carregar definições",
+            "conflict": "As definições mudaram. O rascunho é mantido.",
             "saveError": "Não foi possível guardar as definições de monitorização.",
             "saved": "Definições de monitorização guardadas.",
             "invalid": "Verifique as definições e os intervalos permitidos.",
@@ -4137,7 +4151,6 @@
         "url": "URL de redirecionamento",
         "html": "Código HTML",
         "loading": "A carregar o site predefinido…",
-        "reload": "Recarregar definições guardadas",
         "discard": "Descartar alterações",
         "dirty": "Alterações por guardar",
         "clean": "Sem alterações por guardar",
@@ -4157,7 +4170,7 @@
             "custom-html": "HTML personalizado"
         },
         "errors": {
-            "conflict": "As definições foram alteradas noutro local. Recarregue as definições guardadas antes de tentar novamente.",
+            "conflict": "As definições guardadas mudaram. O rascunho é mantido.",
             "loadFailed": "Não foi possível carregar o site predefinido.",
             "saveFailed": "Não foi possível guardar o site predefinido.",
             "invalidSettings": "Escolha definições válidas para o site predefinido.",
@@ -4228,39 +4241,33 @@
     "oidc": {
         "title": "Provedores de identidade",
         "eyebrow": "Segurança",
-        "description": "Configurar o acesso OpenID Connect para contas locais existentes.",
+        "description": "Gere fornecedores de acesso e contas associadas.",
         "add": "Adicionar provedor",
         "edit": "Editar provedor",
         "delete": "Eliminar provedor",
         "deleteConfirm": "Eliminar {{name}}? As suas associações serão removidas. As contas locais permanecem disponíveis.",
-        "editorDescription": "Guardar antes de testar os metadados. Os novos provedores estão desativados.",
         "enabled": "Ativado",
         "disabled": "Desativado",
         "advanced": "Definições avançadas de confiança",
         "basic": "Autenticação do cliente HTTP Basic",
         "post": "Credenciais do cliente no corpo do pedido",
         "bindings": "Associações de identidade",
-        "bindingsHint": "Associar o sujeito exato e imutável a uma conta local ativa existente. Para o alterar, remover a associação e criar outra.",
+        "bindingsHint": "Associa um subject (sub) a uma conta local.",
         "subject": "Sujeito imutável (sub)",
         "localUser": "Conta local",
         "removeBinding": "Remover associação",
         "addBinding": "Adicionar associação",
-        "secretHint": "Deixar vazio para manter o segredo. Novos provedores e alterações ao emissor, cliente, autenticação ou confiança exigem um novo segredo.",
-        "trustHint": "Uma origem HTTPS exata ou rede privada CIDR por linha. Incluir a origem do emissor. Permitir apenas destinos fiáveis. Deixar as origens vazias para utilizar automaticamente a origem do emissor.",
+        "secretHint": "Deixa vazio para manter o segredo. Introduz um novo para novos fornecedores ou alterações de confiança.",
+        "trustHint": "Uma origem HTTPS ou CIDR por linha. Lista de endpoints vazia = origem do emissor.",
         "callback": "URL de retorno",
         "copy": "Copiar URL de retorno",
         "copied": "URL de retorno copiado.",
         "callbackHint": "Configurar PUBLIC_ORIGIN no servidor para obter o URL canónico.",
-        "recovery": "Manter um proprietário local com palavra-passe ou chave de acesso funcional para recuperação. As alterações exigem autenticação local recente.",
-        "policy": "Apenas associações explícitas de sujeitos. Criação automática, correspondência por e-mail, grupos e mapeamento de funções indisponíveis.",
-        "refresh": "Atualizar",
-        "refreshConflict": "Recarregar a configuração guardada?",
         "empty": "Nenhum provedor configurado.",
         "bindingCount": "Associações: {{count}}",
         "test": "Testar provedor guardado",
         "tested": "Metadados verificados. Isto não testa o acesso de um utilizador.",
         "saved": "Configuração guardada.",
-        "reauthenticated": "Autenticação local verificada. Repetir a ação.",
         "unavailableUser": "Conta local indisponível ou inativa",
         "fields": {
             "name": "Nome do provedor",
@@ -4272,10 +4279,9 @@
             "privateCidrs": "Redes CIDR privadas permitidas"
         },
         "errors": {
-            "reauthentication_required": "Verificar a identidade do proprietário local e repetir.",
             "authentication_required": "Iniciar sessão novamente.",
             "owner_required": "É necessário um proprietário local.",
-            "configuration_conflict": "A configuração mudou. Rascunho preservado. Atualizar e repetir explicitamente.",
+            "configuration_conflict": "O fornecedor mudou. O rascunho é mantido.",
             "invalid_input": "Verificar nomes, URLs HTTPS, origens, CIDR, sujeitos únicos e contas. Pode ser necessário um novo segredo.",
             "identity_not_allowed": "Selecionar contas locais ativas com acesso à aplicação.",
             "rate_limited": "Demasiados pedidos. Aguardar antes de repetir.",
@@ -4285,8 +4291,6 @@
             "copy": "Não foi possível copiar o URL.",
             "secret": "É necessário um novo segredo de cliente para este provedor ou alteração de confiança."
         },
-        "reloadTitle": "Recarregar a configuração guardada?",
-        "reloadDescription": "As alterações não guardadas serão descartadas e será carregado o último provedor guardado. Rever antes de alterar.",
         "placeholders": {
             "name": "Provedor de exemplo",
             "issuer": "https://acesso.exemplo.pt",
@@ -4295,6 +4299,33 @@
             "endpointOrigins": "Vazio: origem do emissor automática",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Sujeito exato do provedor"
-        }
+        },
+        "accountPolicy": "Contas e funções",
+        "provisioning": "Criar utilizadores automaticamente",
+        "provisioningHint": "Requer e-mail verificado. As contas existentes não são associadas automaticamente.",
+        "groupClaim": "Claim de grupos",
+        "groupClaimHint": "Claim de nível superior do ID token, por exemplo groups.",
+        "defaultRoles": "Funções predefinidas",
+        "groupMappings": "Mapeamentos de grupos para funções",
+        "group": "Valor exato do grupo",
+        "mappedRoles": "Funções deste grupo",
+        "addMapping": "Adicionar mapeamento de grupo",
+        "removeMapping": "Remover mapeamento de grupo",
+        "rolePolicyHint": "Apenas contas do fornecedor. Os grupos devem corresponder exatamente; grupos ausentes retiram as funções associadas.",
+        "rolesUnavailable": "As funções estão temporariamente indisponíveis.",
+        "provisioningOn": "Criação automática de contas",
+        "provisioningOff": "Apenas associações explícitas de contas",
+        "rolePolicySummary": "Funções predefinidas: {{defaults}} · Mapeamentos de grupos: {{mappings}}",
+        "managedBinding": "Funções geridas por este fornecedor",
+        "setupTitle": "Exemplos de configuração: authentik e Keycloak",
+        "setupClient": "Cliente confidencial · Authorization Code · PKCE S256 · RS256. Usa o URL de callback exato.",
+        "setupAuthentik": "Emissor: https://auth.example.com/application/o/rentnerproxy/. Usa uma chave RSA e mapeamentos profile/email.",
+        "setupKeycloak": "Emissor: https://sso.example.com/realms/rentnerproxy. Ativa a autenticação do cliente e o fluxo padrão; inclui grupos no ID token.",
+        "setupGroups": "Criar contas requer email e email_verified=true. Claim de grupos de nível superior e valores exatos.",
+        "setupAuthentikDocs": "Documentação do authentik",
+        "setupKeycloakDocs": "Documentação do Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak",
+        "discard": "Descartar alterações"
     }
 }

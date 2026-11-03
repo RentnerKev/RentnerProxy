@@ -52,7 +52,6 @@ describe('sensitive action rate-limit placement', () => {
                     id: 'session-id',
                     user: { id: actorId, permissions: ['account.update'] },
                 }),
-                markSessionReauthenticatedInTransaction: async () => {},
                 revokeOtherUserSessionsInTransaction: async () => {},
             }))
             mock.module('./server/Auth/Access/authorization.service.ts', () => ({
@@ -109,7 +108,7 @@ describe('sensitive action rate-limit placement', () => {
             const { changeCurrentPasswordService } = await import('./server/Auth/Account/account.service.ts')
             const { issueInviteService } = await import('./server/Auth/Setup/invites.service.ts')
             const outcomes = await Promise.allSettled([
-                changeCurrentPasswordService({ currentPassword: 'old', password: 'new' }),
+                changeCurrentPasswordService({ password: 'new' }),
                 issueInviteService({
                     displayName: 'New user',
                     email: ' Person@Example.com ',

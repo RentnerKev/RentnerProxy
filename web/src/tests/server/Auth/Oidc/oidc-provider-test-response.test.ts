@@ -45,7 +45,7 @@ test('accepts only a saved reference and delegates once with private responses',
     expect(probe.mock.calls).toHaveLength(1)
     expect(response.headers.get('cache-control')).toBe('private, no-store')
 })
-test.each(['authentication_required', 'owner_required', 'reauthentication_required'] as const)(
+test.each(['authentication_required', 'owner_required'] as const)(
     'rejects %s before pulling the body',
     async (code) => {
         let pulls = 0

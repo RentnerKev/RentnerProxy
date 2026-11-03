@@ -1,5 +1,11 @@
 import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import type useOidcProviderForm from '../Hooks/useOidcProviderForm.ts'
+export interface ProviderAccountPolicyDraft {
+    provisioning: boolean
+    groupClaim: string
+    defaultRoleKeys: string[]
+    groupRoleMappings: { rowId: string; group: string; roleKeys: string[] }[]
+}
 export interface ProviderDraft {
     id: string
     name: string
@@ -17,7 +23,7 @@ export interface ProviderDraft {
         roleSource?: 'local' | 'provider' | undefined
         generation?: number | undefined
     }[]
-    accountPolicy?: OidcProviderSummary['accountPolicy']
+    accountPolicy?: ProviderAccountPolicyDraft
 }
 export interface OidcProvidersLogicResult {
     state: {
@@ -31,27 +37,43 @@ export interface OidcProvidersLogicResult {
         conflict: boolean
         revision: number | null
         userOptions: { value: string; label: string; disabled?: boolean }[]
-        reloadConfirm: boolean
+        roleOptions: { value: string; label: string }[]
+        rolesAvailable: boolean
+        hasLoadError: boolean
         isAvailable: boolean
-        reauthOpen: boolean
-        credential: string
-        reauthPending: boolean
     }
     handler: {
         handleCreate: () => void
         handleEdit: (provider: OidcProviderSummary) => void
         handleClose: () => void
         handleSave: () => Promise<void>
-        handleRefresh: () => Promise<void>
         handleTest: (provider: OidcProviderSummary) => Promise<void>
         handleCopy: () => Promise<void>
         handleDelete: (provider: OidcProviderSummary | null) => void
         handleConfirmDelete: () => Promise<void>
-        handleReauthenticate: (passkey?: boolean) => Promise<void>
-        handleReauthClose: () => void
-        handleReloadConfirm: (open: boolean) => void
-        handleReload: () => Promise<void>
-        handleCredential: (value: string) => void
+        handleDiscard: () => void
+        handlePolicyProvisioning: (value: boolean) => void
+        handlePolicyGroupClaim: (value: string) => void
+        handlePolicyDefaultRoles: (value: string[]) => void
+        handleAddMapping: () => void
+        handleRemoveMapping: (rowId: string) => void
+        handleMappingGroup: (rowId: string, value: string) => void
+        handleMappingRoles: (rowId: string, value: string[]) => void
     }
     form: ReturnType<typeof useOidcProviderForm>
+}
+
+export interface AccountPolicyEditorProps {
+    form: OidcProvidersLogicResult['form']
+    state: Pick<OidcProvidersLogicResult['state'], 'isPending' | 'rolesAvailable' | 'roleOptions'>
+    handler: Pick<
+        OidcProvidersLogicResult['handler'],
+        | 'handlePolicyProvisioning'
+        | 'handlePolicyGroupClaim'
+        | 'handlePolicyDefaultRoles'
+        | 'handleAddMapping'
+        | 'handleRemoveMapping'
+        | 'handleMappingGroup'
+        | 'handleMappingRoles'
+    >
 }

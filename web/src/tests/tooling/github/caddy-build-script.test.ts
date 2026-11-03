@@ -13,6 +13,8 @@ test.skipIf(process.env.RENTNERPROXY_CADDY_BUILD_FIXTURE !== '1' || process.plat
     async () => {
         const owned = [
             '/opt/rentnerproxy-responsecache',
+            '/opt/rentnerproxy-caddy-source',
+            '/tmp/prepare-caddy-source.sh',
             '/usr/bin/caddy',
             '/tmp/verify-buildinfo.go',
             '/tmp/verify-buildinfo',
@@ -33,6 +35,17 @@ test.skipIf(process.env.RENTNERPROXY_CADDY_BUILD_FIXTURE !== '1' || process.plat
                 join(root, 'docker/tooling/buildinfo/verify.go'),
                 '/tmp/verify-buildinfo.go',
             )
+            const prepare = join(directory, 'prepare-caddy-source.sh')
+            await writeFile(
+                prepare,
+                `#!/bin/sh
+set -eu
+printf '%s\\n' '["prepare-caddy-source"]' >> "$FIXTURE_CALLS"
+[ "$FIXTURE_MODE" != preparation ] || exit 1
+mkdir -p /opt/rentnerproxy-caddy-source
+`,
+            )
+            await copyFile(prepare, '/tmp/prepare-caddy-source.sh')
             const fakeCaddy = `#!/usr/bin/env -S bun --no-env-file
 const mode=process.env.FIXTURE_MODE
 if(process.argv[2]==='version')console.log(mode==='version'?'v0.0.0':'v2.11.7 fixture')
@@ -68,6 +81,7 @@ if(name==='xcaddy'){
             for (const mode of [
                 'success',
                 'compiler',
+                'preparation',
                 'build',
                 'validator-build',
                 'metadata',
@@ -77,6 +91,7 @@ if(name==='xcaddy'){
             ]) {
                 const callsPath = join(directory, 'calls')
                 await writeFile(callsPath, '')
+                await rm('/opt/rentnerproxy-caddy-source', { recursive: true, force: true })
                 const child = Bun.spawn(['/bin/sh', script], {
                     cwd: '/tmp/rentnerproxy-caddy',
                     env: {
@@ -98,13 +113,51 @@ if(name==='xcaddy'){
                 ])
                 assert.equal(exit === 0, mode === 'success', mode + ': ' + stderr)
                 const calls = await readFile(callsPath, 'utf8')
-                if (mode === 'compiler') assert.ok(!calls.includes('xcaddy'))
+                if (mode === 'compiler' || mode === 'preparation')
+                    assert.ok(!calls.includes('xcaddy'))
+                if (mode === 'preparation') {
+                    assert.ok(calls.includes('prepare-caddy-source'))
+                    assert.ok(!calls.includes('"edit"'))
+                    assert.equal(existsSync('/opt/rentnerproxy-caddy-source'), false)
+                }
                 if (mode === 'success') {
-                    const compile = calls
+                    const commands = calls
                         .split('\n')
                         .filter((line) => line.startsWith('['))
                         .map((line) => JSON.parse(line) as string[])
-                        .find((args) => args[0] === 'xcaddy')!
+                    const compile = commands.find((args) => args[0] === 'xcaddy')!
+                    const verifyIndex = commands.findIndex(
+                        (args) => args[0] === 'go' && args[1] === 'mod' && args[2] === 'verify',
+                    )
+                    const prepareIndex = commands.findIndex(
+                        (args) => args[0] === 'prepare-caddy-source',
+                    )
+                    const replaceIndex = commands.findIndex(
+                        (args) => args[0] === 'go' && args[1] === 'mod' && args[2] === 'edit',
+                    )
+                    const testIndex = commands.findIndex(
+                        (args) => args[0] === 'go' && args[1] === 'test',
+                    )
+                    const buildIndex = commands.indexOf(compile)
+                    assert.ok(verifyIndex >= 0 && verifyIndex < prepareIndex)
+                    assert.ok(
+                        prepareIndex < replaceIndex &&
+                            replaceIndex < testIndex &&
+                            testIndex < buildIndex,
+                    )
+                    assert.deepEqual(commands[replaceIndex], [
+                        'go',
+                        'mod',
+                        'edit',
+                        '-replace',
+                        'github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
+                    ])
+                    assert.equal(existsSync('/opt/rentnerproxy-caddy-source'), true)
+                    assert.ok(
+                        compile.includes(
+                            'github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
+                        ),
+                    )
                     assert.deepEqual(compile.slice(0, 5), [
                         'xcaddy',
                         'build',

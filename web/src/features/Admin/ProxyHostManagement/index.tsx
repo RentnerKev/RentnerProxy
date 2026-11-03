@@ -79,25 +79,14 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 canApply={state.canApply}
                 isApplying={state.isApplying}
                 onApply={handler.apply}
-                onRetry={handler.retryRuntime}
                 status={state.runtimeStatus}
                 isError={state.runtimeStatusError}
-                isRetrying={state.runtimeStatusRetrying}
             />
             {state.isError ? (
                 <PageAlert
                     severity="error"
                     title={t('admin.proxyHosts.states.unavailableTitle')}
                     description={t('admin.proxyHosts.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <ProxyHostsTable

@@ -96,7 +96,8 @@
         "moreDomains": "Mostrar {{count}} dominios más",
         "clearSelection": "Borrar selección",
         "edit": "Editar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "automaticRecovery": "Reintentando automáticamente…"
     },
     "inputs": {
         "invalidPhone": "Introduce un número de teléfono válido.",
@@ -164,7 +165,6 @@
         "loading": "Buscando…",
         "noResults": "No se encontraron resultados.",
         "unavailable": "Algunos resultados no están disponibles. Inténtalo de nuevo.",
-        "retry": "Reintentar búsqueda",
         "targetUnavailable": "Esta entrada ya no está disponible o tus permisos han cambiado.",
         "opening": "Abriendo…",
         "resultsLabel": "Resultados de búsqueda",
@@ -230,7 +230,6 @@
         "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo más tarde.",
         "authUnavailable": "El servicio de autenticación no está disponible temporalmente.",
         "authentication_required": "Tu sesión ha caducado. Inicia sesión de nuevo.",
-        "reauthentication_required": "Confirma tu identidad para continuar.",
         "email_conflict": "Esta dirección de correo electrónico ya está en uso.",
         "last_active_owner": "No se puede desactivar ni modificar al último propietario activo.",
         "owner_required": "Solo un propietario puede realizar este cambio.",
@@ -256,7 +255,17 @@
         },
         "oidc": {
             "signInWith": "Iniciar sesión con {{provider}}",
-            "failed": "No se pudo iniciar sesión. Inténtalo de nuevo o utiliza tu cuenta local."
+            "failed": "No se pudo iniciar sesión. Inténtalo de nuevo o utiliza tu cuenta local.",
+            "title": "Iniciar sesión con un proveedor de identidad",
+            "loading": "Cargando proveedores de acceso…",
+            "continuing": "Abriendo el proveedor de identidad…",
+            "catalogUnavailable": "Los proveedores de acceso no están disponibles temporalmente. Puedes usar tu cuenta local.",
+            "unavailable": "No se pudo contactar con el proveedor de identidad. Inténtalo de nuevo o utiliza tu contraseña o clave de acceso local.",
+            "denied": "Esta identidad no tiene permiso para iniciar sesión. Contacta con la administración o utiliza tu cuenta local.",
+            "expired": "Esta solicitud de acceso ha caducado. Vuelve a iniciar sesión.",
+            "conflict": "La configuración de acceso ha cambiado. Vuelve a iniciar sesión.",
+            "localRecovery": "Los propietarios locales pueden continuar con una contraseña o clave de acceso.",
+            "cancel": "Cancelar inicio de sesión"
         },
         "logoutFailed": "No se pudo cerrar sesión. Comprueba tu conexión e inténtalo de nuevo.",
         "logoutRevocationFailed": "Has cerrado sesión en este navegador, pero no se pudo revocar la sesión del servidor."
@@ -415,7 +424,8 @@
             "twoFactor": "Dos factores",
             "passkeys": "Claves de acceso",
             "appearance": "Apariencia",
-            "notifications": "Notificaciones"
+            "notifications": "Notificaciones",
+            "linkedAccounts": "Cuentas vinculadas"
         },
         "notifications": {
             "title": "Notificaciones",
@@ -528,7 +538,6 @@
         "password": {
             "sectionEyebrow": "Credenciales",
             "title": "Cambiar contraseña",
-            "currentPassword": "Contraseña actual",
             "newPassword": "Nueva contraseña",
             "confirmNewPassword": "Confirmar nueva contraseña",
             "changing": "Cambiando contraseña…",
@@ -537,8 +546,7 @@
                 "changed": "Contraseña cambiada. Se revocaron las demás sesiones."
             },
             "error": {
-                "update": "No se pudo cambiar la contraseña.",
-                "incorrectCurrentPassword": "La contraseña actual es incorrecta."
+                "update": "No se pudo cambiar la contraseña."
             }
         },
         "profileImage": {
@@ -665,23 +673,6 @@
                 "remove": "No se pudo eliminar la clave de acceso."
             }
         },
-        "reauthentication": {
-            "title": "Confirmar este cambio de seguridad",
-            "description": "Vuelve a autenticarte para continuar. La sesión actual por sí sola no es suficiente.",
-            "currentPassword": "Contraseña actual",
-            "confirm": "Confirmar",
-            "usePasskey": "Usar una clave de acceso en su lugar",
-            "success": {
-                "confirmed": "Identidad confirmada.",
-                "passkeyStarted": "Verificación de clave de acceso iniciada."
-            },
-            "error": {
-                "failed": "La reautenticación falló.",
-                "incorrectPassword": "La contraseña es incorrecta.",
-                "passkeyStart": "No se pudo iniciar la reautenticación con clave de acceso.",
-                "passkeyVerification": "La verificación de la clave de acceso falló."
-            }
-        },
         "recoveryCodes": {
             "title": "Guardar tus códigos de recuperación",
             "description": "Estos códigos se muestran una sola vez. Cada código puede utilizarse una vez.",
@@ -704,6 +695,33 @@
         "validation": {
             "passwordsDoNotMatch": "Las contraseñas no coinciden.",
             "authenticatorCode": "Introduce el código de seis dígitos de tu aplicación de autenticación."
+        },
+        "oidc": {
+            "title": "Cuentas vinculadas",
+            "description": "Inicia sesión con otro proveedor.",
+            "empty": "No hay proveedores de identidad disponibles.",
+            "external": "Un proveedor de identidad administra tu cuenta. Contacta con la administración para cambiar sus vínculos.",
+            "link": "Vincular cuenta",
+            "unlink": "Desvincular cuenta",
+            "linked": "Vinculada",
+            "unlinked": "Sin vincular",
+            "disabled": "Proveedor desactivado",
+            "loading": "Cargando cuentas vinculadas…",
+            "pending": "Continúa en tu proveedor. Si has cancelado, actualiza esta lista.",
+            "unlinkedSuccess": "Cuenta desvinculada. El acceso local sigue disponible.",
+            "linkedSuccess": "Cuenta vinculada. Ya puedes iniciar sesión con este proveedor.",
+            "noPermission": "No tienes permiso para administrar las cuentas vinculadas.",
+            "error": {
+                "unavailable": "No se pudieron cargar las cuentas vinculadas. Actualiza la lista y vuelve a intentarlo.",
+                "conflict": "Los vínculos han cambiado. La lista se ha actualizado; revísala y vuelve a intentarlo.",
+                "denied": "Necesitas una contraseña o clave de acceso local y permiso para modificar esta cuenta.",
+                "rateLimited": "Demasiados intentos. Espera un minuto y vuelve a intentarlo.",
+                "failed": "No se pudo cambiar el vínculo. Actualiza la lista y vuelve a intentarlo.",
+                "expired": "Esta solicitud de vinculación ha caducado. Empieza de nuevo y confirma tu identidad local.",
+                "unavailableProvider": "No se pudo contactar con el proveedor de identidad. Intenta vincular la cuenta más tarde.",
+                "deniedLink": "No se pudo vincular esta identidad. Elige otra identidad del proveedor o contacta con la administración."
+            },
+            "cancel": "Cancelar navegación"
         }
     },
     "admin": {
@@ -1052,7 +1070,6 @@
                 "disabling": "Desactivando usuario…",
                 "enable": "Activar",
                 "enabling": "Activando usuario…",
-                "retryRoles": "Reintentar roles",
                 "open": "Abrir acciones para {{name}}",
                 "none": "No hay acciones disponibles",
                 "ownerEdit": "Solo un propietario puede editar esta cuenta.",
@@ -1551,7 +1568,6 @@
                     "ownerHint": "Algunos proveedores añaden el dominio automáticamente. Introduce el nombre según tu proveedor para que el nombre completo coincida con el nombre TXT mostrado.",
                     "valuesHint": "Varios valores pueden compartir un nombre. Añade todos los valores y conserva los demás valores TXT existentes.",
                     "finish": "Listo",
-                    "retry": "Volver a cargar los registros TXT",
                     "reused": "La autoridad de certificación ha reutilizado una autorización existente. No se necesitan registros TXT. Selecciona Listo y continúa en el diálogo principal.",
                     "blocked": "Cierra la guía y revisa la validación actual del certificado.",
                     "expires": "Los registros TXT caducan el {{expires}}"
@@ -3781,7 +3797,6 @@
             "observationPoint": "Las comprobaciones se ejecutan desde esta instancia de RentnerProxy. No se comprueba la accesibilidad desde Internet pública.",
             "permissionDenied": "No tienes permiso para ver la monitorización.",
             "loadError": "No se pudo cargar la monitorización. Vuelve a intentarlo para actualizar el estado.",
-            "retry": "Reintentar",
             "loading": "Cargando monitorización…",
             "noData": "Aún no se han registrado comprobaciones.",
             "configure": "Configurar monitorización",
@@ -3818,8 +3833,7 @@
             "historyCap": "Se han cargado las 300 comprobaciones más recientes. Limita el periodo o el estado para explorar más.",
             "save": "Guardar cambios",
             "close": "Cerrar",
-            "conflict": "La monitorización ha cambiado en otro lugar. Se conservan tus cambios. Vuelve a cargar la configuración para usar la versión más reciente.",
-            "reload": "Volver a cargar la configuración",
+            "conflict": "La configuración cambió. Se conserva tu borrador.",
             "saveError": "No se pudo guardar la configuración de monitorización.",
             "saved": "Configuración de monitorización guardada.",
             "invalid": "Comprueba la configuración y los límites permitidos.",
@@ -4111,7 +4125,6 @@
         "url": "URL de redirección",
         "html": "Código HTML",
         "loading": "Cargando el sitio predeterminado…",
-        "reload": "Recargar ajustes guardados",
         "discard": "Descartar cambios",
         "dirty": "Cambios sin guardar",
         "clean": "No hay cambios sin guardar",
@@ -4131,7 +4144,7 @@
             "custom-html": "HTML personalizado"
         },
         "errors": {
-            "conflict": "Los ajustes cambiaron en otro lugar. Vuelve a cargar los ajustes guardados antes de intentarlo de nuevo.",
+            "conflict": "La configuración guardada cambió. Se conserva tu borrador.",
             "loadFailed": "No se pudo cargar el sitio predeterminado.",
             "saveFailed": "No se pudo guardar el sitio predeterminado.",
             "invalidSettings": "Elige unos ajustes válidos para el sitio predeterminado.",
@@ -4202,39 +4215,33 @@
     "oidc": {
         "title": "Proveedores de identidad",
         "eyebrow": "Seguridad",
-        "description": "Configurar el acceso OpenID Connect para cuentas locales existentes.",
+        "description": "Gestiona proveedores de acceso y cuentas vinculadas.",
         "add": "Añadir proveedor",
         "edit": "Editar proveedor",
         "delete": "Eliminar proveedor",
         "deleteConfirm": "¿Eliminar {{name}}? Se eliminarán sus vínculos. Las cuentas locales seguirán disponibles.",
-        "editorDescription": "Guardar antes de probar los metadatos. Los proveedores nuevos están desactivados.",
         "enabled": "Activado",
         "disabled": "Desactivado",
         "advanced": "Configuración avanzada de confianza",
         "basic": "Autenticación del cliente HTTP Basic",
         "post": "Credenciales del cliente en el cuerpo",
         "bindings": "Vínculos de identidad",
-        "bindingsHint": "Vincular el sujeto exacto e inmutable a una cuenta local activa existente. Para cambiarlo, eliminar el vínculo y crear otro.",
+        "bindingsHint": "Asigna un subject (sub) a una cuenta local.",
         "subject": "Sujeto inmutable (sub)",
         "localUser": "Cuenta local",
         "removeBinding": "Eliminar vínculo",
         "addBinding": "Añadir vínculo",
-        "secretHint": "Dejar vacío para conservar el secreto. Los proveedores nuevos y los cambios de emisor, cliente, autenticación o confianza requieren un secreto nuevo.",
-        "trustHint": "Un origen HTTPS exacto o red privada CIDR por línea. Incluir el origen del emisor. Permitir solo destinos de confianza. Dejar los orígenes vacíos para usar automáticamente el del emisor.",
+        "secretHint": "Déjalo vacío para conservar el secreto. Introduce uno nuevo al crear proveedores o cambiar la confianza.",
+        "trustHint": "Un origen HTTPS o CIDR por línea. Lista de endpoints vacía = origen del emisor.",
         "callback": "URL de retorno",
         "copy": "Copiar URL de retorno",
         "copied": "URL de retorno copiada.",
         "callbackHint": "Configurar PUBLIC_ORIGIN en el servidor para obtener la URL canónica.",
-        "recovery": "Conservar un propietario local con contraseña o clave de acceso para recuperación. Los cambios requieren autenticación local reciente.",
-        "policy": "Solo se aceptan vínculos explícitos de sujetos. No hay creación automática, coincidencia por correo, grupos ni asignación de roles.",
-        "refresh": "Actualizar",
-        "refreshConflict": "¿Recargar la configuración guardada?",
         "empty": "No hay proveedores configurados.",
         "bindingCount": "Vínculos: {{count}}",
         "test": "Probar proveedor guardado",
         "tested": "Metadatos verificados. Esto no prueba el acceso de un usuario.",
         "saved": "Configuración guardada.",
-        "reauthenticated": "Autenticación local verificada. Reintentar la acción.",
         "unavailableUser": "Cuenta local inactiva o no disponible",
         "fields": {
             "name": "Nombre del proveedor",
@@ -4246,10 +4253,9 @@
             "privateCidrs": "Redes CIDR privadas permitidas"
         },
         "errors": {
-            "reauthentication_required": "Verificar su identidad de propietario local y reintentar.",
             "authentication_required": "Inicie sesión de nuevo.",
             "owner_required": "Se requiere un propietario local.",
-            "configuration_conflict": "La configuración cambió. Se conserva el borrador. Actualizar y reintentar expresamente.",
+            "configuration_conflict": "El proveedor cambió. Se conserva tu borrador.",
             "invalid_input": "Comprobar nombres, URL HTTPS, orígenes, CIDR, sujetos únicos y cuentas. Puede requerirse un secreto nuevo.",
             "identity_not_allowed": "Seleccionar cuentas locales activas con acceso a la aplicación.",
             "rate_limited": "Demasiadas solicitudes. Esperar antes de reintentar.",
@@ -4259,8 +4265,6 @@
             "copy": "No se pudo copiar la URL.",
             "secret": "Se requiere un secreto de cliente nuevo para este proveedor o cambio de confianza."
         },
-        "reloadTitle": "¿Recargar la configuración guardada?",
-        "reloadDescription": "Se descartarán los cambios sin guardar y se cargará el último proveedor guardado. Revisarlo antes de modificarlo.",
         "placeholders": {
             "name": "Proveedor de ejemplo",
             "issuer": "https://acceso.ejemplo.es",
@@ -4269,6 +4273,33 @@
             "endpointOrigins": "Vacío: origen del emisor automático",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Sujeto exacto del proveedor"
-        }
+        },
+        "accountPolicy": "Cuentas y roles",
+        "provisioning": "Crear usuarios automáticamente",
+        "provisioningHint": "Requiere un correo verificado. Las cuentas existentes no se vinculan automáticamente.",
+        "groupClaim": "Claim de grupos",
+        "groupClaimHint": "Claim de nivel superior del ID token, p. ej. groups.",
+        "defaultRoles": "Roles predeterminados",
+        "groupMappings": "Asignaciones de grupos a roles",
+        "group": "Valor exacto del grupo",
+        "mappedRoles": "Roles de este grupo",
+        "addMapping": "Añadir asignación de grupo",
+        "removeMapping": "Eliminar asignación de grupo",
+        "rolePolicyHint": "Solo cuentas del proveedor. Los grupos deben coincidir exactamente; si faltan, se retiran los roles asignados.",
+        "rolesUnavailable": "Los roles no están disponibles temporalmente.",
+        "provisioningOn": "Creación automática de cuentas",
+        "provisioningOff": "Solo vínculos explícitos de cuentas",
+        "rolePolicySummary": "Roles predeterminados: {{defaults}} · Asignaciones de grupos: {{mappings}}",
+        "managedBinding": "Roles administrados por este proveedor",
+        "setupTitle": "Ejemplos de configuración: authentik y Keycloak",
+        "setupClient": "Cliente confidencial · Authorization Code · PKCE S256 · RS256. Usa la URL de callback exacta.",
+        "setupAuthentik": "Emisor: https://auth.example.com/application/o/rentnerproxy/. Usa una clave RSA y mapeos profile/email.",
+        "setupKeycloak": "Emisor: https://sso.example.com/realms/rentnerproxy. Activa la autenticación del cliente y el flujo estándar; incluye grupos en el ID token.",
+        "setupGroups": "Crear cuentas requiere email y email_verified=true. Claim de grupos de nivel superior y valores exactos.",
+        "setupAuthentikDocs": "Documentación de authentik",
+        "setupKeycloakDocs": "Documentación de Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak",
+        "discard": "Descartar cambios"
     }
 }

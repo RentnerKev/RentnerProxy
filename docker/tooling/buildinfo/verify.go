@@ -9,6 +9,8 @@ import (
 )
 
 const crowdsecTags = "netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo,no_db_postgres"
+const caddyModule = "github.com/caddyserver/caddy/v2"
+const caddySource = "/opt/rentnerproxy-caddy-source"
 const responseCache = "github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache"
 
 func main() {
@@ -35,6 +37,7 @@ func validate(profile string, info *debug.BuildInfo) error {
 	switch profile {
 	case "caddy":
 		expected = map[string]string{
+			caddyModule:                                  "v2.11.7",
 			"golang.org/x/net":                           "v0.62.0",
 			"github.com/crowdsecurity/crowdsec":          "v1.8.2",
 			"github.com/hslatman/caddy-crowdsec-bouncer": "v0.14.2-0.20261030164527-4a6ce1d3094d",
@@ -58,6 +61,9 @@ func validate(profile string, info *debug.BuildInfo) error {
 		if dep == nil {
 			return fmt.Errorf("missing dependency metadata")
 		}
+		if profile == "caddy" && dep.Path == caddyModule && dep.Replace == nil {
+			return fmt.Errorf("expected patched local source replacement for %s", caddyModule)
+		}
 		version := dep.Version
 		if profile == "crowdsec" {
 			switch dep.Path {
@@ -69,9 +75,10 @@ func validate(profile string, info *debug.BuildInfo) error {
 			if replacement.Replace != nil || !allowedReplacement(profile, dep.Path, replacement) {
 				return fmt.Errorf("unapproved replacement for %s: %s %s", dep.Path, replacement.Path, replacement.Version)
 			}
-			// Caddy pins the effective version. CrowdSec pins the original
-			// dependency versions and permits only its two reviewed forks.
-			if profile == "caddy" {
+			// Caddy dependencies pin effective versions, except its reviewed
+			// local source which retains the original Caddy release identity.
+			// CrowdSec pins originals and permits only its two reviewed forks.
+			if profile == "caddy" && dep.Path != caddyModule {
 				version = replacement.Version
 			}
 		}
@@ -106,6 +113,9 @@ func validate(profile string, info *debug.BuildInfo) error {
 
 func allowedReplacement(profile, path string, replacement *debug.Module) bool {
 	if profile == "caddy" {
+		if path == caddyModule {
+			return replacement.Path == caddySource && (replacement.Version == "" || replacement.Version == "(devel)")
+		}
 		if path == responseCache {
 			return replacement.Path == "/opt/rentnerproxy-responsecache" && (replacement.Version == "" || replacement.Version == "(devel)")
 		}

@@ -15,6 +15,7 @@ if (!GlobalRegistrator.isRegistered)
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const userId = '11111111-1111-4111-8111-111111111111'
+let rolesUnavailable = false
 mock.module('@/features/Admin/UserManagement/middleware.ts', () => ({
     getUsersHandler: mock(async () => [
         {
@@ -27,23 +28,23 @@ mock.module('@/features/Admin/UserManagement/middleware.ts', () => ({
     ]),
 }))
 mock.module('@/features/Admin/RoleManagement/middleware.ts', () => ({
-    getRolesHandler: mock(async () => [
-        { key: 'member', permissionKeys: [PERMISSIONS.APP_ACCESS] },
-    ]),
+    getRolesHandler: mock(async () => {
+        if (rolesUnavailable) throw new Error('Role catalog unavailable')
+        return [
+            { key: 'member', name: 'Member', permissionKeys: [PERMISSIONS.APP_ACCESS] },
+            { key: 'operator', name: 'Operator', permissionKeys: [] },
+            {
+                key: SYSTEM_ROLES.OWNER,
+                name: 'Owner',
+                isSystem: true,
+                permissionKeys: Object.values(PERMISSIONS),
+            },
+        ]
+    }),
 }))
 mock.module('@/features/Auth/middleware.ts', () => ({
     getAuthStateHandler: mock(async () => ({ setupRequired: false, user: null })),
     logoutHandler: mock(async () => {}),
-}))
-const verifyPassword = mock(async (_input: unknown) => ({ success: true, message: 'ok' }))
-const beginPasskey = mock(async () => ({
-    success: false,
-    message: 'account.reauthentication.error.failed',
-}))
-mock.module('@/features/UserSettings/middleware.ts', () => ({
-    reauthenticatePasswordHandler: verifyPassword,
-    beginPasskeyReauthenticationHandler: beginPasskey,
-    finishPasskeyReauthenticationHandler: mock(async () => ({ success: true })),
 }))
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
@@ -87,6 +88,7 @@ function initial(): OidcProvidersSummary {
     }
 }
 beforeEach(() => {
+    rolesUnavailable = false
     snapshot = initial()
     failure = null
     pendingSave = null
@@ -95,8 +97,6 @@ beforeEach(() => {
     writes.length = 0
     probes.length = 0
     feedback.length = 0
-    verifyPassword.mockClear()
-    beginPasskey.mockClear()
     restores = (['success', 'error'] as const).map((kind) => {
         const spy = spyOn(toast, kind).mockImplementation((message) => {
             feedback.push({ kind, message })
@@ -226,6 +226,16 @@ async function submit() {
 function dialog() {
     return document.querySelector<HTMLElement>('[role="dialog"]')!
 }
+async function selectRole(id: string, label: string) {
+    await click(document.getElementById(id)!)
+    await waitFor(() => document.querySelector('[role="option"]') !== null)
+    const options = [...document.querySelectorAll('[role="option"]')]
+    expect(options.some((option) => option.textContent?.trim() === 'Owner')).toBe(false)
+    const option = options.find((entry) => entry.textContent?.includes(label))
+    expect(option).toBeDefined()
+    await click(option!)
+    await click(document.getElementById(id)!)
+}
 function visible(account: AuthenticatedUser) {
     return getApplicationShellViewModel(account, (key) => key).navigationItems.some(
         (item) => item.to === '/identity-providers',
@@ -233,6 +243,132 @@ function visible(account: AuthenticatedUser) {
 }
 
 describe('OIDC provider setup UI', () => {
+    test('freezes unavailable roles and recovers from live invalidation without a refresh control', async () => {
+        rolesUnavailable = true
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).disabled).toBe(
+            true,
+        )
+        expect((document.getElementById('oidc-default-roles') as HTMLButtonElement).disabled).toBe(
+            true,
+        )
+        await click(button('Cancel', dialog()))
+        rolesUnavailable = false
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-binding-roles'] })
+        })
+        expect(document.body.textContent).not.toContain('Refresh')
+        await click(button('Edit provider'))
+        await waitFor(
+            () => !(document.getElementById('oidc-provisioning') as HTMLInputElement).disabled,
+        )
+        await fill('oidc-name', 'Catalog recovered')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]).not.toHaveProperty('accountPolicy')
+    })
+    test('configures provisioning and exact group grants using existing nonowner roles', async () => {
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).checked).toBe(
+            false,
+        )
+        await click(document.getElementById('oidc-provisioning')!)
+        await fill('oidc-group-claim', 'teams')
+        await selectRole('oidc-default-roles', 'Member')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-0', 'Operators:EU')
+        await selectRole('oidc-group-roles-0', 'Operator')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]!.accountPolicy).toEqual({
+            provisioning: true,
+            groupClaim: 'teams',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [{ group: 'Operators:EU', roleKeys: ['operator'] }],
+        })
+        expect(writes[0]!.providers[0]).not.toHaveProperty('clientSecret')
+        expect(writes[0]!.expectedRevision).toBe(7)
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-provisioning') as HTMLInputElement).checked).toBe(
+            true,
+        )
+        expect((document.getElementById('oidc-group-0') as HTMLInputElement).value).toBe(
+            'Operators:EU',
+        )
+    })
+    test('preserves managed bindings and roles when provisioning is disabled and mapping rows are removed', async () => {
+        snapshot.providers[0]!.accountPolicy = {
+            provisioning: true,
+            groupClaim: 'groups',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [
+                { group: 'Remove', roleKeys: ['member'] },
+                { group: 'Keep', roleKeys: ['operator'] },
+            ],
+        }
+        snapshot.providers[0]!.bindings = [
+            { subject: 'managed-subject', userId, roleSource: 'provider', generation: 6 },
+        ]
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-user-0') as HTMLButtonElement).disabled).toBe(true)
+        await click(document.getElementById('oidc-provisioning')!)
+        await click(document.getElementById('oidc-remove-mapping-0')!)
+        await fill('oidc-group-0', 'Keep Exact Case')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-1', 'Extra')
+        await selectRole('oidc-group-roles-1', 'Member')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]!.accountPolicy).toEqual({
+            provisioning: false,
+            groupClaim: 'groups',
+            defaultRoleKeys: ['member'],
+            groupRoleMappings: [
+                { group: 'Keep Exact Case', roleKeys: ['operator'] },
+                { group: 'Extra', roleKeys: ['member'] },
+            ],
+        })
+        expect(writes[0]!.providers[0]!.bindings).toEqual([
+            { subject: 'managed-subject', userId, roleSource: 'provider', generation: 6 },
+        ])
+    })
+    test('rejects duplicate exact group mappings before issuing any provider mutation', async () => {
+        await render()
+        await click(button('Edit provider'))
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-0', 'Operators')
+        await click(document.getElementById('oidc-add-mapping')!)
+        await fill('oidc-group-1', 'Operators')
+        await submit()
+        await waitFor(() => feedback.some((item) => item.kind === 'error'))
+        expect(writes).toHaveLength(0)
+        expect(dialog()).not.toBeNull()
+        expect((document.getElementById('oidc-group-0') as HTMLInputElement).value).toBe(
+            'Operators',
+        )
+        await fill('oidc-group-1', 'operators')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(
+            writes[0]!.providers[0]!.accountPolicy!.groupRoleMappings.map(
+                (mapping) => mapping.group,
+            ),
+        ).toEqual(['Operators', 'operators'])
+    })
+    test('unrelated edits leave old providers without account policy unchanged', async () => {
+        await render()
+        await click(button('Edit provider'))
+        expect((document.getElementById('oidc-group-claim') as HTMLInputElement).value).toBe(
+            'groups',
+        )
+        await fill('oidc-name', 'Legacy SSO')
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.providers[0]).not.toHaveProperty('accountPolicy')
+    })
     test('only owners receive navigation and the actual route guard redirects a fully privileged nonowner', async () => {
         const user: AuthenticatedUser = {
             id: userId,
@@ -273,21 +409,29 @@ describe('OIDC provider setup UI', () => {
             }),
         )
     })
-    test('keeps saved cards visible through refresh and reports an unavailable refresh with a toast', async () => {
+    test('keeps saved cards through live reads and automatically adopts recovered query data', async () => {
         await render()
         const card = document.querySelector('article')!
         let release!: () => void
         pendingRead = new Promise((resolve) => {
             release = resolve
         })
-        await click(button('Refresh'))
+        await act(async () => {
+            void client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
         expect(document.querySelector('article') === card).toBe(true)
         expect(document.querySelector('[role="status"]')).toBeNull()
         readUnavailable = true
         await act(async () => release())
-        await waitFor(() => feedback.some((item) => item.kind === 'error'))
+        await waitFor(() => document.querySelector('[role="alert"]') !== null)
         expect(button('Add provider').disabled).toBe(true)
         expect(writes).toHaveLength(0)
+        readUnavailable = false
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        await waitFor(() => !button('Add provider').disabled)
+        expect(document.querySelector('article') === card).toBe(true)
     })
     test('Escape closes the editor and clears a draft client secret before reopening', async () => {
         await render()
@@ -332,45 +476,29 @@ describe('OIDC provider setup UI', () => {
         await waitFor(() => writes.length === 2 && !dialog())
         expect(writes[1]!.providers[0]!.bindings).toEqual([])
     })
-    test('reauthentication clears closed credentials, preserves the draft, and allows an explicit retry', async () => {
+    test('session expiry preserves the draft and reports sign-in failure without a credential dialog', async () => {
         await render()
         await click(button('Edit provider'))
-        await fill('oidc-name', 'Draft after reauth')
-        failure = 'reauthentication_required'
+        await fill('oidc-name', 'Draft after expiry')
+        failure = 'authentication_required'
         await submit()
-        await waitFor(() => document.getElementById('reauth-password') !== null)
-        await fill('reauth-password', 'fixture-password')
-        const reauthDialog = document.getElementById('reauth-password')!.closest('[role="dialog"]')!
-        await click(button('Cancel', reauthDialog))
+        await waitFor(() => feedback.some((item) => item.message === 'Sign in again.'))
         expect(document.getElementById('reauth-password')).toBeNull()
         expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe(
-            'Draft after reauth',
+            'Draft after expiry',
         )
-        await submit()
-        await waitFor(() => document.getElementById('reauth-password') !== null)
-        expect((document.getElementById('reauth-password') as HTMLInputElement).value).toBe('')
-        await fill('reauth-password', 'second-fixture-password')
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+        expect(writes).toHaveLength(1)
         failure = null
-        await click(
-            button(
-                'Confirm',
-                document.getElementById('reauth-password')!.closest('[role="dialog"]')!,
-            ),
-        )
-        await waitFor(() => document.getElementById('reauth-password') === null)
-        expect(verifyPassword).toHaveBeenCalledTimes(1)
-        expect(verifyPassword.mock.calls[0]).toEqual([
-            { data: { credential: 'second-fixture-password' } },
-        ])
-        expect(writes).toHaveLength(2)
         await submit()
-        await waitFor(() => writes.length === 3 && !dialog())
-        expect(writes[2]!.providers[0]!.name).toBe('Draft after reauth')
-        expect(document.body.textContent).not.toContain('fixture-password')
+        await waitFor(() => writes.length === 2 && !dialog())
+        expect(writes[1]!.providers[0]!.name).toBe('Draft after expiry')
     })
     test('loads safe summaries, creates disabled providers, and closes only after a successful save', async () => {
         await render()
-        expect(document.body.textContent).toContain(snapshot.callbackUrl!)
+        const callback = document.getElementById('oidc-callback-url') as HTMLInputElement
+        expect(callback.value).toBe(snapshot.callbackUrl!)
+        expect(callback.readOnly).toBe(true)
         await click(button('Add provider'))
         expect(dialog()).not.toBeNull()
         expect(dialog().getAttribute('aria-labelledby')).toBeTruthy()
@@ -429,10 +557,19 @@ describe('OIDC provider setup UI', () => {
         expect(document.body.textContent).toContain('Company SSO')
         expect(document.body.textContent).not.toContain('fixture-secret')
     })
-    test('a conflict preserves the draft and blocks repeat writes until an explicit reload', async () => {
+    test('a conflict preserves the draft while latest data arrives and discard is local', async () => {
         await render()
         await click(button('Edit provider'))
         await fill('oidc-name', 'My unsaved name')
+        snapshot = {
+            ...snapshot,
+            revision: 9,
+            providers: snapshot.providers.map((provider) => ({
+                ...provider,
+                name: 'Remote name',
+                revision: 9,
+            })),
+        }
         failure = 'configuration_conflict'
         await submit()
         await waitFor(() => feedback.some((item) => item.kind === 'error'))
@@ -442,22 +579,73 @@ describe('OIDC provider setup UI', () => {
         expect(button('Save changes', dialog()).disabled).toBe(true)
         await submit()
         expect(writes).toHaveLength(1)
-        snapshot = { ...snapshot, revision: 9 }
         failure = null
-        await click(button('Reload saved configuration?', dialog()))
-        const confirmation = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
-            (item) => item !== dialog(),
-        )!
+        await waitFor(
+            () => document.querySelector('article')?.textContent?.includes('Remote name') === true,
+        )
         expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe(
             'My unsaved name',
         )
-        await click(button('Confirm', confirmation))
+        readUnavailable = true
+        await click(button('Discard changes', dialog()))
         await waitFor(() => !button('Save changes', dialog()).disabled)
-        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('Company SSO')
+        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('Remote name')
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+        readUnavailable = false
         await fill('oidc-name', 'Explicit retry')
         await submit()
         await waitFor(() => writes.length === 2 && !dialog())
         expect(writes[1]!.expectedRevision).toBe(9)
+    })
+    test('a clean open editor follows new provider data without remounting its fields', async () => {
+        await render()
+        await click(button('Edit provider'))
+        const input = document.getElementById('oidc-name') as HTMLInputElement
+        snapshot = {
+            ...snapshot,
+            revision: 8,
+            providers: snapshot.providers.map((provider) => ({
+                ...provider,
+                revision: 8,
+                name: 'Live name',
+            })),
+        }
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        await waitFor(() => input.value === 'Live name')
+        expect(document.getElementById('oidc-name')).toBe(input)
+        expect(button('Save changes', dialog()).disabled).toBe(false)
+    })
+    test('unrelated provider changes update the save revision while retaining dirty fields', async () => {
+        await render()
+        await click(button('Edit provider'))
+        await fill('oidc-name', 'My draft')
+        snapshot = {
+            ...snapshot,
+            revision: 10,
+            providers: [
+                ...snapshot.providers,
+                {
+                    ...snapshot.providers[0]!,
+                    id: '33333333-3333-4333-8333-333333333333',
+                    name: 'Other provider',
+                    revision: 10,
+                },
+            ],
+        }
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: ['admin', 'oidc-providers'] })
+        })
+        expect((document.getElementById('oidc-name') as HTMLInputElement).value).toBe('My draft')
+        expect(button('Save changes', dialog()).disabled).toBe(false)
+        await submit()
+        await waitFor(() => writes.length === 1 && !dialog())
+        expect(writes[0]!.expectedRevision).toBe(10)
+        expect(writes[0]!.providers.map((provider) => provider.name)).toEqual([
+            'Other provider',
+            'My draft',
+        ])
     })
     test('deletion requires confirmation and cancel leaves configuration intact', async () => {
         await render()

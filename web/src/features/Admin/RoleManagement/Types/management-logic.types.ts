@@ -23,7 +23,6 @@ export interface RoleManagementLogicResult {
         readonly openDelete: (value: RoleManagementSummary) => void
         readonly openEditor: (value: RoleManagementSummary) => void
         readonly refreshCurrentUser: () => Promise<void>
-        readonly retry: () => void
         readonly setCreateOpen: (open: boolean) => void
         readonly setDeleteOpen: (open: boolean) => void
         readonly setEditorOpen: (open: boolean) => void

@@ -259,7 +259,6 @@ describe('runtime alert integration', () => {
     })
 
     test('distinguishes a refresh failure from loading and clears synchronized status', async () => {
-        const retry = mock(() => undefined)
         await render(
             <RuntimeStatusPanel
                 translationPrefix="admin.proxyHosts.runtime"
@@ -277,7 +276,6 @@ describe('runtime alert integration', () => {
                 isApplying={false}
                 isError
                 onApply={() => undefined}
-                onRetry={retry}
                 status={pending}
             />,
         )
@@ -285,8 +283,7 @@ describe('runtime alert integration', () => {
         const details = await openPageAlerts()
         expect(details.textContent).toContain('Proxy runtime unavailable.')
         expect(details.textContent).not.toContain('Apply changes')
-        await act(async () => details.querySelector<HTMLButtonElement>('li button')?.click())
-        expect(retry).toHaveBeenCalledTimes(1)
+        expect(details.querySelector('li button')).toBeNull()
         await render(
             <RuntimeStatusPanel
                 translationPrefix="admin.proxyHosts.runtime"

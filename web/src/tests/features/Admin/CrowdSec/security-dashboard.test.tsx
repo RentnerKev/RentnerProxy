@@ -293,34 +293,28 @@ beforeEach(() => {
     forwardAuthSummaryMock.mockClear()
 })
 
-test('moves configuration failures into the navbar and disables retry until recovery completes', async () => {
+test('moves configuration failures into the navbar and recovers from a live snapshot', async () => {
     configurationFetchFails = true
     const container = await renderPage()
     await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
-    expect(container.querySelector('main')?.textContent).not.toContain('Try again')
     expect(container.textContent).not.toContain('private connection diagnostics')
     const details = await openPageAlerts()
-    const retry = [...details.querySelectorAll('button')].find(
-        (button) => button.textContent === 'Try again',
-    )!
-    expect(retry).toBeDefined()
-    const retryRequest = Promise.withResolvers<CrowdSecConfiguration>()
-    configurationGate = retryRequest.promise
-    await act(async () => retry.click())
-    await waitFor(() => retry.disabled)
-    await act(async () => retry.click())
-    expect(configurationMock).toHaveBeenCalledTimes(2)
+    expect(
+        [...details.querySelectorAll('button')].some(
+            (button) => button.textContent === 'Try again',
+        ),
+    ).toBeFalse()
     await act(async () => {
-        configurationGate = null
-        configurationFetchFails = false
-        retryRequest.resolve(configuration)
+        const socket = FakeSocket.instances[0]!
+        socket.open()
+        socket.deliver('crowdsec-configuration', configuration)
     })
     await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
     await waitFor(() => container.querySelector('button[data-severity]') === null)
-    expect(document.querySelector('[role="dialog"][aria-label="Page alerts"]')).toBeNull()
+    expect(configurationMock).toHaveBeenCalledTimes(1)
 })
 
-test('retains cached dashboard data when configuration refresh fails and clears the navbar alert after retry', async () => {
+test('retains cached dashboard data when configuration refresh fails and clears its alert on a live snapshot', async () => {
     const container = await renderPage()
     await waitFor(() => container.textContent?.includes('2001:db8::/64') === true)
     configurationFetchFails = true
@@ -332,15 +326,15 @@ test('retains cached dashboard data when configuration refresh fails and clears 
     })
     await waitFor(() => container.querySelector('button[data-severity="error"]') !== null)
     expect(container.querySelector('main')?.textContent).toContain('2001:db8::/64')
-    const details = await openPageAlerts()
-    const retry = [...details.querySelectorAll('button')].find(
-        (button) => button.textContent === 'Try again',
-    )!
-    configurationFetchFails = false
-    await act(async () => retry.click())
+    await act(async () => {
+        const socket = FakeSocket.instances[0]!
+        socket.open()
+        socket.deliver('crowdsec-configuration', configuration)
+    })
     await waitFor(() => container.querySelector('button[data-severity]') === null)
     expect(container.querySelector('main')?.textContent).toContain('2001:db8::/64')
 })
+
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = null

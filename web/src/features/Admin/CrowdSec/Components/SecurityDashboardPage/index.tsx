@@ -5,12 +5,11 @@ import PageHeader from '@/shared/Management/PageHeader.tsx'
 import useSecurityDashboardPageLogic from './Hooks/useSecurityDashboardPageLogic.ts'
 import CrowdSecDashboardPanel from '../CrowdSecDashboardPanel/index.tsx'
 import ForwardAuthSummaryPanel from '../ForwardAuthSummaryPanel/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import type { CrowdSecPageProps } from '../../Types/crowdsec.types.ts'
 
 export default function SecurityDashboardPage({ permissions }: CrowdSecPageProps) {
     const { t } = useTranslationStore()
-    const { state, handler } = useSecurityDashboardPageLogic(permissions)
+    const { state } = useSecurityDashboardPageLogic(permissions)
     return (
         <>
             <PageHeader
@@ -24,16 +23,6 @@ export default function SecurityDashboardPage({ permissions }: CrowdSecPageProps
                     severity="error"
                     title={t('admin.crowdSec.statesPage.unavailableTitle')}
                     description={t('admin.crowdSec.statesPage.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.handleRetry}
-                            disabled={state.isRetrying}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : null}
             {state.configuration ? (

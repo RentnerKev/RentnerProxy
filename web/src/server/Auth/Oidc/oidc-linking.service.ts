@@ -8,7 +8,7 @@ import { requireSessionService } from '@/server/Auth/Access/authorization.servic
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import {
     lockActiveUserForAuthenticationInTransaction,
-    requireRecentSessionInTransaction,
+    requireActiveSessionInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
@@ -52,7 +52,7 @@ async function requireIndependentLocalAccount(
         .limit(1)
     if (!user || user.oidcProviderId || (!user.passwordHash && !passkey))
         throw new OidcDomainError('identity_not_allowed')
-    await requireRecentSessionInTransaction(transaction, session)
+    await requireActiveSessionInTransaction(transaction, session)
 }
 
 /** Changes document revision for stale owner drafts; individual bindings retain their own generation. */
@@ -76,7 +76,7 @@ async function commitLinkSettings(
     })
 }
 
-/** Checks fresh local consent before a browser-bound authorization flow is issued. */
+/** Checks the active local session before a browser-bound authorization flow is issued. */
 export async function authorizeOidcLinkService(providerId: string): Promise<OidcLinkTarget> {
     const session = await requireSessionService()
     await consumeRateLimit({ ...OIDC_CONFIGURATION_RATE_LIMIT, identifier: session.user.id })

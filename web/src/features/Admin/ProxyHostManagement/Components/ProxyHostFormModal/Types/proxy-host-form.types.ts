@@ -92,8 +92,6 @@ export interface ProxyHostFormModalHandler {
     readonly handlePreviousGuideStep: () => void
     readonly addDomain: () => void
     readonly removeDomain: (index: number) => void
-    readonly retryAssignableCertificates: () => void
-    readonly retryAssignableAccessPolicies: () => void
     readonly handleSubmit: FormEventHandler<HTMLFormElement>
     readonly confirmDisable: () => Promise<void>
     readonly setDisableConfirmationOpen: (open: boolean) => void
@@ -128,12 +126,7 @@ export type ProxyHostFormFieldsProps = Pick<
 > &
     Pick<
         ProxyHostFormModalHandler,
-        | 'handleBrowserCacheChange'
-        | 'addDomain'
-        | 'removeDomain'
-        | 'retryAssignableCertificates'
-        | 'retryAssignableAccessPolicies'
-        | 'setRequestNewCertificate'
+        'handleBrowserCacheChange' | 'addDomain' | 'removeDomain' | 'setRequestNewCertificate'
     >
 
 export type ProxyHostFormModalFooterProps = Pick<

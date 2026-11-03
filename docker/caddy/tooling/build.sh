@@ -6,10 +6,19 @@ GOWORK=off go build -o /tmp/verify-buildinfo /tmp/verify-buildinfo.go
 cd /opt/rentnerproxy-responsecache
 GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" go mod download
 go mod verify
+/bin/sh /tmp/prepare-caddy-source.sh
+go mod edit -replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source
+# Exercise the backport with the same dependency graph as the shipped modules.
+go test -mod=readonly -short -timeout=120s -p=1 \
+    github.com/caddyserver/caddy/v2 \
+    github.com/caddyserver/caddy/v2/modules/caddyhttp \
+    github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy \
+    github.com/caddyserver/caddy/v2/modules/caddytls
 go test -mod=readonly ./...
 cd /tmp/rentnerproxy-caddy
 # A later tag on the same commit must not change the reviewed effective module version.
 GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0" xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
+        --replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source \
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_VERSION:?Caddy builder must pin the upstream CrowdSec module} \
         --with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache \
         --replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module} \

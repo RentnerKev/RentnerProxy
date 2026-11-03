@@ -11,6 +11,7 @@ import {
     OIDC_RATE_LIMIT,
 } from '@/config/oidc.config.ts'
 import { readBoundedStream } from '@/lib/Http/readBoundedStream.ts'
+import type { OidcFeedbackCode } from '@/lib/Auth/Oidc/Types/oidc-feedback.types.ts'
 import { getPublicOrigin } from '@/server/env.server.ts'
 import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
@@ -21,6 +22,7 @@ import {
     completeOidcLoginService,
 } from './oidc-login.service.ts'
 import { getOidcClientIp } from './oidc-request-ip.server.ts'
+import { getOidcFeedbackCode, normalizeOidcFlowError, OidcDomainError } from './oidc.errors.ts'
 import type { OidcHttpHandlerDependencies } from './Types/oidc-response.types.ts'
 
 const forbiddenCallbackKeys = new Set([
@@ -72,11 +74,25 @@ function cookie(name: string, value: string, path: string, expiresAt: Date, orig
 }
 
 function redirect(
-    path: '/' | '/login/two-factor' | '/login?oidcError=failed',
+    path:
+        | '/'
+        | '/login/two-factor'
+        | '/account?section=linked-accounts&oidcResult=linked'
+        | `/login?oidcError=${OidcFeedbackCode}`
+        | `/account?section=linked-accounts&oidcError=${OidcFeedbackCode}`,
     headers = responseHeaders(),
 ) {
     headers.set('Location', path)
     return new Response(null, { status: 303, headers })
+}
+
+function failureRedirect(error: unknown, linking: boolean, headers: Headers): Response {
+    const failure = normalizeOidcFlowError(error)
+    const feedback = getOidcFeedbackCode(failure)
+    // A session may have expired between the initial context check and local authorization.
+    return linking && failure.code !== 'authentication_required'
+        ? redirect(`/account?section=linked-accounts&oidcError=${feedback}`, headers)
+        : redirect(`/login?oidcError=${feedback}`, headers)
 }
 
 /** Commits a same-origin document before navigation, retaining CSP restrictions on native form submissions. */
@@ -108,6 +124,13 @@ function isSameOriginLoginStart(request: Request, origin: string): boolean {
 
 /** Raw auth endpoints expose only navigation destinations and fixed callback/error redirects. */
 export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies) {
+    async function failureSessionContext(): Promise<boolean> {
+        try {
+            return await dependencies.signedIn()
+        } catch {
+            return false
+        }
+    }
     return {
         /** Accepts a bounded same-origin provider selection and starts a native browser navigation. */
         async start(request: Request): Promise<Response> {
@@ -121,6 +144,10 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                 'application/x-www-form-urlencoded'
             )
                 return new Response(null, { status: 415, headers })
+            let linking = false
+            let signedIn = false
+            let intentChecked = false
+            let sessionChecked = false
             try {
                 await dependencies.limit()
                 if (!request.body) throw new Error('invalid_input')
@@ -136,14 +163,16 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                 const body = new URLSearchParams(
                     new TextDecoder('utf-8', { fatal: true }).decode(bytes),
                 )
-                const linking = body.get('intent') === 'link'
+                linking = body.getAll('intent').length === 1 && body.get('intent') === 'link'
+                intentChecked = true
+                sessionChecked = true
+                signedIn = await dependencies.signedIn()
                 if (
                     [...body.keys()].length !== (linking ? 2 : 1) ||
                     body.getAll('providerId').length !== 1 ||
                     (linking && body.getAll('intent').length !== 1)
                 )
                     throw new Error('invalid_input')
-                const signedIn = await dependencies.signedIn()
                 if (signedIn && !linking) return redirect('/')
                 if (linking && (!signedIn || !dependencies.beginLink))
                     throw new Error('invalid_input')
@@ -162,8 +191,10 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                     ),
                 )
                 return authorizationNavigationResponse(result.authorizationUrl, headers)
-            } catch {
-                return redirect('/login?oidcError=failed', headers)
+            } catch (error) {
+                // Preserve the early rate/input rejection; only session state may select its fixed destination.
+                if (!sessionChecked) signedIn = await failureSessionContext()
+                return failureRedirect(error, signedIn && (!intentChecked || linking), headers)
             }
         },
         /** Issues existing local session/MFA cookies only after a verified exchange, with fixed safe redirects. */
@@ -172,11 +203,13 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
             if (request.method !== 'GET') return new Response(null, { status: 405, headers })
             const origin = dependencies.origin()
             if (!origin) return new Response(null, { status: 503, headers })
+            let signedIn = false
+            let sessionChecked = false
             try {
                 await dependencies.limit()
-                const signedIn = await dependencies.signedIn()
+                sessionChecked = true
+                signedIn = await dependencies.signedIn()
                 const linkToken = flowCookie(request, origin, true)
-                if (signedIn && !linkToken) return redirect('/', headers)
                 const incoming = new URL(request.url)
                 if (
                     incoming.pathname !== OIDC_CALLBACK_PATH ||
@@ -190,7 +223,8 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                     )
                         throw new Error('invalid_input')
                 const browserToken = signedIn ? linkToken : flowCookie(request, origin)
-                if (!browserToken) throw new Error('invalid_input')
+                if (!browserToken || !incoming.searchParams.get('state'))
+                    throw new OidcDomainError('challenge_expired')
                 const canonical = new URL(OIDC_CALLBACK_PATH, origin)
                 // Behind Caddy the internal Request origin may differ; only PUBLIC_ORIGIN defines the registered callback.
                 canonical.search = incoming.search
@@ -202,8 +236,7 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                         'Set-Cookie',
                         cookie(flowCookieName(origin, true), '', '/', new Date(0), origin),
                     )
-                    headers.set('Location', '/account')
-                    return new Response(null, { status: 303, headers })
+                    return redirect('/account?section=linked-accounts&oidcResult=linked', headers)
                 }
                 headers.append(
                     'Set-Cookie',
@@ -237,8 +270,9 @@ export function createOidcHttpHandlers(dependencies: OidcHttpHandlerDependencies
                     ),
                 )
                 return redirect('/', headers)
-            } catch {
-                return redirect('/login?oidcError=failed', headers)
+            } catch (error) {
+                if (!sessionChecked) signedIn = await failureSessionContext()
+                return failureRedirect(error, signedIn, headers)
             }
         },
     }

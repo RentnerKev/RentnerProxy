@@ -336,6 +336,37 @@ test('does not publish rolled back mutations or reuse their markers', async () =
     expect(getApplicationRevision()).toBe(before)
 })
 
+test.each(['create', 'update'] as const)(
+    'publishes committed system %s without exposing audit data',
+    async (action) => {
+        const publisher = mock(async () => undefined)
+        setApplicationPublisher(publisher)
+        const before = getApplicationRevision()
+        await withCommittedApplicationChanges(
+            async (run) => {
+                await run({})
+                expect(getApplicationRevision()).toBe(before)
+            },
+            async (transaction) => {
+                markAuditedApplicationMutation(transaction, {
+                    ...mutation,
+                    actorKind: 'system',
+                    actorUserId: null,
+                    action,
+                    metadata: { changedFields: ['roles'], count: 2 },
+                })
+            },
+        )
+        expect(getApplicationRevision()).not.toBe(before)
+        await new Promise((resolve) => setTimeout(resolve, LIVE_CHANGE_COALESCE_MS + 30))
+        expect(publisher).toHaveBeenCalledTimes(1)
+        expect(publisher).toHaveBeenCalledWith({
+            type: 'application.updated',
+            payload: { version: getApplicationRevision() },
+        })
+    },
+)
+
 test('does not publish no-ops, rejected requests or unauthenticated audit events', async () => {
     const before = getApplicationRevision()
     await Promise.all(
@@ -345,6 +376,18 @@ test('does not publish no-ops, rejected requests or unauthenticated audit events
             { ...mutation, result: 'denied' as const },
             { ...mutation, actorKind: 'anonymous' as const },
             { ...mutation, actorUserId: null },
+            {
+                ...mutation,
+                actorKind: 'system' as const,
+                actorUserId: null,
+                result: 'failure' as const,
+            },
+            {
+                ...mutation,
+                actorKind: 'system' as const,
+                actorUserId: null,
+                metadata: { changedFields: [] },
+            },
             { ...mutation, metadata: { changedFields: [] } },
             { ...mutation, resource: 'config-export' as const },
         ].map((event) =>

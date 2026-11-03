@@ -15,6 +15,9 @@
 !docker/caddy/
 !docker/caddy/tooling/
 !docker/caddy/tooling/build.sh
+!docker/caddy/tooling/prepare-source.sh
+!docker/caddy/patches/
+!docker/caddy/patches/**
 !docker/licenses/
 !docker/licenses/Caddy-LICENSE
 !docker/licenses/CaddyCrowdSecBouncer-NOTICE

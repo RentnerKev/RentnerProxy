@@ -4,7 +4,6 @@ import type {
     TotpSetupChallenge,
     WebAuthnRegistrationChallenge,
     WebAuthnAuthenticationChallenge,
-    WebAuthnReauthenticationChallenge,
     AuthChallenge,
     IssuedAuthChallenge,
     CodeChallengeVerification,
@@ -113,7 +112,6 @@ function isChallengeKind(value: unknown): value is AuthChallengeKind {
         value === 'login-mfa' ||
         value === 'totp-setup' ||
         value === 'webauthn-authentication' ||
-        value === 'webauthn-reauthentication' ||
         value === 'webauthn-registration'
     )
 }
@@ -215,12 +213,10 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
                     ? (challenge as TotpSetupChallenge)
                     : null
             case 'webauthn-registration':
-            case 'webauthn-reauthentication':
                 return typeof challenge.userId === 'string' &&
                     typeof challenge.sessionId === 'string' &&
                     typeof challenge.challenge === 'string'
-                    ? (challenge as
-                          WebAuthnRegistrationChallenge | WebAuthnReauthenticationChallenge)
+                    ? (challenge as WebAuthnRegistrationChallenge)
                     : null
             case 'webauthn-authentication':
                 return typeof challenge.challenge === 'string'

@@ -94,16 +94,7 @@ export default function HostTagManager({ kind }: { readonly kind: HostKind }) {
                 {state.loading ? (
                     <output>{t('common.loading')}</output>
                 ) : state.error ? (
-                    <div role="alert">
-                        {t('admin.hostTags.errors.loadFailed')}
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    </div>
+                    <div role="alert">{t('admin.hostTags.errors.loadFailed')}</div>
                 ) : (
                     <div className="grid gap-4">
                         <form

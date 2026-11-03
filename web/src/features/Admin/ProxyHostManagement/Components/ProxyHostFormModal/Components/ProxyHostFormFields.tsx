@@ -32,7 +32,6 @@ export default function ProxyHostFormFields(props: ProxyHostFormFieldsProps) {
                     canRequestCertificate={props.canRequestCertificate}
                     assignableCertificatesLoading={props.assignableCertificatesLoading}
                     assignableCertificatesLoadFailed={props.assignableCertificatesLoadFailed}
-                    retryAssignableCertificates={props.retryAssignableCertificates}
                     requestNewCertificate={props.requestNewCertificate}
                     certificateRequestForm={props.certificateRequestForm}
                     usableCertificates={state.usableCertificates}
@@ -49,7 +48,6 @@ export default function ProxyHostFormFields(props: ProxyHostFormFieldsProps) {
                     assignableAccessPolicies={props.assignableAccessPolicies}
                     assignableAccessPoliciesLoading={props.assignableAccessPoliciesLoading}
                     assignableAccessPoliciesLoadFailed={props.assignableAccessPoliciesLoadFailed}
-                    retryAssignableAccessPolicies={props.retryAssignableAccessPolicies}
                     assignableTrustedCas={props.assignableTrustedCas}
                     trustedCasLoading={props.trustedCasLoading}
                     trustedCasLoadFailed={props.trustedCasLoadFailed}

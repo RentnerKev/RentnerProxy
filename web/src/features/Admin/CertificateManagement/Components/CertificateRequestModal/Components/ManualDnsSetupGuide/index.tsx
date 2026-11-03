@@ -1,5 +1,4 @@
 import ManualDnsReadOnlyCheck from '../../../ManualDnsReadOnlyCheck/index.tsx'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { ModalActionButton } from '@/shared/Modal/Components/ModalActions.tsx'
 import { Modal } from '@/shared/Modal/index.tsx'
@@ -45,13 +44,9 @@ export default function ManualDnsSetupGuide(props: ManualDnsSetupGuideProps) {
                             </output>
                         ) : null}
                         {props.loadFailed && !props.preparing && !props.loading ? (
-                            <button
-                                type="button"
-                                className={buttonClassName('secondary', 'justify-self-start')}
-                                onClick={props.onRetry}
-                            >
-                                {t('admin.certificates.manualDns.setup.retry')}
-                            </button>
+                            <p role="alert" className="m-0 text-sm text-danger-text">
+                                {t('common.requestFailed')}
+                            </p>
                         ) : null}
                         {props.blocked ? (
                             <p className="m-0 text-sm leading-relaxed text-muted">

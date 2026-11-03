@@ -17,7 +17,6 @@ export interface AuthenticatedLayoutLogicResult {
         readonly identityGeneration: number
         readonly hasIdentityError: boolean
         readonly identityErrorMessage: string
-        readonly retryLabel: string
         readonly isLoggingOut: boolean
         readonly themeMode: UserThemeMode
         readonly isSavingTheme: boolean
@@ -35,7 +34,6 @@ export interface AuthenticatedLayoutLogicResult {
     }
     readonly handler: {
         readonly handleDismissRestore: (() => void) | undefined
-        readonly handleRetryIdentity: () => void
         readonly handleLogout: () => void
         readonly handleToggleTheme: () => void
         readonly handleNavigationGroupChange: (change: NavigationGroupChange) => void

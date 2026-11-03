@@ -23,6 +23,10 @@ export default function useTwoFactorLoginLogic() {
     const { t } = useTranslationStore()
     const status = useQuery({
         queryKey: ['auth', 'two-factor-challenge'],
+        retry: 2,
+        retryDelay: (attempt) => Math.min(250 * 2 ** attempt, 4_000),
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
         queryFn: () => getTwoFactorChallengeStatusHandler({ data: {} }),
     })
     const statusFeedback = status.isFetching
@@ -139,10 +143,6 @@ export default function useTwoFactorLoginLogic() {
             normalizeCredential: normalizeTwoFactorCredential,
             toggleMode,
             handleShowStatus,
-            handleRetryStatus: () => {
-                reportedStatus.current = null
-                void status.refetch()
-            },
         },
     } satisfies TwoFactorLoginLogicResult<typeof form>
 }

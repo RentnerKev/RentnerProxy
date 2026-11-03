@@ -11,7 +11,6 @@ export interface SecurityStatus {
     readonly totpEnabled: boolean
     readonly recoveryCodesRemaining: number
     readonly passkeys: ReadonlyArray<SecurityPasskey>
-    readonly recentlyAuthenticated: boolean
 }
 
 export interface SecurityActionResult {

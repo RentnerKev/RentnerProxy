@@ -4,8 +4,7 @@ import {
     emailSchema,
     getValidationMessage,
 } from '@/lib/Auth/validation.ts'
-import type { LoginLogicResult } from '../Types/login-logic.types.ts'
-import type { MenuItem } from '@rentnerkev/menu'
+import type { AlternativeSignInOption, LoginLogicResult } from '../Types/login-logic.types.ts'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -18,6 +17,7 @@ import { beginPasskeyLoginHandler, finishPasskeyLoginHandler, loginHandler } fro
 import { loginInputSchema } from '../validation.ts'
 import type { LoginFormValues } from '../Types/login-form.types.ts'
 import { getPublicOidcProvidersHandler } from '@/features/Auth/Oidc/middleware.ts'
+import { oidcFeedbackCodeSchema } from '@/lib/Auth/Oidc/validation.ts'
 /** Coordinates local sign-in and native provider navigation, including restoration after browser Back. */
 export default function useLoginLogic() {
     const feedback = useValidationFeedback()
@@ -26,44 +26,54 @@ export default function useLoginLogic() {
     const { t } = useTranslationStore()
     const search = useSearch({ strict: false })
     const [isOidcPending, setIsOidcPending] = useState(false)
+    const [oidcAttempt, setOidcAttempt] = useState(0)
+    const oidcGeneration = useRef(0)
+    const cancelBusy = useRef(false)
+    const [oidcFeedback, setOidcFeedback] = useState<string | null>(null)
+    const oidcBusy = useRef(false)
+    const localBusy = useRef(false)
+    const formBusy = useRef(false)
     const oidcForm = useRef<HTMLFormElement>(null)
     const oidcProviderId = useRef<HTMLInputElement>(null)
     const reportedOidcFailure = useRef(false)
-    const oidcFailed = !!search && 'oidcError' in search && search.oidcError === 'failed'
+    const oidcFailure = oidcFeedbackCodeSchema.safeParse(
+        search && 'oidcError' in search ? search.oidcError : undefined,
+    )
+    const oidcFailureCode = oidcFailure.success ? oidcFailure.data : null
     useEffect(() => {
-        if (!oidcFailed) {
+        if (!oidcFailureCode) {
             reportedOidcFailure.current = false
             return
         }
         if (reportedOidcFailure.current) return
         reportedOidcFailure.current = true
-        toast.error(
-            t('auth.oidc.failed', {
-                defaultValue: 'Sign-in failed. Try again or use your local account.',
-            }),
-            { title: t('toast.titles.error') },
-        )
+        const message = `auth.oidc.${oidcFailureCode}`
+        setOidcFeedback(message)
+        toast.error(t(message), { title: t('toast.titles.error') })
         // Consume the fixed failure marker so refresh and browser Back do not repeat the notice.
         void navigate({ to: '/login', search: {}, replace: true }).catch(() => {})
-    }, [oidcFailed, navigate, t])
+    }, [oidcFailureCode, navigate, t])
     useEffect(() => {
         /** Restores submission after Back returns from the provider through the browser's page cache. */
         const restoreLogin = (event: PageTransitionEvent) => {
-            if (event.persisted) setIsOidcPending(false)
+            if (event.persisted) {
+                oidcGeneration.current += 1
+                oidcBusy.current = false
+                setIsOidcPending(false)
+            }
         }
         window.addEventListener('pageshow', restoreLogin)
-        return () => window.removeEventListener('pageshow', restoreLogin)
+        return () => {
+            if (oidcBusy.current) window.stop()
+            oidcGeneration.current += 1
+            oidcBusy.current = false
+            window.removeEventListener('pageshow', restoreLogin)
+        }
     }, [])
-    useEffect(() => {
-        if (!isOidcPending) return
-        // Browser Stop leaves this document mounted without emitting a restoration event.
-        const timeout = window.setTimeout(() => setIsOidcPending(false), 15_000)
-        return () => window.clearTimeout(timeout)
-    }, [isOidcPending])
     const providers = useQuery({
         queryKey: ['auth', 'oidc-providers'],
         queryFn: () => getPublicOidcProvidersHandler(),
-        retry: false,
+        retry: 3,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
         staleTime: 30_000,
@@ -126,55 +136,112 @@ export default function useLoginLogic() {
         },
         onSubmitInvalid: () => feedback.handler.handleValidationCompleted(['email', 'password']),
         onSubmit: async ({ value }) => {
+            if (localBusy.current || oidcBusy.current) return
+            localBusy.current = true
             mutation.reset()
 
             try {
                 await mutation.mutateAsync(value)
-            } catch {}
+            } catch {
+            } finally {
+                localBusy.current = false
+            }
         },
     })
     /** Submits local credentials only while no other sign-in exchange owns the form. */
     function handleSubmit(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault()
         event.stopPropagation()
-        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
-        void form.handleSubmit()
+        if (
+            formBusy.current ||
+            localBusy.current ||
+            oidcBusy.current ||
+            mutation.isPending ||
+            passkeyMutation.isPending
+        )
+            return
+        formBusy.current = true
+        void form
+            .handleSubmit()
+            .catch(() => {
+                toast.error(t('Authentication service temporarily unavailable.'), {
+                    title: t('toast.titles.error'),
+                })
+            })
+            .finally(() => {
+                formBusy.current = false
+            })
     }
 
     /** Starts the passkey ceremony only when local and provider sign-in are idle. */
     async function handlePasskeyLogin(): Promise<void> {
-        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
+        if (
+            formBusy.current ||
+            localBusy.current ||
+            oidcBusy.current ||
+            mutation.isPending ||
+            passkeyMutation.isPending
+        )
+            return
+        localBusy.current = true
         passkeyMutation.reset()
         try {
             await passkeyMutation.mutateAsync()
-        } catch {}
+        } catch {
+        } finally {
+            localBusy.current = false
+        }
     }
 
     /** Allows one native provider navigation until restoration or bounded cancellation recovery. */
     function handleOidcSubmit(event: FormEvent<HTMLFormElement>): void {
-        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) {
+        if (
+            formBusy.current ||
+            localBusy.current ||
+            oidcBusy.current ||
+            mutation.isPending ||
+            passkeyMutation.isPending
+        ) {
             event.preventDefault()
             return
         }
+        oidcBusy.current = true
+        oidcGeneration.current += 1
+        setOidcAttempt(oidcGeneration.current)
+        setOidcFeedback(null)
         setIsOidcPending(true)
     }
 
-    /** Dispatches menu actions while preserving native same-origin POST and its duplicate guard. */
+    /** Selects a known public provider while preserving native POST and its synchronous guard. */
     function handleAlternativeSignIn(id: string): void {
-        if (isOidcPending || mutation.isPending || passkeyMutation.isPending) return
+        if (
+            formBusy.current ||
+            localBusy.current ||
+            oidcBusy.current ||
+            mutation.isPending ||
+            passkeyMutation.isPending
+        )
+            return
         if (id === 'passkey') {
             void handlePasskeyLogin()
             return
         }
-        if (!providers.data?.some((provider) => provider.id === id)) return
+        if (providers.isError || !providers.data?.some((provider) => provider.id === id)) return
         if (!oidcForm.current || !oidcProviderId.current) return
         oidcProviderId.current.value = id
-        oidcForm.current.requestSubmit()
+        try {
+            oidcForm.current.requestSubmit()
+        } catch {
+            oidcGeneration.current += 1
+            oidcBusy.current = false
+            setIsOidcPending(false)
+            setOidcFeedback('auth.oidc.failed')
+        }
     }
 
-    const alternativeSignInItems: readonly MenuItem[] = [
+    const alternativeSignInItems: readonly AlternativeSignInOption[] = [
         { id: 'passkey', label: t('Sign in with passkey') },
-        ...(providers.data ?? []).map((provider) => ({
+        ...(providers.isError ? [] : (providers.data ?? [])).map((provider) => ({
             id: provider.id,
             label: t('auth.oidc.signInWith', {
                 provider: provider.name,
@@ -187,6 +254,10 @@ export default function useLoginLogic() {
         state: {
             isPending: mutation.isPending || isOidcPending,
             isPasskeyPending: passkeyMutation.isPending,
+            isOidcPending,
+            isProviderCatalogPending: providers.isPending,
+            isProviderCatalogUnavailable: providers.isError,
+            oidcFeedback,
             alternativeSignInItems,
             validationEpochs: feedback.state.validationEpochs,
         },
@@ -198,6 +269,24 @@ export default function useLoginLogic() {
             handlePasskeyLogin,
             handleOidcSubmit,
             handleAlternativeSignIn,
+            handleCancelOidc: () => {
+                if (
+                    !oidcBusy.current ||
+                    cancelBusy.current ||
+                    oidcAttempt !== oidcGeneration.current
+                )
+                    return
+                cancelBusy.current = true
+                try {
+                    // Stop this native response before another authentication attempt can start.
+                    window.stop()
+                    oidcGeneration.current += 1
+                    oidcBusy.current = false
+                    setIsOidcPending(false)
+                } finally {
+                    cancelBusy.current = false
+                }
+            },
         },
         refs: { oidcForm, oidcProviderId },
     } satisfies LoginLogicResult<typeof form>

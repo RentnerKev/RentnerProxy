@@ -59,7 +59,6 @@ export interface CrowdSecTransitionProgress {
 export interface CrowdSecPageLogic {
     readonly state: CrowdSecPageState
     readonly handler: {
-        readonly retry: () => void
         readonly setMode: (mode: CrowdSecMode) => void
         readonly setApiUrl: (value: string) => void
         readonly setApiKey: (value: string) => void

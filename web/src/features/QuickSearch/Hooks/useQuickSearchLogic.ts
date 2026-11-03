@@ -238,12 +238,6 @@ export default function useQuickSearchLogic({
             select: (result) => {
                 void select(result)
             },
-            retry: () => {
-                for (const [index, source] of QUICK_SEARCH_CATEGORIES.entries()) {
-                    if (canSearch && !isDebouncing && permissions.includes(source.permission))
-                        void queries[index]?.refetch()
-                }
-            },
         },
         refs: { input },
     }

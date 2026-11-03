@@ -4,6 +4,7 @@ import {
     Fingerprint,
     Globe,
     LockKeyhole,
+    Link2,
     Palette,
     ShieldCheck,
     UserRound,
@@ -29,6 +30,7 @@ const groups = [
             { section: 'password', label: 'account.navigation.password', icon: LockKeyhole },
             { section: 'two-factor', label: 'account.navigation.twoFactor', icon: ShieldCheck },
             { section: 'passkeys', label: 'account.navigation.passkeys', icon: Fingerprint },
+            { section: 'linked-accounts', label: 'account.oidc.title', icon: Link2 },
         ],
     },
 ] as const

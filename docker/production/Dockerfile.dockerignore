@@ -39,6 +39,8 @@
 !docker/caddy/
 !docker/caddy/tooling/
 !docker/caddy/tooling/**
+!docker/caddy/patches/
+!docker/caddy/patches/**
 !docker/web/
 !docker/web/**
 !docker/production/

@@ -242,3 +242,31 @@ test('does not open a socket until a hidden page becomes visible', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     expect(FakeSocket.instances).toHaveLength(1)
 })
+
+test('resynchronizes listeners after an ordinary reconnect without a user action', async () => {
+    let resumed = 0
+    cleanups.push(
+        subscribeToRealtimeEvents({
+            topic: 'app-events',
+            query: {},
+            onData: () => {},
+            onResume: () => {
+                resumed += 1
+            },
+        }),
+    )
+    const first = FakeSocket.instances[0]!
+    first.open()
+    expect(resumed).toBe(0)
+    first.close()
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    expect(FakeSocket.instances).toHaveLength(2)
+    const second = FakeSocket.instances[1]!
+    second.open()
+    expect(resumed).toBe(1)
+    expect(JSON.parse(second.sent[0]!)).toEqual({
+        type: 'subscribe',
+        topic: 'app-events',
+        query: {},
+    })
+})

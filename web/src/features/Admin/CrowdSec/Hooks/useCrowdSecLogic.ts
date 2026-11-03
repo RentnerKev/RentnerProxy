@@ -263,7 +263,6 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             transitionProgress,
         },
         handler: {
-            retry: () => void query.refetch(),
             setMode: (nextMode) => {
                 if (!canUpdate) return
                 setDraftMode(nextMode)

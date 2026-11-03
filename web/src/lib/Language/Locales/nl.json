@@ -94,7 +94,8 @@
         "moreDomains": "Nog {{count}} domeinen tonen",
         "clearSelection": "Selectie wissen",
         "edit": "Bewerken",
-        "delete": "Verwijderen"
+        "delete": "Verwijderen",
+        "automaticRecovery": "Automatisch opnieuw proberen…"
     },
     "shell": {
         "backups": "Back-ups",
@@ -143,7 +144,6 @@
         "loading": "Zoeken…",
         "noResults": "Geen resultaten gevonden.",
         "unavailable": "Sommige resultaten zijn niet beschikbaar. Probeer het opnieuw.",
-        "retry": "Zoeken opnieuw proberen",
         "targetUnavailable": "Dit item is niet meer beschikbaar of je machtigingen zijn gewijzigd.",
         "opening": "Openen…",
         "resultsLabel": "Zoekresultaten",
@@ -209,7 +209,6 @@
         "rateLimited": "Te veel verzoeken. Probeer het later opnieuw.",
         "authUnavailable": "De authenticatiedienst is tijdelijk niet beschikbaar.",
         "authentication_required": "Je sessie is verlopen. Log opnieuw in.",
-        "reauthentication_required": "Bevestig je identiteit om door te gaan.",
         "email_conflict": "Dit e-mailadres is al in gebruik.",
         "last_active_owner": "De laatste actieve eigenaar kan niet worden uitgeschakeld of gewijzigd.",
         "owner_required": "Alleen een eigenaar kan deze wijziging uitvoeren.",
@@ -235,7 +234,17 @@
         },
         "oidc": {
             "signInWith": "Inloggen met {{provider}}",
-            "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account."
+            "failed": "Inloggen is mislukt. Probeer het opnieuw of gebruik je lokale account.",
+            "title": "Aanmelden met een identiteitsprovider",
+            "loading": "Aanmeldproviders laden…",
+            "continuing": "Identiteitsprovider openen…",
+            "catalogUnavailable": "Aanmeldproviders zijn tijdelijk niet beschikbaar. Je kunt je lokale account gebruiken.",
+            "unavailable": "De identiteitsprovider kon niet worden bereikt. Probeer het opnieuw of gebruik je lokale wachtwoord of passkey.",
+            "denied": "Deze identiteit mag zich niet aanmelden. Neem contact op met je beheerder of gebruik je lokale account.",
+            "expired": "Dit aanmeldverzoek is verlopen. Start de aanmelding opnieuw.",
+            "conflict": "De aanmeldconfiguratie is gewijzigd. Start de aanmelding opnieuw.",
+            "localRecovery": "Lokale eigenaren kunnen doorgaan met een wachtwoord of passkey.",
+            "cancel": "Aanmelden annuleren"
         },
         "logoutFailed": "Afmelden is mislukt. Controleer je verbinding en probeer het opnieuw.",
         "logoutRevocationFailed": "Je bent afgemeld in deze browser, maar de serversessie kon niet worden ingetrokken."
@@ -394,7 +403,8 @@
             "twoFactor": "Twee factoren",
             "passkeys": "Passkeys",
             "appearance": "Weergave",
-            "notifications": "Meldingen"
+            "notifications": "Meldingen",
+            "linkedAccounts": "Gekoppelde accounts"
         },
         "notifications": {
             "title": "Meldingen",
@@ -507,7 +517,6 @@
         "password": {
             "sectionEyebrow": "Inloggegevens",
             "title": "Wachtwoord wijzigen",
-            "currentPassword": "Huidig wachtwoord",
             "newPassword": "Nieuw wachtwoord",
             "confirmNewPassword": "Nieuw wachtwoord bevestigen",
             "changing": "Wachtwoord wijzigen…",
@@ -516,8 +525,7 @@
                 "changed": "Wachtwoord gewijzigd. Andere sessies zijn ingetrokken."
             },
             "error": {
-                "update": "Het wachtwoord kon niet worden gewijzigd.",
-                "incorrectCurrentPassword": "Het huidige wachtwoord is onjuist."
+                "update": "Het wachtwoord kon niet worden gewijzigd."
             }
         },
         "profileImage": {
@@ -644,23 +652,6 @@
                 "remove": "De passkey kon niet worden verwijderd."
             }
         },
-        "reauthentication": {
-            "title": "Bevestig deze beveiligingswijziging",
-            "description": "Authenticeer opnieuw om door te gaan. Alleen je bestaande sessie is niet voldoende.",
-            "currentPassword": "Huidig wachtwoord",
-            "confirm": "Bevestigen",
-            "usePasskey": "Een passkey gebruiken",
-            "success": {
-                "confirmed": "Identiteit bevestigd.",
-                "passkeyStarted": "Verificatie van passkey gestart."
-            },
-            "error": {
-                "failed": "Opnieuw authenticeren mislukt.",
-                "incorrectPassword": "Het wachtwoord is onjuist.",
-                "passkeyStart": "Opnieuw authenticeren met passkey kon niet worden gestart.",
-                "passkeyVerification": "Verificatie van passkey mislukt."
-            }
-        },
         "recoveryCodes": {
             "title": "Bewaar je herstelcodes",
             "description": "Deze codes worden slechts één keer getoond. Elke code kan één keer worden gebruikt.",
@@ -683,6 +674,33 @@
         "validation": {
             "passwordsDoNotMatch": "Wachtwoorden komen niet overeen.",
             "authenticatorCode": "Voer de zescijferige code uit je authenticator-app in."
+        },
+        "oidc": {
+            "title": "Gekoppelde accounts",
+            "description": "Meld je aan met een andere provider.",
+            "empty": "Er zijn geen identiteitsproviders beschikbaar.",
+            "external": "Je account wordt beheerd door een identiteitsprovider. Neem contact op met je beheerder om de koppelingen te wijzigen.",
+            "link": "Account koppelen",
+            "unlink": "Account ontkoppelen",
+            "linked": "Gekoppeld",
+            "unlinked": "Niet gekoppeld",
+            "disabled": "Provider uitgeschakeld",
+            "loading": "Gekoppelde accounts laden…",
+            "pending": "Ga verder bij je provider. Heb je geannuleerd, vernieuw dan deze lijst.",
+            "unlinkedSuccess": "Account ontkoppeld. Lokaal aanmelden blijft beschikbaar.",
+            "linkedSuccess": "Account gekoppeld. Je kunt je nu aanmelden met deze provider.",
+            "noPermission": "Je hebt geen toestemming om gekoppelde accounts te beheren.",
+            "error": {
+                "unavailable": "De gekoppelde accounts konden niet worden geladen. Vernieuw de lijst en probeer het opnieuw.",
+                "conflict": "De koppelingen zijn gewijzigd. De lijst is vernieuwd; controleer deze en probeer het opnieuw.",
+                "denied": "Je hebt een lokaal wachtwoord of een lokale passkey en toestemming nodig om dit account te wijzigen.",
+                "rateLimited": "Te veel pogingen. Wacht een minuut en probeer het opnieuw.",
+                "failed": "De koppeling kon niet worden gewijzigd. Vernieuw de lijst en probeer het opnieuw.",
+                "expired": "Dit koppelverzoek is verlopen. Begin opnieuw en bevestig je lokale identiteit.",
+                "unavailableProvider": "De identiteitsprovider kon niet worden bereikt. Probeer het account later opnieuw te koppelen.",
+                "deniedLink": "Deze identiteit kon niet worden gekoppeld. Kies een andere identiteit bij de provider of neem contact op met je beheerder."
+            },
+            "cancel": "Navigatie annuleren"
         }
     },
     "admin": {
@@ -1028,7 +1046,6 @@
                 "disabling": "Gebruiker uitschakelen…",
                 "enable": "Inschakelen",
                 "enabling": "Gebruiker inschakelen…",
-                "retryRoles": "Rollen opnieuw laden",
                 "open": "Acties voor {{name}} openen",
                 "none": "Geen acties beschikbaar",
                 "ownerEdit": "Alleen een eigenaar kan dit account bewerken.",
@@ -1530,7 +1547,6 @@
                     "ownerHint": "Sommige providers voegen het domein automatisch toe. Voer de naam volgens je provider in zodat de volledige naam overeenkomt met de getoonde TXT-naam.",
                     "valuesHint": "Meerdere waarden kunnen dezelfde naam hebben. Voeg elke waarde toe en behoud andere bestaande TXT-waarden.",
                     "finish": "Gereed",
-                    "retry": "TXT-records opnieuw laden",
                     "reused": "De certificaatautoriteit heeft een bestaande autorisatie hergebruikt. Er zijn geen TXT-records nodig. Kies Gereed en ga verder in het hoofdvenster.",
                     "blocked": "Sluit de handleiding en controleer de huidige certificaatvalidatie.",
                     "expires": "TXT-records verlopen op {{expires}}"
@@ -3760,7 +3776,6 @@
             "observationPoint": "Controles worden uitgevoerd vanaf deze RentnerProxy-instantie. Bereikbaarheid vanaf het openbare internet wordt niet gecontroleerd.",
             "permissionDenied": "Je hebt geen toestemming om de bewaking te bekijken.",
             "loadError": "De bewaking kon niet worden geladen. Probeer het opnieuw om de status te vernieuwen.",
-            "retry": "Opnieuw proberen",
             "loading": "Bewaking laden…",
             "noData": "Er zijn nog geen controles vastgelegd.",
             "configure": "Bewaking instellen",
@@ -3797,8 +3812,7 @@
             "historyCap": "De 300 nieuwste controles zijn geladen. Verklein de periode of filter op status om meer te bekijken.",
             "save": "Wijzigingen opslaan",
             "close": "Sluiten",
-            "conflict": "De bewaking is ergens anders gewijzigd. Je wijzigingen zijn bewaard. Laad de instellingen opnieuw om de nieuwste versie te gebruiken.",
-            "reload": "Instellingen opnieuw laden",
+            "conflict": "De instellingen zijn gewijzigd. Je concept blijft behouden.",
             "saveError": "De instellingen voor bewaking konden niet worden opgeslagen.",
             "saved": "Instellingen voor bewaking opgeslagen.",
             "invalid": "Controleer de instellingen en toegestane waarden.",
@@ -4109,7 +4123,6 @@
         "url": "Omleidings-URL",
         "html": "HTML-broncode",
         "loading": "Standaardsite laden…",
-        "reload": "Opgeslagen instellingen laden",
         "discard": "Wijzigingen verwerpen",
         "dirty": "Niet-opgeslagen wijzigingen",
         "clean": "Geen niet-opgeslagen wijzigingen",
@@ -4129,7 +4142,7 @@
             "custom-html": "Aangepaste HTML"
         },
         "errors": {
-            "conflict": "De instellingen zijn elders gewijzigd. Laad de opgeslagen instellingen opnieuw voordat je het nog eens probeert.",
+            "conflict": "De opgeslagen instellingen zijn gewijzigd. Je concept blijft behouden.",
             "loadFailed": "De standaardsite kon niet worden geladen.",
             "saveFailed": "De standaardsite kon niet worden opgeslagen.",
             "invalidSettings": "Kies geldige instellingen voor de standaardsite.",
@@ -4200,39 +4213,33 @@
     "oidc": {
         "title": "Identiteitsproviders",
         "eyebrow": "Beveiliging",
-        "description": "OpenID Connect-aanmelding voor bestaande lokale accounts instellen.",
+        "description": "Beheer aanmeldproviders en gekoppelde accounts.",
         "add": "Provider toevoegen",
         "edit": "Provider bewerken",
         "delete": "Provider verwijderen",
         "deleteConfirm": "{{name}} verwijderen? De koppelingen worden verwijderd. Lokale accounts blijven beschikbaar.",
-        "editorDescription": "Sla op voordat u metadata test. Nieuwe providers zijn uitgeschakeld.",
         "enabled": "Ingeschakeld",
         "disabled": "Uitgeschakeld",
         "advanced": "Geavanceerde vertrouwensinstellingen",
         "basic": "HTTP Basic-clientauthenticatie",
         "post": "Clientgegevens in de aanvraaginhoud",
         "bindings": "Identiteitskoppelingen",
-        "bindingsHint": "Koppel het exacte, onveranderlijke subject aan een bestaand actief lokaal account. Verwijder de koppeling en maak een nieuwe om het subject te wijzigen.",
+        "bindingsHint": "Koppel een subject (sub) aan een lokaal account.",
         "subject": "Onveranderlijk subject (sub)",
         "localUser": "Lokaal account",
         "removeBinding": "Koppeling verwijderen",
         "addBinding": "Koppeling toevoegen",
-        "secretHint": "Laat leeg om het opgeslagen geheim te behouden. Nieuwe providers en wijzigingen in issuer, client, authenticatie of vertrouwen vereisen een nieuw geheim.",
-        "trustHint": "Eén exacte HTTPS-origin of privaat CIDR-netwerk per regel. Neem de issuer-origin op. Sta alleen vertrouwde bestemmingen toe. Laat endpoint-origins leeg om de issuer-origin automatisch te gebruiken.",
+        "secretHint": "Laat leeg om het geheim te behouden. Vul een nieuw geheim in voor nieuwe providers of gewijzigde vertrouwensinstellingen.",
+        "trustHint": "Eén HTTPS-origin of CIDR per regel. Lege endpointlijst = issuer-origin.",
         "callback": "Callback-URL",
         "copy": "Callback-URL kopiëren",
         "copied": "Callback-URL gekopieerd.",
         "callbackHint": "Configureer PUBLIC_ORIGIN op de server voor de canonieke callback-URL.",
-        "recovery": "Behoud een lokale eigenaar met werkend wachtwoord of passkey voor herstel. Wijzigingen vereisen recente lokale authenticatie.",
-        "policy": "Alleen expliciete subjectkoppelingen. Automatische accounts, e-mailmatching, groepen en roltoewijzing zijn niet beschikbaar.",
-        "refresh": "Vernieuwen",
-        "refreshConflict": "Opgeslagen configuratie opnieuw laden?",
         "empty": "Geen identiteitsproviders ingesteld.",
         "bindingCount": "Koppelingen: {{count}}",
         "test": "Opgeslagen provider testen",
         "tested": "Metadata gecontroleerd. Dit test geen gebruikersaanmelding.",
         "saved": "Configuratie opgeslagen.",
-        "reauthenticated": "Lokale authenticatie gecontroleerd. Probeer de actie opnieuw.",
         "unavailableUser": "Onbeschikbaar of inactief lokaal account",
         "fields": {
             "name": "Providernaam",
@@ -4244,10 +4251,9 @@
             "privateCidrs": "Toegestane private CIDR-netwerken"
         },
         "errors": {
-            "reauthentication_required": "Verifieer uw lokale eigenaarsidentiteit en probeer opnieuw.",
             "authentication_required": "Meld u opnieuw aan.",
             "owner_required": "Een lokale eigenaar is vereist.",
-            "configuration_conflict": "Configuratie gewijzigd. Uw concept blijft bewaard. Vernieuw en probeer expliciet opnieuw.",
+            "configuration_conflict": "De provider is gewijzigd. Je concept blijft behouden.",
             "invalid_input": "Controleer namen, HTTPS-URL’s, origins, CIDR, unieke subjects en accounts. Een nieuw geheim kan nodig zijn.",
             "identity_not_allowed": "Selecteer actieve lokale accounts met toegang tot de toepassing.",
             "rate_limited": "Te veel aanvragen. Wacht voordat u opnieuw probeert.",
@@ -4257,8 +4263,6 @@
             "copy": "Callback-URL kon niet worden gekopieerd.",
             "secret": "Een nieuw clientgeheim is vereist voor deze provider of vertrouwenswijziging."
         },
-        "reloadTitle": "Opgeslagen configuratie opnieuw laden?",
-        "reloadDescription": "Niet-opgeslagen wijzigingen worden verwijderd en de nieuwste provider wordt geladen. Controleer deze voordat u wijzigingen maakt.",
         "placeholders": {
             "name": "Voorbeeldprovider",
             "issuer": "https://login.voorbeeld.nl",
@@ -4267,6 +4271,33 @@
             "endpointOrigins": "Leeg: issuer-origin automatisch",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Exact subject van de provider"
-        }
+        },
+        "accountPolicy": "Accounts en rollen",
+        "provisioning": "Gebruikers automatisch aanmaken",
+        "provisioningHint": "Geverifieerd e-mailadres vereist. Bestaande accounts worden niet automatisch gekoppeld.",
+        "groupClaim": "Groepenclaim",
+        "groupClaimHint": "Claim op het hoogste niveau van het ID-token, bijv. groups.",
+        "defaultRoles": "Standaardrollen",
+        "groupMappings": "Koppelingen tussen groepen en rollen",
+        "group": "Exacte groepswaarde",
+        "mappedRoles": "Rollen voor deze groep",
+        "addMapping": "Groepskoppeling toevoegen",
+        "removeMapping": "Groepskoppeling verwijderen",
+        "rolePolicyHint": "Alleen provideraccounts. Groepen moeten exact overeenkomen; ontbrekende groepen trekken toegewezen rollen in.",
+        "rolesUnavailable": "Rollen zijn tijdelijk niet beschikbaar.",
+        "provisioningOn": "Accounts automatisch aanmaken",
+        "provisioningOff": "Alleen expliciete accountkoppelingen",
+        "rolePolicySummary": "Standaardrollen: {{defaults}} · Groepskoppelingen: {{mappings}}",
+        "managedBinding": "Rollen beheerd door deze provider",
+        "setupTitle": "Configuratievoorbeelden: authentik en Keycloak",
+        "setupClient": "Vertrouwelijke client · Authorization Code · PKCE S256 · RS256. Gebruik de exacte callback-URL.",
+        "setupAuthentik": "Issuer: https://auth.example.com/application/o/rentnerproxy/. Gebruik een RSA-sleutel en profile/email-mappings.",
+        "setupKeycloak": "Issuer: https://sso.example.com/realms/rentnerproxy. Schakel clientauthenticatie en standaardflow in; voeg groepen toe aan het ID-token.",
+        "setupGroups": "Accounts aanmaken vereist email en email_verified=true. Groepsclaim op het hoogste niveau en exacte groepswaarden.",
+        "setupAuthentikDocs": "Documentatie van authentik",
+        "setupKeycloakDocs": "Documentatie van Keycloak",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak",
+        "discard": "Wijzigingen verwerpen"
     }
 }

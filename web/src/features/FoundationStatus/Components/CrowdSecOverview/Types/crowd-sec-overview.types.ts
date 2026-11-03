@@ -5,5 +5,4 @@ export interface CrowdSecOverviewLogicResult {
         isPending: boolean
         isError: boolean
     }
-    handler: { retry: () => void }
 }

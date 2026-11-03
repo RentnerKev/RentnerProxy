@@ -17,6 +17,5 @@ export interface TwoFactorLoginLogicResult<TForm> {
         normalizeCredential: typeof normalizeTwoFactorCredential
         toggleMode: () => void
         handleShowStatus: () => void
-        handleRetryStatus: () => void
     }
 }

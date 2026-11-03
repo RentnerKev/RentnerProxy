@@ -135,8 +135,6 @@ test('policy management validates deletion ownership, clears successful dialogs 
     expect(hook.current.state.deleteTarget).toBeNull()
     await hook.run((value) => value.handler.handleAccountsChange())
     await hook.run((value) => {
-        value.handler.retry()
-        value.handler.retryRuntime()
         value.handler.handleFormSuccess()
     })
     expect(hook.current.state.showCreate).toBe(false)
@@ -209,7 +207,7 @@ test('account workflows bind mutation payloads to the policy and retain failed d
     await hook.run((value) => value.handler.openCreate())
     await hook.run((value) => value.handler.handleFormSuccess())
     expect(changed).toHaveBeenCalledTimes(3)
-    await hook.run((value) => value.handler.retry())
+    await hook.run(() => hook.client.invalidateQueries())
     await hook.run((value) => value.handler.handleOpenChange(true))
     await hook.run((value) => value.handler.handleOpenChange(false))
     expect(openChanged).toHaveBeenLastCalledWith(false)

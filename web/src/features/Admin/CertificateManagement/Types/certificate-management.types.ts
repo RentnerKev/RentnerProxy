@@ -79,7 +79,6 @@ export interface CertificateManagementLogicResult {
             proxyHost?: import('@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts').ProxyHostSummary,
         ) => void
         readonly openImport: () => void
-        readonly retry: () => void
         readonly setDeleteDialogOpen: (open: boolean) => void
         readonly setDetailsDialogOpen: (open: boolean) => void
         readonly setImportDialogOpen: (open: boolean) => void

@@ -28,8 +28,7 @@ export default function useAuthenticatedLayoutLogic(
             isIdentityPending: live.isIdentityPending,
             identityGeneration: live.identityGeneration,
             hasIdentityError: live.hasIdentityError,
-            identityErrorMessage: t('system.error.causes.serviceUnavailable.description'),
-            retryLabel: t('common.retry'),
+            identityErrorMessage: t('common.automaticRecovery'),
             isLoggingOut: logout.state.isLoggingOut,
             themeMode: theme.state.themeMode,
             isSavingTheme: theme.state.isSaving,
@@ -47,7 +46,6 @@ export default function useAuthenticatedLayoutLogic(
         },
         handler: {
             handleDismissRestore: restore.canDismiss ? restore.dismiss : undefined,
-            handleRetryIdentity: live.retryIdentity,
             handleLogout: logout.handler.handleLogout,
             handleToggleTheme: theme.handler.handleToggle,
             handleNavigationGroupChange: navigationGroups.updateGroup,

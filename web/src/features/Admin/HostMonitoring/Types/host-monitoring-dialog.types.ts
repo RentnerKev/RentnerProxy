@@ -58,11 +58,9 @@ export interface MonitoringDialogHandler {
     readonly handleOpenChange: (open: boolean) => void
     readonly handleTab: (tab: MonitoringTab) => void
     readonly handleTabKey: (event: KeyboardEvent<HTMLButtonElement>) => void
-    readonly handleRetry: () => void
     readonly handleStatus: (value: string | null) => void
     readonly handlePeriod: (value: string | null) => void
     readonly handleMore: () => void
-    readonly handleReload: () => void
     readonly handleDiscard: () => void
     readonly handleSubmit: (event: React.FormEvent<HTMLFormElement>) => void
     readonly formatDate: (date: Date | null) => string

@@ -1,12 +1,14 @@
+import { TextInput } from '@rentnerkev/inputs'
+import { Copy } from 'lucide-react'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
-import ReauthenticationModal from '@/features/UserSettings/Components/SecuritySettingsPanel/Components/ReauthenticationModal.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ProviderEditor from './Components/ProviderEditor.tsx'
+import ProviderSetupHelp from './Components/ProviderSetupHelp.tsx'
 import useOidcProvidersLogic from './Hooks/useOidcProvidersLogic.ts'
 
-/** Presents the provider snapshot with explicit edit, conflict reload, and reauthentication actions. */
+/** Presents live provider data with explicit configuration actions. */
 export default function OidcProvidersPage() {
     const { state, handler, form } = useOidcProvidersLogic()
     const { t } = useTranslationStore()
@@ -29,39 +31,42 @@ export default function OidcProvidersPage() {
                     </button>
                 }
             />
-            <section className="mb-6 grid gap-3 rounded-2xl border border-border bg-surface-subtle p-5">
-                <h2 className="font-bold">{t('oidc.callback')}</h2>
+            <section className="mb-6 grid min-w-0 gap-3 rounded-2xl border border-border bg-surface-subtle p-5">
+                <label className="font-bold" htmlFor="oidc-callback-url">
+                    {t('oidc.callback')}
+                </label>
                 {state.callbackUrl ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                        <code className="break-all">{state.callbackUrl}</code>
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                        <div className="min-w-0">
+                            <TextInput
+                                id="oidc-callback-url"
+                                value={state.callbackUrl}
+                                onValueChange={() => undefined}
+                                readOnly
+                            />
+                        </div>
                         <button
                             type="button"
-                            className={buttonClassName('secondary')}
+                            className={buttonClassName('secondary', 'size-12 px-0')}
+                            aria-label={t('oidc.copy')}
+                            title={t('oidc.copy')}
                             onClick={() => {
                                 void handler.handleCopy()
                             }}
                         >
-                            {t('oidc.copy')}
+                            <Copy className="size-4" aria-hidden="true" />
                         </button>
                     </div>
                 ) : state.revision !== null ? (
                     <p className="text-muted">{t('oidc.callbackHint')}</p>
                 ) : null}
-                <p className="text-sm text-muted">{t('oidc.recovery')}</p>
-                <p className="text-sm text-muted">{t('oidc.policy')}</p>
             </section>
-            <div className="mb-4 flex flex-wrap gap-3">
-                <button
-                    type="button"
-                    className={buttonClassName('secondary')}
-                    onClick={() => {
-                        void handler.handleRefresh()
-                    }}
-                    disabled={state.isLoading || state.isPending}
-                >
-                    {t('oidc.refresh')}
-                </button>
-            </div>
+            <ProviderSetupHelp />
+            {state.hasLoadError ? (
+                <p role="alert" className="mb-4 text-sm text-danger-text">
+                    {t('oidc.errors.configuration_unavailable')}
+                </p>
+            ) : null}
             {state.isLoading ? (
                 <output>{t('common.loading')}</output>
             ) : state.isAvailable && state.providers.length === 0 ? (
@@ -83,6 +88,21 @@ export default function OidcProvidersPage() {
                         <p className="text-sm text-muted">
                             {t('oidc.bindingCount', { count: provider.bindings.length })}
                         </p>
+                        <div className="grid gap-1 border-l-2 border-border pl-3 text-sm">
+                            <p>
+                                {t(
+                                    provider.accountPolicy?.provisioning
+                                        ? 'oidc.provisioningOn'
+                                        : 'oidc.provisioningOff',
+                                )}
+                            </p>
+                            <p className="text-muted">
+                                {t('oidc.rolePolicySummary', {
+                                    defaults: provider.accountPolicy?.defaultRoleKeys.length ?? 0,
+                                    mappings: provider.accountPolicy?.groupRoleMappings.length ?? 0,
+                                })}
+                            </p>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             <button
                                 type="button"
@@ -125,30 +145,6 @@ export default function OidcProvidersPage() {
                 destructive
                 isPending={state.isPending}
                 onConfirm={handler.handleConfirmDelete}
-            />
-            <ConfirmDialog
-                open={state.reloadConfirm}
-                onOpenChange={handler.handleReloadConfirm}
-                title={t('oidc.reloadTitle')}
-                description={t('oidc.reloadDescription')}
-                destructive
-                onConfirm={handler.handleReload}
-            />
-            <ReauthenticationModal
-                open={state.reauthOpen}
-                isPending={state.reauthPending}
-                value={state.credential}
-                onChange={handler.handleCredential}
-                onConfirm={() => {
-                    void handler.handleReauthenticate()
-                }}
-                onPasskey={() => {
-                    void handler.handleReauthenticate(true)
-                }}
-                onClose={handler.handleReauthClose}
-                onOpenChange={(open) => {
-                    if (!open) handler.handleReauthClose()
-                }}
             />
         </>
     )

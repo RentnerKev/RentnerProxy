@@ -37,7 +37,6 @@ export interface ProxyAccessLogsLogicResult {
         readonly onPageChange: (page: number) => void
         readonly onPageSizeChange: (size: number) => void
         readonly resetFilters: () => void
-        readonly retry: () => void
         readonly toggleEntryDetails: (key: string) => void
     }
 }

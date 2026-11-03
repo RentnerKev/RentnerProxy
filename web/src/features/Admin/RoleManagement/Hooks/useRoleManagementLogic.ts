@@ -93,9 +93,6 @@ export default function useRoleManagementLogic({
         setShowCreate(false)
         setSelectedRole(null)
     }, [])
-    const retry = useCallback(() => {
-        void rolesQuery.refetch()
-    }, [rolesQuery])
     const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
     useQuickAction(
@@ -125,7 +122,6 @@ export default function useRoleManagementLogic({
             openDelete,
             openEditor,
             refreshCurrentUser,
-            retry,
             setCreateOpen: setShowCreate,
             setDeleteOpen,
             setEditorOpen,

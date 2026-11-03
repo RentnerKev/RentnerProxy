@@ -102,13 +102,6 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
                 ) : state.error ? (
                     <div role="alert" className="grid gap-3 text-sm text-danger-text">
                         <p>{t('admin.hostMonitoring.loadError')}</p>
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.handleRetry}
-                        >
-                            {t('admin.hostMonitoring.retry')}
-                        </button>
                     </div>
                 ) : (
                     <>
@@ -258,16 +251,6 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
                             ) : null}
                             {state.notice ? (
                                 <output className="text-sm text-muted">{state.notice}</output>
-                            ) : null}
-                            {state.conflict ? (
-                                <button
-                                    type="button"
-                                    className={buttonClassName('secondary')}
-                                    disabled={state.pending}
-                                    onClick={handler.handleReload}
-                                >
-                                    {t('admin.hostMonitoring.reload')}
-                                </button>
                             ) : null}
                         </section>
                     </>

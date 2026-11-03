@@ -94,7 +94,8 @@
         "moreDomains": "Show {{count}} more domains",
         "clearSelection": "Clear selection",
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "automaticRecovery": "Retrying automatically…"
     },
     "inputs": {
         "invalidPhone": "Enter a valid phone number.",
@@ -162,7 +163,6 @@
         "loading": "Searching…",
         "noResults": "No results found.",
         "unavailable": "Some results are unavailable. Try again.",
-        "retry": "Retry search",
         "targetUnavailable": "This entry is no longer available or your permissions have changed.",
         "opening": "Opening…",
         "resultsLabel": "Search results",
@@ -228,7 +228,6 @@
         "rateLimited": "Too many requests. Try again later.",
         "authUnavailable": "Authentication service temporarily unavailable.",
         "authentication_required": "Your session has expired. Sign in again.",
-        "reauthentication_required": "Confirm your identity to continue.",
         "email_conflict": "This email address is already in use.",
         "last_active_owner": "The last active owner cannot be disabled or changed.",
         "owner_required": "Only an owner can make this change.",
@@ -254,7 +253,17 @@
         },
         "oidc": {
             "signInWith": "Sign in with {{provider}}",
-            "failed": "Sign-in failed. Try again or use your local account."
+            "failed": "Sign-in failed. Try again or use your local account.",
+            "title": "Sign in with an identity provider",
+            "loading": "Loading sign-in providers…",
+            "continuing": "Opening identity provider…",
+            "catalogUnavailable": "Sign-in providers are temporarily unavailable. You can use your local account.",
+            "unavailable": "The identity provider could not be reached. Try again or use your local password or passkey.",
+            "denied": "This identity is not allowed to sign in. Contact your administrator or use your local account.",
+            "expired": "This sign-in request has expired. Start sign-in again.",
+            "conflict": "The sign-in configuration changed. Start sign-in again.",
+            "localRecovery": "Local owners can continue with a password or passkey.",
+            "cancel": "Cancel sign-in"
         },
         "logoutFailed": "Could not sign out. Check your connection and try again.",
         "logoutRevocationFailed": "Signed out in this browser, but the server session could not be revoked."
@@ -413,7 +422,8 @@
             "twoFactor": "Two-factor",
             "passkeys": "Passkeys",
             "appearance": "Appearance",
-            "notifications": "Notifications"
+            "notifications": "Notifications",
+            "linkedAccounts": "Linked accounts"
         },
         "page": {
             "eyebrow": "Your account",
@@ -426,7 +436,6 @@
         "password": {
             "sectionEyebrow": "Credentials",
             "title": "Change password",
-            "currentPassword": "Current password",
             "newPassword": "New password",
             "confirmNewPassword": "Confirm new password",
             "changing": "Changing password…",
@@ -435,8 +444,7 @@
                 "changed": "Password changed. Other sessions were revoked."
             },
             "error": {
-                "update": "The password could not be changed.",
-                "incorrectCurrentPassword": "The current password is incorrect."
+                "update": "The password could not be changed."
             }
         },
         "profileImage": {
@@ -563,23 +571,6 @@
                 "remove": "Passkey could not be removed."
             }
         },
-        "reauthentication": {
-            "title": "Confirm this security change",
-            "description": "Reauthenticate to continue. Your existing session alone is not sufficient.",
-            "currentPassword": "Current password",
-            "confirm": "Confirm",
-            "usePasskey": "Use a passkey instead",
-            "success": {
-                "confirmed": "Identity confirmed.",
-                "passkeyStarted": "Passkey verification started."
-            },
-            "error": {
-                "failed": "Reauthentication failed.",
-                "incorrectPassword": "The password is incorrect.",
-                "passkeyStart": "Passkey reauthentication could not be started.",
-                "passkeyVerification": "Passkey verification failed."
-            }
-        },
         "recoveryCodes": {
             "title": "Save your recovery codes",
             "description": "These codes are shown only once. Each code can be used one time.",
@@ -702,6 +693,33 @@
                 "configuration_unavailable": "Configuration unavailable"
             },
             "conflict": "Settings have changed. Your draft is preserved. Reopen the channel to reconcile the changes."
+        },
+        "oidc": {
+            "title": "Linked accounts",
+            "description": "Sign in with another provider.",
+            "empty": "No identity providers are available.",
+            "external": "Your account is managed by an identity provider. Contact your administrator to change its connections.",
+            "link": "Link account",
+            "unlink": "Unlink account",
+            "linked": "Linked",
+            "unlinked": "Not linked",
+            "disabled": "Provider disabled",
+            "loading": "Loading linked accounts…",
+            "pending": "Continue at your provider. If you cancelled, refresh this list.",
+            "unlinkedSuccess": "Account unlinked. Local sign-in remains available.",
+            "linkedSuccess": "Account linked. You can now sign in with this provider.",
+            "noPermission": "You do not have permission to manage linked accounts.",
+            "error": {
+                "unavailable": "Linked accounts could not be loaded. Refresh and try again.",
+                "conflict": "Connections changed. The list has been refreshed; review it and try again.",
+                "denied": "You need a local password or passkey and permission to change this account.",
+                "rateLimited": "Too many attempts. Wait a minute and try again.",
+                "failed": "The connection could not be changed. Refresh and try again.",
+                "expired": "This connection request has expired. Start again and confirm your local identity.",
+                "unavailableProvider": "The identity provider could not be reached. Try linking again later.",
+                "deniedLink": "This identity could not be linked. Choose another provider identity or contact your administrator."
+            },
+            "cancel": "Cancel navigation"
         }
     },
     "admin": {
@@ -1047,7 +1065,6 @@
                 "disabling": "Disabling user…",
                 "enable": "Enable",
                 "enabling": "Enabling user…",
-                "retryRoles": "Retry roles",
                 "open": "Open actions for {{name}}",
                 "none": "No actions available",
                 "ownerEdit": "Only an owner can edit this account.",
@@ -1549,7 +1566,6 @@
                     "ownerHint": "Some providers append the domain automatically. Enter the owner as required by your provider so the final full name matches the displayed TXT owner.",
                     "valuesHint": "Several values may share the same owner. Add every value and keep unrelated existing TXT values.",
                     "finish": "Done",
-                    "retry": "Retry loading TXT records",
                     "reused": "The certificate authority reused an existing authorization. No TXT records are needed. Select Done, then continue in the main dialog.",
                     "blocked": "Close the guide and review the current certificate validation.",
                     "expires": "TXT records expire at {{expires}}"
@@ -3779,7 +3795,6 @@
             "observationPoint": "Checks run from this RentnerProxy instance. Public internet reachability is not checked.",
             "permissionDenied": "You do not have permission to view monitoring.",
             "loadError": "Monitoring could not be loaded. Retry to refresh the status.",
-            "retry": "Retry",
             "loading": "Loading monitoring…",
             "noData": "No checks have been recorded yet.",
             "configure": "Configure monitoring",
@@ -3816,8 +3831,7 @@
             "historyCap": "The newest 300 checks are loaded. Narrow the period or status to explore further.",
             "save": "Save changes",
             "close": "Close",
-            "conflict": "Monitoring changed elsewhere. Your edits are preserved. Reload settings to use the latest version.",
-            "reload": "Reload settings",
+            "conflict": "Settings changed. Your draft is preserved.",
             "saveError": "Monitoring settings could not be saved.",
             "saved": "Monitoring settings saved.",
             "invalid": "Check the settings and allowed ranges.",
@@ -4109,7 +4123,6 @@
         "url": "Redirect URL",
         "html": "HTML source",
         "loading": "Loading default site…",
-        "reload": "Reload saved settings",
         "discard": "Discard changes",
         "dirty": "Unsaved changes",
         "clean": "No unsaved changes",
@@ -4129,7 +4142,7 @@
             "custom-html": "Custom HTML"
         },
         "errors": {
-            "conflict": "Settings changed elsewhere. Reload the saved settings before trying again.",
+            "conflict": "Saved settings changed. Your draft is preserved.",
             "loadFailed": "Could not load the default site.",
             "saveFailed": "Could not save the default site.",
             "invalidSettings": "Choose valid default-site settings.",
@@ -4200,39 +4213,33 @@
     "oidc": {
         "title": "Identity providers",
         "eyebrow": "Security",
-        "description": "Configure OpenID Connect sign-in for existing local accounts.",
+        "description": "Manage sign-in providers and account links.",
         "add": "Add provider",
         "edit": "Edit provider",
         "delete": "Delete provider",
         "deleteConfirm": "Delete {{name}}? Its sign-in bindings will be removed. Local accounts remain available.",
-        "editorDescription": "Save the provider before testing its metadata. New providers start disabled.",
         "enabled": "Enabled",
         "disabled": "Disabled",
         "advanced": "Advanced trust settings",
         "basic": "HTTP Basic client authentication",
         "post": "Client credentials in request body",
         "bindings": "Identity bindings",
-        "bindingsHint": "Bind the provider's exact, immutable subject to an existing active local account. To change a subject, remove its binding and add another.",
+        "bindingsHint": "Assign a subject (sub) to a local account.",
         "subject": "Immutable subject (sub)",
         "localUser": "Local account",
         "removeBinding": "Remove binding",
         "addBinding": "Add binding",
-        "secretHint": "Leave blank to preserve the saved secret. New providers and changes to issuer, client ID, authentication method or trust settings require a new secret.",
-        "trustHint": "Enter one exact HTTPS origin or private network CIDR per line. Include the issuer origin. Only allow trusted endpoints and networks. Leave endpoint origins blank to use the issuer origin automatically.",
+        "secretHint": "Leave blank to keep the secret. Enter a new one for new providers or changed trust settings.",
+        "trustHint": "One HTTPS origin or CIDR per line. Empty endpoint list = issuer origin.",
         "callback": "Callback URL",
         "copy": "Copy callback URL",
         "copied": "Callback URL copied.",
         "callbackHint": "Configure PUBLIC_ORIGIN on the server to obtain the canonical callback URL.",
-        "recovery": "Keep a local owner account with a working password or passkey for recovery. Administrative changes require recent local owner authentication.",
-        "policy": "Only explicit subject bindings are accepted. Automatic account creation, email matching, groups and role mapping are unavailable.",
-        "refresh": "Refresh",
-        "refreshConflict": "Reload saved configuration?",
         "empty": "No identity providers configured.",
         "bindingCount": "Bindings: {{count}}",
         "test": "Test saved provider",
         "tested": "Saved provider metadata verified. This does not test a user sign-in.",
         "saved": "Provider configuration saved.",
-        "reauthenticated": "Local authentication verified. Retry your action.",
         "unavailableUser": "Unavailable or inactive local account",
         "fields": {
             "name": "Provider name",
@@ -4244,10 +4251,9 @@
             "privateCidrs": "Allowed private network CIDRs"
         },
         "errors": {
-            "reauthentication_required": "Verify your local owner identity, then retry.",
             "authentication_required": "Sign in again.",
             "owner_required": "A local owner account is required.",
-            "configuration_conflict": "Configuration changed. Your draft is preserved. Refresh and explicitly retry.",
+            "configuration_conflict": "The provider changed. Your draft is preserved.",
             "invalid_input": "Check names, HTTPS URLs, origins, CIDRs, unique subjects and account selections. A new secret may be required.",
             "identity_not_allowed": "Select active local accounts with application access.",
             "rate_limited": "Too many requests. Wait before retrying.",
@@ -4257,8 +4263,6 @@
             "copy": "Callback URL could not be copied.",
             "secret": "A new client secret is required for this provider or trust change."
         },
-        "reloadTitle": "Reload saved configuration?",
-        "reloadDescription": "This discards your unsaved changes and loads the latest saved provider. Review it before making new changes.",
         "placeholders": {
             "name": "Example identity provider",
             "issuer": "https://login.example.com",
@@ -4267,6 +4271,33 @@
             "endpointOrigins": "Automatically uses the issuer origin when blank",
             "privateCidrs": "10.20.0.0/16",
             "subject": "Exact subject from the identity provider"
-        }
+        },
+        "accountPolicy": "Accounts and roles",
+        "provisioning": "Create users automatically",
+        "provisioningHint": "Verified email required. Existing accounts are not linked automatically.",
+        "groupClaim": "Groups claim",
+        "groupClaimHint": "Top-level ID-token claim, e.g. groups.",
+        "defaultRoles": "Default roles",
+        "groupMappings": "Group-to-role mappings",
+        "group": "Exact group value",
+        "mappedRoles": "Roles for this group",
+        "addMapping": "Add group mapping",
+        "removeMapping": "Remove group mapping",
+        "rolePolicyHint": "Provider-managed accounts only. Groups match exactly; missing groups revoke mapped roles.",
+        "rolesUnavailable": "Roles are temporarily unavailable.",
+        "provisioningOn": "Automatic account creation",
+        "provisioningOff": "Explicit account links only",
+        "rolePolicySummary": "Default roles: {{defaults}} · Group mappings: {{mappings}}",
+        "managedBinding": "Roles managed by this provider",
+        "setupTitle": "Setup examples: authentik and Keycloak",
+        "setupClient": "Confidential client · Authorization Code · PKCE S256 · RS256. Use the exact callback URL.",
+        "setupAuthentik": "Issuer: https://auth.example.com/application/o/rentnerproxy/. Use an RSA signing key and profile/email mappings.",
+        "setupKeycloak": "Issuer: https://sso.example.com/realms/rentnerproxy. Enable client authentication and standard flow; include groups in the ID token.",
+        "setupGroups": "Account creation requires email and email_verified=true. Use a top-level groups claim and exact group values.",
+        "setupAuthentikDocs": "authentik documentation",
+        "setupKeycloakDocs": "Keycloak documentation",
+        "authentikName": "authentik",
+        "keycloakName": "Keycloak",
+        "discard": "Discard changes"
     }
 }

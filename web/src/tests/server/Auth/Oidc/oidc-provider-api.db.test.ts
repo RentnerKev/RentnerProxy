@@ -338,7 +338,7 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
     )
 
     integrationTest(
-        'rejects switched sessions and stale local authentication before binding an external identity',
+        'rejects switched sessions and accepts older active sessions before binding an external identity',
         async () => {
             const configuration = await linkProvider()
             const target = await authorizeOidcLinkService(configuration.providerId)
@@ -356,8 +356,8 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
                 ),
             ).rejects.toMatchObject({ code: 'authentication_required' })
             currentCookie = staleOwnerToken
-            await expect(authorizeOidcLinkService(configuration.providerId)).rejects.toMatchObject({
-                code: 'reauthentication_required',
+            expect(await authorizeOidcLinkService(configuration.providerId)).toMatchObject({
+                sessionId: expect.any(String),
             })
             expect(await storedSettings()).toEqual(before)
         },
@@ -409,7 +409,7 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
     )
 
     integrationTest(
-        'protects saved-provider probes with real owner freshness and redacted failure responses',
+        'protects saved-provider probes with real owner authorization and redacted failure responses',
         async () => {
             const initial = await storedSettings()
             const providerId = randomUUID()
@@ -447,7 +447,6 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
             }
             for (const [cookie, status, code] of [
                 [viewerToken, 403, 'owner_required'],
-                [staleOwnerToken, 403, 'reauthentication_required'],
                 [null, 401, 'authentication_required'],
             ] as const) {
                 currentCookie = cookie
@@ -485,8 +484,9 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
     )
 
     integrationTest(
-        'persists an owner mutation with encrypted credentials and a nullable global audit target',
+        'persists an older-session owner mutation with encrypted credentials and a nullable global audit target',
         async () => {
+            currentCookie = staleOwnerToken
             const initialResponse = await request('GET')
             expect(initialResponse.status).toBe(200)
             const initial = (await initialResponse.json()) as {
@@ -559,24 +559,14 @@ describe('OIDC owner JSON API with actual authorization, settings and audit pers
         },
     )
 
-    for (const actor of ['viewer', 'oidc-owner', 'anonymous'] as const) {
+    for (const actor of ['viewer', 'anonymous'] as const) {
         integrationTest(
             `rejects ${actor} reads and writes without changing the durable revision`,
             async () => {
                 const before = await storedSettings()
-                currentCookie =
-                    actor === 'viewer'
-                        ? viewerToken
-                        : actor === 'oidc-owner'
-                          ? staleOwnerToken
-                          : null
+                currentCookie = actor === 'viewer' ? viewerToken : null
                 const status = actor === 'anonymous' ? 401 : 403
-                const error =
-                    actor === 'viewer'
-                        ? 'owner_required'
-                        : actor === 'oidc-owner'
-                          ? 'reauthentication_required'
-                          : 'authentication_required'
+                const error = actor === 'viewer' ? 'owner_required' : 'authentication_required'
                 for (const method of ['GET', 'POST'] as const) {
                     // oxlint-disable-next-line no-await-in-loop -- Each boundary must be checked against the same durable revision.
                     const response = await request(method, {

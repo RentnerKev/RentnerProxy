@@ -14,7 +14,6 @@ export default function ProxyHostCertificateFields({
     canRequestCertificate,
     assignableCertificatesLoading,
     assignableCertificatesLoadFailed,
-    retryAssignableCertificates,
     requestNewCertificate,
     certificateRequestForm,
     usableCertificates,
@@ -85,8 +84,6 @@ export default function ProxyHostCertificateFields({
                             <QueryFieldFeedback
                                 isLoading={assignableCertificatesLoading}
                                 isError={assignableCertificatesLoadFailed}
-                                isPending={isPending}
-                                onRetry={retryAssignableCertificates}
                             />
                             <FieldError
                                 id={`${formId}-certificateId-error`}

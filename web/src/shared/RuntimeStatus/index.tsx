@@ -8,9 +8,7 @@ export default function RuntimeStatusPanel({
     canApply,
     isError = false,
     isApplying,
-    isRetrying = false,
     onApply,
-    onRetry,
     status,
     translationPrefix,
 }: RuntimeStatusPanelProps) {
@@ -26,16 +24,7 @@ export default function RuntimeStatusPanel({
             title={t(`${translationPrefix}.${runtimeState}`)}
             description={t(`${translationPrefix}.${runtimeState}Description`)}
             action={
-                isError && onRetry ? (
-                    <button
-                        type="button"
-                        className={buttonClassName('secondary')}
-                        onClick={onRetry}
-                        disabled={isRetrying}
-                    >
-                        {t('common.retry')}
-                    </button>
-                ) : showApply ? (
+                showApply ? (
                     <button
                         type="button"
                         className={buttonClassName('primary')}

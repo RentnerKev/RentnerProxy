@@ -2120,7 +2120,7 @@ test('certificate detail selection from a binding-job link opens after its metad
     }
 })
 
-test('manual setup retains the accepted order after list refresh failure and retries loading it', async () => {
+test('manual setup retains the accepted order after list refresh failure until the list query recovers', async () => {
     mockManualPreparation()
     getCertificatesHandlerMock.mockRejectedValue(new Error('follow-up list unavailable'))
     await openManualSetup()
@@ -2129,7 +2129,14 @@ test('manual setup retains the accepted order after list refresh failure and ret
     expect(document.body.textContent).not.toContain('a'.repeat(43))
     expect(button('Done').disabled).toBeTrue()
     getCertificatesHandlerMock.mockResolvedValue([certificate, preparedManualCertificate])
-    await click(button('Retry'))
+    expect(
+        [...document.querySelectorAll('button')].some(
+            (item) => item.textContent?.trim() === 'Retry',
+        ),
+    ).toBeFalse()
+    await act(async () => {
+        await activeQueryClient!.invalidateQueries()
+    })
     await waitFor(
         () =>
             document.querySelector<HTMLInputElement>('#manual-dns-setup-value-0')?.value ===
@@ -2291,7 +2298,6 @@ test.each(['en', 'de'] as const)(
                 records={metadata.records}
                 expiresAt={metadata.expiresAt}
                 onOpenChange={() => undefined}
-                onRetry={() => undefined}
                 onDone={() => undefined}
                 onCopy={async () => undefined}
             />,

@@ -25,7 +25,6 @@ import {
     getSessionByTokenService,
     revokeSessionByTokenService,
 } from '@/server/Auth/Access/sessions.service.ts'
-import { isSessionRecentlyAuthenticated } from '@/server/Auth/Access/authorization.service.ts'
 import { loginService } from '@/server/Auth/Login/login.service.ts'
 import { authenticateOidcIdentityService } from '@/server/Auth/Oidc/oidc-login.service.ts'
 import { getOidcClientConfigurationService } from '@/server/Auth/Oidc/oidc-providers.service.ts'
@@ -295,7 +294,6 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
             expect(stored?.oidcProof).not.toHaveProperty('groups')
             const current = await getSessionByTokenService(result.session.token)
             if (!current) throw new Error('Stored OIDC session was not resolved.')
-            expect(isSessionRecentlyAuthenticated(current)).toBeFalse()
             expect(await revokeSessionByTokenService(result.session.token)).toBeTrue()
             expect(await getSessionByTokenService(result.session.token)).toBeNull()
             expect(await fixtureSessions()).toHaveLength(0)
@@ -314,7 +312,6 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
                 throw new Error('Local password recovery login failed.')
             const passwordSession = await getSessionByTokenService(passwordLogin.session.token)
             if (!passwordSession) throw new Error('Local password session was not stored.')
-            expect(isSessionRecentlyAuthenticated(passwordSession)).toBeTrue()
         },
     )
 
@@ -407,7 +404,6 @@ describe('OIDC identity authentication with isolated PostgreSQL and Valkey', () 
                 if (!result.success) throw new Error('Valid local MFA was rejected.')
                 const current = await getSessionByTokenService(result.session.token)
                 if (!current) throw new Error('MFA session was not stored.')
-                expect(isSessionRecentlyAuthenticated(current)).toBeTrue()
                 expect(await fixtureSessions()).toHaveLength(1)
                 expect(await complete()).toEqual({ success: false, code: 'challenge_expired' })
                 expect(await fixtureSessions()).toHaveLength(1)

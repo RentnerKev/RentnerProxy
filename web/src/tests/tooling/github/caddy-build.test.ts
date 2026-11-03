@@ -1,8 +1,43 @@
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 describe('upstream Caddy binary security metadata', () => {
+    test('source preparation verifies the reviewed backport and preserves dependency manifests', async () => {
+        const root = resolve(import.meta.dir, '../../../../..')
+        const [script, patch] = await Promise.all([
+            readFile(join(root, 'docker/caddy/tooling/prepare-source.sh'), 'utf8'),
+            readFile(join(root, 'docker/caddy/patches/runtime-reload.patch')),
+        ])
+        expect(script).toContain(createHash('sha256').update(patch).digest('hex'))
+        const changedPaths = patch
+            .toString()
+            .split('\n')
+            .filter((line) => line.startsWith('diff --git '))
+        expect(changedPaths.length).toBeGreaterThan(0)
+        expect(changedPaths.some((line) => /\/(?:go\.mod|go\.sum)(?: |$)/u.test(line))).toBe(false)
+        expect(script).toContain('cmp "$source/go.mod" go.mod')
+        expect(script).toContain('cmp "$source/go.sum" go.sum')
+    })
+
+    test.skipIf(process.platform === 'win32')(
+        'unreviewed Caddy versions are rejected before any tools or source writes',
+        () => {
+            const script = resolve(
+                import.meta.dir,
+                '../../../../../docker/caddy/tooling/prepare-source.sh',
+            )
+            const result = Bun.spawnSync(['/bin/sh', script], {
+                env: { PATH: '/no-build-tools', CADDY_VERSION: 'v2.11.8' },
+                stdout: 'pipe',
+                stderr: 'pipe',
+            })
+            expect(result.exitCode).toBe(2)
+            expect(result.stderr.toString()).toContain('requires review for this version')
+        },
+    )
+
     test('both images use the same Caddy build while retaining pins, static ABI and licenses', async () => {
         const root = resolve(import.meta.dir, '../../../../..')
         const shared = await readFile(join(root, 'docker/caddy/tooling/build.sh'), 'utf8')
@@ -21,6 +56,10 @@ describe('upstream Caddy binary security metadata', () => {
         expect(caddyBuilders[1]).toBe(caddyBuilders[0])
         for (const image of images) {
             expect(image).toContain('COPY docker/caddy/tooling/build.sh /tmp/build-caddy.sh')
+            expect(image).toContain(
+                'COPY docker/caddy/tooling/prepare-source.sh /tmp/prepare-caddy-source.sh',
+            )
+            expect(image).toContain('COPY docker/caddy/patches/ /opt/rentnerproxy-caddy-patches/')
             expect(image).toContain(
                 'COPY docker/tooling/buildinfo/verify.go /tmp/verify-buildinfo.go',
             )
@@ -47,6 +86,9 @@ describe('upstream Caddy binary security metadata', () => {
             'test "$(go env GOVERSION)" = go1.27.3',
             '--with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_VERSION:?Caddy builder must pin the upstream CrowdSec module}',
             'go mod verify',
+            '/bin/sh /tmp/prepare-caddy-source.sh',
+            'go mod edit -replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
+            '--replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
             'go test -mod=readonly ./...',
             '--with github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
             '--replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module}',
@@ -73,9 +115,21 @@ describe('upstream Caddy binary security metadata', () => {
             expect(context).toContain('!docker/tooling/')
             expect(context).toContain('!docker/tooling/buildinfo/')
             expect(context).toContain('!docker/tooling/buildinfo/**')
+            expect(context).toMatch(/^!docker\/caddy\/tooling\/(?:prepare-source\.sh|\*\*)$/mu)
+            expect(context).toContain('!docker/caddy/patches/')
+            expect(context).toContain('!docker/caddy/patches/**')
         }
         expect(images[0]).toContain(
             'COPY docker/tooling/buildinfo/verify.go /opt/verify-buildinfo.go',
+        )
+        expect(shared.indexOf('go mod verify')).toBeLessThan(
+            shared.indexOf('/bin/sh /tmp/prepare-caddy-source.sh'),
+        )
+        expect(shared.indexOf('/bin/sh /tmp/prepare-caddy-source.sh')).toBeLessThan(
+            shared.indexOf('go mod edit -replace'),
+        )
+        expect(shared.indexOf('go mod edit -replace')).toBeLessThan(
+            shared.indexOf('go test -mod=readonly'),
         )
         expect(shared).not.toContain('caddy-http-only')
         expect(shared).not.toContain('caddy-crowdsec-bouncer=/')

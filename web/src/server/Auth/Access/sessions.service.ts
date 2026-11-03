@@ -3,7 +3,6 @@ import '@tanstack/react-start/server-only'
 import { createHash } from 'node:crypto'
 import { and, eq, gt, lte, ne, sql } from 'drizzle-orm'
 
-import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
 import { SESSION_DURATION_MS, SESSION_LAST_SEEN_INTERVAL_MS } from '@/config/auth.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { sessions, users } from '@/db/schema.ts'
@@ -82,7 +81,7 @@ export async function pruneExpiredSessionsInTransaction(
     `)
 }
 
-/** Issues a local session; OIDC alone does not grant recent local authentication for sensitive actions. */
+/** Issues a session bound to the selected authentication method and any verified OIDC proof. */
 export async function createSessionInTransaction(
     transaction: AuthTransaction,
     userId: string,
@@ -300,7 +299,7 @@ export async function revokeOtherUserSessionsInTransaction(
         .where(and(eq(sessions.userId, userId), ne(sessions.id, currentSessionId)))
 }
 
-export async function requireRecentSessionInTransaction(
+export async function requireActiveSessionInTransaction(
     transaction: AuthTransaction,
     currentSession: CurrentSession,
 ): Promise<void> {
@@ -308,7 +307,6 @@ export async function requireRecentSessionInTransaction(
     const rows = await transaction
         .select({
             expiresAt: sessions.expiresAt,
-            reauthenticatedAt: sessions.reauthenticatedAt,
         })
         .from(sessions)
         .where(and(eq(sessions.id, currentSession.id), eq(sessions.userId, currentSession.user.id)))
@@ -319,30 +317,4 @@ export async function requireRecentSessionInTransaction(
     if (!session || session.expiresAt.getTime() <= now.getTime()) {
         throw new AuthDomainError('authentication_required', 'Authentication is required.')
     }
-
-    const authenticationAge = now.getTime() - session.reauthenticatedAt.getTime()
-
-    if (authenticationAge < 0 || authenticationAge > RECENT_AUTHENTICATION_DURATION_MS) {
-        throw new AuthDomainError('reauthentication_required', 'Recent authentication is required.')
-    }
-}
-
-export async function markSessionReauthenticatedInTransaction(
-    transaction: AuthTransaction,
-    currentSession: CurrentSession,
-): Promise<boolean> {
-    const now = new Date()
-    const updated = await transaction
-        .update(sessions)
-        .set({ reauthenticatedAt: now })
-        .where(
-            and(
-                eq(sessions.id, currentSession.id),
-                eq(sessions.userId, currentSession.user.id),
-                gt(sessions.expiresAt, now),
-            ),
-        )
-        .returning({ id: sessions.id })
-
-    return updated.length === 1
 }

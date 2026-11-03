@@ -148,12 +148,6 @@ export default function useAccessPolicyManagementLogic({
         setShowCreate(false)
         setSelectedPolicy(null)
     }, [])
-    const retry = useCallback(() => {
-        void policiesQuery.refetch()
-    }, [policiesQuery])
-    const retryRuntime = useCallback(() => {
-        void runtimeStatusQuery.refetch()
-    }, [runtimeStatusQuery])
 
     useQuickAction(
         'createAccessPolicy',
@@ -177,7 +171,6 @@ export default function useAccessPolicyManagementLogic({
             policies: policiesQuery.data ?? EMPTY_ACCESS_POLICIES,
             runtimeStatus: runtimeStatusQuery.data,
             runtimeStatusError: runtimeStatusQuery.isError,
-            runtimeStatusRetrying: runtimeStatusQuery.isFetching,
             selectedPolicy,
             showCreate,
         },
@@ -190,8 +183,6 @@ export default function useAccessPolicyManagementLogic({
             openCredentials,
             openDelete,
             openEditor,
-            retry,
-            retryRuntime,
             setCreateOpen: setShowCreate,
             setDeleteOpen,
             setEditorOpen,

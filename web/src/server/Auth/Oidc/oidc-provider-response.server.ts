@@ -18,11 +18,7 @@ export function oidcProviderFailure(error: unknown, headers: Headers): Response 
     if (isAuthDomainError(error)) {
         if (error.code === 'authentication_required')
             return Response.json({ error: error.code }, { status: 401, headers })
-        if (
-            ['owner_required', 'permission_denied', 'reauthentication_required'].includes(
-                error.code,
-            )
-        )
+        if (['owner_required', 'permission_denied'].includes(error.code))
             return Response.json({ error: error.code }, { status: 403, headers })
     }
     if (error instanceof OidcDomainError) {
@@ -70,7 +66,7 @@ export function createOidcProviderResponseHandler(dependencies: OidcProviderResp
         )
             return Response.json({ error: 'invalid_input' }, { status: 415, headers })
         try {
-            // Reuse canonical owner/session freshness checks before reading untrusted input.
+            // Reuse canonical owner/session validity checks before reading untrusted input.
             // The mutation independently rechecks them under its settings lock.
             await dependencies.get()
         } catch (error) {

@@ -37,7 +37,6 @@ afterEach(() => mock.restore())
 test('public authentication errors map every domain category to safe statuses and messages', () => {
     const cases: readonly [AuthDomainErrorCode, number][] = [
         ['authentication_required', 401],
-        ['reauthentication_required', 403],
         ['permission_denied', 403],
         ['owner_required', 403],
         ['user_not_found', 404],

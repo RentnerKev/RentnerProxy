@@ -2,11 +2,7 @@ import type { ValkeyCommandClient } from './valkey.types.ts'
 import type { OidcIdentityProof } from '@/server/Auth/Oidc/Types/oidc.types.ts'
 
 export type AuthChallengeKind =
-    | 'login-mfa'
-    | 'totp-setup'
-    | 'webauthn-authentication'
-    | 'webauthn-reauthentication'
-    | 'webauthn-registration'
+    'login-mfa' | 'totp-setup' | 'webauthn-authentication' | 'webauthn-registration'
 
 interface BaseChallenge {
     readonly createdAt: string
@@ -46,18 +42,10 @@ export interface WebAuthnAuthenticationChallenge extends BaseChallenge {
     readonly kind: 'webauthn-authentication'
 }
 
-export interface WebAuthnReauthenticationChallenge extends BaseChallenge {
-    readonly challenge: string
-    readonly kind: 'webauthn-reauthentication'
-    readonly sessionId: string
-    readonly userId: string
-}
-
 export type AuthChallenge =
     | LoginMfaChallenge
     | TotpSetupChallenge
     | WebAuthnAuthenticationChallenge
-    | WebAuthnReauthenticationChallenge
     | WebAuthnRegistrationChallenge
 
 export interface IssuedAuthChallenge {

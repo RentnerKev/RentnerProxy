@@ -124,11 +124,6 @@ describe('OIDC self-service connections HTTP boundary', () => {
         })
     }
     for (const [error, status, code] of [
-        [
-            new AuthDomainError('reauthentication_required', 'private-auth-detail'),
-            403,
-            'reauthentication_required',
-        ],
         [new OidcDomainError('configuration_conflict'), 409, 'configuration_conflict'],
         [new OidcDomainError('identity_not_allowed'), 422, 'identity_not_allowed'],
         [new Error('raw-token-and-private-identity'), 503, 'configuration_unavailable'],

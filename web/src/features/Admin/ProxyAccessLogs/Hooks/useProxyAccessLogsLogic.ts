@@ -192,9 +192,6 @@ export default function useProxyAccessLogsLogic({
         )
         return () => clearTimeout(timeout)
     }, [applyFilters, draftFilters, filters])
-    const retry = useCallback(() => {
-        void logsQuery.refetch()
-    }, [logsQuery])
     const changePage = useCallback(
         (nextPage: number) => {
             const boundedPage = Math.min(Math.max(nextPage, 1), pageCount)
@@ -243,7 +240,6 @@ export default function useProxyAccessLogsLogic({
             onPageChange: changePage,
             onPageSizeChange: changePageSize,
             resetFilters,
-            retry,
             toggleEntryDetails,
         },
     }

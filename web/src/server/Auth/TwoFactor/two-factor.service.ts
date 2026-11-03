@@ -35,14 +35,14 @@ import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import {
-    requireRecentAuthenticationForSession,
+    requireActiveSessionForSession,
     requireSessionPermission,
 } from '@/server/Auth/Access/authorization.service.ts'
 import {
     createSessionInTransaction,
     lockActiveUserForAuthenticationInTransaction,
     requirePasswordAuthenticationInTransaction,
-    requireRecentSessionInTransaction,
+    requireActiveSessionInTransaction,
     revokeOtherUserSessionsInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
@@ -115,7 +115,7 @@ export async function getTwoFactorStatusService(userId: string): Promise<TwoFact
 }
 
 export async function beginTotpSetupService(currentSession: CurrentSession) {
-    await requireRecentAuthenticationForSession(currentSession)
+    await requireActiveSessionForSession(currentSession)
     await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
     if (await hasEnabledTotpFactorService(currentSession.user.id)) {
@@ -165,7 +165,7 @@ export async function confirmTotpSetupService(input: {
             targetId: input.currentSession.user.id,
         },
         async () => {
-            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireActiveSessionForSession(input.currentSession)
             await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             const verification = await acquireCodeChallengeVerification('totp-setup', input.flowId)
@@ -237,7 +237,7 @@ export async function confirmTotpSetupService(input: {
                     transaction,
                     input.currentSession.user.id,
                 )
-                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requireActiveSessionInTransaction(transaction, input.currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     input.currentSession.user.id,
@@ -307,7 +307,7 @@ export async function regenerateRecoveryCodesService(
             targetId: currentSession.user.id,
         },
         async () => {
-            await requireRecentAuthenticationForSession(currentSession)
+            await requireActiveSessionForSession(currentSession)
             await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             const recoveryCodes = await createRecoveryCodeBatch()
@@ -316,7 +316,7 @@ export async function regenerateRecoveryCodesService(
                     transaction,
                     currentSession.user.id,
                 )
-                await requireRecentSessionInTransaction(transaction, currentSession)
+                await requireActiveSessionInTransaction(transaction, currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     currentSession.user.id,
@@ -370,7 +370,7 @@ export async function disableTotpService(currentSession: CurrentSession): Promis
             targetId: currentSession.user.id,
         },
         async () => {
-            await requireRecentAuthenticationForSession(currentSession)
+            await requireActiveSessionForSession(currentSession)
             await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             return getAuthDatabase().transaction(async (transaction) => {
@@ -378,7 +378,7 @@ export async function disableTotpService(currentSession: CurrentSession): Promis
                     transaction,
                     currentSession.user.id,
                 )
-                await requireRecentSessionInTransaction(transaction, currentSession)
+                await requireActiveSessionInTransaction(transaction, currentSession)
                 await requirePermissionInTransaction(
                     transaction,
                     currentSession.user.id,

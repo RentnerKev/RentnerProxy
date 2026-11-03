@@ -74,15 +74,6 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                             description={t(
                                 'admin.accessPolicies.basicAuth.states.unavailableDescription',
                             )}
-                            action={
-                                <button
-                                    type="button"
-                                    className={buttonClassName('secondary')}
-                                    onClick={handler.retry}
-                                >
-                                    {t('common.retry')}
-                                </button>
-                            }
                         />
                     ) : state.isLoading ? (
                         <ContentState

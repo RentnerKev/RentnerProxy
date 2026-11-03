@@ -6,7 +6,6 @@ import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import RoleFormModal from './Components/RoleFormModal/index.tsx'
 import RolesTable from './Components/RolesTable/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function RoleManagementPage(props: RoleManagementPageProps) {
     const { state, handler } = useRoleManagementLogic(props)
@@ -24,15 +23,6 @@ export default function RoleManagementPage(props: RoleManagementPageProps) {
                     severity="error"
                     title={t('admin.roles.states.unavailableTitle')}
                     description={t('admin.roles.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <RolesTable

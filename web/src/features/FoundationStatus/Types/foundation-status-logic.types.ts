@@ -8,5 +8,4 @@ export interface FoundationStatusLogicResult {
         isPending: boolean
         liveStatus: LiveStatus
     }
-    handler: { retry: () => void }
 }

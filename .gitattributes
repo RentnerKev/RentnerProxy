@@ -1,4 +1,6 @@
 * text=auto eol=lf
 *.sh text eol=lf
+# Unified-diff context prefixes carry intentional whitespace before source tabs.
+docker/caddy/patches/*.patch whitespace=-blank-at-eol,-space-before-tab
 # Published migration hashes use LF bytes, including Windows build contexts.
 web/drizzle/** text eol=lf

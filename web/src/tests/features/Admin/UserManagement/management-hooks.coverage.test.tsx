@@ -144,8 +144,6 @@ test('user actions preserve dialog state on failed responses, invalidate on succ
     }
     expect(enable).toHaveBeenLastCalledWith({ data: { userId: user.id } })
     await hook.run((value) => {
-        value.handler.retryUsers()
-        value.handler.retryRoles()
         return value.handler.refreshCurrentUser()
     })
     await hook.run((value) => {
@@ -226,7 +224,6 @@ test('role deletion protects assigned/system roles and clears editor only after 
     await hook.run((value) => value.handler.setDeleteOpen(false))
     expect(hook.current.state.deleteTarget).toBeNull()
     await hook.run((value) => {
-        value.handler.retry()
         value.handler.handleFormSuccess()
         return value.handler.refreshCurrentUser()
     })

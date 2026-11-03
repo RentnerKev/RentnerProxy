@@ -40,15 +40,6 @@ export default function TrustedCaManagementPage(props: TrustedCaManagementPagePr
                     severity="error"
                     title={t('admin.trustedCas.states.unavailableTitle')}
                     description={t('admin.trustedCas.states.unavailableDescription')}
-                    action={
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={handler.retry}
-                        >
-                            {t('common.retry')}
-                        </button>
-                    }
                 />
             ) : (
                 <TrustedCasTable

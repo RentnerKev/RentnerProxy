@@ -74,13 +74,16 @@ jobs:
                   key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
             - name: Install dependencies
               run: bun install --frozen-lockfile
-            - name: Extract pinned Caddy fixture binary
+            - name: Build and extract production Caddy fixture binary
               shell: bash
+              env:
+                  CADDY_FIXTURE_IMAGE: rentnerproxy-beta2-caddy:${{ github.sha }}
               run: |
                   set -euo pipefail
                   export RENTNERPROXY_TEST_CADDY_BIN="$RUNNER_TEMP/beta2-caddy"
                   printf '%s\n' "RENTNERPROXY_TEST_CADDY_BIN=$RENTNERPROXY_TEST_CADDY_BIN" >> "$GITHUB_ENV"
-                  image=mirror.gcr.io/library/caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+                  image="$CADDY_FIXTURE_IMAGE"
+                  docker build --target caddy-build --file docker/proxy-runtime/Dockerfile --tag "$image" .
                   container=$(docker create "$image")
                   trap 'docker rm -f "$container" >/dev/null' EXIT
                   docker cp "$container:/usr/bin/caddy" "$RENTNERPROXY_TEST_CADDY_BIN"

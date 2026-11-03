@@ -296,6 +296,27 @@ describe('default-site settings panel', () => {
         expect(saveSettings).not.toHaveBeenCalled()
     })
 
+    test.each([true, false])(
+        'clean editor or viewer follows live data with update permission %s',
+        async (canUpdate) => {
+            const container = await renderPanel(canUpdate)
+            saved = {
+                baseRevision: 'revision-live',
+                settings: { mode: 'redirect', url: 'https://live.example/' },
+            }
+            await act(async () => {
+                await client!.invalidateQueries({ queryKey: ['default-site'] })
+            })
+            await settle()
+            expect(container.querySelector<HTMLInputElement>('input[name="url"]')?.value).toBe(
+                'https://live.example/',
+            )
+            expect(container.textContent).toContain('Saved: Redirect')
+            expect(container.textContent).not.toContain('Reload')
+            expect(saveSettings).not.toHaveBeenCalled()
+        },
+    )
+
     test('saves mode changes with the loaded revision and reports pending honestly', async () => {
         outcome = { success: true, message: 'defaultSite.savedPending', runtimeStatus: 'pending' }
         const container = await renderPanel()
@@ -316,7 +337,7 @@ describe('default-site settings panel', () => {
         )
     })
 
-    test('retains the HTML draft while toggling modes and reloads after a conflict', async () => {
+    test('retains the HTML draft through a conflict and discards locally to the latest cached state', async () => {
         saved = {
             baseRevision: 'revision-1',
             settings: { mode: 'custom-html', html: '<p>draft</p>' },
@@ -332,16 +353,22 @@ describe('default-site settings panel', () => {
             container.querySelector(
                 'section[aria-labelledby="default-site-heading"] [role="alert"]',
             )?.textContent,
-        ).toContain('Settings changed elsewhere')
+        ).toContain('Saved settings changed')
         saved = {
             baseRevision: 'revision-3',
             settings: { mode: 'redirect', url: 'https://example.test/' },
         }
+        await act(async () => {
+            await client!.invalidateQueries({ queryKey: ['default-site'] })
+        })
+        await settle()
+        const readsBeforeDiscard = getSettings.mock.calls.length
         await click(
             [...container.querySelectorAll('button')].find((button) =>
                 button.textContent?.includes('Discard changes'),
             )!,
         )
+        expect(getSettings.mock.calls.length).toBe(readsBeforeDiscard)
         expect(container.querySelector<HTMLInputElement>('input[name="url"]')?.value).toBe(
             'https://example.test/',
         )
@@ -433,7 +460,7 @@ describe('default-site settings panel', () => {
                 container.querySelector(
                     'section[aria-labelledby="default-site-heading"] [role="alert"]',
                 )?.textContent,
-            ).toContain('Settings changed elsewhere')
+            ).toContain('Saved settings changed')
         },
     )
 
@@ -581,7 +608,7 @@ describe('default-site settings panel', () => {
         expect(saveSettings).not.toHaveBeenCalled()
     })
 
-    test('keeps a failed load visible in the card and allows retry without opening page alerts', async () => {
+    test('recovers a failed load through automatic invalidation without a retry button', async () => {
         getSettings.mockRejectedValueOnce(new Error('offline'))
         const container = await renderPanel()
         expect(
@@ -592,11 +619,15 @@ describe('default-site settings panel', () => {
         expect(container.querySelector('button[data-severity="error"]')).not.toBeNull()
         const panel = container.querySelector('section[aria-labelledby="default-site-heading"]')!
         expect(panel.textContent).toContain('Could not load the default site.')
-        await click(
-            [...panel.querySelectorAll('button')].find((button) =>
+        expect(
+            [...panel.querySelectorAll('button')].some((button) =>
                 button.textContent?.includes('Try again'),
-            )!,
-        )
+            ),
+        ).toBe(false)
+        await act(async () => {
+            await client!.invalidateQueries({ queryKey: ['default-site'] })
+        })
+        await settle()
         expect(
             container.querySelector(
                 'section[aria-labelledby="default-site-heading"] [role="alert"]',

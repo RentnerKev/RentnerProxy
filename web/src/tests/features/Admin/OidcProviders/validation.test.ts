@@ -11,6 +11,30 @@ const draft = {
 }
 
 describe('OIDC editor endpoint-origin normalization', () => {
+    test('keeps legacy policy absent until explicitly configured and strips only UI mapping identities', () => {
+        const provider = { ...providerInput(draft), revision: 7, credentialConfigured: true }
+        const legacy = providerDraft(provider)
+        expect(providerInput(legacy)).not.toHaveProperty('accountPolicy')
+        const configured = providerDraft({
+            ...provider,
+            accountPolicy: {
+                provisioning: false,
+                groupClaim: 'teams',
+                defaultRoleKeys: ['viewer'],
+                groupRoleMappings: [{ group: ' Operators ', roleKeys: ['admin'] }],
+            },
+        })
+        expect(configured.accountPolicy!.groupRoleMappings[0]!.rowId).toBeTruthy()
+        const input = providerInput(configured)
+        expect(input.accountPolicy!.groupRoleMappings).toEqual([
+            { group: ' Operators ', roleKeys: ['admin'] },
+        ])
+        configured.accountPolicy!.groupRoleMappings[0]!.roleKeys.push('viewer')
+        expect(input.accountPolicy!.groupRoleMappings[0]!.roleKeys).toEqual(['admin'])
+        expect(
+            saveOidcProvidersSchema.safeParse({ expectedRevision: 7, providers: [input] }).success,
+        ).toBe(true)
+    })
     test('retains account policy and binding generations when editing unrelated provider details', () => {
         const input = providerInput(draft)
         const provider = {

@@ -1,6 +1,7 @@
 package upstreamobserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -135,6 +136,14 @@ func TestActualHandlerLifecycleAndHealthIsolation(t *testing.T) {
 	if got := query(t, testHost, testRevision); len(got.Observations) != 1 || got.Observations[0].Instance != result.Observations[0].Instance {
 		t.Fatalf("late provisioning failure changed active registry: %+v", got)
 	}
+	// The first staged handler provisions successfully before the second fails.
+	// Canceling that rejected configuration must not expose its instance.
+	if err := caddy.Load(observedConfig(t, testHandler(testHost, address), broken), true); err == nil {
+		t.Fatal("expected failure after a staged observed handler")
+	}
+	if got := query(t, testHost, testRevision); len(got.Observations) != 1 || got.Observations[0].Instance != result.Observations[0].Instance {
+		t.Fatalf("failed staged configuration changed active registry: %+v", got)
+	}
 	if err := caddy.Stop(); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +222,7 @@ func TestAdminResponseByteLimit(t *testing.T) {
 	}
 	for i := 0; i < maxObservations; i++ {
 		token := sequence.Add(1)
-		if err := instances.add(token, h); err != nil {
+		if err := instances.add(token, h, nil); err != nil {
 			t.Fatal(err)
 		}
 		defer instances.remove(token)
@@ -231,11 +240,11 @@ func TestRegistryBoundsAndConcurrentCleanup(t *testing.T) {
 	s := registry{entries: make(map[uint64]entry)}
 	h := &Handler{HostID: testHost, Revision: testRevision, Handler: reverseproxy.Handler{Upstreams: reverseproxy.UpstreamPool{&reverseproxy.Upstream{Host: new(reverseproxy.Host), Dial: "127.0.0.1:80"}}}}
 	for i := 1; i <= maxInstances; i++ {
-		if err := s.add(uint64(i), h); err != nil {
+		if err := s.add(uint64(i), h, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := s.add(maxInstances+1, h); err == nil {
+	if err := s.add(maxInstances+1, h, nil); err == nil {
 		t.Fatal("unbounded registry")
 	}
 	if _, err := s.snapshot(testHost, testRevision); err == nil {
@@ -251,7 +260,7 @@ func TestRegistryBoundsAndConcurrentCleanup(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < 100; i++ {
 				token := uint64(n + 2)
-				_ = s.add(token, h)
+				_ = s.add(token, h, nil)
 				if _, err := s.snapshot(testHost, testRevision); err != nil {
 					t.Error(err)
 				}
@@ -268,5 +277,77 @@ func TestRegistryBoundsAndConcurrentCleanup(t *testing.T) {
 	// Repeated cleanup before provisioning must be safe too.
 	if err := new(Handler).Cleanup(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Cancellation hides retired observations before deferred Cleanup releases resources.
+func TestCanceledConfigurationIsImmediatelyExcluded(t *testing.T) {
+	oldContext, cancelOld := context.WithCancel(context.Background())
+	defer cancelOld()
+	newContext, cancelNew := context.WithCancel(context.Background())
+	defer cancelNew()
+	old := &Handler{HostID: testHost, Revision: testRevision, token: sequence.Add(1)}
+	current := &Handler{HostID: testHost, Revision: testRevision, token: sequence.Add(1)}
+	for _, registration := range []struct {
+		handler   *Handler
+		lifecycle context.Context
+	}{{old, oldContext}, {current, newContext}} {
+		if err := instances.add(registration.handler.token, registration.handler, registration.lifecycle); err != nil {
+			t.Fatal(err)
+		}
+		defer instances.remove(registration.handler.token)
+	}
+	// Neither cleanup nor an asynchronous cancellation callback has run.
+	cancelOld()
+	got, err := instances.snapshot(testHost, testRevision)
+	if err != nil || len(got.Observations) != 1 || got.Observations[0].Instance != fmt.Sprintf("%x", current.token) {
+		t.Fatalf("retired configuration remained observable: %+v, %v", got, err)
+	}
+	instances.RLock()
+	_, retained := instances.entries[old.token]
+	instances.RUnlock()
+	if !retained {
+		t.Fatal("cancellation unexpectedly performed resource cleanup")
+	}
+	for i := 0; i < 2; i++ {
+		if err := old.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err = instances.snapshot(testHost, testRevision)
+	if err != nil || len(got.Observations) != 1 || got.Observations[0].Instance != fmt.Sprintf("%x", current.token) {
+		t.Fatalf("old cleanup removed current configuration: %+v, %v", got, err)
+	}
+	cancelNew()
+	got, err = instances.snapshot(testHost, testRevision)
+	if err != nil || len(got.Observations) != 0 {
+		t.Fatalf("canceled current configuration remained: %+v, %v", got, err)
+	}
+}
+
+func TestCanceledConfigurationsDoNotExhaustRegistryCapacity(t *testing.T) {
+	s := registry{entries: make(map[uint64]entry)}
+	retired, cancel := context.WithCancel(context.Background())
+	h := &Handler{HostID: testHost, Revision: testRevision}
+	for token := uint64(1); token <= maxInstances; token++ {
+		if err := s.add(token, h, retired); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cancel()
+	if err := s.add(maxInstances+1, h, retired); err == nil {
+		t.Fatal("accepted canceled registration")
+	}
+	if err := s.add(maxInstances+1, h, context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.entries) != 1 {
+		t.Fatalf("retired registrations retained capacity: %d", len(s.entries))
+	}
+	// Releasing an old instance after pruning cannot unregister its replacement.
+	s.remove(1)
+	got, err := s.snapshot(testHost, testRevision)
+	if err != nil || len(got.Observations) != 1 {
+		t.Fatalf("current registration was removed: %+v, %v", got, err)
 	}
 }

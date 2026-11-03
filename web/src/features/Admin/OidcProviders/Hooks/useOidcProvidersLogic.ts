@@ -1,23 +1,31 @@
 import { z } from 'zod'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { startAuthentication } from '@simplewebauthn/browser'
 import { toast } from '@rentnerkev/toasts'
-import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
+import { OIDC_LIMITS } from '@/config/oidc.config.ts'
+import { createOidcProviderId } from '@/lib/Auth/Oidc/providerId.ts'
 import { getUsersHandler } from '@/features/Admin/UserManagement/middleware.ts'
 import { getRolesHandler } from '@/features/Admin/RoleManagement/middleware.ts'
-import useReauthentication from '@/features/UserSettings/Components/SecuritySettingsPanel/Hooks/useReauthentication.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { OidcProviderSummary } from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
+import type {
+    OidcProviderSummary,
+    OidcProvidersSummary,
+} from '@/lib/Auth/Oidc/Types/oidc-provider.types.ts'
 import { saveOidcProvidersSchema } from '@/lib/Auth/Oidc/validation.ts'
 import {
     providerDraft,
+    accountPolicyDraft,
     providerInput,
     providersResponseSchema,
     providerTestResponseSchema,
 } from '../validation.ts'
 import useOidcProviderForm from './useOidcProviderForm.ts'
-import type { OidcProvidersLogicResult } from '../Types/oidc-providers.types.ts'
+import type {
+    OidcProvidersLogicResult,
+    ProviderAccountPolicyDraft,
+    ProviderDraft,
+} from '../Types/oidc-providers.types.ts'
 
 class ProviderRequestError extends Error {}
 class ProviderSecretRequiredError extends Error {}
@@ -44,21 +52,17 @@ async function request<T>(schema: z.ZodType<T>, path = '', body?: unknown): Prom
 }
 const key = ['admin', 'oidc-providers'] as const
 
-/** Coordinates revisioned provider edits, explicit reloads, and fresh-owner authentication. */
+/** Coordinates live provider snapshots while retaining unsaved drafts. */
 export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [testing, setTesting] = useState(false)
-    const [reloadConfirm, setReloadConfirm] = useState(false)
     const [editorOpen, setEditorOpen] = useState(false)
     const [editing, setEditing] = useState<OidcProviderSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<OidcProviderSummary | null>(null)
     const [conflict, setConflict] = useState(false)
-    const [reauthOpen, setReauthOpen] = useState(false)
     const [baseRevision, setBaseRevision] = useState<number | null>(null)
     const busy = useRef(false)
-    const reauthBusy = useRef(false)
-    const reauthentication = useReauthentication()
     /** Maps server error codes to safe UI feedback and opens the recovery state when needed. */
     const report = useCallback(
         (error: unknown) => {
@@ -69,7 +73,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             const code =
                 error instanceof ProviderRequestError ? error.message : 'configuration_unavailable'
             const known = [
-                'reauthentication_required',
                 'authentication_required',
                 'owner_required',
                 'configuration_conflict',
@@ -82,22 +85,13 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             toast.error(
                 t(`oidc.errors.${known.includes(code) ? code : 'configuration_unavailable'}`),
             )
-            if (code === 'reauthentication_required') setReauthOpen(true)
             if (code === 'configuration_conflict') setConflict(true)
         },
         [t],
     )
     const query = useQuery({
         queryKey: key,
-        /** Reports authorization and revision failures before the query enters its error state. */
-        queryFn: async () => {
-            try {
-                return await request(providersResponseSchema)
-            } catch (error) {
-                report(error)
-                throw error
-            }
-        },
+        queryFn: () => request(providersResponseSchema),
         retry: false,
     })
     const users = useQuery({
@@ -110,15 +104,24 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         queryFn: () => getRolesHandler(),
         retry: false,
     })
-    useEffect(() => {
-        if (users.error || roles.error) toast.error(t('oidc.errors.users'))
-    }, [users.error, roles.error, t])
     const [defaultValues, setDefaultValues] = useState(providerDraft)
     const form = useOidcProviderForm(defaultValues, handleSave)
-    /** Resets both draft state and TanStack Form state so modal sessions cannot inherit secrets. */
-    function resetDraft(values: typeof defaultValues) {
-        setDefaultValues(values)
-        form.reset(values)
+    const resetDraft = useCallback(
+        (values: ProviderDraft) => {
+            setDefaultValues(values)
+            form.reset(values)
+        },
+        [form],
+    )
+    /** Initializes optional policy only after an explicit edit; disabling JIT retains role synchronization. */
+    function updatePolicy(
+        update: (policy: ProviderAccountPolicyDraft) => ProviderAccountPolicyDraft,
+    ) {
+        if (busy.current || !roles.isSuccess || roles.isError) return
+        form.setFieldValue(
+            'accountPolicy',
+            update(form.state.values.accountPolicy ?? accountPolicyDraft()),
+        )
     }
     const formRef = useRef(form)
     useEffect(
@@ -127,14 +130,13 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         },
         [],
     )
-    /** Closes an idle editor and clears its draft, conflict, and reauthentication state. */
+    /** Closes an idle editor and clears its draft and conflict state. */
     function close() {
         if (busy.current) return
         resetDraft(providerDraft())
         setEditorOpen(false)
         setEditing(null)
         setConflict(false)
-        reauthentication.handler.reset()
     }
     const mutation = useMutation({
         /** Builds a revisioned full snapshot while requiring secrets for new or changed trust. */
@@ -179,7 +181,9 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             const parsed = saveOidcProvidersSchema.safeParse(input)
             if (!parsed.success) throw new ProviderRequestError('invalid_input')
             const result = await request(providersResponseSchema, '', parsed.data)
-            queryClient.setQueryData(key, result)
+            queryClient.setQueryData<z.infer<typeof providersResponseSchema>>(key, (current) =>
+                current && current.revision > result.revision ? current : result,
+            )
             return result
         },
         retry: false,
@@ -196,10 +200,11 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             setEditing(null)
             setDeleteTarget(null)
             setConflict(false)
-            reauthentication.handler.reset()
             toast.success(t('oidc.saved'))
         } catch (error) {
             report(error)
+            if (error instanceof ProviderRequestError && error.message === 'configuration_conflict')
+                await query.refetch()
         } finally {
             busy.current = false
             mutation.reset()
@@ -208,30 +213,61 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     async function handleSave() {
         await run('save')
     }
-    /** Refreshes configuration while preserving an open draft for explicit conflict handling. */
-    async function refresh() {
-        if (busy.current) return
-        if (conflict && (editorOpen || deleteTarget)) {
-            setReloadConfirm(true)
+    const synchronizeDraft = useCallback(
+        (snapshot: Pick<OidcProvidersSummary, 'providers' | 'revision'>) => {
+            if (editorOpen && editing) {
+                const provider = snapshot.providers.find((item) => item.id === editing.id)
+                if (JSON.stringify(provider) !== JSON.stringify(editing)) {
+                    if (form.state.isDirty) {
+                        setConflict(true)
+                        return
+                    }
+                    if (!provider) {
+                        resetDraft(providerDraft())
+                        setEditorOpen(false)
+                        setEditing(null)
+                    } else {
+                        resetDraft(providerDraft(provider))
+                        setEditing(provider)
+                    }
+                }
+            }
+            if (deleteTarget) {
+                const provider = snapshot.providers.find((item) => item.id === deleteTarget.id)
+                if (JSON.stringify(provider) !== JSON.stringify(deleteTarget))
+                    setDeleteTarget(provider ?? null)
+            }
+            setBaseRevision(snapshot.revision)
+            setConflict(false)
+        },
+        [form, editorOpen, editing, deleteTarget, resetDraft],
+    )
+    useEffect(() => {
+        return queryClient.getQueryCache().subscribe((event) => {
+            if (
+                event.type !== 'updated' ||
+                event.action.type !== 'success' ||
+                event.query.queryKey.length !== key.length ||
+                !key.every((part, index) => event.query.queryKey[index] === part)
+            )
+                return
+            const snapshot = providersResponseSchema.safeParse(event.query.state.data)
+            if (snapshot.success) synchronizeDraft(snapshot.data)
+        })
+    }, [queryClient, synchronizeDraft])
+
+    /** Discards only the local draft; the current server snapshot is already synchronized. */
+    function discard() {
+        if (busy.current || !query.data || query.isError) return
+        const provider = query.data.providers.find((item) => item.id === form.state.values.id)
+        if (editing && !provider) {
+            close()
             return
         }
-        const result = await query.refetch()
-        if (result.data && !editorOpen && !deleteTarget) setBaseRevision(result.data.revision)
-    }
-    /** Replaces the draft only after an explicit reload confirms the latest server revision. */
-    async function reload() {
-        if (busy.current) return
-        const result = await query.refetch()
-        if (!result.data || result.error) return
-        const provider = result.data.providers.find((item) => item.id === form.state.values.id)
         resetDraft(providerDraft(provider))
         setEditing(provider ?? null)
-        if (!provider && editing) setEditorOpen(false)
-        setDeleteTarget(null)
-        setBaseRevision(result.data.revision)
+        setBaseRevision(query.data.revision)
         setConflict(false)
-        setReloadConfirm(false)
-        reauthentication.handler.reset()
     }
     /** Tests the selected provider against the current server revision without changing its draft. */
     async function handleTest(provider: OidcProviderSummary) {
@@ -249,38 +285,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
         } finally {
             busy.current = false
             setTesting(false)
-        }
-    }
-    /** Reauthenticates with a password or passkey, then reloads the authorized provider snapshot. */
-    async function reauthenticate(passkey = false) {
-        if (reauthBusy.current) return
-        reauthBusy.current = true
-        try {
-            let result
-            if (passkey) {
-                const started = await reauthentication.handler.beginPasskey()
-                if (!started.success || !started.options || !started.challengeId) {
-                    toast.error(t(started.message))
-                    return
-                }
-                const response = await startAuthentication({ optionsJSON: started.options })
-                result = await reauthentication.handler.finishPasskey({
-                    challengeId: started.challengeId,
-                    response,
-                })
-            } else result = await reauthentication.handler.verifyPassword()
-            if (!result.success) {
-                toast.error(t(result.message))
-                return
-            }
-            reauthentication.handler.reset()
-            setReauthOpen(false)
-            await query.refetch()
-            toast.success(t('oidc.reauthenticated'))
-        } catch {
-            toast.error(t('account.reauthentication.error.failed'))
-        } finally {
-            reauthBusy.current = false
         }
     }
     const eligibleRoles = new Set(
@@ -316,11 +320,17 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             conflict,
             revision: query.data?.revision ?? null,
             userOptions: [...options, ...retained],
-            isAvailable: Boolean(query.data && !query.isError && !reauthOpen),
-            reloadConfirm,
-            reauthOpen,
-            credential: reauthentication.state.credential,
-            reauthPending: reauthentication.state.isPending,
+            roleOptions: (roles.data ?? [])
+                .filter((role) => role.key !== SYSTEM_ROLES.OWNER)
+                .map((role) => ({
+                    value: role.key,
+                    label: role.isSystem
+                        ? t(`systemRoles.${role.key}.name`)
+                        : role.name || role.key,
+                })),
+            rolesAvailable: roles.isSuccess && !roles.isError,
+            isAvailable: Boolean(query.data && !query.isError),
+            hasLoadError: query.isError,
         },
         handler: {
             /** Starts a draft only while an owner snapshot is available and current. */
@@ -343,7 +353,6 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             },
             handleClose: close,
             handleSave,
-            handleRefresh: refresh,
             handleTest,
             /** Copies the canonical callback URL, reporting clipboard failures to the user. */
             handleCopy: async () => {
@@ -365,17 +374,46 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 }
             },
             handleConfirmDelete: () => run('delete'),
-            handleReauthenticate: reauthenticate,
-            handleReloadConfirm: setReloadConfirm,
-            handleReload: reload,
-            /** Clears local credentials and closes reauthentication only when no challenge is running. */
-            handleReauthClose: () => {
-                if (!reauthBusy.current) {
-                    reauthentication.handler.reset()
-                    setReauthOpen(false)
-                }
-            },
-            handleCredential: reauthentication.setter.setCredential,
+            handleDiscard: discard,
+            handlePolicyProvisioning: (provisioning) =>
+                updatePolicy((policy) => ({ ...policy, provisioning })),
+            handlePolicyGroupClaim: (groupClaim) =>
+                updatePolicy((policy) => ({ ...policy, groupClaim })),
+            handlePolicyDefaultRoles: (defaultRoleKeys) =>
+                updatePolicy((policy) => ({ ...policy, defaultRoleKeys })),
+            handleAddMapping: () =>
+                updatePolicy((policy) =>
+                    policy.groupRoleMappings.length >= OIDC_LIMITS.groupMappings
+                        ? policy
+                        : {
+                              ...policy,
+                              groupRoleMappings: [
+                                  ...policy.groupRoleMappings,
+                                  { rowId: createOidcProviderId(), group: '', roleKeys: [] },
+                              ],
+                          },
+                ),
+            handleRemoveMapping: (rowId) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.filter(
+                        (mapping) => mapping.rowId !== rowId,
+                    ),
+                })),
+            handleMappingGroup: (rowId, group) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.map((mapping) =>
+                        mapping.rowId === rowId ? { ...mapping, group } : mapping,
+                    ),
+                })),
+            handleMappingRoles: (rowId, roleKeys) =>
+                updatePolicy((policy) => ({
+                    ...policy,
+                    groupRoleMappings: policy.groupRoleMappings.map((mapping) =>
+                        mapping.rowId === rowId ? { ...mapping, roleKeys } : mapping,
+                    ),
+                })),
         },
     }
 }

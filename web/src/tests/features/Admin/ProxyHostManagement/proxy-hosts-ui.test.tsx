@@ -1453,7 +1453,7 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Disable')
     })
 
-    test('moves page load failures into the navbar and clears them after retry', async () => {
+    test('moves page load failures into the navbar and clears them after cache recovery', async () => {
         loadProxyHostPageFixture.mockRejectedValueOnce(new Error('private controller diagnostics'))
         const container = await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => document.querySelector('button[data-severity="error"]') !== null)
@@ -1463,7 +1463,9 @@ describe('ProxyHost permissions and row actions', () => {
             'The saved proxy hosts could not be loaded. Try again.',
         )
         expect(document.body.textContent).not.toContain('private controller diagnostics')
-        await click(getButton('Try again'))
+        await act(async () => {
+            await activeQueryClient!.invalidateQueries()
+        })
         await waitFor(() => getRows().length === 2)
         expect(document.querySelector('button[data-severity]')).toBeNull()
     })
@@ -1499,9 +1501,7 @@ describe('ProxyHost permissions and row actions', () => {
                 <ProxyRuntimeStatusPanel
                     canApply
                     isApplying={false}
-                    isRetrying
                     onApply={() => undefined}
-                    onRetry={() => undefined}
                     status={undefined}
                 />,
             ),
@@ -1515,9 +1515,7 @@ describe('ProxyHost permissions and row actions', () => {
                 <ProxyRuntimeStatusPanel
                     canApply
                     isApplying={false}
-                    isRetrying
                     onApply={() => undefined}
-                    onRetry={() => undefined}
                     status={{
                         available: true,
                         running: true,
@@ -1537,17 +1535,14 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.body.textContent).not.toContain('Proxy runtime unavailable.')
     })
 
-    test('shows a safe runtime failure and retries instead of displaying stale status', async () => {
-        const onRetry = mock(() => undefined)
+    test('shows a safe runtime failure without a fetch retry action', async () => {
         await render(
             withTestLanguage(
                 <ProxyRuntimeStatusPanel
                     canApply
                     isApplying={false}
                     isError
-                    isRetrying={false}
                     onApply={() => undefined}
-                    onRetry={onRetry}
                     status={{
                         available: true,
                         running: true,
@@ -1565,8 +1560,11 @@ describe('ProxyHost permissions and row actions', () => {
         await openPageAlerts()
         expect(document.body.textContent).toContain('Proxy runtime unavailable.')
         expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
-        await click(getButton('Try again'))
-        expect(onRetry).toHaveBeenCalledTimes(1)
+        expect(
+            [...document.querySelectorAll('button')].some(
+                (button) => button.textContent === 'Try again',
+            ),
+        ).toBeFalse()
     })
 
     test('apply permission sees the action when the runtime is pending', async () => {
@@ -3277,7 +3275,7 @@ test('closes an edited host form while its certificate job continues globally', 
     ).toEqual([queuedJob])
 })
 
-test('shows a safe assignable certificate load failure and offers retry', async () => {
+test('shows a safe assignable certificate load failure and recovers through query cache updates', async () => {
     getAssignableCertificatesHandlerMock.mockRejectedValueOnce(
         new Error('private certificate query details'),
     )
@@ -3287,7 +3285,9 @@ test('shows a safe assignable certificate load failure and offers retry', async 
         'The requested data is temporarily unavailable. Try again.',
     )
     expect(document.body.textContent).not.toContain('private certificate query details')
-    await click(getButton('Try again'))
+    await act(async () => {
+        await activeQueryClient!.invalidateQueries()
+    })
     await waitFor(() => getAssignableCertificatesHandlerMock.mock.calls.length === 2)
 })
 

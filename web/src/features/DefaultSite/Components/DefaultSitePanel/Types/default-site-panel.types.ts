@@ -13,7 +13,6 @@ export interface DefaultSitePanelLogicResult<TForm> {
         isLoading: boolean
         loadFailed: boolean
         isSaving: boolean
-        isReloading: boolean
         mode: DefaultSiteSettings['mode']
         savedMode: DefaultSiteSettings['mode'] | null
         canSave: boolean
@@ -26,7 +25,7 @@ export interface DefaultSitePanelLogicResult<TForm> {
     }
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
-        handleReload: () => void
+        handleDiscard: () => void
         handleModeChange: (value: string) => void
     }
 }

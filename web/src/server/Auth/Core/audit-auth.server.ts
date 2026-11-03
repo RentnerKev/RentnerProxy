@@ -27,7 +27,6 @@ export async function auditAuthOperation<T>(
         const denied =
             code === 'permission_denied' ||
             code === 'authentication_required' ||
-            code === 'reauthentication_required' ||
             code === 'owner_required'
         await recordAuditEventBestEffortService({ ...event, result: denied ? 'denied' : 'failure' })
         throw error

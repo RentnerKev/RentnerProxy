@@ -50,10 +50,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     const [accessRevoked, setAccessRevoked] = useState(false)
     const baseVersion = useRef<string | null>(null)
     const draftOwner = useRef('')
-    const session = useRef({ open: props.open, canView, hostId: props.host.id })
-    useEffect(() => {
-        session.current = { open: props.open, canView, hostId: props.host.id }
-    }, [props.open, canView, props.host.id])
     const domains = useMemo(
         () =>
             props.host.domains
@@ -66,11 +62,9 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         queryKey: hostMonitoringQueryKeys.policy(props.host.id),
         queryFn: ({ signal }) => getHostMonitoringPolicy(props.host.id, signal),
         enabled,
-        refetchInterval: enabled ? HOST_MONITORING_UI.pollIntervalMs : false,
-        refetchIntervalInBackground: false,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
-        retry: (count, error) => !privateError(error) && count < 2,
+        retry: (count, error) => !privateError(error) && count < 3,
     })
     const historyInput: HostMonitoringHistoryQuery = {
         proxyHostId: props.host.id,
@@ -100,11 +94,9 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
                     : undefined
                 : undefined,
         enabled: enabled && !privateError(policyQuery.error),
-        refetchInterval: enabled ? HOST_MONITORING_UI.pollIntervalMs : false,
-        refetchIntervalInBackground: false,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
-        retry: (count, error) => !privateError(error) && count < 2,
+        retry: (count, error) => !privateError(error) && count < 3,
     })
     const forbidden =
         !canView ||
@@ -138,6 +130,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         onError: (error) => {
             if (error instanceof HostMonitoringClientError && error.code === 'conflict') {
                 setConflict(true)
+                void policyQuery.refetch()
                 setNotice(t('admin.hostMonitoring.conflict'))
             } else {
                 setNotice(t('admin.hostMonitoring.saveError'))
@@ -256,10 +249,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             setTab(next)
             document.getElementById(`${id}-tab-${next}`)?.focus()
         },
-        handleRetry: () => {
-            void policyQuery.refetch()
-            void historyQuery.refetch()
-        },
         handleStatus: (value) => {
             if (
                 value === 'all' ||
@@ -278,32 +267,14 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             if (historyQuery.hasNextPage && !historyQuery.isFetchingNextPage)
                 void historyQuery.fetchNextPage()
         },
-        handleReload: () => {
-            if (forbidden) {
-                setDraftDefaults(defaultSettings)
-                form.reset(defaultSettings)
-                return
-            }
-            void policyQuery.refetch().then((result) => {
-                if (
-                    !result.isSuccess ||
-                    !session.current.open ||
-                    !session.current.canView ||
-                    session.current.hostId !== props.host.id
-                )
-                    return
-                baseVersion.current = result.data?.version ?? null
-                const nextDefaults = result.data?.settings ?? defaultSettings
-                setDraftDefaults(nextDefaults)
-                form.reset(nextDefaults)
-                setConflict(false)
-                setNotice('')
-            })
-        },
         handleDiscard: () => {
             if (mutation.isPending) return
-            if (forbidden) setDraftDefaults(defaultSettings)
-            form.reset(forbidden ? defaultSettings : draftDefaults)
+            const latest = forbidden
+                ? defaultSettings
+                : (policyQuery.data?.settings ?? defaultSettings)
+            baseVersion.current = forbidden ? null : (policyQuery.data?.version ?? null)
+            setDraftDefaults(latest)
+            form.reset(latest)
             setConflict(false)
             setNotice('')
         },

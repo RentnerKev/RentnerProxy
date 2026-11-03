@@ -2,7 +2,7 @@ import { afterEach, beforeAll, expect, mock, spyOn } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import * as webauthn from '@simplewebauthn/server'
 import type { RegistrationResponseJSON, VerifiedRegistrationResponse } from '@simplewebauthn/server'
-import { passkeys } from '@/db/schema.ts'
+import { passkeys, users } from '@/db/schema.ts'
 import * as configuration from '@/server/Configuration/management-origin.server.ts'
 import * as challenges from '@/server/Valkey/auth-challenges.service.ts'
 import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
@@ -213,6 +213,66 @@ integrationTest(
         spyOn(configuration, 'getRuntimeWebAuthnConfiguration').mockResolvedValue(null)
         await expect(beginPasskeyRegistrationService(current)).rejects.toMatchObject({
             code: 'service_unavailable',
+        })
+        expect(await getPasskeysForUserService(current.user.id)).toEqual([])
+    },
+)
+
+integrationTest(
+    'registration rejects externally managed credentials before challenge issuance and rechecks account management after verification',
+    async () => {
+        const current = await session()
+        const providerId = Bun.randomUUIDv7()
+        spyOn(configuration, 'getRuntimeWebAuthnConfiguration').mockResolvedValue(config)
+        const issued = spyOn(challenges, 'createAuthChallenge')
+        await database
+            .update(users)
+            .set({ oidcProviderId: providerId })
+            .where(eq(users.id, current.user.id))
+        await expect(beginPasskeyRegistrationService(current)).rejects.toMatchObject({
+            code: 'permission_denied',
+        })
+        expect(issued).not.toHaveBeenCalled()
+        expect(await getPasskeysForUserService(current.user.id)).toEqual([])
+        await database
+            .update(users)
+            .set({ oidcProviderId: null })
+            .where(eq(users.id, current.user.id))
+        spyOn(challenges, 'consumeAuthChallenge').mockResolvedValue({
+            kind: 'webauthn-registration',
+            challenge: 'registration-challenge',
+            sessionId: current.id,
+            userId: current.user.id,
+            createdAt: new Date().toISOString(),
+        })
+        spyOn(webauthn, 'verifyRegistrationResponse').mockImplementation(async () => {
+            await database
+                .update(users)
+                .set({ oidcProviderId: providerId })
+                .where(eq(users.id, current.user.id))
+            return verified
+        })
+        await expect(
+            finishPasskeyRegistrationService({
+                currentSession: current,
+                flowId: 'changed-management',
+                response,
+            }),
+        ).rejects.toMatchObject({ code: 'permission_denied' })
+        expect(await getPasskeysForUserService(current.user.id)).toEqual([])
+    },
+)
+
+integrationTest(
+    'registration revalidates active user status under the transaction lock',
+    async () => {
+        const current = await session()
+        await database
+            .update(users)
+            .set({ status: 'disabled' })
+            .where(eq(users.id, current.user.id))
+        await expect(beginPasskeyRegistrationService(current)).rejects.toMatchObject({
+            code: 'authentication_required',
         })
         expect(await getPasskeysForUserService(current.user.id)).toEqual([])
     },
