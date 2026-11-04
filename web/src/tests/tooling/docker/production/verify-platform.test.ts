@@ -1,9 +1,11 @@
 import { expect, test } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-const shell = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
+const gitBash = 'C:/Program Files/Git/bin/bash.exe'
+const shell = process.platform === 'win32' && existsSync(gitBash) ? gitBash : Bun.which('bash')
 const script = resolve(import.meta.dir, '../../../../../../docker/production/verify-platform.sh')
 
 function shellPath(path: string): string {
@@ -34,7 +36,8 @@ for (const scenario of [
     { name: 'unsupported architecture', architecture: 's390x' },
     { name: 'unsupported operating system', os: 'windows' },
 ]) {
-    test(`appliance platform verification: ${scenario.name}`, async () => {
+    test.skipIf(!shell)(`appliance platform verification: ${scenario.name}`, async () => {
+        if (!shell) throw new Error('Bash is required for appliance platform verification tests.')
         const options = {
             architecture: 'amd64',
             dpkgArchitecture: undefined as string | undefined,
@@ -59,9 +62,11 @@ for (const scenario of [
             binary.writeUInt16LE(options.machine, 18)
             await Promise.all([
                 writeFile(join(directory, 'binary'), binary),
-                writeFile(join(tools, 'dpkg'), '#!/bin/sh\nprintf "%s\\n" "$DPKG_ARCH"\n', {
-                    mode: 0o755,
-                }),
+                writeFile(
+                    join(tools, 'dpkg'),
+                    '#!/bin/sh\n[ "$#" = 1 ] && [ "$1" = --print-architecture ] || exit 2\nprintf "%s\\n" "$DPKG_ARCH"\n',
+                    { mode: 0o755 },
+                ),
                 writeFile(
                     join(tools, 'ldd'),
                     '#!/bin/sh\nprintf "%s\\n" "$LINKAGE"\nexit "$LDD_STATUS"\n',

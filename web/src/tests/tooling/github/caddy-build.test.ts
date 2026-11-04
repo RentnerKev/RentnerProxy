@@ -67,7 +67,10 @@ describe('upstream Caddy binary security metadata', () => {
                 'COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/',
             )
             expect(image).toContain('http.handlers.rentnerproxy_response_cache')
-            expect(image.match(/RUN \/bin\/sh \/tmp\/build-caddy.sh/gu)).toHaveLength(1)
+            const runInstructions = image.replace(/\\\r?\n[ \t]*/gu, ' ').match(/^RUN .+$/gmu)
+            expect(
+                runInstructions?.join('\n').match(/\/bin\/sh \/tmp\/build-caddy\.sh(?=\s|$)/gu),
+            ).toHaveLength(1)
             expect(image).not.toContain('xcaddy build')
             expect(image).toContain('ENV GOTOOLCHAIN=local CGO_ENABLED=0')
             expect(image).toContain(
