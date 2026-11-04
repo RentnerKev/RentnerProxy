@@ -1,0 +1,9 @@
+FROM mirror.gcr.io/library/debian:13@sha256:2dc419c6d7fe3dad0a2f9fd469c34cc90b0f9ba642d8fde837fe3d7d34a0e7f1
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        bash ca-certificates coreutils curl gnupg iproute2 podman procps python3 skopeo systemd systemd-sysv util-linux \
+    && rm -rf /var/lib/apt/lists/* \
+    && touch /rentnerproxy-isolated-distribution \
+    && truncate -s 0 /etc/machine-id
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

@@ -1,0 +1,235 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+
+service=rentnerproxy.service
+container=rentnerproxy
+volume=rentnerproxy-data
+owner=appliance-v1
+configuration=/etc/rentnerproxy/appliance.env
+metadata=/usr/share/rentnerproxy
+temporary=''
+backup_parent=''
+maintenance_name=''
+restart_after_backup=false
+maintenance_root=/run/rentnerproxy-maintenance
+
+fail() { printf '%s\n' "$1" >&2; exit 1; }
+help() {
+    cat <<'HELP'
+RentnerProxy complete appliance, managed by rootful Podman and systemd/Quadlet.
+Supported: Debian 13 and Fedora 44, AMD64/ARM64, Podman >= 5.4, systemd >= 252,
+cgroup v2. Rootless operation is not offered by these packages.
+
+First install:
+  sudo install -m 0600 /usr/share/rentnerproxy/appliance.env.example /etc/rentnerproxy/appliance.env
+  Edit PUBLIC_ORIGIN and SMTP_* in that private file, then sudo rentnerproxy start.
+
+Commands:
+  start | stop | restart | status | logs | preflight
+  backup /absolute/private/directory
+  restore /absolute/private/backup --confirm-replace [--resume] [--allow-deployment-change]
+  purge-data --confirm-purge
+
+Proxy: TCP 80/443 and UDP 443. Management: http://127.0.0.1:81 only.
+Persistent state stays in the Podman volume rentnerproxy-data. Package removal
+preserves that volume and /etc/rentnerproxy. purge-data is explicitly destructive.
+
+Before upgrading, create and retain an external v4 backup. APT/DNF upgrades
+restart an already-running appliance and preserve configuration and data.
+For rollback, stop the appliance, install the exact previous signed package,
+then restore its compatible v4 backup. An image-only downgrade is not a database
+rollback. Failed or interrupted restores remain stopped; resume the SAME backup.
+Use Admin > Backups for online managed backups and restore. The commands above
+also work while application startup is broken and never need a host Bun install.
+Existing Docker/Compose data is not imported or removed automatically.
+HELP
+}
+
+require_root() { [[ $(id -u) == 0 ]] || fail 'Use sudo for the rootful RentnerProxy appliance.'; }
+lock_operations() {
+    if [[ ! -e "$maintenance_root" && ! -L "$maintenance_root" ]]; then install -d -m 0700 "$maintenance_root"; fi
+    private_directory "$maintenance_root"
+    [[ ! -L "$maintenance_root/lock" ]] || fail 'Unsafe maintenance lock.'
+    exec 9> "$maintenance_root/lock"
+    flock --nonblock 9 || fail 'Another appliance operation is still running.'
+}
+resource_exists() {
+    local result=0
+    podman "$1" exists "$2" || result=$?
+    (( result <= 1 )) || fail 'Cannot establish Podman resource ownership.'
+    return "$result"
+}
+owned_resources() {
+    local actual
+    if resource_exists container "$container"; then
+        actual=$(podman inspect --format '{{ index .Config.Labels "io.rentnerproxy.distribution" }}' "$container")
+        [[ "$actual" == "$owner" ]] || fail 'The container name belongs to another deployment.'
+    fi
+    if resource_exists volume "$volume"; then
+        actual=$(podman volume inspect --format '{{ index .Labels "io.rentnerproxy.distribution" }}' "$volume")
+        [[ "$actual" == "$owner" ]] || fail 'The data volume belongs to another deployment.'
+    fi
+}
+
+preflight() {
+    local version major minor systemd_version architecture platform permissions
+    version=$(podman version --format '{{.Client.Version}}')
+    [[ "$version" =~ ^([0-9]+)\.([0-9]+)\. ]] || fail 'Cannot validate the installed Podman version.'
+    major=${BASH_REMATCH[1]}; minor=${BASH_REMATCH[2]}
+    (( major > 5 || (major == 5 && minor >= 4) )) || fail 'Podman 5.4 or newer is required.'
+    [[ $(podman info --format '{{.Host.CgroupsVersion}}') == v2 ]] || fail 'cgroup v2 is required.'
+    systemd_version=$(systemd-analyze --version | awk 'NR == 1 {print $2}')
+    [[ "$systemd_version" =~ ^[0-9]+$ ]] || fail 'Cannot validate the installed systemd version.'
+    (( systemd_version >= 252 )) || fail 'systemd 252 or newer is required.'
+    platform=$(< "$metadata/platform")
+    architecture=$(uname -m)
+    case "$platform/$architecture" in linux/amd64/x86_64|linux/arm64/aarch64) ;; *) fail 'The package architecture does not match this host.' ;; esac
+    private_directory /etc/rentnerproxy
+    [[ ! -e "$maintenance_root/active" && ! -L "$maintenance_root/active" ]] || fail 'Offline maintenance is active; inspect or resume that operation first.'
+    [[ -f "$configuration" && ! -L "$configuration" ]] || fail 'Create the private appliance.env configuration first; see rentnerproxy --help.'
+    permissions=$(stat -c '%u:%h:%a' -- "$configuration")
+    [[ "$permissions" =~ ^0:1:([0-7]{3,4})$ ]] || fail 'appliance.env must be a root-owned private regular file.'
+    (( (8#${BASH_REMATCH[1]} & 077) == 0 )) || fail 'appliance.env must be private (0600).'
+    owned_resources
+}
+
+wait_ready() {
+    local attempt
+    for (( attempt=0; attempt<120; attempt++ )); do
+        systemctl is-active --quiet "$service" || fail 'The service stopped. Inspect journalctl -u rentnerproxy.service.'
+        if podman healthcheck run "$container" >/dev/null 2>&1; then return; fi
+        sleep 2
+    done
+    fail 'Appliance readiness timed out. Inspect journalctl -u rentnerproxy.service.'
+}
+
+private_directory() {
+    local path="$1" permissions
+    [[ "$path" == /* && "$path" != / && "$path" != *$'\n'* && "$path" != *$'\r'* ]] || fail 'Use an absolute private directory.'
+    [[ -d "$path" && ! -L "$path" && $(realpath -e -- "$path") == "$path" ]] || fail 'The directory must exist at its canonical path without symlinks.'
+    permissions=$(stat -c '%u:%a' -- "$path")
+    [[ "$permissions" =~ ^0:([0-7]{3,4})$ ]] || fail 'The directory must be root-owned.'
+    (( (8#${BASH_REMATCH[1]} & 077) == 0 )) || fail 'The directory must be private (0700).'
+}
+
+cleanup() {
+    local result=$? actual
+    trap - EXIT INT TERM
+    if [[ -n "$maintenance_name" ]] && resource_exists container "$maintenance_name"; then
+        actual=$(podman inspect --format '{{ index .Config.Labels "io.rentnerproxy.maintenance" }}' "$maintenance_name") || exit 1
+        [[ "$actual" == "$maintenance_name" ]] || exit 1
+        podman rm --force "$maintenance_name" >/dev/null || exit 1
+        if resource_exists container "$maintenance_name"; then exit 1; fi
+    fi
+    if [[ -n "$temporary" ]]; then
+        [[ "$temporary" == "$backup_parent"/.rentnerproxy-* && -d "$temporary" && ! -L "$temporary" ]] || exit 1
+        rm -rf -- "$temporary"
+    fi
+    if [[ -n "$maintenance_name" ]]; then
+        actual=$(< "$maintenance_root/active") || exit 1
+        [[ "$actual" == "$maintenance_name" ]] || exit 1
+        rm -- "$maintenance_root/active"
+    fi
+    if [[ "$restart_after_backup" == true ]]; then
+        systemctl start "$service" || exit 1
+        wait_ready || exit 1
+    fi
+    exit "$result"
+}
+
+maintenance() {
+    local operation="$1" path="$2" image platform identifier
+    shift 2
+    lock_operations
+    if [[ -e "$maintenance_root/active" || -L "$maintenance_root/active" ]]; then
+        [[ -f "$maintenance_root/active" && ! -L "$maintenance_root/active" ]] || fail 'Unsafe maintenance marker.'
+        local previous
+        previous=$(< "$maintenance_root/active")
+        [[ "$previous" =~ ^rentnerproxy-maintenance-[a-f0-9-]{36}$ ]] || fail 'Invalid maintenance ownership marker.'
+        if resource_exists container "$previous"; then fail 'A previous maintenance container is still running; stop that owned operation first.'; fi
+        rm -- "$maintenance_root/active"
+    fi
+    preflight
+    private_directory "$path"
+    if ! resource_exists volume "$volume"; then
+        [[ "$operation" == restore ]] || fail 'No initialized appliance data volume exists.'
+        podman volume create --label "io.rentnerproxy.distribution=$owner" "$volume" >/dev/null
+    fi
+    image=$(< "$metadata/image")
+    platform=$(< "$metadata/platform")
+    [[ "$image" =~ ^ghcr\.io/rentnerkev/rentnerproxy@sha256:[a-f0-9]{64}$ ]] || fail 'Invalid installed immutable image reference.'
+    identifier=$(< /proc/sys/kernel/random/uuid)
+    [[ "$identifier" =~ ^[a-f0-9-]{36}$ ]] || fail 'Cannot establish maintenance ownership.'
+    maintenance_name="rentnerproxy-maintenance-$identifier"
+    printf '%s\n' "$maintenance_name" > "$maintenance_root/active"
+    local -a arguments=(run --rm --image-volume=ignore --name "$maintenance_name" --label "io.rentnerproxy.maintenance=$maintenance_name" --network none --platform "$platform" --env-file "$configuration" --volume "$volume:/var/lib/rentnerproxy:Z" --entrypoint bun)
+    trap cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    if [[ "$operation" == backup ]]; then
+        backup_parent="$path"
+        temporary=$(mktemp -d "$path/.rentnerproxy-XXXXXXXX")
+        local service_state
+        service_state=$(systemctl show --property ActiveState --value "$service")
+        case "$service_state" in active) restart_after_backup=true ;; inactive|failed) ;; *) fail 'The appliance is changing state; retry when it has settled.' ;; esac
+        systemctl stop "$service"
+        [[ -z $(podman ps --filter "volume=$volume" --format '{{.Names}}') ]] || fail 'A running container still uses the appliance volume.'
+        podman "${arguments[@]}" --volume "$temporary:/backup:Z" "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js backup
+        local destination
+        destination="$path/rentnerproxy-$(date -u +%Y%m%d%H%M%S)-${identifier:0:8}"
+        [[ ! -e "$destination" && ! -L "$destination" ]] || fail 'Backup destination already exists.'
+        [[ -d "$temporary/complete" && ! -L "$temporary/complete" ]] || fail 'Backup publication was incomplete.'
+        mv -T -- "$temporary/complete" "$destination"
+        rmdir -- "$temporary"
+        temporary=''
+        sync --file-system "$path"
+        printf 'Production v4 backup created: %s\n' "$destination"
+    else
+        systemctl stop "$service"
+        [[ -z $(podman ps --filter "volume=$volume" --format '{{.Names}}') ]] || fail 'A running container still uses the appliance volume.'
+        podman "${arguments[@]}" --volume "$path:/backup:ro,Z" "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js restore "$@"
+        rm -- "$maintenance_root/active"
+        maintenance_name=''
+        systemctl start "$service"
+        wait_ready
+        printf '%s\n' 'Production v4 restore completed.'
+    fi
+}
+
+action=${1:---help}
+case "$action" in help|--help|-h) help; exit ;; esac
+require_root
+case "$action" in
+    preflight) [[ $# == 1 ]] || fail 'Unexpected arguments.'; preflight ;;
+    start|restart)
+        [[ $# == 1 ]] || fail 'Unexpected arguments.'
+        lock_operations
+        preflight
+        systemctl reset-failed "$service"
+        systemctl "$action" "$service"
+        wait_ready
+        ;;
+    stop) [[ $# == 1 ]] || fail 'Unexpected arguments.'; lock_operations; owned_resources; systemctl stop "$service" ;;
+    status) [[ $# == 1 ]] || fail 'Unexpected arguments.'; owned_resources; systemctl status --no-pager "$service" ;;
+    logs) [[ $# == 1 ]] || fail 'Unexpected arguments.'; journalctl --unit "$service" --no-pager --lines 100 ;;
+    backup) [[ $# == 2 ]] || fail 'Usage: rentnerproxy backup /absolute/private/directory'; maintenance backup "$2" ;;
+    restore)
+        [[ $# -ge 3 && $# -le 5 ]] || fail 'Restore requires a v4 backup and --confirm-replace.'
+        input="$2"; shift 2
+        confirmed=false
+        for option in "$@"; do
+            case "$option" in --confirm-replace) confirmed=true ;; --resume|--allow-deployment-change) ;; *) fail 'Unknown restore option.' ;; esac
+        done
+        [[ "$confirmed" == true ]] || fail 'Restore requires --confirm-replace.'
+        maintenance restore "$input" "$@"
+        ;;
+    purge-data)
+        [[ $# == 2 && "$2" == --confirm-purge ]] || fail 'Data purge requires --confirm-purge.'
+        lock_operations
+        owned_resources
+        if systemctl is-active --quiet "$service"; then fail 'Stop the appliance before purging data.'; fi
+        podman volume rm "$volume"
+        ;;
+    *) fail 'Unknown command; see rentnerproxy --help.' ;;
+esac

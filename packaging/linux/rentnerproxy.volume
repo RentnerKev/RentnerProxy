@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=rentnerproxy-data
+Label=io.rentnerproxy.distribution=appliance-v1

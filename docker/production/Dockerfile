@@ -14,6 +14,7 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web \
     && bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
     && bun build docker/production/backups/agent.ts --target=bun --outfile=/build/backup-agent.js \
     && bun build docker/production/backups/export.ts --target=bun --outfile=/build/backup-export.js \
+    && bun build docker/production/backups/maintenance.ts --target=bun --outfile=/build/backup-maintenance.js \
     && bun build docker/production/backups/build-identity.ts --target=bun --outfile=/build/backup-build-identity.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
@@ -30,6 +31,7 @@ COPY --from=web-build /build/migrations ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
 COPY --from=web-build /build/backup-agent.js ./backup-agent.js
 COPY --from=web-build /build/backup-export.js ./backup-export.js
+COPY --from=web-build /build/backup-maintenance.js ./backup-maintenance.js
 COPY --from=web-build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstrap-secrets.ts
 COPY --from=web-build /app/docker/web/validate-backup.ts ./docker/web/validate-backup.ts
 COPY --from=web-build /app/web/src/config/compatibility.config.ts ./web/src/config/compatibility.config.ts

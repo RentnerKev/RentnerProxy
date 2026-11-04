@@ -7,6 +7,16 @@ on:
             - '.github/workflows/publish-assessed-image.yml'
             - '.github/workflows/multiarch-candidate.yml'
             - '.github/workflows/release-pipeline.yml'
+            - '.github/workflows/build-distribution.yml'
+            - '.github/workflows/publish-distribution.yml'
+            - '.github/scripts/distribution/**'
+            - '.github/scripts/ci/distribution/**'
+            - 'packaging/**'
+            - 'docker/production/**'
+            - 'docker/tooling/distribution/**'
+            - 'scripts/backup/**'
+            - 'scripts/production-backup.ts'
+            - 'scripts/production-restore.ts'
             - '.github/scripts/release/**'
             - '.github/scripts/security/**'
             - '.github/scripts/lib/oci-layout.ts'
@@ -33,7 +43,19 @@ jobs:
         with:
             revision: ${{ github.sha }}
             image: ghcr.io/rentnerkev/rentnerproxy
-            version: dev-${{ github.sha }}
+            version: v1.0.0-beta.9999
             title: RentnerProxy assessed multi-architecture candidate
             description: Native validation candidate for the exact tested source.
             cache_scope: multiarch-review
+
+    distribution:
+        needs: candidate
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-distribution.yml
+        with:
+            revision: ${{ github.sha }}
+            version: v1.0.0-beta.9999
+            digest: ${{ needs.candidate.outputs.digest }}
+            archive_sha256: ${{ needs.candidate.outputs.archive_sha256 }}
+            evidence_sha256: ${{ needs.candidate.outputs.evidence_sha256 }}

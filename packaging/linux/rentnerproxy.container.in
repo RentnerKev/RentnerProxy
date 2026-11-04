@@ -1,0 +1,28 @@
+[Unit]
+Description=RentnerProxy appliance
+ConditionPathExists=/etc/rentnerproxy/appliance.env
+StartLimitIntervalSec=0
+
+[Container]
+Image=@@IMAGE@@
+ContainerName=rentnerproxy
+PodmanArgs=--platform=@@PLATFORM@@
+PodmanArgs=--image-volume=ignore
+EnvironmentFile=/etc/rentnerproxy/appliance.env
+Volume=rentnerproxy.volume:/var/lib/rentnerproxy:Z
+PublishPort=80:8080/tcp
+PublishPort=127.0.0.1:81:3000/tcp
+PublishPort=443:8443/tcp
+PublishPort=443:8443/udp
+Label=io.rentnerproxy.distribution=appliance-v1
+StopTimeout=30
+
+[Service]
+ExecStartPre=/usr/bin/rentnerproxy preflight
+TimeoutStartSec=900
+TimeoutStopSec=45
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
