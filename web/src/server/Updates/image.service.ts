@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
+import { imagePlatform } from '../../lib/ApplicationVersion/imagePlatform.ts'
 import type {
     ApplicationUpdate,
     UpdateImageStatus,
@@ -159,8 +160,10 @@ export async function verifyReleaseImage(
     )
         return result('invalid')
     if (
-        !/^[a-z0-9]+\/[a-z0-9]+(?:\/[a-z0-9]+)?$/.test(platform) ||
-        !readiness.image.platforms.includes(platform)
+        !imagePlatform(platform) ||
+        !readiness.image.platforms.some(
+            (candidate) => imagePlatform(candidate) === imagePlatform(platform),
+        )
     )
         return result('unsupported-platform')
     const overallSignal = AbortSignal.any([signal, AbortSignal.timeout(15000)])
@@ -205,7 +208,7 @@ export async function verifyReleaseImage(
                     item.platform.architecture,
                     ...(item.platform.variant ? [item.platform.variant] : []),
                 ].join('/')
-                return itemPlatform === platform
+                return imagePlatform(itemPlatform) === imagePlatform(platform)
             })
             if (candidates.length === 0) return result('unsupported-platform')
             if (candidates.length !== 1) return result('invalid')
@@ -251,7 +254,7 @@ export async function verifyReleaseImage(
             config.data.architecture,
             ...(config.data.variant ? [config.data.variant] : []),
         ].join('/')
-        if (configPlatform !== platform)
+        if (imagePlatform(configPlatform) !== imagePlatform(platform))
             return result(selectedFromIndex ? 'invalid' : 'unsupported-platform')
         const labels = config.data.config.Labels
         if (

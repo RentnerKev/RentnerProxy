@@ -6,6 +6,9 @@ on:
             revision:
                 required: true
                 type: string
+            version:
+                required: true
+                type: string
             image:
                 required: true
                 type: string
@@ -18,6 +21,12 @@ on:
             digest:
                 required: true
                 type: string
+            evidence_sha256:
+                required: true
+                type: string
+        outputs:
+            platforms:
+                value: ${{ jobs.publish.outputs.platforms }}
 permissions: {}
 
 jobs:
@@ -27,6 +36,8 @@ jobs:
         permissions:
             contents: read
             packages: write
+        outputs:
+            platforms: ${{ steps.publish.outputs.platforms }}
         steps:
             - name: Check out trusted publisher automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,9 +55,12 @@ jobs:
             - name: Verify candidate archive checksum
               env:
                   EXPECTED_SHA256: ${{ inputs.archive_sha256 }}
+                  EXPECTED_EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
               run: |
                   [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]
+                  [[ "$EXPECTED_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]]
                   printf '%s  %s\n' "$EXPECTED_SHA256" "$RUNNER_TEMP/candidate/candidate-image.tar" | sha256sum --check --strict
+                  printf '%s  %s\n' "$EXPECTED_EVIDENCE_SHA256" "$RUNNER_TEMP/candidate/evidence.json" | sha256sum --check --strict
 
             - name: Set up Bun
               uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -63,7 +77,7 @@ jobs:
                   IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate/candidate-image.tar
                   REPORT_DIRECTORY: ${{ runner.temp }}/dependency-publish-report
                   REVISION: ${{ inputs.revision }}
-              run: bash automation/.github/scripts/security/scan-image.sh
+              run: bash automation/.github/scripts/security/assess-multiarch-image.sh
 
             - name: Verify assessed OCI identity
               env:
@@ -72,6 +86,7 @@ jobs:
               run: '[[ "$ASSESSED_DIGEST" == "$EXPECTED_DIGEST" ]]'
 
             - name: Publish the exact assessed OCI index
+              id: publish
               env:
                   AUTOMATION_DIRECTORY: automation
                   ASSESSED_REPORT: ${{ runner.temp }}/dependency-publish-report/assessment.json
@@ -79,6 +94,12 @@ jobs:
                   ARCHIVE: ${{ runner.temp }}/candidate/candidate-image.tar
                   EXPECTED_ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
                   EXPECTED_DIGEST: ${{ steps.scan.outputs.digest }}
+                  EXPECTED_EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+                  EVIDENCE_FILE: ${{ runner.temp }}/candidate/evidence.json
+                  IMAGE_DIRECTORY: ${{ runner.temp }}/publication-layout
+                  PLATFORM_REPORT_DIRECTORY: ${{ runner.temp }}/dependency-publish-report
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
                   GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GHCR_USERNAME: ${{ github.actor }}
                   IMAGE: ${{ inputs.image }}
@@ -108,4 +129,16 @@ jobs:
                       ${{ runner.temp }}/dependency-publish-report/bun-audit.json
                       ${{ runner.temp }}/dependency-publish-report/bun-audit-diagnostics.txt
                       ${{ runner.temp }}/dependency-publish-report/bun-audit-status.txt
+                      ${{ runner.temp }}/dependency-publish-report/amd64/*.json
+                      ${{ runner.temp }}/dependency-publish-report/amd64/*.txt
+                      ${{ runner.temp }}/dependency-publish-report/amd64/*.sha256
+                      ${{ runner.temp }}/dependency-publish-report/amd64/controller/*.json
+                      ${{ runner.temp }}/dependency-publish-report/amd64/controller/*.txt
+                      ${{ runner.temp }}/dependency-publish-report/amd64/controller/*.sha256
+                      ${{ runner.temp }}/dependency-publish-report/arm64/*.json
+                      ${{ runner.temp }}/dependency-publish-report/arm64/*.txt
+                      ${{ runner.temp }}/dependency-publish-report/arm64/*.sha256
+                      ${{ runner.temp }}/dependency-publish-report/arm64/controller/*.json
+                      ${{ runner.temp }}/dependency-publish-report/arm64/controller/*.txt
+                      ${{ runner.temp }}/dependency-publish-report/arm64/controller/*.sha256
                   retention-days: 30

@@ -138,7 +138,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
         const references = [...pipeline.matchAll(/^\s*uses:\s+([^\s]+)(?:\s+#.*)?$/gm)].map(
             (match) => match[1],
         )
@@ -153,7 +155,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
 
         expect(pipeline).toContain('channel_tag=alpha')
         expect(pipeline).toContain('channel_tag=beta')
@@ -161,7 +165,7 @@ describe('shared release pipeline', () => {
         expect(pipeline).toContain('channel_tag=latest')
         expect(pipeline).toContain('${{ needs.prepare.outputs.channel_tag }}')
         expect(pipeline).toContain('version: ${{ inputs.release_tag }}')
-        expect(await workflow('build-assessed-image.yml')).toContain('flavor: latest=false')
+        expect(await workflow('build-assessed-platform.yml')).toContain('flavor: latest=false')
         expect(pipeline).not.toContain('type=semver')
     })
 
@@ -169,7 +173,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
 
         expect(pipeline).toContain('ref: refs/tags/${{ inputs.release_tag }}')
         expect(pipeline).toContain('ref: ${{ inputs.revision }}')
@@ -180,7 +186,7 @@ describe('shared release pipeline', () => {
             "dockerignore_relative='docker/production/Dockerfile.dockerignore'",
         )
         expect(pipeline).toContain('Release Dockerfile is missing or empty')
-        expect(pipeline).toContain('platforms: linux/amd64')
+        expect(pipeline).toContain('platforms: linux/${{ inputs.architecture }}')
         expect(pipeline).toContain('provenance: mode=max')
         expect(pipeline).toContain('sbom: true')
         expect(pipeline).toContain('cache_scope: release-${{ inputs.channel }}')
@@ -195,8 +201,10 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
-        const assessedBuild = await workflow('build-assessed-image.yml')
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
+        const assessedBuild = await workflow('build-assessed-platform.yml')
         const verifyPosition = assessedBuild.indexOf(
             'Assess immutable candidate before publication',
         )
@@ -231,7 +239,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
 
         expect(pipeline).toContain(
             'name: rentnerproxy-${{ inputs.channel }}-release-${{ github.run_id }}',
@@ -245,7 +255,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
 
         expect(pipeline).toContain('contents: write')
         expect(pipeline).toContain('issues: read')
@@ -261,7 +273,9 @@ describe('shared release pipeline', () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
             '\n' +
-            (await workflow('build-assessed-image.yml'))
+            (await workflow('build-assessed-image.yml')) +
+            '\n' +
+            (await workflow('build-assessed-platform.yml'))
         const [betaBanner, stableBanner, alphaBanner] = await Promise.all([
             readFile(
                 resolve(repositoryRoot, '.github/assets/release-banners/beta-release-banner.png'),

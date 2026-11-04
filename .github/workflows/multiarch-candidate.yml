@@ -1,0 +1,38 @@
+name: Assessed Multiarch Candidate
+
+on:
+    pull_request:
+        paths:
+            - '.github/workflows/build-assessed-*.yml'
+            - '.github/workflows/publish-assessed-image.yml'
+            - '.github/workflows/multiarch-candidate.yml'
+            - '.github/workflows/release-pipeline.yml'
+            - '.github/scripts/release/**'
+            - '.github/scripts/security/**'
+            - '.github/scripts/lib/oci-layout.ts'
+            - '.github/scripts/lib/Types/oci-layout.types.ts'
+            - '.github/scripts/ci/platform-backup*'
+            - 'scripts/compatibility/**'
+            - 'web/src/lib/ApplicationVersion/imagePlatform.ts'
+            - 'web/src/server/Updates/**'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: assessed-multiarch-candidate-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    candidate:
+        uses: ./.github/workflows/build-assessed-image.yml
+        permissions:
+            contents: read
+        with:
+            revision: ${{ github.sha }}
+            image: ghcr.io/rentnerkev/rentnerproxy
+            version: dev-${{ github.sha }}
+            title: RentnerProxy assessed multi-architecture candidate
+            description: Native validation candidate for the exact tested source.
+            cache_scope: multiarch-review

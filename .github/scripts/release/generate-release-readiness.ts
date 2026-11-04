@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
 import { getReadinessUpgrade } from '../../../web/src/lib/ApplicationVersion/upgradeCompatibility.ts'
 import { RELEASE_IMAGE, RELEASE_REPOSITORY } from '../../../web/src/config/compatibility.config.ts'
+import { imagePlatforms } from '../../../web/src/lib/ApplicationVersion/imagePlatform.ts'
 
 import type { ReleaseReadiness } from '../../../web/src/lib/ApplicationVersion/Types/release-readiness.types.ts'
 import type {
@@ -48,7 +49,9 @@ export function parseReleaseReadinessInput(
     if (!/^[0-9a-f]{40}$/.test(input.revision)) throw new Error('Invalid source revision')
     if (!/^sha256:[0-9a-f]{64}$/.test(input.digest))
         throw new Error('Invalid assessed image digest')
-    if (input.platforms !== 'linux/amd64') throw new Error('Unsupported assessed image platforms')
+    const platforms = imagePlatforms(input.platforms.split(','))
+    if (!platforms || platforms[0] !== 'linux/amd64' || platforms.join(',') !== input.platforms)
+        throw new Error('Unsupported assessed image platforms')
 
     return {
         releaseId: Number(input.releaseId),
@@ -57,6 +60,7 @@ export function parseReleaseReadinessInput(
         publishedAt: input.publishedAt,
         revision: input.revision,
         digest: input.digest,
+        platforms,
     }
 }
 
@@ -72,7 +76,7 @@ export function buildReleaseReadiness(input: ReleaseReadinessInput): ReleaseRead
         image: {
             repository: RELEASE_IMAGE,
             digest: validated.digest,
-            platforms: ['linux/amd64'],
+            platforms: validated.platforms,
         },
         upgrade: getReadinessUpgrade(validated.tag),
     }

@@ -12,7 +12,7 @@ test('assesses production OCI before registry credentials and keeps source execu
             'release-pipeline',
             'publish-assessed-image',
             'dependency-security',
-            'build-assessed-image',
+            'build-assessed-platform',
         ].map((name) => readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8')),
     )
     for (const source of [files[4]!]) {

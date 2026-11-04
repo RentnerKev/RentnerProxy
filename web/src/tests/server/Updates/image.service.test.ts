@@ -11,11 +11,20 @@ const digest = (value: string) => `sha256:${createHash('sha256').update(value).d
 const encode = (value: unknown) => JSON.stringify(value)
 
 function fixture(
-    options: { index?: boolean; architecture?: string; labels?: Record<string, string> } = {},
+    options: {
+        index?: boolean
+        architecture?: string
+        indexArchitecture?: string
+        variant?: string
+        configVariant?: string
+        platforms?: string[]
+        labels?: Record<string, string>
+    } = {},
 ) {
     const config = encode({
         os: 'linux',
         architecture: options.architecture ?? 'amd64',
+        ...(options.configVariant ? { variant: options.configVariant } : {}),
         config: {
             Labels: options.labels ?? {
                 'org.opencontainers.image.source': 'https://github.com/RentnerKev/RentnerProxy',
@@ -41,7 +50,11 @@ function fixture(
                 mediaType: manifestType,
                 digest: digest(manifest),
                 size: Buffer.byteLength(manifest),
-                platform: { os: 'linux', architecture: 'amd64' },
+                platform: {
+                    os: 'linux',
+                    architecture: options.indexArchitecture ?? 'amd64',
+                    ...(options.variant ? { variant: options.variant } : {}),
+                },
             },
             {
                 mediaType: manifestType,
@@ -60,7 +73,11 @@ function fixture(
         channel: 'beta',
         publishedAt: '2026-10-18T12:00:00Z',
         revision: 'a'.repeat(40),
-        image: { repository, digest: digest(root), platforms: ['linux/amd64'] },
+        image: {
+            repository,
+            digest: digest(root),
+            platforms: options.platforms ?? ['linux/amd64'],
+        },
         upgrade: { policy: 'beta1-appliance-v1', minimumVersion: 'v1.0.0-beta.1' },
     }
     const bodies = new Map<string, string>([
@@ -81,6 +98,78 @@ function fixture(
 }
 
 describe('bounded GHCR release image verification', () => {
+    test.each([undefined, 'v8'])(
+        'verifies native ARM64 descriptors with compatible variant %s',
+        async (variant) => {
+            const data = fixture({
+                index: true,
+                architecture: 'arm64',
+                indexArchitecture: 'arm64',
+                ...(variant ? { variant } : {}),
+                platforms: ['linux/amd64', 'linux/arm64'],
+            })
+            expect(
+                (
+                    await verifyReleaseImage(
+                        data.readiness,
+                        'linux/arm64',
+                        data.fetcher,
+                        new AbortController().signal,
+                    )
+                ).status,
+            ).toBe('verified')
+        },
+    )
+    test('rejects ambiguous ARM64/v8 aliases and an incompatible config variant', async () => {
+        const data = fixture({
+            index: true,
+            architecture: 'arm64',
+            indexArchitecture: 'arm64',
+            variant: 'v8',
+            platforms: ['linux/arm64'],
+        })
+        const document = JSON.parse(data.root)
+        document.manifests.push({
+            ...document.manifests[0],
+            platform: { os: 'linux', architecture: 'arm64' },
+        })
+        const root = encode(document)
+        const readiness = {
+            ...data.readiness,
+            image: { ...data.readiness.image, digest: digest(root) },
+        }
+        data.bodies.set(
+            `https://ghcr.io/v2/rentnerkev/rentnerproxy/manifests/${data.readiness.tag}`,
+            root,
+        )
+        expect(
+            (
+                await verifyReleaseImage(
+                    readiness,
+                    'linux/arm64',
+                    data.fetcher,
+                    new AbortController().signal,
+                )
+            ).status,
+        ).toBe('invalid')
+        const incompatible = fixture({
+            index: true,
+            architecture: 'arm64',
+            indexArchitecture: 'arm64',
+            configVariant: 'v9',
+            platforms: ['linux/arm64'],
+        })
+        expect(
+            (
+                await verifyReleaseImage(
+                    incompatible.readiness,
+                    'linux/arm64',
+                    incompatible.fetcher,
+                    new AbortController().signal,
+                )
+            ).status,
+        ).toBe('invalid')
+    })
     test.each([false, true])(
         'verifies root digest, platform and config labels (index=%s)',
         async (index) => {

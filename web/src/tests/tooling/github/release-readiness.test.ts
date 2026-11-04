@@ -108,11 +108,20 @@ describe('versioned release readiness generation', () => {
         { digest: 'sha256:' + 'B'.repeat(64) },
         { digest: 'sha256:' + 'b'.repeat(63) },
         { digest: 'sha256:' + 'b'.repeat(64) + '\n' },
-        { platforms: 'linux/amd64,linux/arm64' },
+        { platforms: 'linux/amd64,linux/arm64,linux/arm64' },
+        { platforms: 'linux/amd64,linux/amd64' },
+        { platforms: 'linux/amd64,linux/arm64/v8' },
         { platforms: 'linux/arm64' },
     ])('rejects unbound or malformed release metadata %j', (overrides) => {
         expect(() => parseReleaseReadinessInput(input(overrides))).toThrow()
         expect(() => buildReleaseReadiness(input(overrides))).toThrow()
+    })
+    test('advertises both platforms only when the assessed pipeline supplies both', () => {
+        expect(
+            buildReleaseReadiness(
+                input({ tag: 'v1.0.0-beta.3', platforms: 'linux/amd64,linux/arm64' }),
+            ).image.platforms,
+        ).toEqual(['linux/amd64', 'linux/arm64'])
     })
 })
 
@@ -125,7 +134,7 @@ test('publishes readiness last with trusted automation and the assessed build di
     expect(publish).toMatch(/needs:\s+- prepare\s+- build\s+- publish-image/)
     expect(publish).toContain('RELEASE_DIGEST: ${{ needs.build.outputs.digest }}')
     expect(publish).toContain('RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}')
-    expect(publish).toContain('RELEASE_PLATFORMS: linux/amd64')
+    expect(publish).toContain('RELEASE_PLATFORMS: ${{ needs.publish-image.outputs.platforms }}')
     expect(publish).toContain('ref: ${{ github.workflow_sha }}')
     expect(publish.indexOf('publish-release-readiness.sh')).toBeGreaterThan(
         publish.indexOf('publish-release-notes.sh'),

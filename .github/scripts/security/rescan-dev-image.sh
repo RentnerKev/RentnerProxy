@@ -48,7 +48,9 @@ if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
     exit 1
 fi
 result=0
-IMAGE_SOURCE="docker://$image@$digest" REVISION="$revision" \
+architectures="$(bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/image-platforms.ts" "$REPORT_DIRECTORY/resolved-manifest.json")"
+[[ "$architectures" == amd64 || "$architectures" == $'amd64\narm64' ]]
+IMAGE_SOURCE="docker://$image@$digest" IMAGE_ARCHITECTURE=amd64 REVISION="$revision" \
     bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || result=$?
 jq --null-input --arg revision "$revision" --arg digest "$digest" \
     '{revision:$revision,digest:$digest}' > "$REPORT_DIRECTORY/resolved-identity.json"
@@ -74,3 +76,20 @@ elif ! bun --no-env-file "$policy" approved \
     exit 1
 fi
 record_result 'Own dependencies passed' "$revision" "$digest"
+if [[ "$architectures" == $'amd64\narm64' ]]; then
+    arm_reports="$REPORT_DIRECTORY/arm64"
+    mkdir -p "$arm_reports"
+    arm_result=0
+    IMAGE_SOURCE="docker://$image@$digest" IMAGE_ARCHITECTURE=arm64 REVISION="$revision" REPORT_DIRECTORY="$arm_reports" \
+        bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || arm_result=$?
+    if (( arm_result == 3 )); then
+        bun --no-env-file "$policy" blocked-assessment "$arm_reports/blocked-assessment.json" "$REPORT_DIRECTORY/resolved-identity.json" || exit 1
+        record_result 'Blocked: ARM64 own dependency advisories' "$revision" "$digest"
+        exit 3
+    elif (( arm_result != 0 )); then
+        record_result 'Incomplete: ARM64 scanner or evidence error' "$revision" "$digest"
+        exit 1
+    fi
+    bun --no-env-file "$policy" approved "$arm_reports/assessment.json" "$REPORT_DIRECTORY/resolved-identity.json" || exit 1
+    record_result 'ARM64 own dependencies passed' "$revision" "$digest"
+fi

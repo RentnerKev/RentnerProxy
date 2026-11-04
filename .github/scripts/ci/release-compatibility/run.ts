@@ -66,10 +66,16 @@ import {
     seedPolicyFixture,
 } from './state.ts'
 import type { PolicyFixture } from './Types/state.types.ts'
+import { imagePlatform } from '../../../../web/src/lib/ApplicationVersion/imagePlatform.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
 const binding = parseCompatibilitySource(process.env.COMPATIBILITY_SOURCE ?? '')
 const source = binding.release
+const platform = (() => {
+    const selected = imagePlatform(process.env.COMPATIBILITY_PLATFORM ?? 'linux/amd64')
+    if (!selected) throw new Error('Unsupported compatibility platform')
+    return selected
+})()
 const discoveryToken = process.env.GH_TOKEN
 delete process.env.GH_TOKEN
 delete process.env.GITHUB_TOKEN
@@ -726,10 +732,11 @@ async function run(): Promise<void> {
         const manifest = JSON.parse(
             await readFile(join(targetSource.context, 'package.json'), 'utf8'),
         ) as { version: string }
-        const discovery = { token: discoveryToken, signal: AbortSignal.timeout(120_000) }
+        const discovery = { token: discoveryToken, signal: AbortSignal.timeout(120_000), platform }
         await verifyCompatibilitySource(source, {
             releases: await discoverPublishedReleases(fetch, discovery),
             targetVersion: manifest.version,
+            platform,
             sourceRevision: (tag) => publishedSourceRevision(tag, targetSourceRevision),
             loadSource: (release) => loadPublishedSource(release, fetch, discovery),
             signal: discovery.signal,
@@ -769,7 +776,7 @@ async function run(): Promise<void> {
     }
     if (source) {
         stage = 'source-pull'
-        await command(['docker', 'pull', '--platform', 'linux/amd64', source.image], 900_000)
+        await command(['docker', 'pull', '--platform', platform, source.image], 900_000)
         const labels = JSON.parse(
             await command([
                 'docker',

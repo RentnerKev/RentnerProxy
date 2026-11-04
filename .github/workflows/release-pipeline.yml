@@ -141,6 +141,8 @@ jobs:
             revision: ${{ needs.prepare.outputs.revision }}
             image: ${{ needs.prepare.outputs.image }}
             archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
+            evidence_sha256: ${{ needs.build.outputs.evidence_sha256 }}
+            version: ${{ inputs.release_tag }}
             digest: ${{ needs.build.outputs.digest }}
             image_tags: |
                 ${{ inputs.release_tag }}
@@ -208,7 +210,7 @@ jobs:
                   RELEASE_DIGEST: ${{ needs.build.outputs.digest }}
                   RELEASE_ID: ${{ inputs.release_id }}
                   RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
-                  RELEASE_PLATFORMS: linux/amd64
+                  RELEASE_PLATFORMS: ${{ needs.publish-image.outputs.platforms }}
                   RELEASE_PRERELEASE: ${{ inputs.prerelease }}
                   RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
                   RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}

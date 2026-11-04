@@ -1,4 +1,5 @@
 import type { ReleaseReadiness } from '../../../../web/src/lib/ApplicationVersion/Types/release-readiness.types.ts'
+import type { ImagePlatform } from '../../../../web/src/lib/ApplicationVersion/Types/image-platform.types.ts'
 
 export interface ReleaseReadinessInput {
     readonly repository: string
@@ -20,4 +21,5 @@ export interface ValidatedReleaseReadinessInput {
     readonly publishedAt: string
     readonly revision: string
     readonly digest: string
+    readonly platforms: readonly ImagePlatform[]
 }

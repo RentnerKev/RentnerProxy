@@ -10,7 +10,20 @@ const revision = 'a'.repeat(40)
 const validConfig = JSON.stringify({
     config: { Labels: { 'org.opencontainers.image.revision': revision } },
 })
-const digest = 'sha256:' + createHash('sha256').update('fixture-manifest').digest('hex')
+const manifest = JSON.stringify({
+    schemaVersion: 2,
+    mediaType: 'application/vnd.oci.image.manifest.v1+json',
+})
+const multiarchManifest = JSON.stringify({
+    schemaVersion: 2,
+    mediaType: 'application/vnd.oci.image.index.v1+json',
+    manifests: ['amd64', 'arm64'].map((architecture) => ({
+        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+        digest: 'sha256:' + 'a'.repeat(64),
+        size: 1,
+        platform: { os: 'linux', architecture },
+    })),
+})
 const prefix = 'rentnerproxy-rescan-revision-'
 
 function shellPath(path: string): string {
@@ -22,6 +35,41 @@ function shellPath(path: string): string {
 
 describe('deployed image revision validation', () => {
     for (const scenario of [
+        {
+            name: 'both native platform assessments',
+            config: validConfig,
+            configExit: 0,
+            multiarch: true,
+            expected: 0,
+            scans: 2,
+        },
+        {
+            name: 'blocked ARM64 assessment',
+            config: validConfig,
+            configExit: 0,
+            multiarch: true,
+            armExit: 3,
+            expected: 3,
+            scans: 2,
+        },
+        {
+            name: 'incomplete ARM64 assessment',
+            config: validConfig,
+            configExit: 0,
+            multiarch: true,
+            armExit: 1,
+            expected: 1,
+            scans: 2,
+        },
+        {
+            name: 'stale ARM64 approval',
+            config: validConfig,
+            configExit: 0,
+            multiarch: true,
+            armEvidence: 'stale',
+            expected: 1,
+            scans: 2,
+        },
         {
             name: 'valid immutable metadata',
             config: validConfig,
@@ -107,6 +155,8 @@ describe('deployed image revision validation', () => {
         },
     ]) {
         test(`real wrapper handles ${scenario.name} for the current dev digest`, async () => {
+            const rawManifest = 'multiarch' in scenario ? multiarchManifest : manifest
+            const digest = 'sha256:' + createHash('sha256').update(rawManifest).digest('hex')
             const directory = await mkdtemp(join(tmpdir(), prefix))
             if (dirname(directory) !== resolve(tmpdir()) || !basename(directory).startsWith(prefix))
                 throw new Error('Unexpected rescan fixture directory')
@@ -124,7 +174,7 @@ describe('deployed image revision validation', () => {
                 ),
                 writeFile(
                     join(bin, 'bun'),
-                    '#!/bin/bash\nshift 2\nexec "$REAL_BUN" --no-env-file "$REAL_POLICY" "$@"\n',
+                    '#!/bin/bash\nif [[ "$2" == *image-platforms.ts ]]; then shift 2; exec "$REAL_BUN" --no-env-file "$REAL_PLATFORMS" "$@"; fi\nshift 2\nexec "$REAL_BUN" --no-env-file "$REAL_POLICY" "$@"\n',
                     { mode: 0o755 },
                 ),
                 writeFile(
@@ -143,15 +193,16 @@ if (label != null) console.log(label)
                 ),
                 writeFile(
                     join(bin, 'skopeo'),
-                    '#!/bin/bash\nprintf "%s\\n" "$*" >> "$INSPECTIONS"\nif [[ "$*" == *--raw* ]]; then printf fixture-manifest; exit "$RAW_EXIT"; fi\nprintf "%s" "$CONFIG_JSON"; exit "$CONFIG_EXIT"\n',
+                    '#!/bin/bash\nprintf "%s\\n" "$*" >> "$INSPECTIONS"\nif [[ "$*" == *--raw* ]]; then printf "%s" "$RAW_MANIFEST"; exit "$RAW_EXIT"; fi\nprintf "%s" "$CONFIG_JSON"; exit "$CONFIG_EXIT"\n',
                     { mode: 0o755 },
                 ),
                 writeFile(
                     join(scriptDirectory, 'scan-image.sh'),
                     `#!/bin/bash
-printf '%s\\n' "$REVISION" >> "$SCANS"
+printf '%s %s\\n' "$REVISION" "$IMAGE_ARCHITECTURE" >> "$SCANS"
 result="$SCAN_EXIT"
 evidence="$EVIDENCE"
+if [[ "$IMAGE_ARCHITECTURE" == arm64 ]]; then result="$ARM_EXIT"; evidence="$ARM_EVIDENCE"; fi
 if (( result == 0 || result == 3 )); then
     path="$REPORT_DIRECTORY/assessment.json"
     verdict=own-dependencies-approved
@@ -199,10 +250,17 @@ exit "$result"
                             CONFIG_JSON: scenario.config,
                             CONFIG_EXIT: String(scenario.configExit),
                             RAW_EXIT: String('rawExit' in scenario ? scenario.rawExit : 0),
+                            RAW_MANIFEST: rawManifest,
+                            REAL_PLATFORMS: shellPath(
+                                join(root, '.github/scripts/security/image-platforms.ts'),
+                            ),
                             INSPECTIONS: 'inspections',
                             SCANS: 'scans',
                             SCAN_EXIT: String('scanExit' in scenario ? scenario.scanExit : 0),
                             EVIDENCE: 'evidence' in scenario ? scenario.evidence : 'valid',
+                            ARM_EXIT: String('armExit' in scenario ? scenario.armExit : 0),
+                            ARM_EVIDENCE:
+                                'armEvidence' in scenario ? scenario.armEvidence : 'valid',
                             GITHUB_STEP_SUMMARY: 'job-summary.md',
                             REAL_BUN: shellPath(process.execPath),
                             REAL_POLICY: shellPath(
@@ -221,7 +279,10 @@ exit "$result"
                 ])
                 expect(await child.exited, stderr).toBe(scenario.expected)
                 expect((await readFile(calls, 'utf8')).trim().split('\n').filter(Boolean)).toEqual(
-                    Array.from({ length: scenario.scans }, () => revision),
+                    Array.from(
+                        { length: scenario.scans },
+                        (_, index) => `${revision} ${index === 0 ? 'amd64' : 'arm64'}`,
+                    ),
                 )
                 const summary = await readFile(join(directory, 'reports/rescan-summary.md'), 'utf8')
                 expect(await readFile(join(directory, 'job-summary.md'), 'utf8')).toBe(summary)
@@ -236,7 +297,11 @@ exit "$result"
                 if (scenario.expected === 0) {
                     expect(summary).toContain('The current dev own-dependency gate passed')
                 } else if (scenario.expected === 3) {
-                    expect(summary).toContain('| `dev` | Blocked: own dependency advisories |')
+                    expect(summary).toContain(
+                        'armExit' in scenario
+                            ? '| `dev` | Blocked: ARM64 own dependency advisories |'
+                            : '| `dev` | Blocked: own dependency advisories |',
+                    )
                     expect(summary).toContain(
                         'Assessment complete: the dev image is blocked by own Cargo/Bun dependency advisories',
                     )
