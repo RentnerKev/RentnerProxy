@@ -9,7 +9,7 @@ umask 077
 source /etc/os-release
 case "$TARGET/$ID/$VERSION_ID" in debian/debian/13|fedora/fedora/44) ;; *) exit 1 ;; esac
 phase=${1:?}
-base=http://127.0.0.1:18888
+base=http://192.0.2.1:18888
 fingerprint=$(< /test/fixture-fingerprint)
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 1
 wait_ready() {
@@ -34,7 +34,7 @@ repository() {
         cat > /etc/yum.repos.d/rentnerproxy.repo <<REPO
 [rentnerproxy]
 name=RentnerProxy isolated CI fixture
-baseurl=$base/$name/rpm/\$basearch
+baseurl=$base/$name/rpm/beta/\$basearch
 enabled=1
 gpgcheck=1
 repo_gpgcheck=1
@@ -50,7 +50,7 @@ case "$phase" in
         cat > /etc/containers/registries.conf.d/rentnerproxy-fixture.conf <<'MIRROR'
 [[registry]]
 prefix="ghcr.io/rentnerkev/rentnerproxy"
-location="127.0.0.1:15000/rentnerkev/rentnerproxy"
+location="192.0.2.1:15000/rentnerkev/rentnerproxy"
 insecure=true
 MIRROR
         podman load --input /test/http3.tar >/dev/null

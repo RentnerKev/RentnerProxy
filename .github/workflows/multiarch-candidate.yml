@@ -3,21 +3,56 @@ on:
     workflow_dispatch:
 permissions:
     contents: read
+    actions: read
 jobs:
     probe:
         name: Probe ${{ matrix.target }} ${{ matrix.runner }}
         runs-on: ${{ matrix.runner }}
-        timeout-minutes: 12
+        timeout-minutes: 40
         strategy:
             fail-fast: false
             matrix:
                 target: [debian, fedora]
-                runner: [ubuntu-latest, ubuntu-24.04-arm]
+                architecture: [amd64, arm64]
+                include:
+                    - architecture: amd64
+                      runner: ubuntu-latest
+                    - architecture: arm64
+                      runner: ubuntu-24.04-arm
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
-            - name: Boot disposable systemd target and run rootful Podman
+            - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+              with:
+                  bun-version: 1.4.4
+            - name: Install disposable host tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends skopeo systemd-container
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+              with:
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  run-id: 41932448192
+                  name: assessed-candidate-41932448192
+                  path: ${{ runner.temp }}/candidate
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+              with:
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  run-id: 41932448192
+                  name: distribution-candidate-41932448192
+                  path: ${{ runner.temp }}/distribution
+            - name: Test complete package lifecycle against the assessed image
               env:
                   TARGET: ${{ matrix.target }}
-              run: bash .github/scripts/ci/distribution/boot-probe.sh
+                  ARCHITECTURE: ${{ matrix.architecture }}
+                  SOURCE_DIRECTORY: ${{ github.workspace }}
+                  CANDIDATE_DIRECTORY: ${{ runner.temp }}/candidate
+                  DISTRIBUTION_DIRECTORY: ${{ runner.temp }}/distribution
+              run: |
+                  export REVISION=bbe6680f8a95407b44b179a1a387e0486b6517b9 VERSION=v1.0.0-beta.9999
+                  export EXPECTED_DIGEST=$(jq -r .digest "$CANDIDATE_DIRECTORY/evidence.json")
+                  export ARCHIVE_SHA256=$(sha256sum "$CANDIDATE_DIRECTORY/candidate-image.tar" | cut -d ' ' -f1)
+                  export BUNDLE_SHA256=$(sha256sum "$DISTRIBUTION_DIRECTORY/bundle.json" | cut -d ' ' -f1)
+                  export GITHUB_RUN_ID=41932448192 GITHUB_RUN_ATTEMPT=1
+                  bash .github/scripts/ci/distribution/native-host.sh
