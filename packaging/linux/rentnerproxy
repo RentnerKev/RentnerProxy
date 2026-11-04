@@ -229,6 +229,11 @@ case "$action" in
         lock_operations
         owned_resources
         if systemctl is-active --quiet "$service"; then fail 'Stop the appliance before purging data.'; fi
+        # A Quadlet volume unit stays active after its container stops. Reset its
+        # oneshot state so a later fresh start creates the owned volume again.
+        if [[ $(systemctl show --property ActiveState --value rentnerproxy-volume.service) == active ]]; then
+            systemctl stop rentnerproxy-volume.service
+        fi
         podman volume rm "$volume"
         ;;
     *) fail 'Unknown command; see rentnerproxy --help.' ;;

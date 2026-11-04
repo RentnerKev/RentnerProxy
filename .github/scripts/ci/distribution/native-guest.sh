@@ -5,6 +5,9 @@ umask 077
 [[ ${ARCHITECTURE:-} == amd64 || ${ARCHITECTURE:-} == arm64 ]] || exit 1
 [[ ${TARGET:-} == debian || ${TARGET:-} == fedora ]] || exit 1
 [[ ${MODE:-} == package || ${MODE:-} == quadlet ]] || exit 1
+# shellcheck source=/dev/null
+source /etc/os-release
+case "$TARGET/$ID/$VERSION_ID" in debian/debian/13|fedora/fedora/44) ;; *) exit 1 ;; esac
 phase=${1:?}
 base=http://127.0.0.1:18888
 fingerprint=$(< /test/fixture-fingerprint)
@@ -107,7 +110,11 @@ CONFIGURATION
         [[ -s /var/lib/rentnerproxy-distribution/previous.image ]] || exit 1
         wait_ready
         probe verify
+        invocation=$(systemctl show --property InvocationID --value rentnerproxy.service)
+        [[ "$invocation" =~ ^[a-f0-9]{32}$ ]] || exit 1
         rentnerproxy stop
+        shutdown_log=$(journalctl --no-pager --output cat "_SYSTEMD_INVOCATION_ID=$invocation")
+        [[ "$shutdown_log" == *'shutdown signal received'* && "$shutdown_log" == *'database system is shut down'* ]] || exit 1
         [[ -z $(podman ps --filter name=rentnerproxy --format '{{.Names}}') ]] || exit 1
         rentnerproxy start
         podman kill --signal KILL rentnerproxy

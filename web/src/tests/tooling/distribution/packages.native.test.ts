@@ -21,6 +21,7 @@ import {
     updatePackageRepository,
     withSigningKey,
 } from '../../../../../.github/scripts/distribution/repository.ts'
+import { distributionPayload } from '../../../../../.github/scripts/distribution/payload.ts'
 
 const enabled = process.platform === 'linux' && process.env.RENTNERPROXY_PACKAGE_TEST === '1'
 const source = fileURLToPath(new URL('../../../../../', import.meta.url))
@@ -32,6 +33,38 @@ const release = parseDistributionRelease({
     platform: 'linux/amd64',
     packageRevision: 1,
 })
+
+test.skipIf(!enabled)(
+    'the minimum Podman version generates private ports, durable storage and graceful stop before removal',
+    async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rp-quadlet-generator-'))
+        try {
+            for (const file of await distributionPayload(source, release)) {
+                if (file.path.endsWith('.container') || file.path.endsWith('.volume'))
+                    await writeFile(join(directory, file.path.split('/').at(-1)!), file.content)
+            }
+            const generated = await distributionCommand(
+                ['/usr/lib/systemd/system-generators/podman-system-generator', '--dryrun'],
+                { env: { ...process.env, QUADLET_UNIT_DIRS: directory } },
+            )
+            expect(generated).toContain('--publish 127.0.0.1:81:3000/tcp')
+            expect(generated).toContain('--publish 443:8443/udp')
+            expect(generated).toContain('--image-volume=ignore')
+            expect(generated).toContain('--health-on-failure kill')
+            expect(generated.indexOf('ExecStop=/usr/bin/podman stop')).toBeLessThan(
+                generated.indexOf('ExecStop=/usr/bin/podman rm'),
+            )
+            const volumeUnit = generated
+                .split('---rentnerproxy-volume.service---')[1]!
+                .split('---rentnerproxy.service---')[0]!
+            expect(volumeUnit).toContain('RemainAfterExit=yes')
+            expect(volumeUnit).not.toContain('ExecStop=')
+            expect(volumeUnit).not.toContain('volume rm')
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    },
+)
 
 test.skipIf(!enabled)(
     'dpkg and RPM preserve SemVer order, including typed tokens, ASCII and package revisions',

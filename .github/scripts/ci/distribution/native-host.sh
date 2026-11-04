@@ -41,7 +41,7 @@ docker export --output "$work/rootfs.tar" "$exported"
 sudo tar --extract --file "$work/rootfs.tar" --directory "$rootfs"
 # HTTP consumer traffic is anonymous. The fixture key and all packages are public test data.
 python3 -m http.server 18888 --bind 127.0.0.1 --directory "$DISTRIBUTION_DIRECTORY" > "$work/http.log" 2>&1 & server_pid=$!
-sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed --collect systemd-nspawn --settings=no --quiet --boot --directory "$rootfs" --machine "$machine" --link-journal=no --bind-ro="$DISTRIBUTION_DIRECTORY:/test" --bind-ro="$SOURCE_DIRECTORY:/automation"
+sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed --collect systemd-nspawn --settings=no --quiet --keep-unit --boot --capability=CAP_NET_ADMIN --directory "$rootfs" --machine "$machine" --link-journal=no --bind-ro="$DISTRIBUTION_DIRECTORY:/test" --bind-ro="$SOURCE_DIRECTORY:/automation"
 for (( attempt=0; attempt<120; attempt++ )); do
     if sudo systemctl --machine "$machine" show --property Version >/dev/null 2>&1; then break; fi
     (( attempt < 119 )) || exit 1
@@ -53,11 +53,12 @@ guest() {
 for mode in package quadlet; do
     guest install
     sudo cp "$rootfs/usr/bin/rentnerproxy" "$rootfs/root/quadlet-cli"
-    boot=$(sudo cat "$rootfs/proc/sys/kernel/random/boot_id")
+    boot=$(sudo machinectl show "$machine" --property=Leader --value)
+    [[ "$boot" =~ ^[1-9][0-9]*$ ]] || exit 1
     sudo systemctl --machine "$machine" reboot
     for (( attempt=0; attempt<120; attempt++ )); do
-        current=$(sudo cat "$rootfs/proc/sys/kernel/random/boot_id" 2>/dev/null || true)
-        if [[ -n "$current" && "$current" != "$boot" ]]; then break; fi
+        current=$(sudo machinectl show "$machine" --property=Leader --value 2>/dev/null || true)
+        if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$boot" ]]; then break; fi
         (( attempt < 119 )) || exit 1
         sleep 1
     done

@@ -11,8 +11,7 @@ import { updatePackageRepository, withSigningKey } from './repository.ts'
 import { verifyDistributionBundle, writeDistributionBundle } from './bundle.ts'
 import type { DistributionRelease } from './Types/distribution.types.ts'
 
-export function distributionWorkflowIdentity() {
-    const env = process.env
+export function distributionWorkflowIdentity(env: NodeJS.ProcessEnv = process.env) {
     const identity = {
         revision: ociText(env.REVISION),
         version: ociText(env.VERSION),
@@ -35,9 +34,8 @@ export function distributionWorkflowIdentity() {
     return identity
 }
 
-async function prepare() {
-    const env = process.env,
-        identity = distributionWorkflowIdentity()
+export async function prepareDistribution(env: NodeJS.ProcessEnv = process.env) {
+    const identity = distributionWorkflowIdentity(env)
     const source = resolve(ociText(env.SOURCE_DIRECTORY)),
         output = resolve(ociText(env.DISTRIBUTION_DIRECTORY)),
         candidate = resolve(ociText(env.CANDIDATE_DIRECTORY))
@@ -155,6 +153,6 @@ if (import.meta.main) {
             ociText(process.env.BUNDLE_SHA256),
             distributionWorkflowIdentity(),
         )
-    else if (process.argv[2] === 'build') await prepare()
+    else if (process.argv[2] === 'build') await prepareDistribution()
     else throw new Error('Expected build or verify')
 }

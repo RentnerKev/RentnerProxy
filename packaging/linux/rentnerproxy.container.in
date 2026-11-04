@@ -16,10 +16,12 @@ PublishPort=443:8443/tcp
 PublishPort=443:8443/udp
 Label=io.rentnerproxy.distribution=appliance-v1
 HealthOnFailure=kill
+LogDriver=journald
 StopTimeout=30
 
 [Service]
 ExecStartPre=/usr/bin/rentnerproxy preflight
+ExecStop=/usr/bin/podman stop --ignore --time 30 --cidfile=%t/%N.cid
 TimeoutStartSec=900
 TimeoutStopSec=45
 Restart=always
