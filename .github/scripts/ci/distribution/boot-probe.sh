@@ -40,7 +40,7 @@ sudo sysctl --write net.ipv4.ip_forward=1
 sudo iptables -t nat -A POSTROUTING -s 192.0.2.0/30 ! -o rp-host -j MASQUERADE
 sudo iptables -I FORWARD -i rp-host -s 192.0.2.0/30 -j ACCEPT
 sudo iptables -I FORWARD -o rp-host -d 192.0.2.0/30 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed --collect systemd-nspawn --settings=no --keep-unit --boot --capability=CAP_NET_ADMIN --network-namespace-path="/run/netns/$network" --resolv-conf=copy-uplink --directory "$work/rootfs" --machine "$machine" --link-journal=no
+sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed --setenv=SYSTEMD_NSPAWN_API_VFS_WRITABLE=network --collect systemd-nspawn --settings=no --keep-unit --boot --capability=CAP_NET_ADMIN --network-namespace-path="/run/netns/$network" --resolv-conf=copy-uplink --directory "$work/rootfs" --machine "$machine" --link-journal=no
 for (( attempt=0; attempt<90; attempt++ )); do
     if sudo systemctl --machine "$machine" show --property Version > "$work/connected" 2> "$work/error"; then break; fi
     if sudo systemctl is-failed --quiet "$machine.service"; then cat "$work/error"; exit 1; fi
