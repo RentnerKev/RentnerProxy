@@ -7,6 +7,7 @@ import {
     assembleMultiarchImage,
     parseNativeImageEvidence,
     parsePortabilityEvidence,
+    nativeUpgradeTargetVersion,
     verifyMultiarchImage,
 } from '../../../../../.github/scripts/release/multiarch-image.ts'
 import { hash, identity, platformFixture, workflow } from './fixtures/oci.ts'
@@ -22,6 +23,7 @@ test('multiarch publication depends on both native producers and their separate 
             string,
             {
                 needs?: string[]
+                if?: string
                 permissions: Record<string, string>
                 with?: Record<string, string>
                 steps?: { id?: string; env?: Record<string, string> }[]
@@ -30,6 +32,9 @@ test('multiarch publication depends on both native producers and their separate 
     }
     for (const architecture of ['amd64', 'arm64']) {
         expect(pipeline.jobs[architecture]?.with?.architecture).toBe(architecture)
+        expect(pipeline.jobs[architecture]?.if).toBe(
+            "github.repository == 'RentnerKev/RentnerProxy'",
+        )
         expect(pipeline.jobs[architecture]?.permissions).toEqual({ contents: 'read' })
     }
     expect(pipeline.jobs.portability?.needs).toEqual(['amd64', 'arm64'])
@@ -138,6 +143,38 @@ describe('assessed native OCI image assembly', () => {
             { nativeUpgradeSources: ['beta.1'] },
         ])
             expect(() => parsePortabilityEvidence({ ...proof, ...change }, identity)).toThrow()
+    })
+    test('release evidence accepts only distinct native sources strictly older than the actual candidate version', () => {
+        const candidate = { ...identity, version: 'v1.0.0-beta.4' }
+        const proof = {
+            schemaVersion: 1,
+            ...candidate,
+            sourceManifest: hash('source'),
+            targetManifest: hash('target'),
+            backupVersion: 4,
+            checks: 'amd64-backup-to-native-arm64',
+            nativeUpgradeSources: ['v1.0.0-beta.3'],
+        }
+        expect(parsePortabilityEvidence(proof, candidate).nativeUpgradeSources).toEqual([
+            'v1.0.0-beta.3',
+        ])
+        for (const sources of [
+            ['v1.0.0-beta.4'],
+            ['v1.0.0-beta.5'],
+            ['v1.0.0-beta.3', 'v1.0.0-beta.3'],
+        ])
+            expect(() =>
+                parsePortabilityEvidence({ ...proof, nativeUpgradeSources: sources }, candidate),
+            ).toThrow()
+        expect(nativeUpgradeTargetVersion(candidate.version)).toBe('1.0.0-beta.4')
+        expect(nativeUpgradeTargetVersion('dev-' + 'a'.repeat(12))).toBe('0.0.0')
+        expect(nativeUpgradeTargetVersion('dev-' + 'a'.repeat(40))).toBe('0.0.0')
+        expect(nativeUpgradeTargetVersion('v1.0.0-alpha.9')).toBeNull()
+        expect(() => nativeUpgradeTargetVersion('unbound')).toThrow()
+        const alpha = { ...candidate, version: 'v1.0.0-alpha.9' }
+        expect(() =>
+            parsePortabilityEvidence({ ...proof, version: alpha.version }, alpha),
+        ).toThrow()
     })
     for (const architecture of ['amd64', 'arm64'] as const) {
         test(`verifies ${architecture} runtime/config identity and retained attestations`, async () => {

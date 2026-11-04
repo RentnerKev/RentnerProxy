@@ -13,6 +13,14 @@ import {
     readOciJson,
 } from '../lib/oci-layout.ts'
 import { evaluateApprovedAssessment } from '../security/dependency-policy.ts'
+import {
+    compareReleaseVersions,
+    parseReleaseVersion,
+} from '../../../web/src/lib/ApplicationVersion/releaseVersion.ts'
+import {
+    isSupportedUpgradeSource,
+    isSupportedUpgradeTarget,
+} from '../../../web/src/lib/ApplicationVersion/upgradeCompatibility.ts'
 import type {
     NativeImageEvidence,
     OciArchitecture,
@@ -58,11 +66,19 @@ export function parseNativeImageEvidence(
     }
 }
 
+export function nativeUpgradeTargetVersion(version: string): string | null {
+    if (version === '0.0.0' || /^dev-(?:[a-f0-9]{12}|[a-f0-9]{40})$/u.test(version)) return '0.0.0'
+    const parsed = parseReleaseVersion(version)
+    if (!parsed) throw new Error('Invalid native upgrade candidate version')
+    return isSupportedUpgradeTarget(parsed.version) ? parsed.version : null
+}
+
 export function parsePortabilityEvidence(
     raw: unknown,
     identity: OciImageIdentity,
 ): PortabilityEvidence {
     const evidence = ociRecord(raw)
+    const targetVersion = nativeUpgradeTargetVersion(identity.version)
     if (
         evidence.schemaVersion !== 1 ||
         evidence.revision !== identity.revision ||
@@ -71,10 +87,14 @@ export function parsePortabilityEvidence(
         evidence.checks !== 'amd64-backup-to-native-arm64' ||
         !Array.isArray(evidence.nativeUpgradeSources) ||
         evidence.nativeUpgradeSources.length > 2 ||
+        new Set(evidence.nativeUpgradeSources).size !== evidence.nativeUpgradeSources.length ||
         !evidence.nativeUpgradeSources.every(
             (version) =>
                 typeof version === 'string' &&
-                /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/u.test(version),
+                version === 'v' + parseReleaseVersion(version)?.version &&
+                isSupportedUpgradeSource(version) &&
+                targetVersion !== null &&
+                (targetVersion === '0.0.0' || compareReleaseVersions(version, targetVersion) < 0),
         )
     )
         throw new Error('Cross-architecture backup evidence is incomplete')
@@ -296,15 +316,12 @@ if (import.meta.main) {
             )
             if (env.EXPECTED_DIGEST !== evidence.digest)
                 throw new Error('Unexpected publication index')
-            if (env.PLATFORM_REPORT_DIRECTORY) {
-                for (const architecture of ['amd64', 'arm64'])
-                    evaluateApprovedAssessment(
-                        await readOciJson(
-                            join(env.PLATFORM_REPORT_DIRECTORY, architecture, 'assessment.json'),
-                        ),
-                        { revision: identity.revision, digest: evidence.digest },
-                    )
-            }
+            const reports = resolve(ociText(env.PLATFORM_REPORT_DIRECTORY))
+            for (const architecture of ['amd64', 'arm64'])
+                evaluateApprovedAssessment(
+                    await readOciJson(join(reports, architecture, 'assessment.json')),
+                    { revision: identity.revision, digest: evidence.digest },
+                )
         } else throw new Error('Expected assemble or verify')
     } catch {
         console.error('Assessed multi-architecture image validation failed.')

@@ -6,8 +6,30 @@ import {
     assertCoverageSourcesUnchanged,
     createCoverageBaseline,
 } from '../../../../../../scripts/coverage/sources.ts'
-import { coverageSourceRoots } from '../../../../../../scripts/coverage/coverage.config.ts'
+import {
+    coverageSourceExclusions,
+    coverageSourceRoots,
+} from '../../../../../../scripts/coverage/coverage.config.ts'
 import { clearPublishedCoverage } from '../../../../../../scripts/coverage/published.ts'
+
+const isExcludedCoverageSource = (path: string) =>
+    coverageSourceExclusions.some((rule) => rule.pattern.test(path))
+
+test('native integration runners are exercised by Docker CI while pure publication validators stay in unit coverage', () => {
+    for (const path of [
+        '.github/scripts/ci/platform-backup.ts',
+        '.github/scripts/release/candidate-runtime.ts',
+        '.github/scripts/release/portability-runtime.ts',
+    ])
+        expect(isExcludedCoverageSource(path)).toBe(true)
+    for (const path of [
+        '.github/scripts/ci/platform-backup.validation.ts',
+        '.github/scripts/release/multiarch-image.ts',
+        '.github/scripts/lib/oci-layout.ts',
+        '.github/scripts/security/image-platforms.ts',
+    ])
+        expect(isExcludedCoverageSource(path)).toBe(false)
+})
 
 test('baseline hashes the exact instrumented bytes and detects added, deleted and formerly type-only source changes', async () => {
     const parent = resolve(import.meta.dir, '../../../../../../tmp/coverage-source-tests')

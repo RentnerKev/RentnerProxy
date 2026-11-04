@@ -55,7 +55,7 @@ if (import.meta.main) {
     }
     const all = await selectCompatibilitySources({
         releases: await discoverPublishedReleases(fetch, discovery),
-        targetVersion: manifest.version,
+        targetVersion: process.env.COMPATIBILITY_TARGET_VERSION ?? manifest.version,
         platform,
         sourceRevision: (tag) => publishedSourceRevision(tag, target),
         loadSource: (release) => loadPublishedSource(release, fetch, discovery),

@@ -20,20 +20,22 @@ test('assesses production OCI before registry credentials and keeps source execu
             jobs: Record<
                 string,
                 {
+                    if?: string
                     permissions: Record<string, string>
                     steps?: { id?: string; with?: Record<string, unknown> }[]
                 }
             >
         }
         expect(parsed.jobs.build?.permissions).toEqual({ contents: 'read' })
+        expect(parsed.jobs.build?.if).toBe("github.repository == 'RentnerKev/RentnerProxy'")
         expect(parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.push).toBe(
             false,
         )
-        // Multiple build tags create ambiguous OCI archive roots for Skopeo.
-        // Only the trusted publisher assigns the final channel/version tags.
-        expect(
-            parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.tags,
-        ).toBeUndefined()
+        // A single local candidate name binds BuildKit's in-toto subjects without
+        // creating ambiguous OCI roots or assigning published version/channel tags.
+        expect(parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.tags).toBe(
+            '${{ inputs.image }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.architecture }}',
+        )
         expect(source.indexOf('Assess immutable candidate')).toBeLessThan(
             source.indexOf('Store assessed OCI candidate'),
         )

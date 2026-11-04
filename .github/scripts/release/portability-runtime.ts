@@ -1,5 +1,5 @@
 // oxlint-disable no-await-in-loop -- Test every eligible native upgrade source before sealing the portability proof.
-import { appendFile, writeFile } from 'node:fs/promises'
+import { appendFile, lstat, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import {
     hashOciFile,
@@ -9,7 +9,11 @@ import {
     ociText,
     readOciJson,
 } from '../lib/oci-layout.ts'
-import { parseNativeImageEvidence, parsePortabilityEvidence } from './multiarch-image.ts'
+import {
+    nativeUpgradeTargetVersion,
+    parseNativeImageEvidence,
+    parsePortabilityEvidence,
+} from './multiarch-image.ts'
 import {
     assertCandidateImageId,
     buildCandidateHttp3Client,
@@ -21,6 +25,7 @@ async function run(): Promise<void> {
         throw new Error('Backup portability requires a native ARM64 runner')
     const env = process.env
     const identity = { revision: ociText(env.REVISION), version: ociText(env.VERSION) }
+    const targetVersion = nativeUpgradeTargetVersion(identity.version)
     const source = resolve(ociText(env.SOURCE_DIRECTORY))
     const directory = resolve(ociText(env.CANDIDATE_DIRECTORY))
     const runId = ociText(env.GITHUB_RUN_ID)
@@ -59,6 +64,7 @@ async function run(): Promise<void> {
         RUNTIME_IMAGE_PLATFORM: 'linux/arm64',
         COMPATIBILITY_PLATFORM: 'linux/arm64',
         IMAGE_ARCHITECTURE: 'arm64',
+        COMPATIBILITY_TARGET_VERSION: targetVersion ?? '0.0.0',
     }
     const layout = join(directory, 'arm64/layout')
     await candidateCommand(
@@ -123,24 +129,31 @@ async function run(): Promise<void> {
         )
         const proof = parsePortabilityEvidence(await readOciJson(report), identity)
         const output = join(directory, 'native-upgrades.txt')
-        await candidateCommand(
-            [
-                process.execPath,
-                '--no-env-file',
-                '.github/scripts/ci/release-compatibility/select-sources.ts',
-            ],
-            source,
-            {
-                ...environment,
-                EVENT_NAME: 'pull_request',
-                REQUESTED_SOURCE: 'all',
-                GITHUB_OUTPUT: output,
-            },
-        )
-        const text = await Bun.file(output).text()
-        const binding = text.split('\n').find((line) => line.startsWith('sources='))
-        if (!binding) throw new Error('Missing native upgrade source selection')
-        const sources = ociArray(JSON.parse(binding.slice(8)), 3).map(ociRecord)
+        if (targetVersion !== null)
+            await candidateCommand(
+                [
+                    process.execPath,
+                    '--no-env-file',
+                    '.github/scripts/ci/release-compatibility/select-sources.ts',
+                ],
+                source,
+                {
+                    ...environment,
+                    EVENT_NAME: 'pull_request',
+                    REQUESTED_SOURCE: 'all',
+                    GITHUB_OUTPUT: output,
+                },
+            )
+        const sources = []
+        if (targetVersion !== null) {
+            const info = await lstat(output)
+            if (!info.isFile() || info.size > 32_768)
+                throw new Error('Invalid native upgrade source selection')
+            const text = await readFile(output, 'utf8')
+            const binding = text.split('\n').find((line) => line.startsWith('sources='))
+            if (!binding) throw new Error('Missing native upgrade source selection')
+            sources.push(...ociArray(JSON.parse(binding.slice(8)), 3).map(ociRecord))
+        }
         const upgrades = sources.filter((entry) => entry.role !== 'fresh')
         const nativeUpgradeSources: string[] = []
         if (upgrades.length) await buildCandidateHttp3Client(source, identity, environment)
@@ -162,7 +175,7 @@ async function run(): Promise<void> {
         }
         if (!nativeUpgradeSources.length)
             console.log(
-                'No earlier assessed ARM64 release exists; native fresh install and AMD64 v4 backup portability were verified.',
+                'No native in-place upgrade source is eligible for this candidate; native fresh install and AMD64 v4 backup portability were verified.',
             )
         await assertCandidateImageId(image, arm64.imageId, source)
         await writeFile(report, JSON.stringify({ ...proof, nativeUpgradeSources }) + '\n')

@@ -735,7 +735,7 @@ async function run(): Promise<void> {
         const discovery = { token: discoveryToken, signal: AbortSignal.timeout(120_000), platform }
         await verifyCompatibilitySource(source, {
             releases: await discoverPublishedReleases(fetch, discovery),
-            targetVersion: manifest.version,
+            targetVersion: process.env.COMPATIBILITY_TARGET_VERSION ?? manifest.version,
             platform,
             sourceRevision: (tag) => publishedSourceRevision(tag, targetSourceRevision),
             loadSource: (release) => loadPublishedSource(release, fetch, discovery),

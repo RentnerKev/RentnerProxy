@@ -225,6 +225,16 @@ describe('native ARM64 release compatibility', () => {
             ['previous', 'v1.0.0-beta.4'],
         ])
     })
+    test('the actual release version excludes equal and later native releases despite the development checkout version', async () => {
+        const selected = await selectCompatibilitySources({
+            ...options,
+            targetVersion: '1.0.0-beta.4',
+        })
+        expect(selected.map((entry) => entry.release?.version ?? 'fresh')).toEqual([
+            'fresh',
+            'v1.0.0-beta.3',
+        ])
+    })
     test('invalid or missing readiness and reassigned tags cannot erase native upgrade coverage', async () => {
         await expect(
             selectCompatibilitySources({

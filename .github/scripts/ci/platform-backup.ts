@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop -- A single disposable appliance is seeded, backed up, restored and verified in sequence.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readdir, rename, rm, rmdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -145,7 +145,7 @@ async function run(action: string): Promise<void> {
                 fixture: persistence,
             })
             stage = 'source-backup'
-            const output = join(work, 'export')
+            const output = join(directory, 'export')
             await command(
                 [
                     process.execPath,
@@ -163,6 +163,7 @@ async function run(action: string): Promise<void> {
             assert.match(entries[0]!, /^rentnerproxy-[0-9]{14}-[a-f0-9]{8}$/u)
             await chmod(directory, 0o700)
             await rename(join(output, entries[0]!), join(directory, 'backup'))
+            await rmdir(output)
             const metadata = ociRecord(await readOciJson(join(directory, 'backup/metadata.json')))
             assert.equal(metadata.version, 4)
             const files = Object.fromEntries(

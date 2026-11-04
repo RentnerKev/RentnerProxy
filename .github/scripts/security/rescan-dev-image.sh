@@ -18,7 +18,7 @@ finish_summary() {
     if (( result == 0 )); then
         printf '\n**The current dev own-dependency gate passed.**\n' >> "$summary"
     elif (( result == 3 )); then
-        printf '\n**Assessment complete: the dev image is blocked by own Cargo/Bun dependency advisories.**\n\nSee dev/bun-audit.json and dev/controller/cargo.json. An immutable image requires a newly assessed replacement; rerunning the scan does not patch it.\n' >> "$summary"
+        printf '\n**Assessment complete: the dev image is blocked by own Cargo/Bun dependency advisories.**\n\nSee the per-platform bun-audit.json, controller/cargo.json and blocked-assessment.json reports under dev/. An immutable image requires a newly assessed replacement; rerunning the scan does not patch it.\n' >> "$summary"
     else
         printf '\n**Assessment incomplete or invalid: scanner or evidence errors require investigation.**\n' >> "$summary"
     fi
@@ -47,49 +47,45 @@ if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
     record_result 'Incomplete: revision missing or invalid' '-' "$digest"
     exit 1
 fi
-result=0
 architectures="$(bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/image-platforms.ts" "$REPORT_DIRECTORY/resolved-manifest.json")"
 [[ "$architectures" == amd64 || "$architectures" == $'amd64\narm64' ]]
-IMAGE_SOURCE="docker://$image@$digest" IMAGE_ARCHITECTURE=amd64 REVISION="$revision" \
-    bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || result=$?
 jq --null-input --arg revision "$revision" --arg digest "$digest" \
     '{revision:$revision,digest:$digest}' > "$REPORT_DIRECTORY/resolved-identity.json"
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
-if (( result == 3 )); then
-    if ! bun --no-env-file "$policy" blocked-assessment \
-        "$REPORT_DIRECTORY/blocked-assessment.json" "$REPORT_DIRECTORY/resolved-identity.json"; then
-        echo '::error::Invalid blocked dev assessment evidence'
-        record_result 'Incomplete: blocked evidence invalid' "$revision" "$digest"
-        exit 1
+assess_platform() {
+    local architecture="$1" reports="$REPORT_DIRECTORY" prefix='' result=0
+    if [[ "$architecture" == arm64 ]]; then reports="$REPORT_DIRECTORY/arm64"; prefix='ARM64 '; fi
+    mkdir -p "$reports" || return 1
+    IMAGE_SOURCE="docker://$image@$digest" IMAGE_ARCHITECTURE="$architecture" REVISION="$revision" REPORT_DIRECTORY="$reports" \
+        bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || result=$?
+    if (( result == 3 )); then
+        if ! bun --no-env-file "$policy" blocked-assessment "$reports/blocked-assessment.json" "$REPORT_DIRECTORY/resolved-identity.json"; then
+            echo "::error::Invalid $architecture blocked dev assessment evidence"
+            record_result "Incomplete: ${prefix}blocked evidence invalid" "$revision" "$digest"
+            return 1
+        fi
+        echo "::error::Own dependency advisories block dev $architecture ($digest); inspect its blocked assessment and scanner reports."
+        record_result "Blocked: ${prefix}own dependency advisories" "$revision" "$digest"
+        return 3
+    elif (( result != 0 )); then
+        echo "::error::Incomplete $architecture dev dependency assessment"
+        record_result "Incomplete: ${prefix}scanner or evidence error" "$revision" "$digest"
+        return 1
+    elif ! bun --no-env-file "$policy" approved "$reports/assessment.json" "$REPORT_DIRECTORY/resolved-identity.json"; then
+        echo "::error::Invalid $architecture own-dependency dev approval evidence"
+        record_result "Incomplete: ${prefix}approval evidence invalid" "$revision" "$digest"
+        return 1
     fi
-    echo "::error::Own dependency advisories block dev ($digest); inspect dev/blocked-assessment.json and scanner reports."
-    record_result 'Blocked: own dependency advisories' "$revision" "$digest"
-    exit 3
-elif (( result != 0 )); then
-    echo '::error::Incomplete dev dependency assessment'
-    record_result 'Incomplete: scanner or evidence error' "$revision" "$digest"
-    exit 1
-elif ! bun --no-env-file "$policy" approved \
-    "$REPORT_DIRECTORY/assessment.json" "$REPORT_DIRECTORY/resolved-identity.json"; then
-    echo '::error::Invalid own-dependency dev approval evidence'
-    record_result 'Incomplete: approval evidence invalid' "$revision" "$digest"
-    exit 1
-fi
-record_result 'Own dependencies passed' "$revision" "$digest"
-if [[ "$architectures" == $'amd64\narm64' ]]; then
-    arm_reports="$REPORT_DIRECTORY/arm64"
-    mkdir -p "$arm_reports"
-    arm_result=0
-    IMAGE_SOURCE="docker://$image@$digest" IMAGE_ARCHITECTURE=arm64 REVISION="$revision" REPORT_DIRECTORY="$arm_reports" \
-        bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || arm_result=$?
-    if (( arm_result == 3 )); then
-        bun --no-env-file "$policy" blocked-assessment "$arm_reports/blocked-assessment.json" "$REPORT_DIRECTORY/resolved-identity.json" || exit 1
-        record_result 'Blocked: ARM64 own dependency advisories' "$revision" "$digest"
-        exit 3
-    elif (( arm_result != 0 )); then
-        record_result 'Incomplete: ARM64 scanner or evidence error' "$revision" "$digest"
-        exit 1
+    record_result "${prefix}Own dependencies passed" "$revision" "$digest"
+}
+platforms=(amd64)
+if [[ "$architectures" == $'amd64\narm64' ]]; then platforms+=(arm64); fi
+status=0
+for architecture in "${platforms[@]}"; do
+    result=0
+    assess_platform "$architecture" || result=$?
+    if (( result != 0 && result != 3 )); then status=1
+    elif (( result == 3 && status == 0 )); then status=3
     fi
-    bun --no-env-file "$policy" approved "$arm_reports/assessment.json" "$REPORT_DIRECTORY/resolved-identity.json" || exit 1
-    record_result 'ARM64 own dependencies passed' "$revision" "$digest"
-fi
+done
+exit "$status"
