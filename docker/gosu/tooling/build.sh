@@ -14,6 +14,8 @@ export GOFLAGS=-mod=readonly
 export CGO_ENABLED=0
 test "$(go env GOVERSION)" = go1.27.3
 test "$(go env GOOS)" = linux
+target_platform="$(go env GOOS)/$(go env GOARCH)"
+case "$target_platform" in linux/amd64|linux/arm64) ;; *) echo 'Unsupported gosu platform' >&2; exit 1 ;; esac
 
 work_root=$(mktemp -d)
 trap 'rm -rf "$work_root"' EXIT HUP INT TERM
@@ -35,7 +37,7 @@ go version -m "$output_root/gosu" > "$output_root/buildinfo.txt"
 grep -Eq '^.*: go1\.27\.3$' "$output_root/buildinfo.txt"
 grep -Eq 'dep[[:space:]]+github\.com/moby/sys/user[[:space:]]+v0\.4\.1[[:space:]]' "$output_root/buildinfo.txt"
 grep -Eq 'build[[:space:]]+CGO_ENABLED=0$' "$output_root/buildinfo.txt"
-test "$("$output_root/gosu" --version)" = '1.20 (go1.27.3 on linux/amd64; gc)'
+test "$("$output_root/gosu" --version)" = "1.20 (go1.27.3 on $target_platform; gc)"
 test "$("$output_root/gosu" nobody id -u)" = 65534
 test "$("$output_root/gosu" 10001:10002 id -u)" = 10001
 test "$("$output_root/gosu" 10001:10002 id -g)" = 10002

@@ -1,0 +1,86 @@
+name: ARM64 Appliance
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: arm64-appliance-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.4
+    RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
+    RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+    native-arm64:
+        name: Native ARM64 appliance
+        runs-on: ubuntu-24.04-arm
+        timeout-minutes: 75
+        steps:
+            - name: Check out exact tested commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.sha }}
+
+            - name: Require native Linux ARM64 execution
+              run: |
+                  test "$(uname -s)/$(uname -m)" = Linux/aarch64
+                  test "$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')" = linux/arm64
+
+            - name: Set up Bun
+              id: bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Build and bind native appliance and HTTP3 client
+              id: images
+              uses: ./.github/actions/runtime-images
+              with:
+                  platform: linux/arm64
+
+            - name: Gate ARM64 image dependencies
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/runtime-appliance/image.tar
+                  IMAGE_ARCHITECTURE: arm64
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+                  REVISION: ${{ github.sha }}
+              run: bash .github/scripts/security/scan-image.sh
+
+            - name: Store exact ARM64 dependency assessment
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: arm64-advisory-evidence-${{ github.run_attempt }}
+                  if-no-files-found: error
+                  retention-days: 30
+                  path: |
+                      ${{ runner.temp }}/dependency-image-report/*.json
+                      ${{ runner.temp }}/dependency-image-report/*.txt
+                      ${{ runner.temp }}/dependency-image-report/*.sha256
+                      ${{ runner.temp }}/dependency-image-report/controller/*.json
+                      ${{ runner.temp }}/dependency-image-report/controller/*.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/*.sha256
+
+            - name: Install locked smoke dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Native appliance TLS, HTTP3, ownership, backup and recovery
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts production
+
+            - name: Native request draining and clean shutdown
+              run: bun --no-env-file --no-orphans .github/scripts/ci/appliance-drain-smoke.ts
+
+            - name: Clean up this run and summarize
+              if: always() && steps.bun.outcome == 'success'
+              run: bun --no-env-file .github/scripts/ci/production-smoke-ci.ts cleanup

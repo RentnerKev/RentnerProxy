@@ -4,6 +4,7 @@ set -Eeuo pipefail
 trap 'exit 1' ERR
 : "${IMAGE_SOURCE:?}" "${REVISION:?}" "${REPORT_DIRECTORY:?}" "${AUTOMATION_DIRECTORY:?}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
+architecture=${IMAGE_ARCHITECTURE:-amd64}
 mkdir -p "$REPORT_DIRECTORY"
 work_directory="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/rentnerproxy-image-inputs.XXXXXX")"
 container=''
@@ -13,11 +14,12 @@ cleanup() {
 }
 trap cleanup EXIT
 rm -f "$REPORT_DIRECTORY/assessment.json" "$REPORT_DIRECTORY/blocked-assessment.json"
+case "$architecture" in amd64|arm64) ;; *) echo 'Unsupported assessment architecture.' >&2; exit 1 ;; esac
 manifest="$REPORT_DIRECTORY/manifest.json"
 skopeo inspect --raw "$IMAGE_SOURCE" > "$manifest"
 digest="sha256:$(sha256sum "$manifest" | cut -d ' ' -f1)"
-skopeo inspect --override-os linux --override-arch amd64 --config "$IMAGE_SOURCE" > "$REPORT_DIRECTORY/config.json"
-jq --exit-status --arg revision "$REVISION" '.os == "linux" and .architecture == "amd64" and .config.Labels["org.opencontainers.image.revision"] == $revision' "$REPORT_DIRECTORY/config.json" > /dev/null
+skopeo inspect --override-os linux --override-arch "$architecture" --config "$IMAGE_SOURCE" > "$REPORT_DIRECTORY/config.json"
+jq --exit-status --arg revision "$REVISION" --arg architecture "$architecture" '.os == "linux" and .architecture == $architecture and .config.Labels["org.opencontainers.image.revision"] == $revision' "$REPORT_DIRECTORY/config.json" > /dev/null
 jq --null-input --arg revision "$REVISION" --arg digest "$digest" '{revision:$revision,digest:$digest}' > "$REPORT_DIRECTORY/identity.json"
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
 status=0
@@ -29,7 +31,7 @@ assess() {
     fi
 }
 # Convert as data; docker create is stopped and docker cp never starts services.
-skopeo copy --override-os linux --override-arch amd64 "$IMAGE_SOURCE" "docker-archive:$work_directory/runtime.tar:local/rentnerproxy-security:scan"
+skopeo copy --override-os linux --override-arch "$architecture" "$IMAGE_SOURCE" "docker-archive:$work_directory/runtime.tar:local/rentnerproxy-security:scan"
 docker load --input "$work_directory/runtime.tar"
 container="$(docker create --entrypoint /bin/false local/rentnerproxy-security:scan)"
 locked_source_directory="$work_directory/locked-source"

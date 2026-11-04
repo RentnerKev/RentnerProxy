@@ -32,6 +32,26 @@ function shellPath(path: string): string {
 describe('own image dependency gate', () => {
     for (const scenario of [
         { name: 'clean own dependencies', expected: 0 },
+        { name: 'clean ARM64 image dependencies', architecture: 'arm64', expected: 0 },
+        {
+            name: 'rejects an AMD64 image requested as ARM64',
+            architecture: 'arm64',
+            configArchitecture: 'amd64',
+            noContainer: true,
+            expected: 1,
+        },
+        {
+            name: 'rejects an unsupported assessment architecture',
+            architecture: 's390x',
+            noContainer: true,
+            expected: 1,
+        },
+        {
+            name: 'ARM64 image with blocking own Cargo advisory',
+            architecture: 'arm64',
+            cargo: 3,
+            expected: 3,
+        },
         { name: 'missing embedded Cargo lock', cargoCopy: 1, expected: 1 },
         {
             name: 'symbolic Cargo lock cannot reach artifact evidence',
@@ -81,7 +101,12 @@ describe('own image dependency gate', () => {
             ])
             const config = JSON.stringify({
                 os: 'linux',
-                architecture: 'amd64',
+                architecture:
+                    'configArchitecture' in scenario
+                        ? scenario.configArchitecture
+                        : 'architecture' in scenario
+                          ? scenario.architecture
+                          : 'amd64',
                 config: { Labels: { 'org.opencontainers.image.revision': revision } },
             })
             await Promise.all([
@@ -94,6 +119,7 @@ describe('own image dependency gate', () => {
                     join(tools, 'skopeo'),
                     `#!/bin/bash
 if [[ "$*" == *--raw* ]]; then printf fixture-manifest
+elif [[ "$*" != *"--override-arch $IMAGE_ARCHITECTURE"* ]]; then exit 91
 elif [[ "$*" == *--config* ]]; then printf '%s' "$CONFIG"
 elif [[ "$1" != copy ]]; then exit 91
 fi
@@ -159,7 +185,7 @@ if (args.includes('--null-input')) {
 } else {
     const input = await Bun.file(args.at(-1)!).json()
     if (args.includes('--raw-output')) console.log(input.cargoLockSourcePath)
-    else process.exit(Number(input.os !== 'linux' || input.architecture !== 'amd64' || input.config?.Labels?.['org.opencontainers.image.revision'] !== process.env.REVISION))
+    else process.exit(Number(input.os !== 'linux' || input.architecture !== args[args.indexOf('architecture') + 1] || input.config?.Labels?.['org.opencontainers.image.revision'] !== process.env.REVISION))
 }
 `,
                 ),
@@ -199,6 +225,8 @@ if (args.includes('--null-input')) {
                             ),
                             AUTOMATION_DIRECTORY: 'automation',
                             IMAGE_SOURCE: 'oci-archive:fixture-image.tar',
+                            IMAGE_ARCHITECTURE:
+                                'architecture' in scenario ? scenario.architecture : 'amd64',
                             REVISION: revision,
                             REPORT_DIRECTORY: 'reports',
                             RUNNER_TEMP: '.',
@@ -236,7 +264,9 @@ if (args.includes('--null-input')) {
                 expect(result, `${stdout}\n${stderr}\n${extractionDiagnostics}`).toBe(
                     scenario.expected,
                 )
-                expect(await readFile(join(directory, 'calls'), 'utf8')).toBe('cleanup')
+                expect(await readFile(join(directory, 'calls'), 'utf8').catch(() => '')).toBe(
+                    'noContainer' in scenario ? '' : 'cleanup',
+                )
                 expect(
                     await Bun.file(
                         join(directory, 'reports/locked-source/core/Cargo.lock'),

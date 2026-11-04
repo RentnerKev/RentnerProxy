@@ -42,11 +42,20 @@ COPY --from=web-build /app/docker/web/healthcheck.ts ./docker/web/healthcheck.ts
 
 FROM mirror.gcr.io/library/rust:1.99.1-trixie@sha256:09027f873d45b8ecd1dc86f1fa13b7a62b875c961f017a0e331267b350430137 AS controller-build
 
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
 COPY core/src ./src
 ARG RENTNERPROXY_BUILD_VERSION
-RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" cargo build --locked --release
+RUN set -eu; \
+    case "$TARGETOS/$TARGETARCH" in \
+        linux/amd64) rust_host=x86_64-unknown-linux-gnu ;; \
+        linux/arm64) rust_host=aarch64-unknown-linux-gnu ;; \
+        *) echo 'Unsupported controller platform' >&2; exit 1 ;; \
+    esac; \
+    test "$(rustc -vV | sed -n 's/^host: //p')" = "$rust_host"; \
+    RENTNERPROXY_BUILD_VERSION="${RENTNERPROXY_BUILD_VERSION:-}" cargo build --locked --release
 
 FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS caddy-go-toolchain
 
@@ -55,6 +64,8 @@ FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1
 # Their optional AppSec and Layer 4 modules remain unconfigured.
 FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c4cd20eaa0b69112fd5d4f721ffc9671687e1d5d0b155c8620cf7546dbef94c0 AS caddy-build
 
+ARG TARGETOS
+ARG TARGETARCH
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
@@ -66,7 +77,8 @@ COPY docker/caddy/tooling/prepare-source.sh /tmp/prepare-caddy-source.sh
 COPY docker/caddy/patches/ /opt/rentnerproxy-caddy-patches/
 COPY core/caddy-modules/responsecache/ /opt/rentnerproxy-responsecache/
 WORKDIR /tmp/rentnerproxy-caddy
-RUN /bin/sh /tmp/build-caddy.sh
+RUN test "$(go env GOOS)/$(go env GOARCH)" = "$TARGETOS/$TARGETARCH" \
+    && /bin/sh /tmp/build-caddy.sh
 
 FROM mirror.gcr.io/oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS geoip-assets
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
@@ -75,16 +87,22 @@ RUN bun --no-env-file /tmp/download-geoip.ts
 # Build pristine upstream CrowdSec with the managed SQLite backend and pinned
 # security dependencies; exclude its unused legacy PostgreSQL backend.
 FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS crowdsec-build
+ARG TARGETOS
+ARG TARGETARCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
 COPY docker/tooling/buildinfo/verify.go /opt/verify-buildinfo.go
-RUN /bin/sh /opt/crowdsec-build/build.sh /out
+RUN test "$(go env GOOS)/$(go env GOARCH)" = "$TARGETOS/$TARGETARCH" \
+    && /bin/sh /opt/crowdsec-build/build.sh /out
 
 FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS gosu-build
+ARG TARGETOS
+ARG TARGETARCH
 COPY docker/gosu/tooling/ /opt/gosu-build/
-RUN /bin/sh /opt/gosu-build/build.sh /out
+RUN test "$(go env GOOS)/$(go env GOARCH)" = "$TARGETOS/$TARGETARCH" \
+    && /bin/sh /opt/gosu-build/build.sh /out
 
 FROM ghcr.io/crowdsecurity/crowdsec:v1.8.2-debian@sha256:a5642c72127ee93aaac830e9f66891573fa7851b2c721987d9fef13d7d05fdfe AS crowdsec-assets
 
@@ -111,6 +129,8 @@ FROM mirror.gcr.io/valkey/valkey:9.1.3-trixie@sha256:3add1a336a920ea54770a001ab6
 
 FROM mirror.gcr.io/library/postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81 AS runtime
 
+ARG TARGETOS
+ARG TARGETARCH
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
     org.opencontainers.image.description="Modern self-hosted reverse proxy manager powered by Caddy."
 
@@ -173,6 +193,7 @@ COPY docker/licenses/Valkey-LICENSE /usr/share/licenses/valkey/LICENSE
 COPY docker/licenses/Valkey-NOTICE /usr/share/licenses/valkey/NOTICE
 COPY --from=valkey-runtime /usr/local/bin/valkey-server /usr/local/bin/valkey-cli /opt/rentnerproxy/valkey/bin/
 COPY docker/production/entrypoint.sh /usr/local/bin/rentnerproxy-production
+COPY docker/production/verify-platform.sh /tmp/verify-platform.sh
 COPY docker/production/backups/supervisor.sh /usr/local/lib/rentnerproxy-backups.sh
 COPY --from=web-build /build/backup-build-identity.js /tmp/backup-build-identity.js
 COPY docker/crowdsec/runtime/supervisor.sh /usr/local/bin/rentnerproxy-crowdsec-supervisor
@@ -208,6 +229,16 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/bin/caddy list-modules | grep -Fx admin.api.rentnerproxy \
     && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.2-3d369d64eb3e9ba770ed39aedc83ffd3170aef4c' \
     && setcap -r /usr/bin/caddy \
+    && test -z "$(getcap /usr/bin/caddy)" \
+    && /bin/sh /tmp/verify-platform.sh "$TARGETOS" "$TARGETARCH" \
+        /usr/local/bin/bun /usr/local/bin/rentnerproxy-controller /usr/bin/caddy \
+        /usr/local/bin/crowdsec /usr/local/bin/cscli /usr/local/bin/gosu \
+        /opt/rentnerproxy/valkey/bin/valkey-server /opt/rentnerproxy/valkey/bin/valkey-cli \
+        /usr/lib/postgresql/18/bin/postgres /usr/lib/postgresql/18/bin/initdb \
+        /usr/lib/postgresql/18/bin/pg_ctl /usr/lib/postgresql/18/bin/pg_isready \
+        /usr/lib/postgresql/18/bin/pg_dump /usr/lib/postgresql/18/bin/pg_restore \
+        /usr/lib/postgresql/18/bin/psql /usr/bin/tini /usr/bin/curl /usr/bin/openssl \
+    && rm /tmp/verify-platform.sh \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \
     && cd /opt/rentnerproxy/web \
