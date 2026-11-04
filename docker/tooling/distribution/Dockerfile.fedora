@@ -1,6 +1,6 @@
 FROM registry.fedoraproject.org/fedora:44@sha256:4688bc8003a1a6a7815e5f9d1f1b5c6bc9cafa582654af7cec61435d91655e3b
 RUN dnf --assumeyes --setopt=install_weak_deps=False install \
-        bash ca-certificates coreutils curl-minimal gnupg2 gnupg2-verify iproute podman procps-ng python3 skopeo systemd util-linux \
+        bash ca-certificates coreutils curl-minimal dbus-broker gnupg2 gnupg2-verify iproute podman procps-ng python3 skopeo systemd util-linux \
     && dnf clean all \
     && touch /rentnerproxy-isolated-distribution \
     && truncate -s 0 /etc/machine-id
