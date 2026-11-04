@@ -45,6 +45,7 @@
 !docker/web/**
 !docker/production/
 !docker/production/entrypoint.sh
+!docker/production/verify-platform.sh
 !docker/crowdsec/
 !docker/crowdsec/**
 !docker/licenses/

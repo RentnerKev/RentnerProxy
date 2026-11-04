@@ -72,6 +72,12 @@ const execute: Http3Command = async (args) => {
 
 export async function runtimeImageArtifact(action: string, command: Http3Command = execute) {
     requireValue(action === 'pack' || action === 'load', 'Expected pack or load action')
+    const platform = process.env.RUNTIME_IMAGE_PLATFORM ?? 'linux/amd64'
+    requireValue(
+        platform === 'linux/amd64' || platform === 'linux/arm64',
+        'Unsupported runtime image platform',
+    )
+    const architecture = platform.slice('linux/'.length)
     const kind = process.env.RUNTIME_IMAGE_KIND
     requireValue(
         kind === 'appliance' || kind === 'http3-client' || kind === 'proxy-runtime',
@@ -132,7 +138,7 @@ export async function runtimeImageArtifact(action: string, command: Http3Command
                 identity.revision === revision &&
                 identity.scope === scope &&
                 identity.kind === kind &&
-                identity.platform === 'linux/amd64' &&
+                identity.platform === platform &&
                 identity.archiveSha256 === archiveSha256,
             'Image identity contract mismatch',
         )
@@ -151,12 +157,12 @@ export async function runtimeImageArtifact(action: string, command: Http3Command
             '--override-os',
             'linux',
             '--override-arch',
-            'amd64',
+            architecture,
             `oci-archive:${archive}`,
         ]),
     )
     requireValue(
-        inspected.Os === 'linux' && inspected.Architecture === 'amd64',
+        inspected.Os === 'linux' && inspected.Architecture === architecture,
         'Image platform mismatch',
     )
     labelsMatch(inspected.Labels)
@@ -175,7 +181,7 @@ export async function runtimeImageArtifact(action: string, command: Http3Command
         '--override-os',
         'linux',
         '--override-arch',
-        'amd64',
+        architecture,
         `oci-archive:${archive}`,
         `docker-daemon:${image}`,
     ])
@@ -183,7 +189,7 @@ export async function runtimeImageArtifact(action: string, command: Http3Command
         await command(['docker', 'image', 'inspect', '--format', '{{json .}}', image]),
     )
     requireValue(
-        loaded.Os === 'linux' && loaded.Architecture === 'amd64',
+        loaded.Os === 'linux' && loaded.Architecture === architecture,
         'Loaded image platform mismatch',
     )
     labelsMatch(record(loaded.Config).Labels)
@@ -200,7 +206,7 @@ export async function runtimeImageArtifact(action: string, command: Http3Command
                 revision,
                 scope,
                 kind,
-                platform: 'linux/amd64',
+                platform,
                 manifestDigest: inspected.Digest,
                 imageId: loaded.Id,
                 archiveSha256,

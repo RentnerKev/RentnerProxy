@@ -12,6 +12,7 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const environmentKeys = [
     'RUNTIME_IMAGE_DIRECTORY',
     'RUNTIME_IMAGE_KIND',
+    'RUNTIME_IMAGE_PLATFORM',
     'RENTNERPROXY_SMOKE_RUN',
     'RENTNERPROXY_SMOKE_REUSE_IMAGES',
     'GITHUB_SHA',
@@ -29,12 +30,14 @@ async function fixture(
         command: (args: string[]) => Promise<string>
     }) => Promise<void>,
     kind = 'appliance',
+    architecture = 'amd64',
 ) {
     const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-image-artifact-'))
     const previous = Object.fromEntries(environmentKeys.map((key) => [key, process.env[key]]))
     Object.assign(process.env, {
         RUNTIME_IMAGE_DIRECTORY: directory,
         RUNTIME_IMAGE_KIND: kind,
+        RUNTIME_IMAGE_PLATFORM: 'linux/' + architecture,
         RENTNERPROXY_SMOKE_RUN: '12345-2',
         RENTNERPROXY_SMOKE_REUSE_IMAGES: '1',
         GITHUB_SHA: revision,
@@ -50,13 +53,13 @@ async function fixture(
     }
     const oci = {
         Os: 'linux',
-        Architecture: 'amd64',
+        Architecture: architecture,
         Digest: manifestDigest,
         Labels: { ...labels },
     }
     const docker = {
         Os: 'linux',
-        Architecture: 'amd64',
+        Architecture: architecture,
         Id: imageId,
         Config: { Labels: { ...labels } },
     }
@@ -84,41 +87,85 @@ async function fixture(
 }
 
 describe('same-run OCI runtime image artifacts', () => {
-    for (const kind of ['appliance', 'http3-client', 'proxy-runtime']) {
-        test(`${kind} packs and loads the same immutable image bytes`, async () => {
-            await fixture(async ({ directory, command, calls }) => {
-                const packed = await runtimeImageArtifact('pack', command)
-                expect(packed.archive_sha256).toBe(hash('fixture OCI archive bytes'))
-                const raw = await readFile(join(directory, 'identity.json'), 'utf8')
-                expect(packed.identity_sha256).toBe(hash(raw))
-                expect(JSON.parse(raw)).toEqual({
-                    schemaVersion: 1,
-                    revision,
-                    scope: '12345-2',
+    for (const architecture of ['amd64', 'arm64']) {
+        for (const kind of ['appliance', 'http3-client', 'proxy-runtime']) {
+            test(`${architecture} ${kind} packs and loads the same immutable image bytes`, async () => {
+                await fixture(
+                    async ({ directory, command, calls }) => {
+                        const packed = await runtimeImageArtifact('pack', command)
+                        expect(packed.archive_sha256).toBe(hash('fixture OCI archive bytes'))
+                        const raw = await readFile(join(directory, 'identity.json'), 'utf8')
+                        expect(packed.identity_sha256).toBe(hash(raw))
+                        expect(JSON.parse(raw)).toEqual({
+                            schemaVersion: 1,
+                            revision,
+                            scope: '12345-2',
+                            kind,
+                            platform: 'linux/' + architecture,
+                            manifestDigest,
+                            imageId,
+                            archiveSha256: packed.archive_sha256,
+                        })
+                        process.env.RUNTIME_IMAGE_ARCHIVE_SHA256 = packed.archive_sha256
+                        process.env.RUNTIME_IMAGE_IDENTITY_SHA256 = packed.identity_sha256
+                        expect(await runtimeImageArtifact('load', command)).toEqual(packed)
+                        const copies = calls.filter(
+                            (args) => args[0] === 'skopeo' && args[1] === 'copy',
+                        )
+                        expect(copies).toHaveLength(2)
+                        for (const args of calls.filter((call) => call[0] === 'skopeo'))
+                            expect(args[args.indexOf('--override-arch') + 1]).toBe(architecture)
+                        expect(copies[0]?.at(-1)).toBe(
+                            `docker-daemon:rentnerproxy-smoke-12345-2:${kind}`,
+                        )
+                        expect(
+                            calls.some(
+                                (args) =>
+                                    args.includes('run') ||
+                                    args.includes('build') ||
+                                    args.includes('push'),
+                            ),
+                        ).toBe(false)
+                        expect(await readFile(join(directory, 'outputs'), 'utf8')).toContain(
+                            `archive_sha256=${packed.archive_sha256}\nidentity_sha256=${packed.identity_sha256}\n`,
+                        )
+                    },
                     kind,
-                    platform: 'linux/amd64',
-                    manifestDigest,
-                    imageId,
-                    archiveSha256: packed.archive_sha256,
-                })
-                process.env.RUNTIME_IMAGE_ARCHIVE_SHA256 = packed.archive_sha256
-                process.env.RUNTIME_IMAGE_IDENTITY_SHA256 = packed.identity_sha256
-                expect(await runtimeImageArtifact('load', command)).toEqual(packed)
-                const copies = calls.filter((args) => args[0] === 'skopeo' && args[1] === 'copy')
-                expect(copies).toHaveLength(2)
-                expect(copies[0]?.at(-1)).toBe(`docker-daemon:rentnerproxy-smoke-12345-2:${kind}`)
-                expect(
-                    calls.some(
-                        (args) =>
-                            args.includes('run') || args.includes('build') || args.includes('push'),
-                    ),
-                ).toBe(false)
-                expect(await readFile(join(directory, 'outputs'), 'utf8')).toContain(
-                    `archive_sha256=${packed.archive_sha256}\nidentity_sha256=${packed.identity_sha256}\n`,
+                    architecture,
                 )
-            }, kind)
-        })
+            })
+        }
     }
+
+    test('keeps AMD64 as the existing default platform', async () => {
+        await fixture(async ({ directory, command }) => {
+            delete process.env.RUNTIME_IMAGE_PLATFORM
+            await runtimeImageArtifact('pack', command)
+            expect((await Bun.file(join(directory, 'identity.json')).json()).platform).toBe(
+                'linux/amd64',
+            )
+        })
+    })
+
+    test('rejects an unsupported requested platform before invoking tools', async () => {
+        await fixture(async ({ command, calls }) => {
+            process.env.RUNTIME_IMAGE_PLATFORM = 'linux/ppc64le'
+            await expect(runtimeImageArtifact('pack', command)).rejects.toThrow(
+                'Unsupported runtime image platform',
+            )
+            expect(calls).toEqual([])
+        })
+    })
+
+    test('rejects an AMD64 image under an ARM64 artifact contract', async () => {
+        await fixture(async ({ command, calls }) => {
+            process.env.RUNTIME_IMAGE_PLATFORM = 'linux/arm64'
+            await expect(runtimeImageArtifact('pack', command)).rejects.toThrow(
+                'Image platform mismatch',
+            )
+            expect(calls.some((args) => args[1] === 'copy')).toBe(false)
+        })
+    })
 
     for (const [filename, kind] of [
         ['image.tar', 'appliance'],

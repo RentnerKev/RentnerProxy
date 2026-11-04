@@ -1,6 +1,10 @@
 name: Load runtime verification images
 description: Verify and load exact same-run OCI artifacts without rebuilding.
 inputs:
+    platform:
+        description: Expected Linux platform of the producer artifacts.
+        required: false
+        default: linux/amd64
     include_proxy_runtime:
         description: Load the producer's proxy-runtime artifact as well.
         required: false
@@ -62,6 +66,7 @@ runs:
               RENTNERPROXY_SMOKE_RUN: ${{ inputs.scope }}
               RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-proxy-runtime
               RUNTIME_IMAGE_KIND: proxy-runtime
+              RUNTIME_IMAGE_PLATFORM: ${{ inputs.platform }}
               RUNTIME_IMAGE_ARCHIVE_SHA256: ${{ inputs.proxy_archive_sha256 }}
               RUNTIME_IMAGE_IDENTITY_SHA256: ${{ inputs.proxy_identity_sha256 }}
           run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts load
@@ -73,6 +78,7 @@ runs:
               RENTNERPROXY_SMOKE_RUN: ${{ inputs.scope }}
               RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-appliance
               RUNTIME_IMAGE_KIND: appliance
+              RUNTIME_IMAGE_PLATFORM: ${{ inputs.platform }}
               RUNTIME_IMAGE_ARCHIVE_SHA256: ${{ inputs.appliance_archive_sha256 }}
               RUNTIME_IMAGE_IDENTITY_SHA256: ${{ inputs.appliance_identity_sha256 }}
           run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts load
@@ -84,6 +90,7 @@ runs:
               RENTNERPROXY_SMOKE_RUN: ${{ inputs.scope }}
               RUNTIME_IMAGE_DIRECTORY: ${{ runner.temp }}/runtime-http3-client
               RUNTIME_IMAGE_KIND: http3-client
+              RUNTIME_IMAGE_PLATFORM: ${{ inputs.platform }}
               RUNTIME_IMAGE_ARCHIVE_SHA256: ${{ inputs.http3_archive_sha256 }}
               RUNTIME_IMAGE_IDENTITY_SHA256: ${{ inputs.http3_identity_sha256 }}
           run: bun --no-env-file .github/scripts/ci/runtime-image-artifact.ts load

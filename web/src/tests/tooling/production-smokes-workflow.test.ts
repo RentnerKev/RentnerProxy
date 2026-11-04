@@ -177,9 +177,14 @@ describe('production smokes workflow execution contract', () => {
         )
         expect(proxy.if).toContain("inputs.include_proxy_runtime == 'true'")
         expect(producer.inputs.include_proxy_runtime?.default).toBe('false')
+        expect(producer.inputs.platform?.default).toBe('linux/amd64')
+        const loader = Bun.YAML.parse(
+            await repositoryFile('.github/actions/load-runtime-images/action.yml'),
+        ) as { inputs: Record<string, { default?: string }> }
+        expect(loader.inputs.platform?.default).toBe('linux/amd64')
         for (const build of sharedBuilds) {
             expect(build.with?.context).toBe('${{ runner.temp }}/runtime-image-source')
-            expect(build.with?.platforms).toBe('linux/amd64')
+            expect(build.with?.platforms).toBe('${{ inputs.platform }}')
             expect(build.with?.push).toBeFalse()
             expect(build.with?.outputs).toMatch(/^type=oci,dest=/u)
             expect(build.with?.labels).toContain(
@@ -193,6 +198,80 @@ describe('production smokes workflow execution contract', () => {
         expect(sharedBuilds[0]?.with?.sbom).toBeTrue()
         const runner = await repositoryFile('.github/scripts/ci/production-smoke-ci.ts')
         expect(runner).toContain("suite === 'prepare' ? prepareSmokeImages : verifySmokeImages")
+    })
+
+    test('builds and exercises the full appliance on native ARM64 without publishing', async () => {
+        const source = await repositoryFile('.github/workflows/arm64-appliance.yml')
+        const document = Bun.YAML.parse(source) as {
+            on: Record<string, unknown>
+            permissions: Record<string, string>
+            jobs: Record<
+                string,
+                {
+                    'runs-on': string
+                    'timeout-minutes': number
+                    steps: {
+                        uses?: string
+                        run?: string
+                        with?: Record<string, unknown>
+                        env?: Record<string, string>
+                    }[]
+                }
+            >
+        }
+        expect(Object.keys(document.on).toSorted()).toEqual([
+            'pull_request',
+            'push',
+            'workflow_dispatch',
+        ])
+        expect(document.permissions).toEqual({ contents: 'read' })
+        const job = document.jobs['native-arm64']!
+        expect(job['runs-on']).toBe('ubuntu-24.04-arm')
+        expect(job['timeout-minutes']).toBeGreaterThan(0)
+        expect(
+            job.steps.some(
+                (step) =>
+                    step.run?.includes('uname -s') &&
+                    step.run.includes('uname -m') &&
+                    step.run.includes('{{.Server.Os}}/{{.Server.Arch}}'),
+            ),
+        ).toBe(true)
+        expect(
+            job.steps.find((step) => step.uses === './.github/actions/runtime-images')?.with
+                ?.platform,
+        ).toBe('linux/arm64')
+        expect(
+            job.steps.find((step) => step.run?.includes('/scan-image.sh'))?.env?.IMAGE_ARCHITECTURE,
+        ).toBe('arm64')
+        expect(
+            job.steps.some((step) => step.run?.endsWith('production-smoke-ci.ts production')),
+        ).toBe(true)
+        expect(job.steps.some((step) => step.run?.endsWith('/appliance-drain-smoke.ts'))).toBe(true)
+        expect(source).not.toMatch(
+            /setup-qemu|pull_request_target|workflow_run|secrets\.|packages: write|docker (?:login|push)|publish-assessed-image/u,
+        )
+
+        const producer = Bun.YAML.parse(
+            await repositoryFile('.github/actions/runtime-images/action.yml'),
+        ) as {
+            runs: {
+                steps: {
+                    run?: string
+                    env?: Record<string, string>
+                    with?: Record<string, unknown>
+                }[]
+            }
+        }
+        for (const step of producer.runs.steps.filter(
+            (candidate) => candidate.env?.RUNTIME_IMAGE_KIND,
+        )) {
+            expect(step.env?.RUNTIME_IMAGE_PLATFORM).toBe('${{ inputs.platform }}')
+        }
+        for (const step of producer.runs.steps.filter(
+            (candidate) => candidate.with?.['cache-from'],
+        )) {
+            expect(step.with?.['cache-from']).toContain('${{ steps.scope.outputs.cache_suffix }}')
+        }
     })
 
     test('consumers bind same-run artifacts to producer hashes and preserve its original attempt scope', async () => {
