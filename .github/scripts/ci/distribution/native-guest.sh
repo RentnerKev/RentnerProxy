@@ -54,6 +54,14 @@ MIRROR
         if [[ "$MODE" == package ]]; then
             repository repo-initial
             if [[ "$TARGET" == debian ]]; then apt-get install --yes rentnerproxy; else dnf --assumeyes install rentnerproxy; fi
+            if [[ "$TARGET" == fedora ]]; then
+                case "$ARCHITECTURE" in amd64) rpm_architecture=x86_64 ;; arm64) rpm_architecture=aarch64 ;; esac
+                cp -a /test/repo-initial/rpm/beta/"$rpm_architecture" /root/repository-probe
+                probe_repository=(--assumeyes --disablerepo='*' '--repofrompath=rp-probe,file:///root/repository-probe' --enablerepo=rp-probe --setopt=rp-probe.gpgcheck=1 --setopt=rp-probe.repo_gpgcheck=1 --setopt=rp-probe.skip_if_unavailable=0 --setopt=rp-probe.gpgkey=file:///etc/pki/rpm-gpg/RENTNERPROXY-FIXTURE --refresh makecache)
+                dnf "${probe_repository[@]}"
+                printf corrupted > /root/repository-probe/repodata/repomd.xml.asc
+                if dnf "${probe_repository[@]}"; then exit 1; fi
+            fi
         else
             install -d -m 0700 /root/quadlet
             tar -xzf /test/packages/"$ARCHITECTURE"/*-quadlet.tar.gz -C /root/quadlet
@@ -112,11 +120,12 @@ CONFIGURATION
         # Rollback the package and restore the compatible external v4 snapshot.
         rentnerproxy stop
         if [[ "$MODE" == package ]]; then
+            repository repo-initial
             if [[ "$TARGET" == debian ]]; then
-                apt-get install --yes --allow-downgrades /test/packages/"$ARCHITECTURE"/*.deb
+                previous_version=$(dpkg-deb --field /test/packages/"$ARCHITECTURE"/*.deb Version)
+                apt-get install --yes --allow-downgrades "rentnerproxy=$previous_version"
             else
-                rpm --import /test/repo-initial/keys/"$fingerprint.asc"
-                dnf --assumeyes downgrade /test/repo-initial/releases/*/1/"$ARCHITECTURE"/*.rpm
+                dnf --assumeyes downgrade rentnerproxy
             fi
         else
             tar -xzf /test/packages/"$ARCHITECTURE"/*-quadlet.tar.gz -C /root/quadlet
@@ -131,8 +140,7 @@ CONFIGURATION
         if [[ "$MODE" == package ]]; then
             if [[ "$TARGET" == debian ]]; then apt-get purge --yes rentnerproxy; else dnf --assumeyes remove rentnerproxy; fi
         else
-            while IFS= read -r path; do rm -- "/$path"; done < <(tar -tzf /test/packages/"$ARCHITECTURE"/*-quadlet.tar.gz | sed -n 's|^\./\(usr/.*[^/]\)$|\1|p')
-            systemctl daemon-reload
+            bash /root/quadlet/uninstall.sh
         fi
         [[ -f /etc/rentnerproxy/appliance.env && -f "$volume_hash/bootstrap/secrets-v1.json" ]] || exit 1
         # Only this explicitly marked disposable appliance is purged for the next fresh install.

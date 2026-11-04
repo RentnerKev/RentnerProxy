@@ -30,6 +30,7 @@ export function repositoryUrl(value: string): string {
         url.protocol !== 'https:' ||
         url.username ||
         url.password ||
+        url.port ||
         url.search ||
         url.hash ||
         !/^\/[A-Za-z0-9_/-]*$/u.test(url.pathname)
@@ -237,8 +238,8 @@ Admin > Backups retains the existing online backup/restore contract.
 Quadlet archive: verify SHA256SUMS.asc with this key, verify SHA256SUMS,
 extract the versioned *-quadlet.tar.gz into an empty private directory and run
 sudo bash ./install.sh; configure/start as above. Upgrades repeat with the next
-verified archive. Removal: stop, remove only the installed vendor files listed
-in release.json/package contents, then systemctl daemon-reload. Keep /etc and data.
+verified archive. Removal: sudo bash ./uninstall.sh from the matching verified
+archive. It verifies owned vendor files and preserves /etc and appliance data.
 
 Removal with apt-get remove/purge or dnf remove preserves /etc/rentnerproxy and
 the rentnerproxy-data volume. Explicit data deletion while stopped:
@@ -361,10 +362,11 @@ export async function updatePackageRepository(options: {
             })
             await sign(home, fingerprint, join(root, directory, 'release.json'))
         }
-        await writeFile(
-            join(root, directory, 'INSTALL.txt'),
-            consumerInstructions(base, fingerprint),
-        )
+        if (!previous)
+            await writeFile(
+                join(root, directory, 'INSTALL.txt'),
+                consumerInstructions(base, fingerprint),
+            )
     }
     // Immutable package versions remain available; channel metadata includes every
     // eligible version so a package manager, rather than release arrival order, selects updates.

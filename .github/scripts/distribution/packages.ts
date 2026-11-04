@@ -45,6 +45,19 @@ export function quadletInstaller(payload: readonly DistributionPayloadFile[]): s
     )
 }
 
+export function quadletUninstaller(payload: readonly DistributionPayloadFile[]): string {
+    const checksums = payload
+        .map((file) => createHash('sha256').update(file.content).digest('hex') + '  /' + file.path)
+        .join('\n')
+    return (
+        '#!/bin/bash\nset -eu\n[[ $(id -u) == 0 ]] || exit 1\nif command -v dpkg-query >/dev/null && dpkg-query --search /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use apt-get remove rentnerproxy." >&2; exit 1; fi\nif command -v rpm >/dev/null && rpm -qf /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use dnf remove rentnerproxy." >&2; exit 1; fi\nsha256sum --check --status <<\'OWNED_VENDOR_FILES\'\n' +
+        checksums +
+        '\nOWNED_VENDOR_FILES\n/usr/bin/rentnerproxy stop\n' +
+        payload.map((file) => 'rm -- /' + file.path).join('\n') +
+        '\nsystemctl daemon-reload\n'
+    )
+}
+
 export async function verifyQuadletArchive(
     path: string,
     source: string,
@@ -53,7 +66,11 @@ export async function verifyQuadletArchive(
     const payload = await distributionPayload(source, identity)
     assertPackageFiles(
         packageTar(gunzipSync(await readFile(path), { maxOutputLength: 4 * 1024 * 1024 })),
-        [...payload, { path: 'install.sh', mode: 0o755, content: quadletInstaller(payload) }],
+        [
+            ...payload,
+            { path: 'install.sh', mode: 0o755, content: quadletInstaller(payload) },
+            { path: 'uninstall.sh', mode: 0o755, content: quadletUninstaller(payload) },
+        ],
     )
 }
 
@@ -77,7 +94,7 @@ export function rpmSpec(
     payload: readonly DistributionPayloadFile[],
 ): string {
     const version = distributionPackageVersion(release.version, release.packageRevision)
-    return `Name: rentnerproxy\nVersion: ${version.rpmVersion}\nRelease: ${version.rpmRelease}\nSummary: Complete RentnerProxy OCI appliance managed by rootful Podman/Quadlet\nLicense: AGPL-3.0-only\nURL: https://github.com/RentnerKev/RentnerProxy\nAutoReqProv: no\nRequires: bash, coreutils, util-linux, podman >= 5.4, systemd >= 252\n%description\nComplete web/controller/Caddy/CrowdSec/PostgreSQL/Valkey appliance from assessed GHCR.\nRequires rootful Podman, cgroup v2 and systemd. Management is loopback-only.\n%install\nmkdir -p %{buildroot}\ncp -a %{_sourcedir}/payload/. %{buildroot}/\n%pre -p /bin/bash\n${packagePreinstall.split('\n').slice(1).join('\n').replaceAll('%', '%%')}\n%post -p /bin/bash\n${packagePostinstall.split('\n').slice(1).join('\n').replaceAll('%', '%%')}\n%preun -p /bin/bash\nif [[ $1 == 0 ]]; then\n${packageStop.split('\n').slice(1).join('\n')}fi\n%postun -p /bin/bash\nif [[ $1 == 0 ]]; then\n${packageRemoved.split('\n').slice(1).join('\n')}fi\n%files\n${payload.map((file) => `%attr(${file.mode.toString(8)},root,root) /${file.path}`).join('\n')}\n`
+    return `Name: rentnerproxy\nVersion: ${version.rpmVersion}\nRelease: ${version.rpmRelease}\nSummary: Complete RentnerProxy OCI appliance managed by rootful Podman/Quadlet\nLicense: MIT\nURL: https://github.com/RentnerKev/RentnerProxy\nAutoReqProv: no\nRequires: bash, coreutils, util-linux, podman >= 5.4, systemd >= 252\n%description\nComplete web/controller/Caddy/CrowdSec/PostgreSQL/Valkey appliance from assessed GHCR.\nRequires rootful Podman, cgroup v2 and systemd. Management is loopback-only.\n%install\nmkdir -p %{buildroot}\ncp -a %{_sourcedir}/payload/. %{buildroot}/\n%pre -p /bin/bash\n${packagePreinstall.split('\n').slice(1).join('\n').replaceAll('%', '%%')}\n%post -p /bin/bash\n${packagePostinstall.split('\n').slice(1).join('\n').replaceAll('%', '%%')}\n%preun -p /bin/bash\nif [[ $1 == 0 ]]; then\n${packageStop.split('\n').slice(1).join('\n')}fi\n%postun -p /bin/bash\nif [[ $1 == 0 ]]; then\n${packageRemoved.split('\n').slice(1).join('\n')}fi\n%files\n${payload.map((file) => `%attr(${file.mode.toString(8)},root,root) /${file.path}`).join('\n')}\n`
 }
 
 async function materialize(root: string, files: readonly DistributionPayloadFile[]) {
@@ -234,6 +251,7 @@ export async function buildDistributionPackages(
         await renamePackage(join(top, 'RPMS', architecture, candidates[0]!), rpm)
         for (const path of [deb, rpm]) await verifyDistributionPackage(path, source, release)
         await writeFile(join(root, 'install.sh'), quadletInstaller(payload), { mode: 0o755 })
+        await writeFile(join(root, 'uninstall.sh'), quadletUninstaller(payload), { mode: 0o755 })
         const quadlet = join(output, stem + '-quadlet.tar.gz')
         await distributionCommand([
             'tar',

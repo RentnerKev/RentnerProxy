@@ -32,9 +32,9 @@ import type { BackupMetadata } from '../../../scripts/backup/Types/format.types.
 const bootstrap = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 const signalController = new AbortController()
 const childEnvironment = {
-    PATH: '/usr/local/bin:/usr/bin:/bin',
-    HOME: '/root',
-    LC_ALL: 'C',
+    PATH: '/usr/lib/postgresql/18/bin:/usr/local/bin:/usr/bin:/bin',
+    HOME: '/tmp',
+    LC_ALL: 'C.UTF-8',
     RENTNERPROXY_DATABASE_HOST: '127.0.0.1',
 }
 
@@ -50,7 +50,7 @@ async function command(args: string[], output?: string) {
             ...(file ? { outputFile: { file, maximumBytes: 8 * 1024 ** 3 } } : {}),
         })
         if (!result.stopped) throw new Error('Maintenance process cleanup incomplete')
-        if (result.failed) throw new Error('Offline maintenance step failed')
+        if (result.failed) throw new Error('Offline maintenance step failed', { cause: result })
         await file?.sync()
         return result
     } finally {
@@ -140,6 +140,7 @@ export async function offlineRestore(options: readonly string[]) {
     )
         throw new Error('Restore requires explicit, nonduplicate recovery options')
     const snapshot = await mkdtemp('/tmp/rentnerproxy-offline-')
+    const validation = await mkdtemp('/tmp/rentnerproxy-offline-validation-')
     await chmod(snapshot, 0o700)
     try {
         const { metadata, backupId } = await snapshotProductionRestore('/backup', snapshot)
@@ -148,8 +149,7 @@ export async function offlineRestore(options: readonly string[]) {
             deployment(),
             options.includes('--allow-deployment-change'),
         )
-        const validation = join(snapshot, 'validation')
-        await mkdir(validation, { mode: 0o700 })
+        await command(['chown', 'postgres:postgres', validation])
         await command(['bash', '-c', validationCommand(snapshot, validation)])
         process.env.RENTNERPROXY_RESTORE_BACKUP_ID = backupId
         process.env.RENTNERPROXY_RESTORE_RESUME = String(options.includes('--resume'))
@@ -175,6 +175,7 @@ export async function offlineRestore(options: readonly string[]) {
         await completeProductionRestore()
     } finally {
         await rm(snapshot, { recursive: true, force: true })
+        await rm(validation, { recursive: true, force: true })
     }
 }
 

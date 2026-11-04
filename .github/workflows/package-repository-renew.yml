@@ -1,0 +1,109 @@
+name: Renew signed package metadata
+
+on:
+    schedule:
+        - cron: '23 4 * * 1'
+    workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+    group: signed-package-repository
+    cancel-in-progress: false
+
+jobs:
+    refresh:
+        if: github.repository == 'RentnerKev/RentnerProxy' && github.ref == 'refs/heads/main'
+        name: Renew metadata from immutable signed history
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: package-signing
+        permissions:
+            contents: write
+        outputs:
+            fingerprint: ${{ steps.identity.outputs.fingerprint }}
+            repository_url: ${{ steps.identity.outputs.repository_url }}
+        steps:
+            - name: Check out trusted metadata automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install trusted metadata tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends apt-utils createrepo-c gnupg rpm
+            - name: Read public repository data
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+              run: bash automation/.github/scripts/distribution/read-repository.sh
+            - name: Verify signed history and renew expiring metadata
+              env:
+                  PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  PACKAGE_PREVIOUS_FINGERPRINTS: ${{ vars.PACKAGE_PREVIOUS_FINGERPRINTS }}
+                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+                  SOURCE_DIRECTORY: ${{ github.workspace }}/automation
+                  PUBLIC_DIRECTORY: ${{ runner.temp }}/package-repository/public
+              run: bun --no-env-file automation/.github/scripts/distribution/publication.ts refresh
+            - name: Retain renewed metadata atomically
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bash automation/.github/scripts/distribution/push-repository.sh
+            - name: Expose public repository identity
+              id: identity
+              env:
+                  FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+              run: |
+                  [[ "$FINGERPRINT" =~ ^[A-F0-9]{40}$ ]]
+                  printf 'fingerprint=%s\nrepository_url=%s\n' "$FINGERPRINT" "$REPOSITORY_URL" >> "$GITHUB_OUTPUT"
+            - name: Prepare verified public snapshot
+              uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+              with:
+                  path: ${{ runner.temp }}/package-repository/public
+
+    deploy:
+        needs: refresh
+        name: Deploy renewed signed metadata
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Deploy public snapshot
+              id: deployment
+              uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+    consumer:
+        needs: [refresh, deploy]
+        name: Verify renewed consumer metadata
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            contents: read
+        steps:
+            - name: Check out trusted consumer verification
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.workflow_sha }}
+            - name: Build clean Debian consumer
+              run: docker build --file docker/tooling/distribution/Dockerfile.debian --tag rp-package-consumer:fixture .
+            - name: Verify published signatures without authentication
+              env:
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ needs.refresh.outputs.fingerprint }}
+                  PACKAGE_REPOSITORY_URL: ${{ needs.refresh.outputs.repository_url }}
+              run: docker run --rm --env TARGET=debian --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --entrypoint bash rp-package-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh

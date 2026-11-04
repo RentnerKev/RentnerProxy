@@ -1,0 +1,170 @@
+name: Publish signed Linux distribution
+
+on:
+    workflow_call:
+        inputs:
+            revision:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            digest:
+                required: true
+                type: string
+            bundle_sha256:
+                required: true
+                type: string
+            release_id:
+                required: true
+                type: number
+            published_at:
+                required: true
+                type: string
+            channel:
+                required: true
+                type: string
+
+permissions: {}
+
+concurrency:
+    group: signed-package-repository
+    cancel-in-progress: false
+
+jobs:
+    sign:
+        if: github.repository == 'RentnerKev/RentnerProxy'
+        name: Sign exact assessed and natively tested packages
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: package-signing
+        permissions:
+            contents: write
+        outputs:
+            fingerprint: ${{ steps.identity.outputs.fingerprint }}
+            repository_url: ${{ steps.identity.outputs.repository_url }}
+        steps:
+            - name: Check out trusted publisher automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Check out exact release payload as data
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ inputs.revision }}
+            - name: Set up Bun without source installation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install trusted system signing tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends apt-utils createrepo-c gnupg rpm rpm2cpio
+            - name: Download immutable candidates
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: distribution-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/distribution
+            - name: Download all four native target proofs
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  pattern: distribution-native-*-${{ github.run_id }}
+                  merge-multiple: true
+                  path: ${{ runner.temp }}/distribution-proofs
+            - name: Read data-only repository history without publication credentials
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+              run: bash automation/.github/scripts/distribution/read-repository.sh
+            - name: Sign verified artifacts with the protected owner key
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  BUNDLE_SHA256: ${{ inputs.bundle_sha256 }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  DISTRIBUTION_DIRECTORY: ${{ runner.temp }}/distribution
+                  NATIVE_REPORT_DIRECTORY: ${{ runner.temp }}/distribution-proofs
+                  SOURCE_DIRECTORY: ${{ github.workspace }}/source
+                  PUBLIC_DIRECTORY: ${{ runner.temp }}/package-repository/public
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+                  PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  PACKAGE_PREVIOUS_FINGERPRINTS: ${{ vars.PACKAGE_PREVIOUS_FINGERPRINTS }}
+                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+              run: bun --no-env-file automation/.github/scripts/distribution/publication.ts sign
+            - name: Retain immutable signed versions with a non-force data-branch update
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bash automation/.github/scripts/distribution/push-repository.sh
+            - name: Upload immutable versioned release deliverables
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  VERSION: ${{ inputs.version }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+              run: bun --no-env-file automation/.github/scripts/distribution/publication.ts upload
+            - name: Expose only public deployment identity
+              id: identity
+              env:
+                  FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+              run: |
+                  [[ "$FINGERPRINT" =~ ^[A-F0-9]{40}$ ]]
+                  printf 'fingerprint=%s\nrepository_url=%s\n' "$FINGERPRINT" "$REPOSITORY_URL" >> "$GITHUB_OUTPUT"
+            - name: Prepare data-only Pages artifact
+              uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+              with:
+                  path: ${{ runner.temp }}/package-repository/public
+
+    deploy:
+        name: Deploy signed package repository
+        needs: sign
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Atomically deploy the verified repository snapshot
+              id: deployment
+              uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+    consumer:
+        name: Anonymous published ${{ matrix.target }} consumer
+        needs: [sign, deploy]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 20
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [debian, fedora]
+                runner: [ubuntu-latest, ubuntu-24.04-arm]
+        steps:
+            - name: Check out trusted consumer verification
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.workflow_sha }}
+            - name: Build clean supported consumer
+              env:
+                  TARGET: ${{ matrix.target }}
+              run: docker build --file "docker/tooling/distribution/Dockerfile.$TARGET" --tag rp-distribution-consumer:fixture .
+            - name: Verify public metadata and downloads with the pinned owner key
+              env:
+                  TARGET: ${{ matrix.target }}
+                  RELEASE_CHANNEL: ${{ inputs.channel }}
+                  PACKAGE_REPOSITORY_URL: ${{ needs.sign.outputs.repository_url }}
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ needs.sign.outputs.fingerprint }}
+              run: docker run --rm --env TARGET --env RELEASE_CHANNEL --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --entrypoint bash rp-distribution-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh

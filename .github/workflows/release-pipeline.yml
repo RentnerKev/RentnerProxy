@@ -129,10 +129,23 @@ jobs:
             description: Modern self-hosted reverse proxy manager powered by Caddy.
             cache_scope: release-${{ inputs.channel }}
 
+    distribution:
+        needs: [prepare, build]
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-distribution.yml
+        with:
+            revision: ${{ needs.prepare.outputs.revision }}
+            version: ${{ inputs.release_tag }}
+            digest: ${{ needs.build.outputs.digest }}
+            archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
+            evidence_sha256: ${{ needs.build.outputs.evidence_sha256 }}
+
     publish-image:
         needs:
             - prepare
             - build
+            - distribution
         permissions:
             contents: read
             packages: write
@@ -148,12 +161,29 @@ jobs:
                 ${{ inputs.release_tag }}
                 ${{ needs.prepare.outputs.channel_tag }}
 
+    publish-distribution:
+        needs: [prepare, build, distribution, publish-image]
+        permissions:
+            contents: write
+            pages: write
+            id-token: write
+        uses: ./.github/workflows/publish-distribution.yml
+        with:
+            revision: ${{ needs.prepare.outputs.revision }}
+            version: ${{ inputs.release_tag }}
+            digest: ${{ needs.build.outputs.digest }}
+            bundle_sha256: ${{ needs.distribution.outputs.bundle_sha256 }}
+            release_id: ${{ inputs.release_id }}
+            published_at: ${{ inputs.published_at }}
+            channel: ${{ inputs.channel }}
+
     publish:
         name: Publish release notes
         needs:
             - prepare
             - build
             - publish-image
+            - publish-distribution
         runs-on: ubuntu-latest
         timeout-minutes: 10
         permissions:

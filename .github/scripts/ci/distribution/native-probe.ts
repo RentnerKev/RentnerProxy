@@ -159,12 +159,34 @@ async function initializeTraffic() {
         '-e',
         script,
     ])
+    await psql(
+        command,
+        container,
+        "INSERT INTO rentnerproxy.proxy_hosts(id,forward_scheme,forward_host,forward_port,enabled,certificate_id,force_https,verify_upstream_tls) VALUES ('0198d98a-0000-7000-8000-000000000001','http','host.containers.internal',19081,true,'0198d98a-0000-7000-8000-000000000002',false,true); INSERT INTO rentnerproxy.host_domains(id,proxy_host_id,domain) VALUES ('0198d98a-0000-7000-8000-000000000003','0198d98a-0000-7000-8000-000000000001','distribution.test');",
+    )
 }
 
 async function run() {
     assert.equal(process.platform, 'linux')
     assert.equal(process.getuid?.(), 0)
     await readFile('/rentnerproxy-isolated-distribution')
+    const evidence = JSON.parse(await readFile('/test/image-evidence.json', 'utf8'))
+    const expectedImage = evidence.native.find(
+        (entry: { architecture: string }) => entry.architecture === process.env.ARCHITECTURE,
+    )
+    assert.ok(expectedImage)
+    const actualImage = await command(['podman', 'inspect', '--format', '{{.Image}}', container])
+    assert.equal('sha256:' + actualImage.replace(/^sha256:/u, ''), expectedImage.imageId)
+    assert.equal(
+        await command([
+            'podman',
+            'inspect',
+            '--format',
+            '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+            container,
+        ]),
+        evidence.revision,
+    )
     const phase = process.argv[2]
     if (phase === 'seed') {
         const fixture = await seedPersistenceFixture({
@@ -254,7 +276,7 @@ async function run() {
             '%u:%g:%a',
             '/var/lib/rentnerproxy/proxy',
         ]),
-        '10001:10001:700',
+        '10001:10003:710',
     )
     await traffic()
 }

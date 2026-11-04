@@ -73,7 +73,13 @@ export async function verifyDistributionBundle(
     const manifest = ociRecord(JSON.parse(await readFile(join(root, 'bundle.json'), 'utf8')))
     if (
         manifest.schemaVersion !== 1 ||
-        Object.entries(identity).some(([key, value]) => manifest[key] !== value) ||
+        Object.entries(identity).some(
+            ([key, value]) => key !== 'runAttempt' && manifest[key] !== value,
+        ) ||
+        typeof manifest.runAttempt !== 'number' ||
+        !Number.isSafeInteger(manifest.runAttempt) ||
+        manifest.runAttempt < 1 ||
+        manifest.runAttempt > identity.runAttempt ||
         !Array.isArray(manifest.files)
     )
         throw new Error('Distribution proof identity mismatch')

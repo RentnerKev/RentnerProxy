@@ -15,6 +15,7 @@ PublishPort=127.0.0.1:81:3000/tcp
 PublishPort=443:8443/tcp
 PublishPort=443:8443/udp
 Label=io.rentnerproxy.distribution=appliance-v1
+HealthOnFailure=kill
 StopTimeout=30
 
 [Service]
