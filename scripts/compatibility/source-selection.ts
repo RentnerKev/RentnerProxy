@@ -19,6 +19,9 @@ import { parseReleaseReadiness } from '../../web/src/server/Updates/readiness.ts
 import { readBoundedText } from '../../web/src/server/Updates/http.ts'
 import { publishedRelease } from './published-releases.ts'
 import type { CompatibilitySource, PublishedRelease } from './Types/published-releases.types.ts'
+import type { ImagePlatform } from '../../web/src/lib/ApplicationVersion/Types/image-platform.types.ts'
+
+export class UnsupportedSourcePlatformError extends Error {}
 
 const api = `https://api.github.com/repos/${RELEASE_REPOSITORY}/releases`
 const releaseSchema = z.object({
@@ -54,6 +57,7 @@ const redirectHosts = new Set([
 export interface SourceDiscoveryOptions {
     readonly token?: string | undefined
     readonly signal?: AbortSignal
+    readonly platform?: ImagePlatform
 }
 export type SourceFetcher = (url: string, options: RequestInit) => Promise<Response>
 
@@ -158,13 +162,13 @@ export async function loadPublishedSource(
             notes: null,
             readinessAssetId: asset.id,
         })
-        if (
-            !readiness ||
-            readiness.upgrade.policy === 'manual-review' ||
-            !readiness.image.platforms.includes('linux/amd64')
-        )
+        if (!readiness || readiness.upgrade.policy === 'manual-review')
             throw new Error(
                 `Invalid source readiness identity or compatibility: ${release.tag_name}`,
+            )
+        if (!readiness.image.platforms.includes(options.platform ?? 'linux/amd64'))
+            throw new UnsupportedSourcePlatformError(
+                'Invalid source readiness platform: no assessed image for the requested platform',
             )
         return {
             version: release.tag_name,
@@ -186,6 +190,7 @@ interface SelectionOptions {
     }>
     readonly loadSource?: (release: Release) => Promise<PublishedRelease>
     readonly signal?: AbortSignal
+    readonly platform?: ImagePlatform
 }
 
 function sourceCandidates(raw: unknown, targetVersion: string): Release[] {
@@ -221,10 +226,19 @@ export async function verifyCompatibilitySource(
     if (!release)
         throw new Error('Bound source is no longer an eligible official published release')
     const bootstrap = publishedRelease('beta.1')
+    if (options.platform === 'linux/arm64' && source.version === bootstrap.version)
+        throw new UnsupportedSourcePlatformError('The historical Beta 1 bootstrap is AMD64 only')
     const immutable =
         source.version === bootstrap.version
             ? bootstrap
-            : await (options.loadSource ?? loadPublishedSource)(release)
+            : await (
+                  options.loadSource ??
+                  ((candidate) =>
+                      loadPublishedSource(candidate, fetch, {
+                          ...(options.platform ? { platform: options.platform } : {}),
+                          ...(options.signal ? { signal: options.signal } : {}),
+                      }))
+              )(release)
     const identity = await options.sourceRevision(release.tag_name)
     if (
         !identity.ancestor ||
@@ -240,6 +254,7 @@ export async function verifyCompatibilitySource(
 export async function selectCompatibilitySources(
     options: SelectionOptions,
 ): Promise<CompatibilitySource[]> {
+    if (options.platform === 'linux/arm64') return selectArm64Sources(options)
     const candidates = sourceCandidates(options.releases, options.targetVersion)
     const eligible: { release: Release; revision: string }[] = []
     const versions = new Set<string>()
@@ -308,6 +323,41 @@ export async function selectCompatibilitySources(
             throw new Error('Published source tag and immutable revision disagree')
         selected.push({ role, release })
     }
+    return selected
+}
+
+async function selectArm64Sources(options: SelectionOptions): Promise<CompatibilitySource[]> {
+    const eligible: PublishedRelease[] = []
+    for (const release of sourceCandidates(options.releases, options.targetVersion)) {
+        options.signal?.throwIfAborted()
+        // The immutable Beta 1 exception predates ARM64 and readiness metadata.
+        if (release.tag_name === publishedRelease('beta.1').version) continue
+        const identity = await options.sourceRevision(release.tag_name)
+        if (identity.isTarget && !release.assets.some((asset) => asset.name === READINESS_ASSET))
+            continue
+        let immutable: PublishedRelease
+        try {
+            immutable = await (
+                options.loadSource ??
+                ((candidate) =>
+                    loadPublishedSource(candidate, fetch, {
+                        platform: 'linux/arm64',
+                        ...(options.signal ? { signal: options.signal } : {}),
+                    }))
+            )(release)
+        } catch (error) {
+            if (error instanceof UnsupportedSourcePlatformError) continue
+            throw error
+        }
+        if (immutable.version !== release.tag_name || immutable.revision !== identity.revision)
+            throw new Error('Published ARM64 source tag and immutable revision disagree')
+        if (identity.ancestor && !identity.isTarget) eligible.push(immutable)
+    }
+    const selected: CompatibilitySource[] = [{ role: 'fresh', release: null }]
+    const oldest = eligible[0]
+    const previous = eligible.at(-1)
+    if (oldest) selected.push({ role: 'oldest', release: oldest })
+    if (previous && previous !== oldest) selected.push({ role: 'previous', release: previous })
     return selected
 }
 

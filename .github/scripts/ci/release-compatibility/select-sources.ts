@@ -8,6 +8,7 @@ import {
 } from '../../../../scripts/compatibility/source-selection.ts'
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { parseReleaseVersion } from '../../../../web/src/lib/ApplicationVersion/releaseVersion.ts'
+import { imagePlatform } from '../../../../web/src/lib/ApplicationVersion/imagePlatform.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
 
@@ -45,10 +46,17 @@ if (import.meta.main) {
     const manifest = JSON.parse(
         await readFile(new URL('../../../../package.json', import.meta.url), 'utf8'),
     ) as { version: string }
-    const discovery = { token: process.env.GH_TOKEN, signal: AbortSignal.timeout(120_000) }
+    const platform = imagePlatform(process.env.COMPATIBILITY_PLATFORM ?? 'linux/amd64')
+    if (!platform) throw new Error('Unsupported compatibility platform')
+    const discovery = {
+        token: process.env.GH_TOKEN,
+        signal: AbortSignal.timeout(120_000),
+        platform,
+    }
     const all = await selectCompatibilitySources({
         releases: await discoverPublishedReleases(fetch, discovery),
-        targetVersion: manifest.version,
+        targetVersion: process.env.COMPATIBILITY_TARGET_VERSION ?? manifest.version,
+        platform,
         sourceRevision: (tag) => publishedSourceRevision(tag, target),
         loadSource: (release) => loadPublishedSource(release, fetch, discovery),
         signal: discovery.signal,

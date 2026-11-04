@@ -13,6 +13,7 @@ async function publish(
     tags: string,
     publishedManifest = manifest,
     preflight = { identical: '', failed: false },
+    evidence = { validChecksum: true, validProof: true },
 ) {
     const parent = join(root, 'tmp')
     await mkdir(parent, { recursive: true })
@@ -21,13 +22,17 @@ async function publish(
     await mkdir(bin)
     await Promise.all([
         writeFile(join(directory, 'candidate.tar'), 'fixture-archive'),
+        writeFile(join(directory, 'evidence.json'), 'fixture-evidence'),
         writeFile(
             join(bin, 'skopeo'),
             `#!/bin/bash
 set -eu
 case "$1" in
     login) cat > /dev/null; echo login >> calls ;;
-    copy) printf 'copy %s\\n' "\${!#}" >> calls ;;
+    copy)
+        if [[ "\${!#}" == oci:* ]]; then echo prepare >> calls
+        else printf 'copy %s\\n' "\${!#}" >> calls; fi
+        ;;
     inspect)
         if [[ "\${!#}" == docker://* ]]; then
             printf 'inspect %s\\n' "\${!#}" >> calls
@@ -44,7 +49,10 @@ esac
         writeFile(
             join(bin, 'bun'),
             `#!/bin/bash
-if [[ "$2" == *registry-preflight.ts ]]; then
+if [[ "$2" == *multiarch-image.ts ]]; then
+    echo verified-platforms >> calls
+    [[ "$VALID_PROOF" == true ]] || exit 1
+elif [[ "$2" == *registry-preflight.ts ]]; then
     printf 'preflight %s\\n' "\${IMAGE_TAGS//$'\\n'/,}" >> calls
     [[ "$PREFLIGHT_FAILED" == false ]] || exit 1
     if [[ -n "$IDENTICAL_TAG" ]]; then printf '{"identicalTags":["%s"]}' "$IDENTICAL_TAG"; else printf '{"identicalTags":[]}'; fi
@@ -85,6 +93,15 @@ exit 0
                         .update('fixture-archive')
                         .digest('hex'),
                     EXPECTED_DIGEST: digest,
+                    EVIDENCE_FILE: 'evidence.json',
+                    EXPECTED_EVIDENCE_SHA256: createHash('sha256')
+                        .update(evidence.validChecksum ? 'fixture-evidence' : 'changed-evidence')
+                        .digest('hex'),
+                    IMAGE_DIRECTORY: 'oci',
+                    PLATFORM_REPORT_DIRECTORY: 'reports',
+                    REVISION: 'a'.repeat(40),
+                    VERSION: 'v1.0.0-beta.3',
+                    VALID_PROOF: String(evidence.validProof),
                     IMAGE: image,
                     IMAGE_TAGS: tags,
                     AUTOMATION_DIRECTORY: '.',
@@ -135,6 +152,8 @@ describe('image publication tag prevalidation', () => {
             const result = await publish(tags)
             expect(result.exit).toBe(0)
             expect(result.calls).toEqual([
+                'prepare',
+                'verified-platforms',
                 'approved',
                 ...expected.filter((tag) => tag.startsWith('v1.')).map((tag) => `preflight ${tag}`),
                 'login',
@@ -143,7 +162,7 @@ describe('image publication tag prevalidation', () => {
                     `inspect docker://${image}:${tag}`,
                 ]),
             ])
-            expect(result.output).toBe(`digest=${digest}\n`)
+            expect(result.output).toBe(`digest=${digest}\nplatforms=linux/amd64,linux/arm64\n`)
         },
     )
 
@@ -161,6 +180,8 @@ describe('image publication tag prevalidation', () => {
         const result = await publish('dev', 'changed-manifest')
         expect(result.exit).not.toBe(0)
         expect(result.calls).toEqual([
+            'prepare',
+            'verified-platforms',
             'approved',
             'login',
             `copy docker://${image}:dev`,
@@ -176,6 +197,8 @@ describe('image publication tag prevalidation', () => {
         })
         expect(result.exit).toBe(0)
         expect(result.calls).toEqual([
+            'prepare',
+            'verified-platforms',
             'approved',
             'preflight v1.2.3',
             'login',
@@ -191,7 +214,30 @@ describe('image publication tag prevalidation', () => {
             failed: true,
         })
         expect(result.exit).not.toBe(0)
-        expect(result.calls).toEqual(['approved', 'preflight v1.2.3,v1.2.4'])
+        expect(result.calls).toEqual([
+            'prepare',
+            'verified-platforms',
+            'approved',
+            'preflight v1.2.3,v1.2.4',
+        ])
         expect(result.output).toBe('')
     })
+
+    test.each([
+        { validChecksum: false, validProof: true, calls: [] },
+        { validChecksum: true, validProof: false, calls: ['prepare', 'verified-platforms'] },
+    ])(
+        'rejects unbound or invalid native evidence before registry access: %j',
+        async ({ calls, ...evidence }) => {
+            const result = await publish(
+                'dev',
+                manifest,
+                { identical: '', failed: false },
+                evidence,
+            )
+            expect(result.exit).not.toBe(0)
+            expect(result.calls).toEqual([...calls])
+            expect(result.output).toBe('')
+        },
+    )
 })

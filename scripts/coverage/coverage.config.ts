@@ -48,6 +48,11 @@ export const coverageSourceExclusions = [
             /^\.github\/scripts\/ci\/(?:appliance(?:[/-])|beta2(?:[/-])|release-compatibility(?:[/.])|managed-backups-smoke\.ts$|proxy-smoke\.ts$|production-smoke-ci\.ts$)/u,
         reason: 'integration test runner',
     },
+    {
+        pattern:
+            /^\.github\/scripts\/(?:ci\/platform-backup\.ts|release\/(?:candidate|portability)-runtime\.ts)$/u,
+        reason: 'native Docker integration test runner',
+    },
     { pattern: /(?:^|\/)(?:Fixtures|fixtures)\//u, reason: 'test fixtures' },
     { pattern: /(?:^|\/)[^/]*[.-]fixture(?:[.-][^/]*)?\.tsx?$/u, reason: 'test fixtures' },
 ] as const

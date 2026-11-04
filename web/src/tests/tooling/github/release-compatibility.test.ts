@@ -12,6 +12,7 @@ import {
     parseCompatibilitySource,
     requestedCompatibilitySources,
     selectCompatibilitySources,
+    UnsupportedSourcePlatformError,
 } from '../../../../../scripts/compatibility/source-selection.ts'
 import {
     HISTORICAL_COMPATIBILITY_CONFIG,
@@ -150,7 +151,7 @@ const beta2 = {
     image: 'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2@sha256:b19236d1cc8c45cedbc4d21341b64c9c54082cec309e899c020afdce6d424a04',
 }
 
-function release(tag = beta2.version, id = 2) {
+function release(tag = beta2.version, id = 2): Parameters<typeof loadPublishedSource>[0] {
     return {
         id,
         tag_name: tag,
@@ -181,6 +182,82 @@ const sourceRevision = async (tag: string) => ({
     ancestor: true,
 })
 const loadSource = async () => beta2
+
+describe('native ARM64 release compatibility', () => {
+    const releases = [
+        release(beta1.version, 1),
+        release(),
+        release('v1.0.0-beta.3', 3),
+        release('v1.0.0-beta.4', 4),
+    ]
+    const options = {
+        releases,
+        platform: 'linux/arm64' as const,
+        targetVersion: '0.0.0',
+        sourceRevision,
+        loadSource: async (entry: ReturnType<typeof release>) => {
+            if (entry.tag_name === beta1.version)
+                throw new Error('Must not load the AMD64 bootstrap')
+            return loadPublishedSource(
+                entry,
+                (async () => {
+                    const metadata = readiness(entry)
+                    if (entry.tag_name === beta2.version) metadata.image.platforms = ['linux/amd64']
+                    return Response.json(metadata)
+                }) as SourceFetcher,
+                { platform: 'linux/arm64' },
+            )
+        },
+    }
+    test('first ARM64 release requires native fresh checks without inventing Beta 1/2 images', async () => {
+        expect(
+            await selectCompatibilitySources({ ...options, releases: releases.slice(0, 2) }),
+        ).toEqual([{ role: 'fresh', release: null }])
+        await expect(options.loadSource(release())).rejects.toBeInstanceOf(
+            UnsupportedSourcePlatformError,
+        )
+    })
+    test('selects oldest and previous only from assessed native releases', async () => {
+        const result = await selectCompatibilitySources(options)
+        expect(result.map((entry) => [entry.role, entry.release?.version])).toEqual([
+            ['fresh', undefined],
+            ['oldest', 'v1.0.0-beta.3'],
+            ['previous', 'v1.0.0-beta.4'],
+        ])
+    })
+    test('the actual release version excludes equal and later native releases despite the development checkout version', async () => {
+        const selected = await selectCompatibilitySources({
+            ...options,
+            targetVersion: '1.0.0-beta.4',
+        })
+        expect(selected.map((entry) => entry.release?.version ?? 'fresh')).toEqual([
+            'fresh',
+            'v1.0.0-beta.3',
+        ])
+    })
+    test('invalid or missing readiness and reassigned tags cannot erase native upgrade coverage', async () => {
+        await expect(
+            selectCompatibilitySources({
+                ...options,
+                loadSource: async () => {
+                    throw new Error('Invalid source readiness')
+                },
+            }),
+        ).rejects.toThrow('Invalid source readiness')
+        await expect(
+            selectCompatibilitySources({
+                ...options,
+                sourceRevision: async () => ({ revision: 'f'.repeat(40), ancestor: false }),
+            }),
+        ).rejects.toThrow('immutable revision disagree')
+    })
+    test('revalidation rejects the AMD64 bootstrap and requires native source metadata', async () => {
+        await expect(verifyCompatibilitySource(beta1, options)).rejects.toThrow('AMD64 only')
+        await expect(verifyCompatibilitySource(beta2, options)).rejects.toBeInstanceOf(
+            UnsupportedSourcePlatformError,
+        )
+    })
+})
 function select(
     releases: unknown = [release(beta1.version, 1), release()],
     targetVersion = '0.0.0',

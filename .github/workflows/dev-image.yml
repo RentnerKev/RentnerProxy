@@ -73,5 +73,7 @@ jobs:
             revision: ${{ needs.prepare.outputs.revision }}
             image: ${{ needs.prepare.outputs.image }}
             archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
+            evidence_sha256: ${{ needs.build.outputs.evidence_sha256 }}
+            version: ${{ needs.prepare.outputs.version }}
             digest: ${{ needs.build.outputs.digest }}
             image_tags: dev

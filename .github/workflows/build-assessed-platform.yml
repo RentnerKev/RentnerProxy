@@ -1,0 +1,245 @@
+name: Build assessed native platform
+
+on:
+    workflow_call:
+        inputs:
+            architecture:
+                required: true
+                type: string
+            revision:
+                required: true
+                type: string
+            image:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            title:
+                required: true
+                type: string
+            description:
+                required: true
+                type: string
+            cache_scope:
+                required: true
+                type: string
+            published_at:
+                required: false
+                type: string
+                default: ''
+            release_tag:
+                required: false
+                type: string
+                default: ''
+        outputs:
+            digest:
+                value: ${{ jobs.build.outputs.digest }}
+            archive_sha256:
+                value: ${{ jobs.build.outputs.archive_sha256 }}
+            evidence_sha256:
+                value: ${{ jobs.build.outputs.evidence_sha256 }}
+            portable_sha256:
+                value: ${{ jobs.build.outputs.portable_sha256 }}
+
+permissions: {}
+
+jobs:
+    build:
+        if: github.repository == 'RentnerKev/RentnerProxy'
+        name: Build, assess and test ${{ inputs.architecture }} image
+        runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+        timeout-minutes: 75
+        permissions:
+            contents: read
+        outputs:
+            digest: ${{ steps.scan.outputs.digest }}
+            archive_sha256: ${{ steps.native.outputs.archive_sha256 }}
+            evidence_sha256: ${{ steps.native.outputs.evidence_sha256 }}
+            portable_sha256: ${{ steps.native.outputs.portable_sha256 }}
+        steps:
+            - name: Require the native platform and prepare isolated output
+              env:
+                  ARCHITECTURE: ${{ inputs.architecture }}
+              run: |
+                  case "$ARCHITECTURE" in
+                    amd64) test "$(uname -s)/$(uname -m)" = Linux/x86_64 ;;
+                    arm64) test "$(uname -s)/$(uname -m)" = Linux/aarch64 ;;
+                    *) exit 1 ;;
+                  esac
+                  test "$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')" = "linux/$ARCHITECTURE"
+                  mkdir -p "$RUNNER_TEMP/candidate-$ARCHITECTURE"
+            - name: Check out trusted image automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+
+            - name: Check out exact assessed source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
+                  fetch-tags: true
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ inputs.revision }}
+
+            - name: Verify exact release commit
+              if: inputs.release_tag != ''
+              env:
+                  EXPECTED_REVISION: ${{ inputs.revision }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+              shell: bash
+              run: bash automation/.github/scripts/release/verify-release-commit.sh
+
+            - name: Verify exact source revision
+              env:
+                  EXPECTED_REVISION: ${{ inputs.revision }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+                  [[ "$(git -C source rev-parse HEAD)" == "$EXPECTED_REVISION" ]]
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+              with:
+                  buildkitd-config-inline: |
+                      [worker.oci]
+                        max-parallelism = 2
+
+            - name: Generate image metadata
+              id: metadata
+              uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+              with:
+                  flavor: latest=false
+                  images: ${{ inputs.image }}
+                  labels: |
+                      org.opencontainers.image.title=${{ inputs.title }}
+                      org.opencontainers.image.description=${{ inputs.description }}
+                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.url=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.version=${{ inputs.version }}
+                      org.opencontainers.image.revision=${{ inputs.revision }}
+                      ${{ inputs.published_at != '' && format('org.opencontainers.image.created={0}', inputs.published_at) || '' }}
+                      org.opencontainers.image.licenses=MIT
+                      io.rentnerproxy.smoke-source=${{ inputs.revision }}
+                      io.rentnerproxy.smoke-run=${{ github.run_id }}-${{ github.run_attempt }}
+                      io.rentnerproxy.smoke-image=appliance
+
+            - name: Build image as isolated OCI data
+              id: build
+              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+              with:
+                  cache-from: type=gha,version=2,scope=${{ inputs.cache_scope }}-${{ inputs.architecture }},timeout=2m
+                  cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,version=2,mode=max,scope={0}-{1},timeout=2m,ignore-error=true', inputs.cache_scope, inputs.architecture) || '' }}
+                  build-args: |
+                      RENTNERPROXY_BUILD_VERSION=${{ inputs.version }}
+                      RENTNERPROXY_BUILD_REVISION=${{ inputs.revision }}
+                  context: source
+                  file: source/docker/production/Dockerfile
+                  labels: ${{ steps.metadata.outputs.labels }}
+                  tags: ${{ inputs.image }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.architecture }}
+                  platforms: linux/${{ inputs.architecture }}
+                  provenance: mode=max
+                  push: false
+                  outputs: type=oci,dest=${{ runner.temp }}/candidate-${{ inputs.architecture }}/candidate-image.tar
+                  sbom: true
+
+            - name: Set up Bun for advisory policy
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+
+            - name: Audit locked source graphs
+              env:
+                  AUTOMATION_DIRECTORY: automation
+                  SOURCE_DIRECTORY: source
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
+                  REVISION: ${{ inputs.revision }}
+              run: |
+                  bash automation/.github/scripts/security/audit-cargo.sh
+                  bash automation/.github/scripts/security/audit-bun.sh
+
+            - name: Install pinned vulnerability tools
+              run: bash automation/.github/scripts/security/install-dependency-tools.sh
+
+            - name: Assess immutable candidate before publication
+              id: scan
+              env:
+                  AUTOMATION_DIRECTORY: automation
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-${{ inputs.architecture }}/candidate-image.tar
+                  IMAGE_ARCHITECTURE: ${{ inputs.architecture }}
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+                  REVISION: ${{ inputs.revision }}
+              run: bash automation/.github/scripts/security/scan-image.sh
+
+            - name: Validate the exact native candidate lifecycle
+              id: native
+              env:
+                  IMAGE_ARCHITECTURE: ${{ inputs.architecture }}
+                  SOURCE_DIRECTORY: source
+                  CANDIDATE_DIRECTORY: ${{ runner.temp }}/candidate-${{ inputs.architecture }}
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ steps.scan.outputs.digest }}
+              run: bun --no-env-file automation/.github/scripts/release/candidate-runtime.ts
+
+            - name: Retain the platform assessment with its candidate
+              env:
+                  ARCHITECTURE: ${{ inputs.architecture }}
+              run: cp "$RUNNER_TEMP/dependency-image-report/assessment.json" "$RUNNER_TEMP/candidate-$ARCHITECTURE/assessment.json"
+
+            - name: Store assessed OCI candidate
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  compression-level: 0
+                  if-no-files-found: error
+                  overwrite: true
+                  name: assessed-platform-${{ github.run_id }}-${{ inputs.architecture }}
+                  path: |
+                      ${{ runner.temp }}/candidate-${{ inputs.architecture }}/candidate-image.tar
+                      ${{ runner.temp }}/candidate-${{ inputs.architecture }}/native.json
+                      ${{ runner.temp }}/candidate-${{ inputs.architecture }}/assessment.json
+                      ${{ runner.temp }}/candidate-${{ inputs.architecture }}/portable.tar
+                  retention-days: 2
+
+            - name: Store dependency evidence
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  if-no-files-found: error
+                  name: dependency-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.architecture }}
+                  path: |
+                      ${{ runner.temp }}/dependency-source-report
+                      ${{ runner.temp }}/dependency-image-report/manifest.json
+                      ${{ runner.temp }}/dependency-image-report/config.json
+                      ${{ runner.temp }}/dependency-image-report/identity.json
+                      ${{ runner.temp }}/dependency-image-report/assessment.json
+                      ${{ runner.temp }}/dependency-image-report/blocked-assessment.json
+                      ${{ runner.temp }}/dependency-image-report/cargo-lock-copy-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/source-revision.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo-lock.sha256
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo.json
+                      ${{ runner.temp }}/dependency-image-report/controller/cargo-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-revision.txt
+                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-database.json
+                      ${{ runner.temp }}/dependency-image-report/bun-lock.sha256
+                      ${{ runner.temp }}/dependency-image-report/bun-audit.json
+                      ${{ runner.temp }}/dependency-image-report/bun-audit-diagnostics.txt
+                      ${{ runner.temp }}/dependency-image-report/bun-audit-status.txt
+                  retention-days: 30
+
+            - name: Store isolated AMD64 portable backup
+              if: inputs.architecture == 'amd64'
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: portable-source-${{ github.run_id }}
+                  overwrite: true
+                  compression-level: 0
+                  if-no-files-found: error
+                  retention-days: 2
+                  path: |
+                      ${{ runner.temp }}/candidate-amd64/native.json
+                      ${{ runner.temp }}/candidate-amd64/portable.tar

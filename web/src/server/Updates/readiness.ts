@@ -5,6 +5,7 @@ import { RELEASE_IMAGE, RELEASE_REPOSITORY } from '../../config/compatibility.co
 import { LEGACY_UPGRADE_CONTRACT } from '../../lib/ApplicationVersion/legacyUpgradeContract.ts'
 import { parseReleaseVersion } from '../../lib/ApplicationVersion/releaseVersion.ts'
 import { isSupportedUpgradeTarget } from '../../lib/ApplicationVersion/upgradeCompatibility.ts'
+import { imagePlatforms } from '../../lib/ApplicationVersion/imagePlatform.ts'
 import type { PublishedUpdateRelease } from './Types/releases.types.ts'
 
 export const RELEASE_API = `https://api.github.com/repos/${RELEASE_REPOSITORY}/releases`
@@ -40,6 +41,8 @@ export function parseReleaseReadiness(
     const parsed = readinessSchema.safeParse(raw)
     if (!parsed.success) return null
     const data = parsed.data
+    const platforms = imagePlatforms(data.image.platforms)
+    if (!platforms) return null
     if (
         data.releaseId !== release.id ||
         data.tag !== release.tag ||
@@ -54,5 +57,5 @@ export function parseReleaseReadiness(
         !isSupportedUpgradeTarget(target.version)
     )
         return null
-    return data
+    return { ...data, image: { ...data.image, platforms } }
 }

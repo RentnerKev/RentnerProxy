@@ -31,156 +31,177 @@ on:
                 default: ''
         outputs:
             digest:
-                value: ${{ jobs.build.outputs.digest }}
+                value: ${{ jobs.assemble.outputs.digest }}
             archive_sha256:
-                value: ${{ jobs.build.outputs.archive_sha256 }}
+                value: ${{ jobs.assemble.outputs.archive_sha256 }}
+            evidence_sha256:
+                value: ${{ jobs.assemble.outputs.evidence_sha256 }}
+            platforms:
+                value: ${{ jobs.assemble.outputs.platforms }}
 
 permissions: {}
 
 jobs:
-    build:
-        name: Build and assess image
-        runs-on: ubuntu-latest
-        timeout-minutes: 45
+    amd64:
+        if: github.repository == 'RentnerKev/RentnerProxy'
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-assessed-platform.yml
+        with:
+            architecture: amd64
+            revision: ${{ inputs.revision }}
+            image: ${{ inputs.image }}
+            version: ${{ inputs.version }}
+            title: ${{ inputs.title }}
+            description: ${{ inputs.description }}
+            cache_scope: ${{ inputs.cache_scope }}
+            published_at: ${{ inputs.published_at }}
+            release_tag: ${{ inputs.release_tag }}
+
+    arm64:
+        if: github.repository == 'RentnerKev/RentnerProxy'
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-assessed-platform.yml
+        with:
+            architecture: arm64
+            revision: ${{ inputs.revision }}
+            image: ${{ inputs.image }}
+            version: ${{ inputs.version }}
+            title: ${{ inputs.title }}
+            description: ${{ inputs.description }}
+            cache_scope: ${{ inputs.cache_scope }}
+            published_at: ${{ inputs.published_at }}
+            release_tag: ${{ inputs.release_tag }}
+
+    portability:
+        name: Native ARM64 backup portability and upgrades
+        needs: [amd64, arm64]
+        runs-on: ubuntu-24.04-arm
+        timeout-minutes: 75
         permissions:
             contents: read
         outputs:
-            digest: ${{ steps.scan.outputs.digest }}
-            archive_sha256: ${{ steps.archive.outputs.sha256 }}
+            sha256: ${{ steps.portability.outputs.sha256 }}
         steps:
-            - name: Check out trusted image automation
+            - name: Check out trusted compatibility automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
                   path: automation
                   ref: ${{ github.workflow_sha }}
-
-            - name: Check out exact assessed source
+            - name: Check out exact compatibility target
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  fetch-depth: 0
-                  fetch-tags: true
                   persist-credentials: false
                   path: source
                   ref: ${{ inputs.revision }}
-
-            - name: Verify exact release commit
-              if: inputs.release_tag != ''
-              env:
-                  EXPECTED_REVISION: ${{ inputs.revision }}
-                  RELEASE_TAG: ${{ inputs.release_tag }}
-              shell: bash
-              run: bash automation/.github/scripts/release/verify-release-commit.sh
-
-            - name: Verify exact source revision
-              env:
-                  EXPECTED_REVISION: ${{ inputs.revision }}
-              shell: bash
-              run: |
-                  set -Eeuo pipefail
-                  [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
-                  [[ "$(git -C source rev-parse HEAD)" == "$EXPECTED_REVISION" ]]
-
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-            - name: Generate image metadata
-              id: metadata
-              uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-              with:
-                  flavor: latest=false
-                  images: ${{ inputs.image }}
-                  labels: |
-                      org.opencontainers.image.title=${{ inputs.title }}
-                      org.opencontainers.image.description=${{ inputs.description }}
-                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
-                      org.opencontainers.image.url=https://github.com/${{ github.repository }}
-                      org.opencontainers.image.version=${{ inputs.version }}
-                      org.opencontainers.image.revision=${{ inputs.revision }}
-                      ${{ inputs.published_at != '' && format('org.opencontainers.image.created={0}', inputs.published_at) || '' }}
-                      org.opencontainers.image.licenses=MIT
-
-            - name: Build image as isolated OCI data
-              id: build
-              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-              with:
-                  cache-from: type=gha,scope=${{ inputs.cache_scope }}
-                  cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope }}
-                  build-args: |
-                      RENTNERPROXY_BUILD_VERSION=${{ inputs.version }}
-                      RENTNERPROXY_BUILD_REVISION=${{ inputs.revision }}
-                  context: source
-                  file: source/docker/production/Dockerfile
-                  labels: ${{ steps.metadata.outputs.labels }}
-                  platforms: linux/amd64
-                  provenance: mode=max
-                  push: false
-                  outputs: type=oci,dest=${{ runner.temp }}/candidate-image.tar
-                  sbom: true
-
-            - name: Set up Bun for advisory policy
+                  fetch-depth: 0
+                  fetch-tags: true
+            - name: Set up Bun
               uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
               with:
                   bun-version: 1.4.4
-
-            - name: Audit locked source graphs
-              env:
-                  AUTOMATION_DIRECTORY: automation
-                  SOURCE_DIRECTORY: source
-                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
-                  REVISION: ${{ inputs.revision }}
-              run: |
-                  bash automation/.github/scripts/security/audit-cargo.sh
-                  bash automation/.github/scripts/security/audit-bun.sh
-
-            - name: Install pinned vulnerability tools
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+            - name: Install OCI transport
               run: bash automation/.github/scripts/security/install-dependency-tools.sh
+            - name: Download exact AMD64 backup source
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: portable-source-${{ github.run_id }}
+                  path: ${{ runner.temp }}/portability/amd64
+            - name: Download exact ARM64 native candidate
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-platform-${{ github.run_id }}-arm64
+                  path: ${{ runner.temp }}/portability/arm64
+            - name: Verify native cross-architecture restore and eligible ARM64 upgrades
+              id: portability
+              env:
+                  SOURCE_DIRECTORY: source
+                  CANDIDATE_DIRECTORY: ${{ runner.temp }}/portability
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  AMD64_EVIDENCE_SHA256: ${{ needs.amd64.outputs.evidence_sha256 }}
+                  ARM64_ARCHIVE_SHA256: ${{ needs.arm64.outputs.archive_sha256 }}
+                  ARM64_EVIDENCE_SHA256: ${{ needs.arm64.outputs.evidence_sha256 }}
+                  PORTABLE_SHA256: ${{ needs.amd64.outputs.portable_sha256 }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bun --no-env-file automation/.github/scripts/release/portability-runtime.ts
+            - name: Store exact portability proof
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: assessed-portability-${{ github.run_id }}
+                  overwrite: true
+                  if-no-files-found: error
+                  retention-days: 2
+                  path: ${{ runner.temp }}/portability/portability.json
 
-            - name: Assess immutable candidate before publication
-              id: scan
+    assemble:
+        name: Assemble assessed multi-architecture index
+        needs: [amd64, arm64, portability]
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read
+        outputs:
+            digest: ${{ steps.assemble.outputs.digest }}
+            archive_sha256: ${{ steps.assemble.outputs.archive_sha256 }}
+            evidence_sha256: ${{ steps.assemble.outputs.evidence_sha256 }}
+            platforms: ${{ steps.assemble.outputs.platforms }}
+        steps:
+            - name: Check out trusted image assembly
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install OCI transport
+              run: bash automation/.github/scripts/security/install-dependency-tools.sh
+            - name: Download exact AMD64 candidate
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-platform-${{ github.run_id }}-amd64
+                  path: ${{ runner.temp }}/platforms/amd64
+            - name: Download exact ARM64 candidate
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-platform-${{ github.run_id }}-arm64
+                  path: ${{ runner.temp }}/platforms/arm64
+            - name: Download exact native portability proof
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-portability-${{ github.run_id }}
+                  path: ${{ runner.temp }}/platforms
+            - name: Assemble only the verified immutable platform artifacts
+              id: assemble
               env:
                   AUTOMATION_DIRECTORY: automation
-                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
-                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+                  IMAGE_DIRECTORY: ${{ runner.temp }}/platforms
+                  IMAGE_OUTPUT: ${{ runner.temp }}/assembled-oci
                   REVISION: ${{ inputs.revision }}
-              run: bash automation/.github/scripts/security/scan-image.sh
-
-            - name: Bind archive checksum
-              id: archive
-              run: printf 'sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/candidate-image.tar" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
-
-            - name: Store assessed OCI candidate
+                  VERSION: ${{ inputs.version }}
+                  AMD64_DIGEST: ${{ needs.amd64.outputs.digest }}
+                  AMD64_ARCHIVE_SHA256: ${{ needs.amd64.outputs.archive_sha256 }}
+                  AMD64_EVIDENCE_SHA256: ${{ needs.amd64.outputs.evidence_sha256 }}
+                  ARM64_DIGEST: ${{ needs.arm64.outputs.digest }}
+                  ARM64_ARCHIVE_SHA256: ${{ needs.arm64.outputs.archive_sha256 }}
+                  ARM64_EVIDENCE_SHA256: ${{ needs.arm64.outputs.evidence_sha256 }}
+                  PORTABILITY_SHA256: ${{ needs.portability.outputs.sha256 }}
+              run: bash automation/.github/scripts/release/assemble-image.sh
+            - name: Store assessed OCI index and bound execution evidence
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   compression-level: 0
-                  if-no-files-found: error
                   overwrite: true
-                  name: assessed-candidate-${{ github.run_id }}
-                  path: ${{ runner.temp }}/candidate-image.tar
-                  retention-days: 2
-
-            - name: Store dependency evidence
-              if: always()
-              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              with:
                   if-no-files-found: error
-                  name: dependency-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+                  name: assessed-candidate-${{ github.run_id }}
+                  retention-days: 2
                   path: |
-                      ${{ runner.temp }}/dependency-source-report
-                      ${{ runner.temp }}/dependency-image-report/manifest.json
-                      ${{ runner.temp }}/dependency-image-report/config.json
-                      ${{ runner.temp }}/dependency-image-report/identity.json
-                      ${{ runner.temp }}/dependency-image-report/assessment.json
-                      ${{ runner.temp }}/dependency-image-report/blocked-assessment.json
-                      ${{ runner.temp }}/dependency-image-report/cargo-lock-copy-diagnostics.txt
-                      ${{ runner.temp }}/dependency-image-report/controller/source-revision.txt
-                      ${{ runner.temp }}/dependency-image-report/controller/cargo-lock.sha256
-                      ${{ runner.temp }}/dependency-image-report/controller/cargo.json
-                      ${{ runner.temp }}/dependency-image-report/controller/cargo-diagnostics.txt
-                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-revision.txt
-                      ${{ runner.temp }}/dependency-image-report/controller/rustsec-database.json
-                      ${{ runner.temp }}/dependency-image-report/bun-lock.sha256
-                      ${{ runner.temp }}/dependency-image-report/bun-audit.json
-                      ${{ runner.temp }}/dependency-image-report/bun-audit-diagnostics.txt
-                      ${{ runner.temp }}/dependency-image-report/bun-audit-status.txt
-                  retention-days: 30
+                      ${{ runner.temp }}/platforms/candidate-image.tar
+                      ${{ runner.temp }}/platforms/evidence.json

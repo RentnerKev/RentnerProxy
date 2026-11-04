@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 : "${ARCHIVE:?}" "${EXPECTED_ARCHIVE_SHA256:?}" "${EXPECTED_DIGEST:?}" "${IMAGE:?}" "${IMAGE_TAGS:?}"
 : "${AUTOMATION_DIRECTORY:?}" "${ASSESSED_REPORT:?}" "${IDENTITY_REPORT:?}"
+: "${EVIDENCE_FILE:?}" "${EXPECTED_EVIDENCE_SHA256:?}" "${IMAGE_DIRECTORY:?}" "${PLATFORM_REPORT_DIRECTORY:?}" "${REVISION:?}" "${VERSION:?}"
 # Validate the complete tag set before any authenticated registry access.
 # YAML block scalars and Bash here-strings can both add trailing newlines.
 tags=()
@@ -12,11 +13,15 @@ while IFS= read -r tag; do
 done <<< "$IMAGE_TAGS"
 (( ${#tags[@]} > 0 )) || exit 1
 [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || exit 1
+[[ "$EXPECTED_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || exit 1
 [[ "$EXPECTED_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
 [[ "$IMAGE" =~ ^ghcr\.io/[a-z0-9._/-]+$ ]] || exit 1
 printf '%s  %s\n' "$EXPECTED_ARCHIVE_SHA256" "$ARCHIVE" | sha256sum --check --strict
+printf '%s  %s\n' "$EXPECTED_EVIDENCE_SHA256" "$EVIDENCE_FILE" | sha256sum --check --strict
 actual_digest="sha256:$(skopeo inspect --raw "oci-archive:$ARCHIVE" | sha256sum | cut -d ' ' -f1)"
 [[ "$actual_digest" == "$EXPECTED_DIGEST" ]] || exit 1
+skopeo copy --all --preserve-digests "oci-archive:$ARCHIVE" "oci:$IMAGE_DIRECTORY:candidate"
+bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/release/multiarch-image.ts" verify
 # Publication requires fresh own-dependency evidence, never a legacy full-image
 # approval, blocked assessment or dev advisory waiver.
 bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" \
@@ -54,3 +59,4 @@ for tag in "${tags[@]}"; do
     [[ "$published_digest" == "$EXPECTED_DIGEST" ]] || exit 1
 done
 printf 'digest=%s\n' "$EXPECTED_DIGEST" >> "$GITHUB_OUTPUT"
+printf 'platforms=linux/amd64,linux/arm64\n' >> "$GITHUB_OUTPUT"
