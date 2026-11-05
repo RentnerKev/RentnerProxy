@@ -329,7 +329,7 @@ test_restore_maintenance() (
     local scratch scenario
     scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-restore-maintenance.XXXXXX")
     trap 'rm -rf -- "$scratch"' EXIT
-    for scenario in success execution_failed controller_failed web_failed; do
+    for scenario in success execution_failed controller_failed layout_failed web_failed; do
         mkdir "$scratch/$scenario"
         if (
             local backup_control_directory="$scratch/$scenario" crowdsec_control_directory="$scratch/$scenario/crowdsec"
@@ -350,6 +350,7 @@ test_restore_maintenance() (
             backup_assert_state_children_running() { record state-check; }
             backup_run_exporter() { [[ $2 == --restore ]] || fail 'restore invoked backup capture'; record restore; [[ $scenario != execution_failed ]]; }
             backup_write_result() { record "result $2"; }
+            initialize_layout() { record layout; [[ $scenario != layout_failed ]] || fatal 'restored layout is unsafe'; }
             initialize_secrets() { record secrets; }
             start_crowdsec_supervisor() { record crowdsec; }
             start_controller() { record controller; }
@@ -364,7 +365,7 @@ test_restore_maintenance() (
         fi
         case $scenario in
             success)
-                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nsecrets\ncrowdsec\ncontroller\nmigrations\nweb\nready\nresult success' ]] \
+                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nlayout\nsecrets\ncrowdsec\ncontroller\nmigrations\nweb\nready\nresult success' ]] \
                     || fail 'restore lost writer fences, maintenance web continuity, key reload or verified success ordering'
                 ;;
             execution_failed)

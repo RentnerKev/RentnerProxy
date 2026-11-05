@@ -93,7 +93,7 @@ export function smokeProgress(suite: Suite) {
         consume(line: string): string | undefined {
             if (
                 suite === 'backups' &&
-                (/^Managed backup fixture failed during (?:setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit)$/u.test(
+                (/^Managed backup fixture failed during (?:setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit|online-restore)$/u.test(
                     line,
                 ) ||
                     /^Managed backup download response: status=\d{3} tar=(?:true|false) private=(?:true|false) attachment=(?:true|false)$/u.test(

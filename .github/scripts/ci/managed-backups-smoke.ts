@@ -152,7 +152,7 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         })
         if (result.failed || !result.stopped) {
             const phase =
-                /Managed backup fixture probe failed during (setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit)\b/u.exec(
+                /Managed backup fixture probe failed during (setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit|online-restore)\b/u.exec(
                     Buffer.from(result.stderr).toString('utf8'),
                 )?.[1]
             if (phase && operation === 'fixture probe web-api')
@@ -279,7 +279,13 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 ...(argument ? [argument] : []),
             ],
             'fixture probe ' + mode,
-            mode === 'web-api' ? 240_000 : mode === 'concurrent' ? 200_000 : 60_000,
+            mode === 'online-restore'
+                ? 600_000
+                : mode === 'web-api'
+                  ? 240_000
+                  : mode === 'concurrent'
+                    ? 200_000
+                    : 60_000,
         )
         return JSON.parse(output) as unknown
     }
@@ -672,6 +678,11 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         await healthy(restoredSource)
         passed(
             'same volume restore safely resumes root audit acknowledgements without replaying paused notifications',
+        )
+        assert.deepEqual(await probe(restoredSource, 'online-restore'), { restored: true })
+        await healthy(restoredSource)
+        passed(
+            'authenticated web restore completes, preserves current sessions and resumes live progress after service restart',
         )
     } finally {
         if (lockProbePending) {

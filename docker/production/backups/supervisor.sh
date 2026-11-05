@@ -182,6 +182,9 @@ perform_managed_restore() {
     backup_assert_state_children_running
     # The web process caches the application key and has closed its DB pool.
     backup_stop_consumer_phase web 23 || fatal 'maintenance web could not stop safely'
+    # Replacement restores private archive modes; recreate the appliance's shared
+    # Caddy/CrowdSec layout before their readiness and maintenance web can resume.
+    initialize_layout
     initialize_secrets
     rm -f -- "$crowdsec_control_directory/status.json"
     start_crowdsec_supervisor
