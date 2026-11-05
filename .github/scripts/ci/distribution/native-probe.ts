@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop -- Native lifecycle probes deliberately check durable state between phases.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { distributionCommand } from '../../distribution/process.ts'
 import {
     seedPersistenceFixture,
@@ -12,12 +12,29 @@ import {
 import { psql } from '../fixtures/appliance-storage.ts'
 
 const container = 'rentnerproxy'
+let stage = 'image identity'
 async function command(args: string[], timeoutMs?: number) {
-    return (
-        await distributionCommand(args[0] === 'docker' ? ['podman', ...args.slice(1)] : args, {
-            timeoutMs: timeoutMs ?? 120_000,
+    try {
+        return (
+            await distributionCommand(args[0] === 'docker' ? ['podman', ...args.slice(1)] : args, {
+                timeoutMs: timeoutMs ?? 120_000,
+            })
+        ).trim()
+    } catch (error) {
+        const result = error instanceof Error ? error.cause : undefined
+        // Only the anonymous curl fixture may expose bounded TLS diagnostics.
+        if (
+            args.includes('localhost/rentnerproxy-distribution-http3:fixture') &&
+            result &&
+            typeof result === 'object' &&
+            'stderr' in result &&
+            typeof result.stderr === 'string'
+        )
+            console.error('Native anonymous TLS probe:', result.stderr.slice(0, 2048))
+        throw new Error('Native ' + stage + ' command failed: ' + args.slice(0, 5).join(' '), {
+            cause: error,
         })
-    ).trim()
+    }
 }
 async function controller(path: string, method = 'GET', body?: unknown): Promise<unknown> {
     const script = `const token=await Bun.file('/run/rentnerproxy/controller-token/value').text();const response=await fetch('http://127.0.0.1:8081'+${JSON.stringify(path)},{method:${JSON.stringify(method)},headers:{authorization:'Bearer '+token,'content-type':'application/json'},${body === undefined ? '' : 'body:' + JSON.stringify(JSON.stringify(body)) + ','}});if(!response.ok)process.exit(1);process.stdout.write(await response.text())`
@@ -90,6 +107,8 @@ async function traffic() {
             container + ':/var/lib/rentnerproxy/proxy/distribution-ca.pem',
             '/root/distribution-ca.pem',
         ])
+        // The client runs as UID 65532. This is a public test CA, not a private key.
+        await chmod('/root/distribution-ca.pem', 0o644)
         for (const protocol of ['--http1.1', '--http2', '--http3-only']) {
             const response = await command([
                 'podman',
@@ -189,6 +208,7 @@ async function run() {
     )
     const phase = process.argv[2]
     if (phase === 'seed') {
+        stage = 'persistence seed'
         const fixture = await seedPersistenceFixture({
             command,
             containerId: container,
@@ -204,6 +224,7 @@ async function run() {
             container,
             "INSERT INTO rentnerproxy.system_settings(key,value) VALUES ('distribution_probe','\"original\"'::jsonb)",
         )
+        stage = 'test certificate and route initialization'
         await initializeTraffic()
     } else if (phase === 'mutate') {
         await psql(
@@ -216,6 +237,7 @@ async function run() {
     const { fixture, expected } = JSON.parse(
         await readFile('/root/distribution-state.json', 'utf8'),
     )
+    stage = 'persistence verification'
     await assertPersistenceFixture({ command, containerId: container, fixture, expected })
     await assertPersistenceRequestDecrypts({ command, containerId: container, fixture })
     assert.equal(
@@ -226,6 +248,7 @@ async function run() {
         ),
         'original',
     )
+    stage = 'management and Valkey readiness'
     assert.equal((await fetch('http://127.0.0.1:81/health/ready')).status, 200)
     assert.equal(
         await command([
@@ -237,6 +260,7 @@ async function run() {
         ]),
         'PONG',
     )
+    stage = 'managed CrowdSec readiness'
     await controller('/internal/v1/crowdsec/config', 'PUT', {
         mode: 'managed',
         communityEnabled: false,
@@ -250,6 +274,7 @@ async function run() {
         assert.ok(attempt < 119)
         await Bun.sleep(500)
     }
+    stage = 'private port bindings and ownership'
     const ports = JSON.parse(
         await command([
             'podman',
@@ -278,6 +303,7 @@ async function run() {
         ]),
         '10001:10003:710',
     )
+    stage = 'HTTP and verified TLS traffic'
     await traffic()
 }
 
@@ -287,8 +313,11 @@ if (import.meta.main) {
         console.log(
             'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.',
         )
-    } catch {
-        console.error('Native distribution probe failed')
+    } catch (error) {
+        console.error(
+            'Native distribution probe failed:',
+            error instanceof Error ? error.message : 'unknown failure',
+        )
         process.exitCode = 1
     }
 }

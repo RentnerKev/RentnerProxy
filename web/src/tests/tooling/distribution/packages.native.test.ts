@@ -50,6 +50,9 @@ test.skipIf(!enabled)(
             expect(generated).toContain('--publish 127.0.0.1:81:3000/tcp')
             expect(generated).toContain('--publish 443:8443/udp')
             expect(generated).toContain('--image-volume=ignore')
+            expect(generated).toContain(
+                '--health-cmd "bun /opt/rentnerproxy/web/docker/web/healthcheck.ts"',
+            )
             expect(generated).toContain('--health-on-failure kill')
             expect(generated.indexOf('ExecStop=/usr/bin/podman stop')).toBeLessThan(
                 generated.indexOf('ExecStop=/usr/bin/podman rm'),
