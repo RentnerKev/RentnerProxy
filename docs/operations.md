@@ -15,8 +15,8 @@ using the full upstream static feature profile and RE2 2023-03-01. Reviewed,
 read-only module locks update gRPC to 1.84.0 and `golang.org/x/crypto` to 0.58.0;
 the build verifies both binaries' embedded dependency versions. The official
 image continues to supply configuration and the pinned Hub assets.
-The [engine build notes](../docker/crowdsec/tooling/engine-build/README.md)
-explain the remaining RE2 and Kubernetes compatibility pins. Axum 0.8.9 also
+The [engine build sources](../docker/crowdsec/tooling/engine-build/)
+record the remaining build and compatibility constraints. Axum 0.8.9 also
 requires its exact matchit 0.8.4 dependency; the current stable dependency
 refresh retains these upstream constraints.
 These updates do not establish that an image passes the complete dependency
@@ -30,6 +30,193 @@ assessment; unresolved findings continue to block publication.
 - Flags use a bundled country-only MMDB. A mounted GeoLite2 Country file can be selected with the optional `RENTNERPROXY_GEOIP_COUNTRY_DB_PATH` (absolute path; maintain its license and updates).
 - Enforcement is fail-open when the selected Local API is unavailable.
 - Repository backup v4 includes the managed CrowdSec SQLite database, decisions, local API registration, optional Central API/Console credentials and managed bouncer key. External CrowdSec configuration and its encrypted credential are in PostgreSQL; the external LAPI remains operator owned.
+
+## DNS-01 certificates
+
+Manual and delegated DNS-01 are available in the `main` development line for Beta 3.
+The published `v1.0.0-beta.2` release supports HTTP-01 and direct Cloudflare DNS-01;
+it does not contain these new modes or the guided DNS setup. Use instructions matching
+your installed version. The examples below use reserved example domains; substitute
+domains and DNS zones you control.
+
+### Choose a validation method
+
+Open **Certificates**, choose **Request with ACME**, enter the certificate domains and
+select a DNS-01 method. Wildcards require DNS-01. Include both `example.com` and
+`*.example.com` if the certificate must cover the apex and its immediate subdomains.
+Choose the staging ACME environment when testing setup; staging certificates are not
+trusted by browsers. Request a production certificate after the staging flow works.
+
+| Method                 | DNS access required                                                                                   | Renewal                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Provider API**       | A verified connection to a supported provider covering every certificate domain in the selected zone. | Unattended while the connection and DNS remain usable.                           |
+| **Manual TXT records** | Permission to publish TXT records at your DNS provider; no provider API integration is needed.        | Operator action whenever the CA requires fresh DNS proofs.                       |
+| **Delegated DNS zone** | A permanent CNAME or NS delegation and a verified API connection for its target zone.                 | Unattended after setup while delegation and the target connection remain usable. |
+
+Manual DNS-01 still requests and renews an ACME certificate. **Import certificate**
+instead accepts certificate/key files obtained elsewhere and requires replacement
+uploads. DNS-01 does not require inbound port 80, but the controller needs outbound
+access to the CA, DNS resolvers and, for automated modes, the provider API. Public
+DNS must expose the proof to the CA even when the protected service is private.
+
+Certificate operators need permission to view certificates and issue or renew them,
+as appropriate. A provider administrator can prepare the shared connection separately
+in **Providers**. A host operator without certificate permissions must hand a pending
+manual challenge to a certificate operator through its certificate details.
+
+### Prepare an automated provider connection
+
+In **Providers**, add a named DNS connection, enter its API token, use **Test read access
+and load zones**, and select the permitted zones. This test only discovers readable
+zones. Saving new credentials and **Recheck** create and remove a temporary TXT record
+in each selected zone to verify write and cleanup permissions. Wait for **Connected**
+before selecting the connection and zone in the certificate request.
+
+| Supported target provider | Required access                                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare                | Zone discovery/read and DNS edit access scoped to the selected zones.                                                                                                       |
+| deSEC                     | Domain discovery and RRset read/write access for the selected zones, including the TXT records used for permission verification.                                            |
+| Hetzner Cloud DNS         | A Read & Write API token from the current Hetzner Console project containing the PRIMARY zone. Old standalone DNS Console tokens are unsupported; access is project scoped. |
+
+Restrict credentials to the validation zones where the provider allows it. Tokens are
+stored encrypted and are not displayed again. To rotate a token, edit the connection,
+enter the replacement and save to verify it. Leaving the token field blank retains
+the saved token. Keep the old credential usable until pending operations and cleanup
+have settled. Connections and selected zones in use cannot be removed until their
+consumer references are removed.
+
+In the request guide, **Check saved connection and zone** checks the verified saved
+connection and zone coverage. It does not create a TXT proof or confirm propagation
+of a future proof. This differs from the write/cleanup verification in **Providers**.
+
+### Issue with manual TXT records
+
+1. Select **Manual TXT records**, confirm the domains and ACME environment, then choose
+   **Set up TXT records**. This starts a real ACME order and loads its exact proofs.
+   Closing the guide does not cancel that order.
+2. At your DNS provider, create every displayed TXT owner/value pair. Use the separate
+   copy controls for the owner and value; check the affected identifier and expiry.
+   Some providers append the zone name automatically: enter the relative name or full
+   name they require so the final DNS name exactly matches the displayed owner.
+3. Keep every required value when several identifiers share an owner. For example,
+   `example.com` and `*.example.com` both use `_acme-challenge.example.com` and may need
+   two separate TXT values. Add both values to that owner's TXT record set; do not
+   join them into one value or replace unrelated values. Use the actual values from
+   the current order, never values from an example or a previous order.
+4. Save DNS changes and allow time for DNS caches, including cached missing answers,
+   to expire. **Check public DNS (read only)** reports whether all current values are
+   visible. It does not continue the order or ask the CA to validate it.
+5. Select **Done**, then **Request with ACME** in the original dialog to continue the
+   prepared order. Alternatively, reopen its certificate **Details** and choose
+   **Check DNS and continue**. Continuation checks propagation again before CA validation.
+   If the CA reused an existing authorization, the guide reports that no TXT is needed.
+6. Follow the current operation through DNS checking, CA validation, finalization and
+   activation. A DNS check or accepted continuation alone does not mean a certificate
+   has been issued or activated. Confirm the active certificate and host assignment.
+7. After completion, cancellation, expiry or terminal failure, remove only this order's
+   exact TXT values using the cleanup guidance in **Details**. Manual mode does not
+   delete DNS records for you. Preserve other orders' values and unrelated records.
+
+The pending order, proofs and operator waiting state are durable. Waiting for an
+operator is expected and releases the active ACME worker slot. Reopen **Details** after
+closing the browser or restarting the controller; do not create duplicate requests
+just because an order is waiting. The displayed expiry limits how long its proofs
+can be used.
+
+### Delegate validation for unattended renewal
+
+Create the target zone at Cloudflare, deSEC or Hetzner Cloud DNS and prepare its verified
+connection as above. The provider must actually host that zone and allow TXT creation
+and cleanup there. The original domain can stay at another DNS provider. Delegation
+routes validation queries; the target provider API performs the TXT updates.
+
+Select **Delegated DNS zone**, choose the target connection and zone, and use the guide
+to configure each original `_acme-challenge` owner. Certificate names remain the
+original names, such as `example.com` and `*.example.com`; the validation target does
+not become a certificate name.
+
+For **CNAME**, enter a target name inside the selected validation zone. For example,
+with target zone `validation.example.net`, publish this record in the authoritative
+DNS for `example.com`:
+
+```dns
+_acme-challenge.example.com. IN CNAME acme.validation.example.net.
+```
+
+RentnerProxy writes temporary TXT values at `acme.validation.example.net` through
+the target connection. Publish a delegation for every distinct challenge owner shown
+by the guide; the apex and wildcard above share one owner. Keep the CNAME permanently
+for future renewals. A CNAME owner cannot also contain TXT or NS records; coordinate
+any existing validation clients before changing their records. Do not create loops,
+multiple CNAME targets or a target outside the selected zone.
+
+For **NS**, the selected provider zone must be exactly the original challenge owner,
+for example `_acme-challenge.example.com`. The provider must support hosting this
+separate zone. Run **Check public DNS (read only)** to load its provider-assigned
+name servers, then copy every displayed NS owner/value into the parent zone's DNS.
+Use the provider-assigned servers, not invented server names or the parent zone's
+servers. The API writes TXT at the delegated zone apex. The guided NS setup requires
+all requested identifiers to share that challenge owner; use CNAME delegation or
+separate requests for distinct owners. Delegate the challenge name only, leaving the
+site's A/AAAA records and domain-wide name servers in place.
+
+After publishing the records, repeat **Check public DNS (read only)** until the guide
+reports **Ready**, then choose **Request with ACME**. Setup checks do not start an order
+or modify DNS. Actual issuance resolves the delegation again, writes all required
+TXT values, checks their visibility through the original owner and only then asks
+the CA to validate. Successful issuance and scheduled renewal clean up their own
+TXT values while preserving foreign values and your permanent CNAME/NS delegation.
+
+### Renewal, failures and recovery
+
+For manual mode, enable a notification channel subscribed to **Certificate renewal**
+in your notification settings and check its delivery status. When a renewal requires
+fresh proofs, an action-required notification points the operator to the certificate;
+open **Details**, publish the new values and choose **Check DNS and continue** before
+the order and active certificate expire. Notifications do not publish records.
+The previous active certificate remains installed during renewal, but it can still
+expire if nobody completes the challenge. Manual mode cannot promise unattended renewal.
+
+Delegated mode uses scheduled renewal without human TXT entry while its delegation,
+verified provider connection and API permissions remain valid. Keep the permanent
+delegation and monitor renewal errors and certificate expiry in either mode.
+
+| Status or problem                                             | Operator action                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Waiting for your TXT records** / TXT values pending         | Check every exact owner and value, including shared-owner values and provider-added domain suffixes. Wait for cached answers to expire, run the read-only check, then continue the current order.                                                                                        |
+| Delegation missing or not propagated                          | Publish all CNAME/NS records shown by the guide at the original owners. Confirm their targets and wait for DNS caches before checking again.                                                                                                                                             |
+| Conflicting or invalid delegation                             | Correct loops, multiple targets, mixed CNAME/NS/TXT at a CNAME owner, or an out-of-zone target. For NS, select the exact challenge zone and its assigned servers.                                                                                                                        |
+| DNS lookup failed / name servers unavailable                  | Check DNS resolution from the controller, the zone's authoritative service and the provider connection. Retry the check after correcting the cause.                                                                                                                                      |
+| Provider unavailable, unauthorized or credentials unavailable | Restore API access and the required zone permissions, then verify the saved connection in **Providers**. Do not repeatedly start new ACME orders.                                                                                                                                        |
+| Proof expired, order invalid, or stale action rejected        | Reload **Details** and inspect the current operation. An expired or invalid order needs a new request or renewal and fresh values; an old tab cannot continue a replaced challenge set.                                                                                                  |
+| DNS cleanup pending                                           | Restore provider access and let cleanup retry before another ACME attempt. Cleanup retains the original target identity even if delegation changed. Preserve the provider zone, credentials and operation state; do not clear state files or delete a whole TXT record set to bypass it. |
+| Issued candidate pending activation                           | Check controller/runtime health and use **Retry activation** where offered. Resolve activation separately from DNS; the previous active certificate remains installed until successful activation.                                                                                       |
+
+The guide's DNS observations use the controller's configured recursive resolver and
+bounded queries. **Ready** is a point-in-time observation, not proof that every public
+resolver or the CA sees the same answer. Recheck after changing domains, the target
+zone, credentials or delegation; the issuance/continuation path performs its own checks.
+
+Use **Cancel validation** for a waiting manual challenge if abandoning it, then remove
+only its displayed TXT values. Delegated **Cancel issuance** is available during the
+early operation stages; once finalization starts it is disabled. Wait for cancellation
+and cleanup to settle. Cancellation preserves an existing active certificate. Cancelling
+a delegated renewal pauses scheduled attempts for 30 minutes; it does not permanently
+disable automatic renewal. Cancelled initial issuance needs an explicit new request.
+
+After a controller restart, reopen **Details** to inspect the recovered operation.
+Waiting manual orders retain the same proofs until expiry; an interrupted DNS check
+can return to operator confirmation. Delegated cleanup/retry state is durable and
+recovers without replaying old proofs as a new order. Use the complete supported
+[backup and recovery](#backup-and-recovery) procedure to retain certificate state,
+ACME accounts, encrypted provider credentials and encryption material together.
+External DNS records are not restored by an appliance backup, and the CA's clock and
+order expiry keep advancing while the appliance is offline. Verify current DNS and
+order validity after restore; never copy isolated state files to revive an old order.
+
+For the DNS protocol background, see
+[Let's Encrypt's challenge documentation](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge)
+and [ACME DNS-01 in RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html#section-8.4).
 
 ## Basic Auth
 
