@@ -314,13 +314,21 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
 
 test('empty, invalid and disconnected snapshots retain the last confirmed stage without advancing', async () => {
     await mount()
+    const earlier = {
+        ...running,
+        id: uuid(98),
+        requestedAt: running.requestedAt - 1,
+        progressPercent: 5,
+    }
+    await deliver(earlier)
+    await waitFor(() => progress()?.value === 5)
     await deliver(running)
     await waitFor(() => progress()?.value === 42)
     await deliver(null)
     await deliver({ ...running, progressPercent: 101 })
     await deliver({ ...running, operation: 'delete', progressPercent: 100, state: 'succeeded' })
     await deliver({ ...running, phase: 'validating', progressPercent: 5 })
-    await deliver({ ...running, id: uuid(98), requestedAt: running.requestedAt - 1 })
+    await deliver(earlier)
     expect(progress()?.value).toBe(42)
     await act(async () => FakeSocket.instances.at(-1)!.close())
     await waitFor(
@@ -330,10 +338,33 @@ test('empty, invalid and disconnected snapshots retain the last confirmed stage 
     expect(container.textContent).not.toContain('Restore and service recovery confirmed')
 })
 
+test('a new recovery operation remains visible after the appliance clock moves backwards', async () => {
+    await mount()
+    await deliver(running)
+    await waitFor(() => progress()?.value === 42)
+    await deliver({ ...running, state: 'failed', error: 'execution_failed' })
+    const recovery = {
+        ...running,
+        id: uuid(97),
+        artifactId: uuid(96),
+        requestedAt: 1,
+        phase: 'preparing',
+        progressPercent: 1,
+    }
+    await deliver(recovery)
+    await waitFor(() => progress()?.value === 1)
+    expect(container.textContent).toContain(recovery.artifactId)
+    await deliver(running)
+    expect(progress()?.value).toBe(1)
+    await deliver({ ...recovery, phase: 'database', progressPercent: 30 })
+    await waitFor(() => progress()?.value === 30)
+})
+
 test('confirmed 100 percent stays visible before one localized completion toast, with no navigation', async () => {
     await mount()
     const success = spyOn(toast, 'success').mockReturnValue('restore-feedback-fixture')
-    const invalidate = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    const recovery = Promise.withResolvers<void>()
+    const invalidate = spyOn(router, 'invalidate').mockImplementation(() => recovery.promise)
     restorers.push(() => {
         success.mockRestore()
         invalidate.mockRestore()
@@ -351,11 +382,15 @@ test('confirmed 100 percent stays visible before one localized completion toast,
         await act(async () => jest.advanceTimersByTime(RESTORE_COMPLETION_VISIBLE_MS - 1))
         expect(progress()?.value).toBe(100)
         await act(async () => jest.advanceTimersByTime(1))
+        expect(progress()?.value).toBe(100)
+        expect(success).not.toHaveBeenCalled()
+        await act(async () => recovery.resolve())
         expect(progress()).toBeNull()
         expect(success).toHaveBeenCalledTimes(1)
         expect(success.mock.calls[0]?.[0]).toBe(catalogs.en.admin.backups.messages.restored)
         expect(router.state.location.pathname).toBe('/proxy-hosts')
     } finally {
+        recovery.resolve()
         jest.useRealTimers()
     }
 })

@@ -86,6 +86,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const queryClient = useQueryClient()
     const router = useRouter()
     const syncGeneration = useRef(0)
+    const sessionProofUnavailable = useRef(false)
     const identityPending = useRef(true)
     const initialVerificationPending = useRef(true)
     const [isIdentityPending, setIsIdentityPending] = useState(true)
@@ -224,10 +225,24 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
             if (!isApplicationLiveSnapshot(snapshot)) return
             if (identityPending.current && !awaitingResume.current) return
 
-            if (snapshot.sessionVersion && globalThis.crypto?.subtle) {
+            if (
+                snapshot.sessionVersion &&
+                globalThis.crypto?.subtle &&
+                !sessionProofUnavailable.current
+            ) {
                 const generation = syncGeneration.current
                 const scope = identityScopesByClient.get(queryClient)
-                const expected = scope ? await identityScopeVersion(scope) : null
+                let expected: string | null
+                try {
+                    expected = scope ? await identityScopeVersion(scope) : null
+                } catch {
+                    if (generation !== syncGeneration.current) return
+                    // Retry through normal authenticated route validation once,
+                    // then use its established failure/backoff path for this mount.
+                    sessionProofUnavailable.current = true
+                    revalidateIdentity()
+                    return
+                }
                 if (generation !== syncGeneration.current) return
                 if (!expected || snapshot.sessionVersion !== expected) {
                     revalidateIdentity()
@@ -276,7 +291,11 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
         onData: handleSnapshot,
         onUnauthorized: () => revalidateIdentity(),
         onResume: () => {
-            if (!snapshotsByClient.get(queryClient)?.sessionVersion || !globalThis.crypto?.subtle) {
+            if (
+                !snapshotsByClient.get(queryClient)?.sessionVersion ||
+                !globalThis.crypto?.subtle ||
+                sessionProofUnavailable.current
+            ) {
                 revalidateIdentity()
                 return
             }

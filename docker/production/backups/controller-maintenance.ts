@@ -144,11 +144,11 @@ export async function prepareControllerMaintenance(id: string, controllerPid: nu
     )
 }
 
-export async function claimControllerMaintenance(id: string): Promise<number | null> {
-    z.uuid().parse(id)
-    await requireRootControl()
+async function sealControllerReceipt(id: string, allowSealed = false) {
     const request = requestSchema.parse(await readPrivateJson(requestPath, 1024))
     if (request.id !== id) throw new Error('Controller maintenance request changed')
+    if ((await processIdentity(request.controllerPid)) === request.controllerStartTicks)
+        throw new Error('Controller has not exited before its maintenance handoff')
     const file = await open(
         receiptPath,
         constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
@@ -156,11 +156,12 @@ export async function claimControllerMaintenance(id: string): Promise<number | n
     let receipt: z.infer<typeof receiptSchema>
     try {
         const info = await file.stat()
+        const controllerOwned = info.uid === 10001 && info.gid === 10001
+        const rootSealed = allowSealed && info.uid === 0 && info.gid === 0
         if (
             !info.isFile() ||
             info.nlink !== 1 ||
-            info.uid !== 10001 ||
-            info.gid !== 10001 ||
+            (!controllerOwned && !rootSealed) ||
             (info.mode & 0o7777) !== 0o600 ||
             info.size > 1024
         )
@@ -183,6 +184,13 @@ export async function claimControllerMaintenance(id: string): Promise<number | n
     )
         throw new Error('Caddy maintenance ownership could not be confirmed')
     await writePrivateJson(ownedPath, receipt)
+    return receipt
+}
+
+export async function claimControllerMaintenance(id: string): Promise<number | null> {
+    z.uuid().parse(id)
+    await requireRootControl()
+    const receipt = await sealControllerReceipt(id)
     const active = z
         .strictObject({ id: z.uuid(), kind: z.literal('restore').optional() })
         .parse(await readPrivateJson(join(controlRoot, 'active.json'), 1024))
@@ -209,6 +217,17 @@ export async function assertRetainedCaddy(id: string, pid: number): Promise<void
         throw new Error('Caddy maintenance ownership changed')
 }
 
+function signalIfPresent(pid: number, signal: 'SIGTERM' | 'SIGKILL') {
+    // Bun exposes numeric PID signaling, so verification and signaling cannot be
+    // atomic. The identity checks reject observed PID reuse; closing the residual
+    // check-to-signal window would require a kernel process-handle API.
+    try {
+        process.kill(pid, signal)
+    } catch (error) {
+        if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error
+    }
+}
+
 export async function finishControllerMaintenance(id: string): Promise<void> {
     z.uuid().parse(id)
     await requireRootControl()
@@ -216,8 +235,16 @@ export async function finishControllerMaintenance(id: string): Promise<void> {
     try {
         receipt = receiptSchema.parse(await readPrivateJson(ownedPath, 1024))
     } catch (error) {
-        if (missing(error)) return
-        throw error
+        if (!missing(error)) throw error
+        // Shutdown can interrupt the handoff after the controller detached its
+        // child but before root published the owned record. Seal that receipt
+        // only after its exact controller exited, then use the same stop fence.
+        try {
+            receipt = await sealControllerReceipt(id, true)
+        } catch (cause) {
+            if (missing(cause)) return
+            throw cause
+        }
     }
     if (receipt.id !== id) throw new Error('Controller maintenance operation changed')
     const pid = receipt.caddyPid
@@ -225,10 +252,10 @@ export async function finishControllerMaintenance(id: string): Promise<void> {
         const sameProcess = async () => (await processIdentity(pid)) === receipt.caddyStartTicks
         if (await sameProcess()) {
             await assertRetainedCaddy(id, pid)
-            process.kill(pid, 'SIGTERM')
+            signalIfPresent(pid, 'SIGTERM')
             const until = performance.now() + 2_000
             while (performance.now() < until && (await sameProcess())) await Bun.sleep(50)
-            if (await sameProcess()) process.kill(pid, 'SIGKILL')
+            if (await sameProcess()) signalIfPresent(pid, 'SIGKILL')
             const reapUntil = performance.now() + 1_000
             while (performance.now() < reapUntil && (await sameProcess())) await Bun.sleep(25)
             if (await sameProcess()) throw new Error('Retained Caddy did not stop')

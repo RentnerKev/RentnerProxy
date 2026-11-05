@@ -19,6 +19,7 @@ let binaryFailed = false
 let removeDuringVerification = false
 let changeDuringVerification = false
 let verifyOutput = '1:2'
+let exitBeforeSignal = false
 const signals: Array<[number, string]> = []
 const absent = () => Object.assign(new Error('missing fixture'), { code: 'ENOENT' })
 function entry(path: string) {
@@ -141,6 +142,7 @@ beforeEach(() => {
     removeDuringVerification = false
     changeDuringVerification = false
     verifyOutput = '1:2'
+    exitBeforeSignal = false
     put(controlRoot, null, 0, 0o750)
     entry(controlRoot).info.gid = 10001
     processes.set(controllerPid, {
@@ -152,6 +154,10 @@ beforeEach(() => {
     put(join(controlRoot, 'active.json'), { id, kind: 'restore' })
     Object.defineProperty(process, 'getuid', { configurable: true, value: () => uid })
     const kill = spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (exitBeforeSignal) {
+            processes.delete(pid)
+            throw Object.assign(new Error('fixture already exited'), { code: 'ESRCH' })
+        }
         signals.push([pid, String(signal)])
         if (!stuck || signal === 'SIGKILL') processes.delete(pid)
         return true
@@ -216,6 +222,54 @@ test('stuck retained Caddy is killed within its fixed budget; reused PIDs are ne
     processes.set(caddyPid, { ticks: '201', uid: '10001\t10001\t10001\t10001', binary: 'caddy' })
     await finishControllerMaintenance(id)
     expect(signals).toEqual([])
+})
+
+test.each(['controller-owned', 'root-sealed'])(
+    'interrupted handoff cleans up its verified %s receipt before an owned record exists',
+    async (stage) => {
+        await prepareReceipt()
+        files.delete(join(controlRoot, 'active.json'))
+        if (stage === 'root-sealed') {
+            entry(receiptPath).info.uid = 0
+            entry(receiptPath).info.gid = 0
+        }
+        await finishControllerMaintenance(id)
+        expect(signals).toEqual([[caddyPid, 'SIGTERM']])
+        for (const path of [requestPath, receiptPath, ownedPath])
+            expect(files.has(path)).toBe(false)
+        expect(files.has(join(controlRoot, 'restore-progress.json'))).toBe(false)
+    },
+)
+
+test('an unclaimed receipt cannot stop a child while its original controller is still alive', async () => {
+    await prepareReceipt()
+    processes.set(controllerPid, {
+        ticks: '100',
+        uid: '10001\t10001\t10001\t10001',
+        binary: 'controller',
+    })
+    await expect(finishControllerMaintenance(id)).rejects.toThrow('Controller has not exited')
+    expect(signals).toEqual([])
+    expect(files.has(ownedPath)).toBe(false)
+})
+
+test('a verified Caddy exiting immediately before signaling is harmless', async () => {
+    await prepareReceipt()
+    await claimControllerMaintenance(id)
+    exitBeforeSignal = true
+    await finishControllerMaintenance(id)
+    expect(signals).toEqual([])
+    expect(files.has(ownedPath)).toBe(false)
+})
+
+test('an empty Caddy handoff needs no signal or restore progress for a backup', async () => {
+    await prepareReceipt()
+    put(receiptPath, { id, controllerPid, caddyPid: null, caddyStartTicks: null }, 10001)
+    put(join(controlRoot, 'active.json'), { id })
+    expect(await claimControllerMaintenance(id)).toBeNull()
+    await finishControllerMaintenance(id)
+    expect(signals).toEqual([])
+    expect(files.has(join(controlRoot, 'restore-progress.json'))).toBe(false)
 })
 
 test.each([

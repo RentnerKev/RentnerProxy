@@ -805,6 +805,41 @@ test('a browser without Web Crypto retains normal identity validation on reconne
     }
 })
 
+test('a rejected identity digest falls back to authenticated validation once without a retry loop', async () => {
+    const pending = Promise.withResolvers<void>()
+    invalidateSpy = spyOn(router, 'invalidate').mockReturnValue(pending.promise)
+    await mountProbe()
+    const snapshot = {
+        revision: 'first',
+        userVersion: 'same',
+        identityVersion: 'a'.repeat(64),
+        sessionVersion: await identityScopeVersion(
+            JSON.stringify([principalVersion(user), confirmedContext.sessionId]),
+        ),
+    }
+    const digest = spyOn(crypto.subtle, 'digest').mockRejectedValue(new Error('Digest unavailable'))
+    try {
+        await act(async () => FakeSocket.instances.at(-1)!.deliver(snapshot))
+        await flush()
+        expectProtectedHidden()
+        expect(invalidateSpy).toHaveBeenCalledTimes(1)
+        await act(async () => pending.resolve())
+        await flush()
+        await act(async () => FakeSocket.instances.at(-1)!.deliver(snapshot))
+        await flush()
+        expect(digest).toHaveBeenCalledTimes(1)
+        expect(invalidateSpy).toHaveBeenCalledTimes(1)
+        expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+        await resumeTab()
+        await flush()
+        expect(invalidateSpy).toHaveBeenCalledTimes(2)
+        expect(digest).toHaveBeenCalledTimes(1)
+    } finally {
+        pending.resolve()
+        digest.mockRestore()
+    }
+})
+
 test('a failed identity read recovers automatically without pressing a retry control', async () => {
     invalidateSpy = spyOn(router, 'invalidate')
         .mockRejectedValueOnce(new Error('Temporary network failure'))

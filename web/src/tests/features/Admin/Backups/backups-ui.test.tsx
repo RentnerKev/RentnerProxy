@@ -118,6 +118,7 @@ let startReplyWait: Promise<void> | null
 let admitBeforeStartFailure: boolean
 let configurationError: number | null
 let startRequests: Array<{ requestId: string }>
+let statusRequests = 0
 let configurationRequests: Array<Record<string, unknown>>
 let actionRequests: Array<{ operation: string; body: Record<string, unknown> }>
 let actionError: boolean
@@ -212,6 +213,7 @@ beforeEach(() => {
     admitBeforeStartFailure = false
     configurationError = null
     startRequests = []
+    statusRequests = 0
     configurationRequests = []
     actionRequests = []
     actionError = false
@@ -220,13 +222,15 @@ beforeEach(() => {
         Object.assign(
             async (url: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1]) => {
                 const path = String(url)
-                if (path.endsWith('/status'))
+                if (path.endsWith('/status')) {
+                    statusRequests += 1
                     return statusError
                         ? Response.json(
                               { error: statusError === 403 ? 'permission_denied' : 'unavailable' },
                               { status: statusError },
                           )
                         : Response.json(status)
+                }
                 const body: unknown = JSON.parse(String(options?.body))
                 if (path.endsWith('/delete') || path.endsWith('/restore')) {
                     const request = body as Record<string, unknown>
@@ -316,6 +320,7 @@ describe('managed backup UI', () => {
             ),
         )
         const request = status.jobs.find((job) => job.id === uuid(3))!
+        const readsBeforeCompletion = statusRequests
         Object.assign(request, {
             state: 'succeeded',
             finishedAt: Date.now(),
@@ -335,6 +340,7 @@ describe('managed backup UI', () => {
         await statusChanged()
         expect(document.querySelectorAll('.rentnerproxy-toast-success')).toHaveLength(1)
         expect(startRequests).toHaveLength(0)
+        expect(statusRequests).toBe(readsBeforeCompletion)
     })
 
     test('historical completed backups do not create completion toasts on opening the page', async () => {

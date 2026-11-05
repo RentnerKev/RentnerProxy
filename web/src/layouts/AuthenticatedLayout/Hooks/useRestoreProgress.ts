@@ -15,6 +15,13 @@ export default function useRestoreProgress() {
     const [maintenance, setMaintenance] = useState<ManagedBackupMaintenance | null>(null)
     const current = useRef<ManagedBackupMaintenance | null>(null)
     const completing = useRef<string | null>(null)
+    const retiredOperations = useRef(new Set<string>())
+    const retireOperation = useCallback((id: string) => {
+        const retired = retiredOperations.current
+        retired.add(id)
+        // Bound this to the same recent-operation window as maintenance receipts.
+        if (retired.size > 100) retired.delete(retired.values().next().value!)
+    }, [])
     const mounted = useRef(true)
     useEffect(() => {
         mounted.current = true
@@ -28,16 +35,18 @@ export default function useRestoreProgress() {
             if (!parsed.success) return
             const next = parsed.data.maintenance
             if (!next || next.operation !== 'restore') return
+            if (retiredOperations.current.has(next.id)) return
             const previous = current.current
             if (previous?.id === next.id && next.progressPercent < previous.progressPercent) return
-            if (previous && previous.id !== next.id && next.requestedAt <= previous.requestedAt)
-                return
             if (
                 next.state !== 'queued' &&
                 next.state !== 'running' &&
                 current.current?.id !== next.id
             )
                 return
+            // Socket snapshots are ordered and fenced to the active connection.
+            // Remember replaced IDs instead of comparing adjustable wall clocks.
+            if (previous && previous.id !== next.id) retireOperation(previous.id)
             // Preserve the route and its component state below the screen. A disconnect
             // or empty snapshot cannot confirm that destructive replacement finished.
             current.current = next
@@ -59,13 +68,14 @@ export default function useRestoreProgress() {
                         dedupeKey: `backup-restore:${next.id}`,
                     })
                     current.current = null
+                    retireOperation(next.id)
                     setMaintenance(null)
                 }
             } catch {
                 completing.current = null
             }
         },
-        [queryClient, router, t],
+        [queryClient, router, t, retireOperation],
     )
     const status = useLiveQuery<unknown>({
         topic: 'backup-restore',
@@ -82,6 +92,7 @@ export default function useRestoreProgress() {
         ['queued', 'preparing', 'validating'].includes(maintenance.phase)
     function dismiss() {
         if (!canDismiss) return
+        retireOperation(maintenance.id)
         current.current = null
         setMaintenance(null)
     }

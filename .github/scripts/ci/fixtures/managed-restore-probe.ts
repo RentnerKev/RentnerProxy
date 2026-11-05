@@ -397,7 +397,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 .filter((snapshot) => snapshot.maintenance?.id === operation.id)
                 .map((snapshot) => snapshot.maintenance!.progressPercent)
             assert.ok(
-                progress.some((percent) => percent >= 20 && percent < 90),
+                progress.some((percent) => percent >= 30 && percent < 90),
                 'the self-proxied live connection must deliver replacement progress before restart: ' +
                     JSON.stringify({ progress, closeCodes: observer.closeCodes }),
             )
@@ -406,9 +406,17 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 progress.toSorted((left, right) => left - right),
                 'progress must never regress',
             )
-            assert.ok(
-                observer.closeCodes.length > 0,
-                'the observer must recover from the final web restart',
+            const resumed = await wait(async () =>
+                observer.snapshots.find(
+                    (snapshot) =>
+                        snapshot.maintenance?.id === operation.id &&
+                        snapshot.maintenance.state === 'succeeded',
+                ),
+            )
+            assert.equal(
+                resumed.maintenance?.progressPercent,
+                100,
+                'the same open observer must receive confirmed completion after the final restart',
             )
             return await verifyCompletion(fixture)
         } finally {
