@@ -11,3 +11,5 @@ export const BACKUP_UI_POLICY = {
 } as const
 
 export const BACKUPS_LOCAL_DEMO_KEY = 'backups_local_demo_v1'
+
+export const RESTORE_COMPLETION_VISIBLE_MS = 600

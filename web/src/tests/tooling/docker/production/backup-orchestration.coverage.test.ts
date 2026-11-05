@@ -41,6 +41,7 @@ test.skipIf(!available).each(['agent-roundtrip', 'precommit-failure', 'postcommi
         if (scenario === 'agent-roundtrip') {
             expect(result).toMatchObject({
                 restoreState: 'succeeded',
+                restoreError: null,
                 phase: 'restarting',
                 databaseValue: '1',
                 sessions: '00000000-0000-4000-8000-000000000003',

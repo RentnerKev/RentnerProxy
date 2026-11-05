@@ -801,7 +801,9 @@
                 "delete": "Eliminar copia"
             },
             "messages": {
-                "accepted": "Solicitud de copia registrada. El dispositivo puede desconectarse brevemente durante el mantenimiento; esta página se actualizará automáticamente.",
+                "accepted": "Copia solicitada. El estado se actualiza aquí automáticamente.",
+                "completed": "Copia de seguridad completada.",
+                "restored": "Copia de seguridad restaurada correctamente.",
                 "uncertain": "No se pudo confirmar el resultado de la solicitud. Espera la actualización del historial en directo. Al reintentar esta solicitud se reutiliza su identificador y no se inicia una segunda copia.",
                 "saved": "Programación y retención de copias de seguridad guardadas.",
                 "restoreAccepted": "Solicitud de restauración registrada. Sigue las etapas confirmadas mientras se recupera el dispositivo.",
@@ -850,13 +852,14 @@
                 "returnToPage": "Volver a la página anterior",
                 "title": "Restaurando el dispositivo",
                 "description": "{{user}} está restaurando la copia {{backup}}. Esto afecta a todos los usuarios conectados al dispositivo.",
-                "progress": "{{percent}} % — etapas de restauración completadas",
+                "progress": "Progreso de restauración: {{percent}} %",
                 "complete": "Restauración y recuperación de los servicios confirmadas. Volverás automáticamente a la página anterior.",
                 "failed": "La restauración ha fallado o no se pudo confirmar la recuperación de los servicios. Comprueba el estado del dispositivo antes de continuar.",
                 "connectionLost": "Se interrumpió la conexión con el dispositivo. Esperando un estado de restauración confirmado; la finalización aún no está confirmada.",
                 "actorUnknown": "Un administrador",
                 "phases": {
                     "queued": "Restauración en cola",
+                    "preparing": "Preparando la restauración",
                     "validating": "Verificando la copia",
                     "quiescing": "Pausando los servicios",
                     "database": "Restaurando la base de datos",

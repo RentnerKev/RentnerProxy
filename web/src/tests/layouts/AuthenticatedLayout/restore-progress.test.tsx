@@ -16,6 +16,7 @@ import {
     RouterProvider,
 } from '@tanstack/react-router'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { RESTORE_COMPLETION_VISIBLE_MS } from '@/config/backups.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { ManagedBackupMaintenance } from '@/lib/Backups/Types/backups.types.ts'
 import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
@@ -215,6 +216,8 @@ function progress() {
 }
 
 beforeEach(() => {
+    const success = spyOn(toast, 'success').mockReturnValue('restore-feedback-fixture')
+    restorers.push(() => success.mockRestore())
     themeUpdatesAllowed = false
     identityLoad = undefined
     window.location.href = 'http://localhost/proxy-hosts?filter=kept&page=3#details'
@@ -316,6 +319,8 @@ test('empty, invalid and disconnected snapshots retain the last confirmed stage 
     await deliver(null)
     await deliver({ ...running, progressPercent: 101 })
     await deliver({ ...running, operation: 'delete', progressPercent: 100, state: 'succeeded' })
+    await deliver({ ...running, phase: 'validating', progressPercent: 5 })
+    await deliver({ ...running, id: uuid(98), requestedAt: running.requestedAt - 1 })
     expect(progress()?.value).toBe(42)
     await act(async () => FakeSocket.instances.at(-1)!.close())
     await waitFor(
@@ -323,6 +328,36 @@ test('empty, invalid and disconnected snapshots retain the last confirmed stage 
     )
     expect(progress()?.value).toBe(42)
     expect(container.textContent).not.toContain('Restore and service recovery confirmed')
+})
+
+test('confirmed 100 percent stays visible before one localized completion toast, with no navigation', async () => {
+    await mount()
+    const success = spyOn(toast, 'success').mockReturnValue('restore-feedback-fixture')
+    const invalidate = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    restorers.push(() => {
+        success.mockRestore()
+        invalidate.mockRestore()
+    })
+    await deliver(running)
+    await waitFor(() => progress()?.value === 42)
+    jest.useFakeTimers()
+    try {
+        const complete = { ...running, state: 'succeeded', phase: 'complete', progressPercent: 100 }
+        await deliver(complete)
+        await deliver(complete)
+        expect(progress()?.value).toBe(100)
+        expect(success).not.toHaveBeenCalled()
+        expect(invalidate).toHaveBeenCalledTimes(1)
+        await act(async () => jest.advanceTimersByTime(RESTORE_COMPLETION_VISIBLE_MS - 1))
+        expect(progress()?.value).toBe(100)
+        await act(async () => jest.advanceTimersByTime(1))
+        expect(progress()).toBeNull()
+        expect(success).toHaveBeenCalledTimes(1)
+        expect(success.mock.calls[0]?.[0]).toBe(catalogs.en.admin.backups.messages.restored)
+        expect(router.state.location.pathname).toBe('/proxy-hosts')
+    } finally {
+        jest.useRealTimers()
+    }
 })
 
 test('terminal failures stay visible and unrelated or historical successes cannot dismiss them', async () => {
@@ -499,7 +534,7 @@ test.each(['pending', 'failed'] as const)(
     },
 )
 
-test.each(['queued', 'validating'] as const)(
+test.each(['queued', 'preparing', 'validating'] as const)(
     'a failed %s preflight can return to the preserved page without claiming successful restore',
     async (phase) => {
         await mount()

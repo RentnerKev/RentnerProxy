@@ -48,7 +48,7 @@ test('restore snapshots use application access and disclose only maintenance; fe
             return { id: 'viewer', permissions: ['app.access'] }
         }
         mock.module('./server/env.server.ts', () => ({ getPublicOrigin: () => 'https://proxy.example' }))
-        mock.module('./server/Auth/Access/authorization.service.ts', () => ({ requirePermissionService: requirePermission }))
+        mock.module('./server/Auth/Access/authorization.service.ts', () => ({ requirePermissionService: requirePermission, requireSessionService: async () => { throw new Error('Unexpected normal session read') }, requireSessionPermission: async () => undefined }))
         mock.module('./server/WebSockets/applicationChanges.ts', () => ({ getApplicationRevision: () => 'current' }))
         mock.module('./server/Backups/restore-maintenance.server.ts', () => ({
             getActiveRestoreMaintenance: async () => {

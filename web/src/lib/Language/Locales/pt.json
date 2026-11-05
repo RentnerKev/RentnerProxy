@@ -801,7 +801,9 @@
                 "delete": "Eliminar cópia"
             },
             "messages": {
-                "accepted": "Solicitação de cópia registrada. O appliance pode se desconectar brevemente durante a manutenção; esta página será atualizada automaticamente.",
+                "accepted": "Cópia solicitada. O estado é atualizado aqui automaticamente.",
+                "completed": "Cópia de segurança concluída.",
+                "restored": "Cópia de segurança restaurada com sucesso.",
                 "uncertain": "Não foi possível confirmar o resultado da solicitação. Aguarde a atualização do histórico em tempo real. Tentar novamente esta solicitação reutiliza seu identificador e não inicia uma segunda cópia.",
                 "saved": "Agendamento e retenção das cópias de segurança salvos.",
                 "restoreAccepted": "Pedido de restauro registado. Acompanha as etapas confirmadas durante a recuperação do equipamento.",
@@ -850,13 +852,14 @@
                 "returnToPage": "Voltar à página anterior",
                 "title": "A restaurar o equipamento",
                 "description": "{{user}} está a restaurar a cópia {{backup}}. Isto afeta todos os utilizadores ligados a este equipamento.",
-                "progress": "{{percent}}% — etapas de restauro concluídas",
+                "progress": "Progresso do restauro: {{percent}}%",
                 "complete": "Restauro e recuperação dos serviços confirmados. Regresso automático à página anterior.",
                 "failed": "O restauro falhou ou não foi possível confirmar a recuperação dos serviços. Verifica o estado do equipamento antes de continuar.",
                 "connectionLost": "A ligação ao equipamento foi interrompida. A aguardar um estado de restauro confirmado; a conclusão ainda não foi confirmada.",
                 "actorUnknown": "Um administrador",
                 "phases": {
                     "queued": "Restauro em fila",
+                    "preparing": "A preparar o restauro",
                     "validating": "A verificar a cópia",
                     "quiescing": "A suspender os serviços",
                     "database": "A restaurar a base de dados",

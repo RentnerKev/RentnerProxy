@@ -163,7 +163,25 @@ if (import.meta.main) {
     try {
         const args = process.argv.slice(2)
         if (process.getuid?.() !== 0) throw new Error('backup requires owned supervisor')
-        if (args.length === 1 && args[0] === '--confirm-restarted-restore') {
+        if (args.length === 3 && args[0] === '--prepare-controller-maintenance') {
+            const { prepareControllerMaintenance } = await import('./controller-maintenance.ts')
+            await prepareControllerMaintenance(
+                z.uuid().parse(args[1]),
+                z.coerce.number().int().min(2).parse(args[2]),
+            )
+        } else if (args.length === 2 && args[0] === '--claim-controller-maintenance') {
+            const { claimControllerMaintenance } = await import('./controller-maintenance.ts')
+            console.log((await claimControllerMaintenance(z.uuid().parse(args[1]))) ?? 0)
+        } else if (args.length === 3 && args[0] === '--assert-retained-caddy') {
+            const { assertRetainedCaddy } = await import('./controller-maintenance.ts')
+            await assertRetainedCaddy(
+                z.uuid().parse(args[1]),
+                z.coerce.number().int().min(2).parse(args[2]),
+            )
+        } else if (args.length === 2 && args[0] === '--finish-controller-maintenance') {
+            const { finishControllerMaintenance } = await import('./controller-maintenance.ts')
+            await finishControllerMaintenance(z.uuid().parse(args[1]))
+        } else if (args.length === 1 && args[0] === '--confirm-restarted-restore') {
             const { confirmRestartedRestore } = await import('./restart-recovery.ts')
             await confirmRestartedRestore()
         } else if (args.length === 1 && args[0] === '--request-id') {

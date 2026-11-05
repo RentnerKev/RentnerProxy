@@ -296,6 +296,52 @@ afterEach(async () => {
 })
 
 describe('managed backup UI', () => {
+    test('socket completion updates the existing table and shows one success toast without refetching the page', async () => {
+        await renderPage()
+        const page = document.querySelector('[data-testid="backup-page"]')
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+        status.jobs.push({
+            ...completed,
+            id: uuid(3),
+            requestId: uuid(13),
+            state: 'running',
+            finishedAt: null,
+            artifact: null,
+            retained: false,
+        })
+        await statusChanged()
+        await waitFor(() =>
+            [...document.querySelectorAll('tbody tr')].some(
+                (row) => row.textContent?.includes(uuid(3)) && row.textContent?.includes('Running'),
+            ),
+        )
+        const request = status.jobs.find((job) => job.id === uuid(3))!
+        Object.assign(request, {
+            state: 'succeeded',
+            finishedAt: Date.now(),
+            artifact: { ...completed.artifact!, id: uuid(3) },
+            retained: true,
+        })
+        await statusChanged()
+        await waitFor(
+            () =>
+                document
+                    .querySelector('.rentnerproxy-toast-success')
+                    ?.textContent?.includes(catalogs.en.admin.backups.messages.completed) === true,
+        )
+        expect(document.querySelector('[data-testid="backup-page"]')).toBe(page)
+        expect(page?.textContent).toContain(uuid(3))
+        await statusChanged()
+        await statusChanged()
+        expect(document.querySelectorAll('.rentnerproxy-toast-success')).toHaveLength(1)
+        expect(startRequests).toHaveLength(0)
+    })
+
+    test('historical completed backups do not create completion toasts on opening the page', async () => {
+        await renderPage()
+        await statusChanged()
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+    })
     test('shows verified recovery points, source release, failures and expired artifacts', async () => {
         status.jobs.push(
             { ...completed, id: uuid(2), requestId: uuid(12), retained: false },
@@ -478,7 +524,7 @@ describe('managed backup UI', () => {
         )
         expect(document.body.textContent).not.toContain('request result could not be confirmed')
         expect(document.body.textContent).not.toContain('Retry backup request')
-        expect(document.body.textContent).not.toContain('Backup request recorded')
+        expect(document.body.textContent).not.toContain(catalogs.en.admin.backups.messages.accepted)
         expect(button('Create backup').disabled).toBeFalse()
         expect(status.jobs).toHaveLength(1)
     })
@@ -499,7 +545,7 @@ describe('managed backup UI', () => {
             () =>
                 document
                     .querySelector('.rentnerproxy-toast-info')
-                    ?.textContent?.includes('Backup request recorded') === true,
+                    ?.textContent?.includes(catalogs.en.admin.backups.messages.accepted) === true,
         )
         expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
         expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(0)
@@ -520,7 +566,7 @@ describe('managed backup UI', () => {
             () =>
                 document
                     .querySelector('.rentnerproxy-toast-info')
-                    ?.textContent?.includes('Backup request recorded') === true,
+                    ?.textContent?.includes(catalogs.en.admin.backups.messages.accepted) === true,
         )
         await act(async () => release())
         await waitFor(() => !document.querySelector('[role="dialog"]'))
@@ -538,7 +584,9 @@ describe('managed backup UI', () => {
         statusError = null
         await statusChanged()
         await waitFor(
-            () => document.body.textContent?.includes('Backup request recorded') === true,
+            () =>
+                document.body.textContent?.includes(catalogs.en.admin.backups.messages.accepted) ===
+                true,
             6500,
         )
         expect(startRequests.length).toBe(1)

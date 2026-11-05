@@ -9,6 +9,11 @@ export const stateArchiveExclusions = [
     './host-configs/**',
     './caddy-admin.sock',
     './runtime-probe.sock',
+    // Caddy can keep the management connection alive while authoritative core
+    // writers are stopped. Its storage and autosave are regenerated from the
+    // retained certificate store and active policy, and are not backup inputs.
+    './caddy/config',
+    './caddy/data',
     './caddy/**/*.sock',
     './caddy/**/*.tmp',
     './caddy/**/*.lock',

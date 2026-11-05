@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import identityScopeVersion from '@/lib/Auth/identityScopeVersion.ts'
+import principalVersion from '@/lib/Auth/principalVersion.ts'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
     createMemoryHistory,
@@ -705,6 +707,102 @@ test('ordinary data events refresh queries without reloading identity or losing 
     expect(invalidateSpy).not.toHaveBeenCalled()
     expect(container.querySelector('input')).toBe(draft)
     expect(draft.value).toBe('preserved edit')
+})
+
+test('a reconnect with a fresh matching session proof resumes the mounted page without a route reload', async () => {
+    invalidateSpy = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    await mountProbe()
+    const sessionVersion = await identityScopeVersion(
+        JSON.stringify([principalVersion(user), confirmedContext.sessionId]),
+    )
+    const snapshot = {
+        revision: 'before',
+        userVersion: 'same-user',
+        identityVersion: 'a'.repeat(64),
+        sessionVersion,
+    }
+    await act(async () => FakeSocket.instances.at(-1)!.deliver(snapshot))
+    await flush()
+    const draft = container.querySelector<HTMLInputElement>('input')!
+    draft.value = 'keep after backup'
+    queryClient.setQueryData(['session-owned'], { preserved: true })
+    const cached = queryClient.getQueryCache().find({ queryKey: ['session-owned'] })
+    await resumeTab()
+    expectProtectedHidden()
+    expect(invalidateSpy).not.toHaveBeenCalled()
+    await act(async () =>
+        FakeSocket.instances.at(-1)!.deliver({ ...snapshot, revision: 'restarted' }),
+    )
+    await flush()
+    expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+    expect(container.querySelector('input')).toBe(draft)
+    expect(draft.value).toBe('keep after backup')
+    expect(queryClient.getQueryCache().find({ queryKey: ['session-owned'] })).toBe(cached)
+    expect(invalidateSpy).not.toHaveBeenCalled()
+})
+
+test.each(['missing', 'different'] as const)(
+    'a %s session proof after reconnect keeps private state hidden until normal identity validation completes',
+    async (kind) => {
+        const invalidation = Promise.withResolvers<void>()
+        invalidateSpy = spyOn(router, 'invalidate').mockReturnValue(invalidation.promise)
+        await mountProbe()
+        const snapshot = {
+            revision: 'before',
+            userVersion: 'same-user',
+            identityVersion: 'a'.repeat(64),
+            sessionVersion: await identityScopeVersion(
+                JSON.stringify([principalVersion(user), confirmedContext.sessionId]),
+            ),
+        }
+        await act(async () => FakeSocket.instances.at(-1)!.deliver(snapshot))
+        await flush()
+        queryClient.setQueryData(['session-owned'], { private: true })
+        await resumeTab()
+        await act(async () =>
+            FakeSocket.instances.at(-1)!.deliver({
+                ...snapshot,
+                sessionVersion: kind === 'missing' ? undefined : 'b'.repeat(64),
+            }),
+        )
+        await flush()
+        expectProtectedHidden()
+        expect(invalidateSpy).toHaveBeenCalledTimes(1)
+        confirmedContext = { user, sessionId: 'session-b' }
+        await act(async () => invalidation.resolve())
+        await flush()
+        expect(queryClient.getQueryData(['session-owned'])).toBeUndefined()
+        expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+    },
+)
+
+test('a browser without Web Crypto retains normal identity validation on reconnect', async () => {
+    invalidateSpy = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    await mountProbe()
+    const sessionVersion = await identityScopeVersion(
+        JSON.stringify([principalVersion(user), confirmedContext.sessionId]),
+    )
+    const original = Object.getOwnPropertyDescriptor(crypto, 'subtle')
+    Object.defineProperty(crypto, 'subtle', { configurable: true, value: undefined })
+    try {
+        await act(async () =>
+            FakeSocket.instances.at(-1)!.deliver({
+                revision: 'same',
+                userVersion: 'same',
+                identityVersion: 'a'.repeat(64),
+                sessionVersion,
+            }),
+        )
+        await flush()
+        expect(invalidateSpy).not.toHaveBeenCalled()
+        await resumeTab()
+        await flush()
+        expect(invalidateSpy).toHaveBeenCalledTimes(1)
+        expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+    } finally {
+        if (original) Object.defineProperty(crypto, 'subtle', original)
+        else Reflect.deleteProperty(crypto, 'subtle')
+    }
 })
 
 test('a failed identity read recovers automatically without pressing a retry control', async () => {

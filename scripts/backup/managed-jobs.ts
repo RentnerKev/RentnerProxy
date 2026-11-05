@@ -388,7 +388,9 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
                 return null
             draft.maintenance.state = 'running'
             draft.maintenance.startedAt = dependencies.now()
-            draft.maintenance.phase = 'validating'
+            draft.maintenance.phase =
+                draft.maintenance.operation === 'restore' ? 'preparing' : 'validating'
+            if (draft.maintenance.operation === 'restore') draft.maintenance.progressPercent = 1
             const job = draft.jobs.find((entry) => entry.id === draft.maintenance!.artifactId)
             if (!job) throw new ManagedBackupError('artifact_invalid')
             if (draft.maintenance.operation === 'restore')

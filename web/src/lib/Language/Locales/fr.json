@@ -801,7 +801,9 @@
                 "delete": "Supprimer la sauvegarde"
             },
             "messages": {
-                "accepted": "Demande de sauvegarde enregistrée. L’appliance peut se déconnecter brièvement pendant la maintenance ; cette page s’actualisera automatiquement.",
+                "accepted": "Sauvegarde demandée. Son état se met à jour ici automatiquement.",
+                "completed": "Sauvegarde terminée.",
+                "restored": "Sauvegarde restaurée avec succès.",
                 "uncertain": "Le résultat de la demande n’a pas pu être confirmé. Attendez la mise à jour de l’historique en direct. Une nouvelle tentative réutilise l’identifiant de cette demande et ne lance pas de deuxième sauvegarde.",
                 "saved": "Planification et conservation des sauvegardes enregistrées.",
                 "restoreAccepted": "Demande de restauration enregistrée. Suis les étapes confirmées pendant la récupération de l’appliance.",
@@ -850,13 +852,14 @@
                 "returnToPage": "Revenir à la page précédente",
                 "title": "Restauration de l’appliance",
                 "description": "{{user}} restaure la sauvegarde {{backup}}. Tous les utilisateurs connectés à cette appliance sont concernés.",
-                "progress": "{{percent}} % — étapes de restauration terminées",
+                "progress": "Progression de la restauration : {{percent}} %",
                 "complete": "Restauration et reprise des services confirmées. Retour automatique à la page précédente.",
                 "failed": "La restauration a échoué ou la reprise des services n’a pas pu être confirmée. Vérifie l’état de l’appliance avant de continuer.",
                 "connectionLost": "La connexion à l’appliance a été interrompue. En attente d’un état de restauration confirmé ; la fin n’est pas encore confirmée.",
                 "actorUnknown": "Un administrateur",
                 "phases": {
                     "queued": "Restauration en attente",
+                    "preparing": "Préparation de la restauration",
                     "validating": "Vérification de la sauvegarde",
                     "quiescing": "Suspension des services",
                     "database": "Restauration de la base de données",

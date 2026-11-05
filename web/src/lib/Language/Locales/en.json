@@ -799,7 +799,9 @@
                 "delete": "Delete backup"
             },
             "messages": {
-                "accepted": "Backup request recorded. The appliance may briefly disconnect during maintenance; this page will refresh automatically.",
+                "accepted": "Backup requested. Its status updates here automatically.",
+                "completed": "Backup completed.",
+                "restored": "Backup restored successfully.",
                 "uncertain": "The request result could not be confirmed. Wait for the live history update. Retrying this request reuses its identity and does not start a second backup.",
                 "saved": "Backup schedule and retention saved.",
                 "restoreAccepted": "Restore request recorded. Follow the confirmed restore stages while the appliance recovers.",
@@ -848,13 +850,14 @@
                 "returnToPage": "Return to previous page",
                 "title": "Restoring the appliance",
                 "description": "{{user}} is restoring backup {{backup}}. This affects everyone connected to this appliance.",
-                "progress": "{{percent}}% — completed restore checkpoints",
+                "progress": "Restore progress: {{percent}}%",
                 "complete": "Restore and service recovery confirmed. Returning automatically to your previous page.",
                 "failed": "Restore failed or service recovery could not be confirmed. Check appliance health before taking further action.",
                 "connectionLost": "The appliance connection was interrupted. Waiting for confirmed restore status; completion has not yet been confirmed.",
                 "actorUnknown": "An administrator",
                 "phases": {
                     "queued": "Restore queued",
+                    "preparing": "Preparing the restore",
                     "validating": "Checking the backup",
                     "quiescing": "Pausing services",
                     "database": "Restoring the database",

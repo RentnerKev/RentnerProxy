@@ -24,6 +24,7 @@ use tokio::{
     task::JoinHandle,
 };
 
+mod maintenance;
 mod version;
 
 const API_TIMEOUT: Duration = Duration::from_secs(10);
@@ -87,6 +88,12 @@ pub(crate) trait ProxyEngine: Send + Sync {
     fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
     fn probe<'a>(&'a self, expected_revision: &'a str) -> EngineFuture<'a>;
     fn shutdown<'a>(&'a self) -> EngineFuture<'a>;
+    fn retain_for_backup_until(
+        &self,
+        _deadline: Instant,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, EngineError>> + Send + '_>> {
+        Box::pin(async { Ok(false) })
+    }
     fn shutdown_until(&self, deadline: Instant) -> EngineFuture<'_> {
         Box::pin(async move {
             timeout_at(deadline, self.shutdown())
@@ -462,6 +469,12 @@ impl ProxyEngine for CaddyProcess {
     }
     fn shutdown<'a>(&'a self) -> EngineFuture<'a> {
         Box::pin(self.shutdown_owned(SHUTDOWN_BUDGET))
+    }
+    fn retain_for_backup_until(
+        &self,
+        deadline: Instant,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, EngineError>> + Send + '_>> {
+        Box::pin(self.retain_owned_for_backup(deadline))
     }
     fn shutdown_until(&self, deadline: Instant) -> EngineFuture<'_> {
         self.stopping

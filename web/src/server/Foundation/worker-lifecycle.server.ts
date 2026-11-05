@@ -22,7 +22,7 @@ export async function startWorkerLifecycle(load: () => Promise<WorkerLifecycle>)
             (status.state === 'queued' ||
                 status.state === 'running' ||
                 ((status.state === 'interrupted' || status.state === 'failed') &&
-                    !['queued', 'validating'].includes(status.phase)))
+                    !['queued', 'preparing', 'validating'].includes(status.phase)))
         ) {
             const restoreId = status.id
             // The new web can prove readiness, but writers wait for confirmed completion.
@@ -32,7 +32,7 @@ export async function startWorkerLifecycle(load: () => Promise<WorkerLifecycle>)
                     (status.state !== 'succeeded' &&
                         !(
                             (status.state === 'failed' || status.state === 'interrupted') &&
-                            ['queued', 'validating'].includes(status.phase)
+                            ['queued', 'preparing', 'validating'].includes(status.phase)
                         )))
             ) {
                 await new Promise<void>((resolve) => setTimeout(resolve, 250))

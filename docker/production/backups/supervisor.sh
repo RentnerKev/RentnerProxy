@@ -5,6 +5,8 @@ readonly backup_control_directory=/run/rentnerproxy/backups
 readonly backup_state_directory=/var/lib/rentnerproxy/backups
 readonly backup_exporter=/opt/rentnerproxy/web/backup-export.js
 backup_recovery_job=''
+backup_maintenance_id=''
+backup_caddy_pid=''
 
 initialize_backup_lock() {
     local lock_file="$backup_state_directory/agent.lock"
@@ -39,6 +41,10 @@ start_backup_agent() {
     install -d -m 0750 -o root -g rentnerproxy "$backup_control_directory"
     # /run can survive a stop/start. Discard readiness evidence from the previous boot.
     rm -f -- "$backup_control_directory/agent.sock" "$backup_control_directory/restore-restarted.json"
+    # No controller has started in this process namespace yet.
+    rm -f -- "$backup_control_directory/controller-maintenance-request.json" \
+        "$backup_control_directory/controller-maintenance-receipt.json" \
+        "$backup_control_directory/controller-maintenance-owned.json"
     start_child backups flock --no-fork -n "$lock_file" \
         bun --no-env-file "$app_directory/backup-agent.js"
     wait_for_command 'backup agent' test -S "$backup_control_directory/agent.sock"
@@ -46,6 +52,30 @@ start_backup_agent() {
 
 backup_write_result() {
     bun --no-env-file "$backup_exporter" --result "$1" "$2"
+}
+
+backup_quiesce_controller() {
+    local id=$1 index controller_pid=''
+    for index in "${!child_pids[@]}"; do
+        [[ ${child_names[$index]} != controller ]] || controller_pid=${child_pids[$index]}
+    done
+    [[ -n $controller_pid && -z $backup_maintenance_id ]] \
+        || fatal 'controller maintenance has no exclusive owned process'
+    backup_maintenance_id=$id
+    bun --no-env-file "$backup_exporter" --prepare-controller-maintenance "$id" "$controller_pid" \
+        || fatal 'controller maintenance could not be prepared'
+    backup_stop_consumer_phase controller 23 || fatal 'controller could not quiesce safely'
+    backup_caddy_pid=$(bun --no-env-file "$backup_exporter" --claim-controller-maintenance "$id") \
+        || fatal 'controller maintenance handoff could not be confirmed'
+    [[ $backup_caddy_pid =~ ^(0|[1-9][0-9]*)$ ]] || fatal 'invalid retained Caddy process'
+}
+
+backup_stop_retained_caddy() {
+    [[ -n $backup_maintenance_id ]] || return 0
+    bun --no-env-file "$backup_exporter" --finish-controller-maintenance "$backup_maintenance_id" \
+        || return 1
+    backup_caddy_pid=''
+    backup_maintenance_id=''
 }
 
 backup_assert_state_children_running() {
@@ -131,6 +161,11 @@ backup_assert_consumers_stopped() {
         pid=${pid%/status}
         [[ $pid != "$valkey_pid" ]] || continue
         [[ -r $status_file ]] || continue
+        if [[ $pid == "${backup_caddy_pid:-}" ]]; then
+            bun --no-env-file "$backup_exporter" --assert-retained-caddy "$backup_maintenance_id" "$pid" \
+                || fatal 'retained Caddy ownership changed during maintenance'
+            continue
+        fi
         if backup_status_has_consumer_identity "$status_file" "${1:-}" 2>/dev/null; then
             fatal 'an application or CrowdSec process survived backup quiescing'
         fi
@@ -172,7 +207,7 @@ perform_managed_restore() {
     backup_recovery_job=$id
     # Web drains its workers and DB pool after the root progress fence appears.
     # It keeps serving authenticated maintenance status while state writers stop.
-    backup_stop_consumer_phase controller 23 || fatal 'controller could not quiesce safely for restore'
+    backup_quiesce_controller "$id"
     backup_stop_consumer_phase crowdsec 40 || fatal 'CrowdSec could not quiesce safely for restore'
     backup_assert_consumers_stopped preserve-web
     if ! backup_run_exporter "$id" --restore; then
@@ -182,6 +217,8 @@ perform_managed_restore() {
     backup_assert_state_children_running
     # The web process caches the application key and has closed its DB pool.
     backup_stop_consumer_phase web 23 || fatal 'maintenance web could not stop safely'
+    backup_stop_retained_caddy || fatal 'retained Caddy could not stop safely'
+    backup_assert_consumers_stopped
     # Replacement restores private archive modes; recreate the appliance's shared
     # Caddy/CrowdSec layout before their readiness and maintenance web can resume.
     initialize_layout
@@ -206,8 +243,10 @@ perform_managed_backup() {
         || fatal 'invalid backup maintenance request'
     log "starting managed backup maintenance ($id)"
     # Preserve state services and CrowdSec while application consumers drain.
-    backup_stop_consumer_phase application 23 \
-        || fatal 'application consumers could not quiesce safely for backup'
+    # Drain web while its controller is still available, then leave only Caddy's
+    # in-memory proxy running. Its live logs are excluded from the archive.
+    backup_stop_consumer_phase web 23 || fatal 'web could not quiesce safely for backup'
+    backup_quiesce_controller "$id"
     # An in-flight cscli call has a 25s bound; the engine then gets 12s to stop.
     backup_stop_consumer_phase crowdsec 40 \
         || fatal 'CrowdSec could not quiesce safely for backup'
@@ -215,8 +254,11 @@ perform_managed_backup() {
     if ! backup_run_exporter "$id"; then outcome=execution_failed; fi
     backup_assert_state_children_running
 
-    # The EXIT trap records recovery_failed before state services/agent stop.
     backup_recovery_job=$id
+    backup_stop_retained_caddy || fatal 'retained Caddy could not stop safely'
+    backup_assert_consumers_stopped
+
+    # The EXIT trap records recovery_failed before state services/agent stop.
     rm -f -- "$crowdsec_control_directory/status.json"
     start_crowdsec_supervisor
     start_controller

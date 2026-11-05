@@ -801,7 +801,9 @@
                 "delete": "Elimina backup"
             },
             "messages": {
-                "accepted": "Richiesta di backup registrata. L’appliance potrebbe disconnettersi brevemente durante la manutenzione; questa pagina si aggiornerà automaticamente.",
+                "accepted": "Backup richiesto. Lo stato si aggiorna qui automaticamente.",
+                "completed": "Backup completato.",
+                "restored": "Backup ripristinato correttamente.",
                 "uncertain": "Non è stato possibile confermare l’esito della richiesta. Attendi l’aggiornamento in tempo reale della cronologia. Riprovando questa richiesta viene riutilizzato lo stesso identificativo e non viene avviato un secondo backup.",
                 "saved": "Pianificazione e conservazione dei backup salvate.",
                 "restoreAccepted": "Richiesta di ripristino registrata. Segui le fasi confermate durante il recupero dell’appliance.",
@@ -850,13 +852,14 @@
                 "returnToPage": "Torna alla pagina precedente",
                 "title": "Ripristino dell’appliance",
                 "description": "{{user}} sta ripristinando il backup {{backup}}. L’operazione riguarda tutti gli utenti connessi a questa appliance.",
-                "progress": "{{percent}}% — fasi di ripristino completate",
+                "progress": "Avanzamento del ripristino: {{percent}}%",
                 "complete": "Ripristino e riavvio dei servizi confermati. Ritorno automatico alla pagina precedente.",
                 "failed": "Il ripristino è fallito o non è stato possibile confermare il recupero dei servizi. Controlla lo stato dell’appliance prima di continuare.",
                 "connectionLost": "La connessione all’appliance è stata interrotta. In attesa di uno stato di ripristino confermato; il completamento non è ancora confermato.",
                 "actorUnknown": "Un amministratore",
                 "phases": {
                     "queued": "Ripristino in coda",
+                    "preparing": "Preparazione del ripristino",
                     "validating": "Verifica del backup",
                     "quiescing": "Sospensione dei servizi",
                     "database": "Ripristino del database",
