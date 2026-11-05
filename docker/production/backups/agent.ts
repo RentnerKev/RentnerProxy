@@ -11,6 +11,7 @@ import { syncBackupDirectory, verifyPublishedBackup } from '../../../scripts/bac
 import { parseBackupMetadata } from '../../../scripts/backup/format.ts'
 import { createBackupDownload } from './download.ts'
 import { writeMaintenanceProgress } from './restore.ts'
+import { hasRestartedRestoreProof } from './restart-recovery.ts'
 import { createOffHostBackupService, cleanupOffHostTemporaryFiles } from './off-host.ts'
 import { offHostConfigurationUpdateSchema } from '../../../web/src/lib/Backups/offHostValidation.ts'
 import {
@@ -583,6 +584,7 @@ export async function startBackupAgent() {
             }
         },
         recoverRestore: async (operation) => {
+            if (await hasRestartedRestoreProof(operation)) return true
             try {
                 const active = identitySchema.parse(await readPrivateJson(activeFile, 4096))
                 const result = resultSchema.parse(await readPrivateJson(resultFile, 4096))

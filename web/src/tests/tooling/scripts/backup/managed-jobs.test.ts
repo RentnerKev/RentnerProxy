@@ -459,6 +459,69 @@ describe('managed backup maintenance', () => {
         expect(invoked).toBe(false)
     })
 
+    test.each(['failed', 'interrupted'] as const)(
+        'a %s final restart waits for fresh root readiness before completing exactly once',
+        async (failure) => {
+            const f = fixture()
+            f.dependencies.execute = async (job) => ({
+                id: job.id,
+                metadataSha256: digest,
+                bytes: 100,
+            })
+            const original = await createManagedBackupEngine(f.dependencies)
+            const job = await original.start(f.request())
+            await original.tick()
+            await original.updateConfiguration(f.config())
+            const request = { ...f.request(), metadataSha256: digest, actorName: 'Kevin' }
+            const accepted = await original.requestMaintenance(job.id, request, 'restore')
+            const stopped = structuredClone(f.read())
+            Object.assign(stopped.maintenance!, {
+                state: failure,
+                phase: 'restarting',
+                progressPercent: 90,
+                error: 'recovery_failed',
+                finishedAt: 1,
+            })
+            Object.assign(stopped.maintenanceRequests![0]!, stopped.maintenance)
+            f.dependencies.read = async () => stopped
+            let ready = false
+            let checks = 0
+            f.dependencies.recoverRestore = async (operation) => {
+                checks += 1
+                expect(operation.id).toBe(accepted.id)
+                return ready
+            }
+            f.dependencies.restore = async () => {
+                throw new Error('a completed replacement must never be repeated')
+            }
+            const recovered = await createManagedBackupEngine(f.dependencies)
+            f.setNow(3_600_000)
+            await recovered.tick()
+            expect((await recovered.status()).maintenance?.state).toBe(failure)
+            expect((await recovered.status()).jobs).toEqual(stopped.jobs)
+            ready = true
+            await recovered.tick()
+            const complete = (await recovered.status()).maintenance!
+            expect(complete).toMatchObject({
+                id: accepted.id,
+                state: 'succeeded',
+                phase: 'complete',
+                progressPercent: 100,
+                error: null,
+                finishedAt: 3_600_000,
+            })
+            expect(await recovered.requestMaintenance(job.id, request, 'restore')).toEqual(complete)
+            expect(f.read().maintenanceRequests![0]).toEqual(complete)
+            await recovered.tick()
+            expect(checks).toBe(2)
+            expect(
+                (await recovered.status()).auditEvents.filter(
+                    (event) => event.kind === 'restore_succeeded',
+                ),
+            ).toHaveLength(1)
+        },
+    )
+
     test('delete recovery acknowledges a durably removed selected artifact without touching another point', async () => {
         const f = fixture()
         f.dependencies.execute = async (job) => ({ id: job.id, metadataSha256: digest, bytes: 100 })

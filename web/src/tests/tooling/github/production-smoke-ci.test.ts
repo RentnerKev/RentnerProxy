@@ -19,11 +19,15 @@ test('managed backup diagnostics forward only fixed phases and bounded response 
     const progress = smokeProgress('backups')
     for (const line of [
         'Managed backup fixture failed during download-response',
+        'Managed backup fixture failed during online-restore',
         'Managed backup download response: status=503 tar=false private=true attachment=false',
         'Managed backup controller response: status=503 tar=false',
     ])
         expect(progress.consume(line)).toBe(line)
     expect(progress.consume('Managed backup fixture failed during private-token')).toBeUndefined()
+    expect(
+        progress.consume('Managed backup fixture failed during online-restore private-token'),
+    ).toBeUndefined()
     expect(
         progress.consume('Managed backup agent response: status=200 tar=true secret=private'),
     ).toBeUndefined()

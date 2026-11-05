@@ -152,10 +152,18 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         })
         if (result.failed || !result.stopped) {
             const phase =
-                /Managed backup fixture probe failed during (setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit)\b/u.exec(
+                /Managed backup fixture probe failed during (setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit|online-restore)\b/u.exec(
                     Buffer.from(result.stderr).toString('utf8'),
                 )?.[1]
-            if (phase && operation === 'fixture probe web-api')
+            if (
+                phase &&
+                [
+                    'fixture probe web-api',
+                    'fixture probe online-restore',
+                    'fixture probe online-restore-interrupt',
+                    'fixture probe online-restore-recover',
+                ].includes(operation)
+            )
                 console.error('Managed backup fixture failed during ' + phase)
             const downloadStatus =
                 /Managed backup download response: status=\d{3} tar=(?:true|false) private=(?:true|false) attachment=(?:true|false)/u.exec(
@@ -279,7 +287,13 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 ...(argument ? [argument] : []),
             ],
             'fixture probe ' + mode,
-            mode === 'web-api' ? 240_000 : mode === 'concurrent' ? 200_000 : 60_000,
+            mode.startsWith('online-restore')
+                ? 600_000
+                : mode === 'web-api'
+                  ? 240_000
+                  : mode === 'concurrent'
+                    ? 200_000
+                    : 60_000,
         )
         return JSON.parse(output) as unknown
     }
@@ -672,6 +686,48 @@ export async function runManagedBackupsSmoke(): Promise<number> {
         await healthy(restoredSource)
         passed(
             'same volume restore safely resumes root audit acknowledgements without replaying paused notifications',
+        )
+        assert.deepEqual(await probe(restoredSource, 'online-restore'), { restored: true })
+        await healthy(restoredSource)
+        passed(
+            'authenticated web restore completes, preserves current sessions and resumes live progress after service restart',
+        )
+        assert.deepEqual(await probe(restoredSource, 'online-restore-interrupt'), {
+            recoveryPending: true,
+        })
+        await wait(
+            async () =>
+                (await command(
+                    ['docker', 'inspect', '--format', '{{.State.Running}}', restoredSource],
+                    'inspect failed restore fixture',
+                )) === 'false',
+            'failed final restore restart stops the owned appliance',
+            180_000,
+        )
+        assert.notEqual(
+            await command(
+                ['docker', 'inspect', '--format', '{{.State.ExitCode}}', restoredSource],
+                'verify failed restore exit',
+            ),
+            '0',
+        )
+        await command(
+            [
+                'docker',
+                'cp',
+                join(repositoryRoot, 'docker/web/healthcheck.ts'),
+                restoredSource + ':/opt/rentnerproxy/web/docker/web/healthcheck.ts',
+            ],
+            'repair owned fixture health probe',
+        )
+        await command(
+            ['docker', 'start', restoredSource],
+            'restart the interrupted restore fixture',
+        )
+        await healthy(restoredSource)
+        assert.deepEqual(await probe(restoredSource, 'online-restore-recover'), { restored: true })
+        passed(
+            'a failed final restore restart completes only after fresh appliance readiness, retaining data and browser sessions',
         )
     } finally {
         if (lockProbePending) {
