@@ -6,8 +6,30 @@ import { tokenPasswordInputSchema } from '@/features/Auth/PasswordReset/validati
 import { changePasswordInputSchema } from '@/features/UserSettings/validation.ts'
 import { loginInputSchema } from '@/features/Auth/Login/validation.ts'
 import { credentialPasswordSchema, emailSchema, newPasswordSchema } from '@/lib/Auth/validation.ts'
+import { hasMinimumNewPasswordLength } from '@/lib/Auth/passwordPolicy.ts'
 
 describe('authentication validation', () => {
+    test.each([
+        { password: '', meetsMinimum: false },
+        { password: 'x', meetsMinimum: false },
+        { password: 'xx', meetsMinimum: true },
+        { password: '😀', meetsMinimum: false },
+        { password: '😀😀', meetsMinimum: true },
+        { password: '😀x', meetsMinimum: true },
+    ])('checks only the code-point minimum for $password', ({ password, meetsMinimum }) => {
+        expect(hasMinimumNewPasswordLength(password)).toBe(meetsMinimum)
+    })
+
+    test('keeps the minimum check independent of the maximum for a long input', () => {
+        const password = '😀'.repeat(100_000)
+        expect(hasMinimumNewPasswordLength(password)).toBeTrue()
+        const result = newPasswordSchema.safeParse(password)
+        expect(result.success).toBeFalse()
+        if (!result.success) {
+            expect(result.error.issues.map((issue) => issue.code)).toEqual(['too_big'])
+        }
+    })
+
     test('normalizes email comparison casing and surrounding whitespace', () => {
         expect(emailSchema.parse('  Owner@Example.COM ')).toBe('owner@example.com')
     })

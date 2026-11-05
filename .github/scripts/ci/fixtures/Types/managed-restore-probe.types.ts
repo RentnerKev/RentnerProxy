@@ -1,20 +1,6 @@
-export type RestoreCheckpoint =
-    | 'fixture'
-    | 'management-proxy'
-    | 'seed'
-    | 'backup-connect'
-    | 'backup-start'
-    | 'backup-complete'
-    | 'session-update'
-    | 'restore-connect'
-    | 'restore-start'
-    | 'restore-complete'
-    | 'progress'
-    | 'completion-stream'
-    | 'completion-api'
-    | 'completion-files'
-    | 'interrupted-checkpoint'
-    | 'recovery-fixture'
+import type { RESTORE_CHECKPOINTS } from '../../online-restore-diagnostics.ts'
+
+export type RestoreCheckpoint = (typeof RESTORE_CHECKPOINTS)[number]
 
 export interface RestoreProgressLock {
     release: () => Promise<void>

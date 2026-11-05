@@ -9,7 +9,41 @@ import { SMOKE_RUN_LABEL, smokeRunScope } from '../../../../scripts/smoke/resour
 import {
     onlineRestoreFailureDiagnostic,
     isOnlineRestoreDiagnostic,
-} from '../../../../.github/scripts/ci/fixtures/managed-restore-probe.ts'
+    RESTORE_CHECKPOINTS,
+} from '../../../../.github/scripts/ci/online-restore-diagnostics.ts'
+import { waitForRestoreCheckpoint } from '../../../../.github/scripts/ci/fixtures/managed-restore-probe.ts'
+import { smokeProgress } from '../../../../.github/scripts/ci/production-smoke-ci.ts'
+
+test.each(RESTORE_CHECKPOINTS)(
+    'every declared checkpoint passes both diagnostic boundaries: %s',
+    (phase) => {
+        const assertion = new Error('synthetic-private-value')
+        assertion.name = 'AssertionError'
+        for (const [error, category] of [
+            [assertion, 'assertion'],
+            [new DOMException('synthetic-private-value', 'TimeoutError'), 'timeout'],
+            [new Error('synthetic-private-value'), 'other'],
+        ] as const) {
+            const line = `Managed online restore checkpoint: ${phase} category=${category}`
+            expect(onlineRestoreFailureDiagnostic(phase, error)).toBe(line)
+            expect(managedRestoreDiagnostic(line)).toBe(line)
+            expect(smokeProgress('backups').consume(line)).toBe(line)
+        }
+    },
+)
+
+test('an actual restore checkpoint deadline is classified as a sanitized timeout', async () => {
+    let failure: unknown
+    try {
+        await waitForRestoreCheckpoint(async () => undefined, 1)
+    } catch (error) {
+        failure = error
+    }
+    expect(failure).toBeInstanceOf(DOMException)
+    const line = onlineRestoreFailureDiagnostic('progress', failure)
+    expect(line).toBe('Managed online restore checkpoint: progress category=timeout')
+    expect(smokeProgress('backups').consume(managedRestoreDiagnostic(line)!)).toBe(line)
+})
 
 test('online restore diagnostics expose only fixed checkpoints and exception categories', () => {
     const secret = 'synthetic-private-session-and-SQL'

@@ -11,12 +11,18 @@ import type { DiscoveryApi } from '@/features/Admin/DockerDiscovery/Types/discov
 import {
     discoveryCandidate,
     discoveryOverview,
+    discoveryRegistry,
+    discoverySnapshot,
     DISCOVERY_HOST,
 } from '@/tests/Helpers/discoveryFixture.ts'
 import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
 import { getProxyHostTableActionItems } from '@/lib/Admin/ProxyHostManagement/proxyHostTableActions.ts'
 import { discoveredHost } from '@/tests/Helpers/discoveryFixture.ts'
+import {
+    createDiscoveryPlan,
+    discoverySourceKey,
+} from '@/server/Admin/DockerDiscovery/discovery-plan.ts'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
@@ -240,6 +246,47 @@ async function live(value: DiscoveryOverview, set: (value: DiscoveryOverview) =>
 }
 
 describe('Docker discovery management UI', () => {
+    test.each([null, DISCOVERY_HOST])(
+        'links visible and overflow domains with saved TLS despite a detached candidate mismatch (%s)',
+        async (certificateId) => {
+            const domains = ['first.example.com', 'second.example.com', 'overflow.example.com']
+            const candidate = discoveryCandidate({
+                domains,
+                certificateId: certificateId === null ? DISCOVERY_HOST : null,
+            })
+            const plan = createDiscoveryPlan(
+                discoverySnapshot([candidate]),
+                discoveryRegistry({
+                    owners: [
+                        {
+                            key: discoverySourceKey(
+                                'http://docker-proxy:2375',
+                                candidate.sourceId!,
+                            ),
+                            sourceId: candidate.sourceId!,
+                            hostId: DISCOVERY_HOST,
+                            containerId: candidate.containerId,
+                            domains,
+                            state: 'detached',
+                            error: null,
+                        },
+                    ],
+                }),
+                { hosts: [discoveredHost({ domains, certificateId })], domains: [] },
+            )
+            const f = fixture(discoveryOverview([candidate], { rows: plan.rows }))
+            await render(f.api)
+            const scheme = certificateId ? 'https' : 'http'
+            expect(
+                [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].map((link) =>
+                    link.getAttribute('href'),
+                ),
+            ).toEqual(domains.slice(0, 2).map((domain) => `${scheme}://${domain}`))
+            await click(document.querySelector('button[aria-label="Show 1 more domains"]')!)
+            expect(document.querySelector(`a[href="${scheme}://${domains[2]}"]`)).not.toBeNull()
+        },
+    )
+
     test.each([null, DISCOVERY_HOST])(
         'links visible and overflow discovery domains using candidate TLS configuration (%s)',
         async (certificateId) => {

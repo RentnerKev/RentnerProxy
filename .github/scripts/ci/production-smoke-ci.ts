@@ -1,5 +1,5 @@
 import type { Suite, Result } from './Types/production-smoke-ci.types.ts'
-import { isOnlineRestoreDiagnostic } from './fixtures/managed-restore-probe.ts'
+import { isOnlineRestoreDiagnostic } from './online-restore-diagnostics.ts'
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isDockerBuildDiagnostic } from '../../../scripts/smoke/docker-build-diagnostics.ts'

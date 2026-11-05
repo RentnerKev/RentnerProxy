@@ -128,7 +128,7 @@ export function createDiscoveryPlan(
             containerId: candidate.containerId,
             hostId: owner?.hostId ?? null,
             domains: candidate.domains,
-            certificateId: candidate.certificateId,
+            certificateId: host ? host.certificateId : candidate.certificateId,
             target: candidate.target,
             state: error && ['current', 'create', 'update'].includes(state) ? 'conflicted' : state,
             issues: [...new Set(issues)],

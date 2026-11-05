@@ -35,6 +35,30 @@ function owned() {
 }
 const empty = { hosts: [], domains: [] }
 
+for (const mode of ['managed', 'paused', 'detached'] as const) {
+    test.each([null, DISCOVERY_HOST])(
+        `${mode} discovery rows link using saved TLS when the candidate differs (%s)`,
+        (certificateId) => {
+            const candidateCertificateId = certificateId === null ? DISCOVERY_HOST : null
+            const registry = owned()
+            registry.enabled = mode !== 'paused'
+            if (mode === 'detached') registry.owners[0]!.state = 'detached'
+            const plan = createDiscoveryPlan(
+                discoverySnapshot([discoveryCandidate({ certificateId: candidateCertificateId })]),
+                registry,
+                {
+                    hosts: [discoveredHost({ certificateId })],
+                    domains: [{ domain: 'app.example.com', proxyHostId: DISCOVERY_HOST }],
+                },
+            )
+            expect(plan.rows[0]?.certificateId).toBe(certificateId)
+            expect(plan.rows[0]?.state).toBe(mode === 'detached' ? 'detached' : 'update')
+            if (mode === 'detached') expect(plan.changes).toHaveLength(0)
+            else expect(plan.changes[0]?.input.certificateId).toBe(candidateCertificateId)
+        },
+    )
+}
+
 test.each([null, DISCOVERY_HOST])(
     'discovery rows preserve candidate TLS configuration (%s)',
     (certificateId) => {
