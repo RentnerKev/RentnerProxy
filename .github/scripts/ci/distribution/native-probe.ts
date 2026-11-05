@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { distributionCommand } from '../../distribution/process.ts'
+import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import {
     seedPersistenceFixture,
     readPersistenceSnapshot,
@@ -298,7 +299,20 @@ async function run() {
         'original',
     )
     stage = 'management and Valkey readiness'
-    assert.equal((await fetch('http://127.0.0.1:81/health/ready')).status, 200)
+    await waitForSmoke(
+        async () => {
+            const response = await fetch('http://127.0.0.1:81/health/ready', {
+                signal: AbortSignal.timeout(1000),
+            })
+            await response.body?.cancel()
+            return response.status === 200
+        },
+        {
+            timeoutMs: 30_000,
+            intervalMs: 250,
+            timeoutError: () => new Error('Published management endpoint did not become ready'),
+        },
+    )
     assert.equal(
         await command([
             'podman',

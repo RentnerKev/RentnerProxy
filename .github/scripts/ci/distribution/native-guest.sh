@@ -5,7 +5,12 @@ umask 077
 [[ ${ARCHITECTURE:-} == amd64 || ${ARCHITECTURE:-} == arm64 ]] || exit 1
 [[ ${TARGET:-} == debian || ${TARGET:-} == fedora ]] || exit 1
 [[ ${MODE:-} == package || ${MODE:-} == quadlet ]] || exit 1
-trap 'result=$?; printf "Native %s %s %s failed at line %s (exit %s).\n" "$TARGET" "$ARCHITECTURE" "$MODE" "$LINENO" "$result" >&2; exit "$result"' ERR
+failed() {
+    local result=$?
+    printf 'Native %s %s %s failed at line %s (exit %s).\n' "$TARGET" "$ARCHITECTURE" "$MODE" "$1" "$result" >&2
+    exit "$result"
+}
+trap 'failed "$LINENO"' ERR
 # shellcheck source=/dev/null
 source /etc/os-release
 case "$TARGET/$ID/$VERSION_ID" in debian/debian/13|fedora/fedora/44) ;; *) exit 1 ;; esac
