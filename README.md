@@ -39,8 +39,10 @@
 - Live status and access logs; English, German, Spanish, French, Italian, Portuguese, Dutch, and Polish UI.
 - Single-container appliance with Caddy, PostgreSQL, Valkey, and a Rust controller.
 
-Manual and delegated DNS-01 are planned for [v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/milestone/9)
-and are not part of Beta 2. The remaining implementation is tracked in
+Manual and delegated DNS-01 are implemented on `main` for
+[v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/milestone/9) and are not part of Beta 2.
+See the [DNS-01 operations guide](docs/operations.md#dns-01-certificates) for setup, supported
+delegation targets, renewal and recovery. Shared acceptance is tracked in
 [#277](https://github.com/RentnerKev/RentnerProxy/issues/277).
 
 ## Installation
