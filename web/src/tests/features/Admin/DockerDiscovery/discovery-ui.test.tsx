@@ -247,6 +247,70 @@ async function live(value: DiscoveryOverview, set: (value: DiscoveryOverview) =>
 
 describe('Docker discovery management UI', () => {
     test.each([null, DISCOVERY_HOST])(
+        'keeps conflicting foreign domains as pills without visible or overflow links (%s)',
+        async (certificateId) => {
+            const domains = ['owned.example.com', 'foreign.example.com', 'overflow.example.com']
+            const candidate = discoveryCandidate({ domains, certificateId })
+            const foreignHostId = '0198d98a-0000-7000-8000-000000000003'
+            const plan = createDiscoveryPlan(
+                discoverySnapshot([candidate]),
+                discoveryRegistry({
+                    owners: [
+                        {
+                            key: discoverySourceKey(
+                                'http://docker-proxy:2375',
+                                candidate.sourceId!,
+                            ),
+                            sourceId: candidate.sourceId!,
+                            hostId: DISCOVERY_HOST,
+                            containerId: candidate.containerId,
+                            domains: [domains[0]!],
+                            state: 'managed',
+                            error: null,
+                        },
+                    ],
+                }),
+                {
+                    hosts: [
+                        discoveredHost({ domains: [domains[0]!], certificateId }),
+                        discoveredHost({
+                            id: foreignHostId,
+                            domains: domains.slice(1),
+                            certificateId: certificateId === null ? DISCOVERY_HOST : null,
+                        }),
+                    ],
+                    domains: domains.map((domain, index) => ({
+                        domain,
+                        proxyHostId: index === 0 ? DISCOVERY_HOST : foreignHostId,
+                    })),
+                },
+            )
+            expect(plan.rows[0]?.state).toBe('conflicted')
+            expect(plan.rows[0]?.issues).toContain('domain_conflict')
+            const f = fixture(discoveryOverview([candidate], { rows: plan.rows }))
+            await render(f.api)
+            const body = document.querySelector('tbody')!
+            expect(body.querySelector('a')).toBeNull()
+            for (const domain of domains.slice(0, 2)) {
+                const pill = [...body.querySelectorAll('span')].find(
+                    (element) => element.textContent === domain,
+                )
+                expect(pill?.textContent).toBe(domain)
+            }
+            await click(document.querySelector('button[aria-label="Show 1 more domains"]')!)
+            const overflow = document.querySelector(
+                '[role="dialog"][aria-label="Show 1 more domains"]',
+            )!
+            expect(overflow).not.toBeNull()
+            expect(overflow.querySelector('a')).toBeNull()
+            const pill = [...overflow.querySelectorAll('span')].find(
+                (element) => element.textContent === domains[2],
+            )
+            expect(pill?.textContent).toBe(domains[2])
+        },
+    )
+
+    test.each([null, DISCOVERY_HOST])(
         'links visible and overflow domains with saved TLS despite a detached candidate mismatch (%s)',
         async (certificateId) => {
             const domains = ['first.example.com', 'second.example.com', 'overflow.example.com']

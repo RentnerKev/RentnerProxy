@@ -8,6 +8,7 @@ export default function ManagedDomainOverflow({
     ariaLabel,
     domains,
     scheme = 'https',
+    allowLinks = true,
     tone = 'success',
     descriptionId,
 }: ManagedDomainOverflowProps) {
@@ -49,6 +50,7 @@ export default function ManagedDomainOverflow({
                                 }
                                 domain={domain}
                                 scheme={scheme}
+                                allowLinks={allowLinks}
                                 aria-describedby={descriptionId}
                                 key={domain}
                             />

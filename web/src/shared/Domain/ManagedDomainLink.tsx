@@ -8,6 +8,7 @@ const ManagedDomainLink = forwardRef<HTMLAnchorElement, ManagedDomainLinkProps>(
             className = '',
             domain,
             scheme = 'https',
+            allowLinks = true,
             onClick,
             onKeyDown,
             onPointerDown,
@@ -18,6 +19,7 @@ const ManagedDomainLink = forwardRef<HTMLAnchorElement, ManagedDomainLinkProps>(
         const { state, handler } = useManagedDomainLinkLogic({
             domain,
             scheme,
+            allowLinks,
             onClick,
             onKeyDown,
             onPointerDown,

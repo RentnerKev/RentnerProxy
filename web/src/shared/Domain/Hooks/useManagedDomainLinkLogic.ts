@@ -8,6 +8,7 @@ import type {
 export default function useManagedDomainLinkLogic({
     domain,
     scheme = 'https',
+    allowLinks = true,
     onClick,
     onKeyDown,
     onPointerDown,
@@ -15,7 +16,7 @@ export default function useManagedDomainLinkLogic({
     const { t } = useTranslationStore()
     return {
         state: {
-            href: getManagedDomainHref(domain, scheme),
+            href: allowLinks ? getManagedDomainHref(domain, scheme) : null,
             ariaLabel: t('common.openDomainInNewTab', { domain }),
         },
         handler: {
