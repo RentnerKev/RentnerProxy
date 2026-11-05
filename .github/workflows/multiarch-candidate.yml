@@ -50,8 +50,8 @@ jobs:
                   CANDIDATE_DIRECTORY: ${{ runner.temp }}/candidate
                   DISTRIBUTION_DIRECTORY: ${{ runner.temp }}/distribution
               run: |
-                  export REVISION=bbe6680f8a95407b44b179a1a387e0486b6517b9 VERSION=v1.0.0-beta.9999
-                  export EXPECTED_DIGEST=$(jq -r .digest "$CANDIDATE_DIRECTORY/evidence.json")
+                  export REVISION=$(jq -r .revision "$DISTRIBUTION_DIRECTORY/bundle.json") VERSION=v1.0.0-beta.9999
+                  export EXPECTED_DIGEST=$(jq -r .digest "$DISTRIBUTION_DIRECTORY/bundle.json")
                   export ARCHIVE_SHA256=$(sha256sum "$CANDIDATE_DIRECTORY/candidate-image.tar" | cut -d ' ' -f1)
                   export BUNDLE_SHA256=$(sha256sum "$DISTRIBUTION_DIRECTORY/bundle.json" | cut -d ' ' -f1)
                   export GITHUB_RUN_ID=41932448192 GITHUB_RUN_ATTEMPT=1
