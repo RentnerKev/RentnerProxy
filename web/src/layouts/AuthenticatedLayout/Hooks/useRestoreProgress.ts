@@ -8,7 +8,7 @@ import { backupRestoreSnapshotSchema } from '@/lib/Backups/validation.ts'
 import type { ManagedBackupMaintenance } from '@/lib/Backups/Types/backups.types.ts'
 import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
 
-export default function useRestoreProgress() {
+export default function useRestoreProgress(beforeHide?: () => void) {
     const queryClient = useQueryClient()
     const router = useRouter()
     const { t } = useTranslationStore()
@@ -49,6 +49,7 @@ export default function useRestoreProgress() {
             if (previous && previous.id !== next.id) retireOperation(previous.id)
             // Preserve the route and its component state below the screen. A disconnect
             // or empty snapshot cannot confirm that destructive replacement finished.
+            if (!previous) beforeHide?.()
             current.current = next
             setMaintenance(next)
             if (next.state !== 'succeeded' || completing.current === next.id) return
@@ -75,7 +76,7 @@ export default function useRestoreProgress() {
                 completing.current = null
             }
         },
-        [queryClient, router, t, retireOperation],
+        [beforeHide, queryClient, router, t, retireOperation],
     )
     const status = useLiveQuery<unknown>({
         topic: 'backup-restore',

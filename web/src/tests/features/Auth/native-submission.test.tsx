@@ -154,6 +154,46 @@ for (const [label, Form, fields] of [
     ['password reset', ResetPassword, ['password', 'confirmPassword']],
     ['invite acceptance', AcceptInvite, ['displayName', 'password', 'confirmPassword']],
 ] as const) {
+    test(`${label} accepts a fresh completed form without blurring its final field`, async () => {
+        const container = document.createElement('div')
+        document.body.append(container)
+        root = createRoot(container)
+        await act(async () => {
+            root!.render(providers(<Form />))
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        const form = container.querySelector('form')!
+        const inputs = [...form.querySelectorAll<HTMLInputElement>('input[name]')]
+        for (const input of inputs) {
+            // oxlint-disable-next-line no-await-in-loop -- Focus changes must reproduce ordinary field-by-field typing and blur events.
+            await act(async () => {
+                input.focus()
+                const value =
+                    input.name === 'email'
+                        ? 'owner@example.test'
+                        : input.name === 'displayName'
+                          ? 'Owner'
+                          : input.name === 'credential'
+                            ? '123456'
+                            : 'valid password'
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+                    input,
+                    value,
+                )
+                input.dispatchEvent(new Event('input', { bubbles: true }))
+            })
+        }
+        expect(document.activeElement === inputs.at(-1)).toBeTrue()
+        expect(Boolean(form.querySelector('input[aria-invalid="true"]'))).toBeFalse()
+        expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBeFalse()
+        expect(Boolean(form.querySelector('[role="alert"]'))).toBeFalse()
+        await act(async () => {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(submit).toHaveBeenCalledTimes(1)
+    })
+
     test(`${label} renders a safe native POST method before event handlers exist`, () => {
         const container = document.createElement('div')
         container.innerHTML = renderToString(providers(<Form />))
@@ -184,13 +224,37 @@ for (const [label, Form, fields] of [
         expect(form.method).toBe('post')
         expect(event.defaultPrevented).toBeTrue()
         expect(submit).not.toHaveBeenCalled()
-        if (label === 'login' || label === 'two-factor verification') {
-            expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
-            expect(container.querySelector('input[aria-invalid="true"]')).not.toBeNull()
-        } else {
+        expect(
+            container.querySelector('[id$="-error"]:not(.sr-only)')?.textContent?.trim().length,
+        ).toBeGreaterThan(0)
+        expect(Boolean(container.querySelector('input[aria-invalid="true"]'))).toBeTrue()
+        await act(async () => {
+            for (const input of form.querySelectorAll<HTMLInputElement>('input[name]')) {
+                const value =
+                    input.name === 'email'
+                        ? 'owner@example.test'
+                        : input.name === 'displayName'
+                          ? 'Owner'
+                          : input.name === 'credential'
+                            ? '123456'
+                            : 'valid password'
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+                    input,
+                    value,
+                )
+                input.dispatchEvent(new Event('input', { bubbles: true }))
+            }
+        })
+        expect(Boolean(container.querySelector('input[aria-invalid="true"]'))).toBeFalse()
+        if (label !== 'password reset' && label !== 'invite acceptance') {
             expect(
-                container.querySelector('[id$="-error"]')?.textContent?.trim().length,
-            ).toBeGreaterThan(0)
+                form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled,
+            ).toBeFalse()
         }
+        await act(async () => {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(submit).toHaveBeenCalledTimes(1)
     })
 }

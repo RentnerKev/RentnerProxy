@@ -177,7 +177,7 @@ test.each(['focus', 'online'] as const)(
     },
 )
 
-test('an invalid second-factor credential uses toast feedback and retains invalid marking', async () => {
+test('an invalid second-factor credential uses inline feedback and retains invalid marking', async () => {
     status.mockResolvedValueOnce({ valid: true, methods: ['totp'] })
     await mount(<TwoFactorLoginPage />)
     await until(() => Boolean(document.querySelector('input[name="credential"]')))
@@ -187,20 +187,20 @@ test('an invalid second-factor credential uses toast feedback and retains invali
             .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
         await new Promise((resolve) => setTimeout(resolve, 5))
     })
-    expect(errorToast.mock.calls.length).toBeGreaterThan(0)
+    expect(errorToast).not.toHaveBeenCalled()
     expect(document.querySelector('input[name="credential"]')?.getAttribute('aria-invalid')).toBe(
         'true',
     )
     expect(
         document.querySelector('[id$="-error"]:not(.sr-only), [role="alert"], output'),
-    ).toBeNull()
+    ).not.toBeNull()
     const input = document.querySelector<HTMLInputElement>('input[name="credential"]')!
     await act(async () => input.focus())
     expect(document.activeElement === input).toBeTrue()
     const description = document.getElementById(input.getAttribute('aria-describedby')!)!
-    expect(description.classList.contains('sr-only')).toBeTrue()
+    expect(description.classList.contains('sr-only')).toBeFalse()
     expect(description.textContent?.length).toBeGreaterThan(0)
-    expect(description.hasAttribute('role')).toBeFalse()
+    expect(description.getAttribute('role')).toBe('alert')
 })
 
 test.each(['expired', 'unavailable'] as const)(

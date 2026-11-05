@@ -99,7 +99,8 @@
         "clearSelection": "Wyczyść wybór",
         "edit": "Edytuj",
         "delete": "Usuń",
-        "automaticRecovery": "Automatyczne ponawianie…"
+        "automaticRecovery": "Automatyczne ponawianie…",
+        "close": "Zamknij"
     },
     "inputs": {
         "invalidPhone": "Wpisz prawidłowy numer telefonu.",
@@ -244,7 +245,7 @@
         "user_not_found": "Ten użytkownik już nie istnieje.",
         "invalid_email": "Sprawdź adres e-mail i spróbuj ponownie.",
         "invalid_input": "Sprawdź przesłane wartości i spróbuj ponownie.",
-        "password_policy": "Sprawdź hasło i spróbuj ponownie.",
+        "password_policy": "Użyj hasła zawierającego od 12 do 256 znaków.",
         "service_unavailable": "Usługa jest tymczasowo niedostępna. Spróbuj ponownie.",
         "user_not_active": "To konto nie jest aktywne."
     },
@@ -1093,7 +1094,7 @@
                 "status": "Stan",
                 "pendingHint": "Nowe konta pozostają oczekujące do momentu zaakceptowania zaproszenia.",
                 "disabledHint": "Wyłącz dostęp z menu działań użytkownika.",
-                "roles": "Grupa ról",
+                "roles": "Role",
                 "rolesReadOnly": "Możesz aktualizować dane profilu, ale nie przypisania ról tego użytkownika.",
                 "createDescription": "Utwórz konto, przydziel początkowy dostęp i wyślij zaproszenie.",
                 "editDescription": "Zaktualizuj dane konta i przypisane role.",

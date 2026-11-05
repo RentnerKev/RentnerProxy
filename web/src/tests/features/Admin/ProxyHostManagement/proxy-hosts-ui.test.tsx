@@ -1109,7 +1109,7 @@ describe('ProxyHost management table', () => {
         const domainLink = [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].find(
             (link) => link.textContent?.trim() === 'app.example.com',
         )
-        expect(domainLink?.getAttribute('href')).toBe('https://app.example.com')
+        expect(domainLink?.getAttribute('href')).toBe('http://app.example.com')
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
         expect(domainLink?.getAttribute('aria-label')).toBe('Open app.example.com in a new tab')

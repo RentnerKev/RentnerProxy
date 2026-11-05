@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '@/config/auth.config.ts'
 
 export const emailSchema = z
     .string()
@@ -14,7 +15,6 @@ export const displayNameSchema = z
     .min(2, 'Display name must contain at least 2 characters.')
     .max(100, 'Display name must contain at most 100 characters.')
 
-const PASSWORD_MAX_LENGTH = 256
 const PASSWORD_MAX_LENGTH_MESSAGE = `Password must contain at most ${PASSWORD_MAX_LENGTH} characters.`
 
 function enforcePasswordCodeUnitLimit(password: string, context: z.RefinementCtx) {
@@ -36,7 +36,7 @@ export const credentialPasswordSchema = z
 
 export const newPasswordSchema = z
     .string()
-    .min(1, 'Enter a password.')
+    .min(PASSWORD_MIN_LENGTH, `Password must contain at least ${PASSWORD_MIN_LENGTH} characters.`)
     .superRefine(enforcePasswordCodeUnitLimit)
 
 export function addPasswordConfirmationIssue(

@@ -13,7 +13,7 @@ export default function LoginForm({ state, form, handler }: LoginFormProps) {
             noValidate
             onSubmit={handler.handleSubmit}
         >
-            <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
+            <form.Field name="email">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -22,12 +22,10 @@ export default function LoginForm({ state, form, handler }: LoginFormProps) {
                         kind="email"
                         autoComplete="username"
                         maxLength={254}
-                        errorFeedback="toast"
-                        validationEpoch={state.validationEpochs.email ?? 0}
                     />
                 )}
             </form.Field>
-            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
+            <form.Field name="password">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -36,8 +34,6 @@ export default function LoginForm({ state, form, handler }: LoginFormProps) {
                         kind="password"
                         autoComplete="current-password"
                         maxLength={256}
-                        errorFeedback="toast"
-                        validationEpoch={state.validationEpochs.password ?? 0}
                         labelAction={<Link to="/forgot-password">Forgot password?</Link>}
                     />
                 )}

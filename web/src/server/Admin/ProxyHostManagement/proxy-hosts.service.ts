@@ -407,7 +407,8 @@ export async function searchProxyHostsService(
     return getAuthDatabase()
         .select({
             id: proxyHosts.id,
-            label: sql<string>`coalesce((select ${hostDomains.domain} from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} order by ${hostDomains.domain} limit 1), '')`,
+            // Drizzle unqualifies column objects inside SELECT expressions, including nested SQL.
+            label: sql<string>`coalesce((select "host_domains"."domain" from ${hostDomains} where "host_domains"."proxy_host_id" = "proxy_hosts"."id" order by "host_domains"."domain" limit 1), '')`,
             detail: sql<string>`${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}`,
         })
         .from(proxyHosts)

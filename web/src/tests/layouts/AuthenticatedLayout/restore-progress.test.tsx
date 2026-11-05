@@ -253,6 +253,17 @@ test('APP_ACCESS-only users see the global actor, backup and genuine checkpoint 
 
 test('restore preserves the route, search, scroll and mounted drafts until confirmed cache refresh completes', async () => {
     await mount()
+    const originalDocumentScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    let documentTop = 1500
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => documentTop })
+    const documentScroll = spyOn(window, 'scrollTo').mockImplementation((options) => {
+        if (typeof options === 'object') documentTop = options.top ?? documentTop
+    })
+    restorers.push(() => {
+        documentScroll.mockRestore()
+        if (originalDocumentScroll) Object.defineProperty(window, 'scrollY', originalDocumentScroll)
+        else Reflect.deleteProperty(window, 'scrollY')
+    })
     const routeState = container.querySelector<HTMLElement>('[data-route-state]')!
     const draft = routeState.querySelector('input')!
     draft.value = 'unfinished work'
@@ -287,6 +298,8 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
     })
     await deliver(running)
     await waitFor(() => progress()?.value === 42)
+    documentTop = 0
+    expect(documentScroll).not.toHaveBeenCalled()
     expect(calls).toEqual([])
     await deliver({
         ...running,
@@ -302,6 +315,7 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
     expect(routeState.scrollTop).toBe(327)
     await act(async () => release())
     await waitFor(() => !progress())
+    await waitFor(() => !routeState.closest('[hidden]'))
     expect(router.state.location.href).toBe(originalHref)
     expect(router.state.location.search).toEqual({ filter: 'kept', page: 3 })
     expect(navigate).not.toHaveBeenCalled()
@@ -310,6 +324,7 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
     expect(draft.value).toBe('unfinished work')
     expect(routeState.textContent).toContain('Draft count 1')
     expect(routeState.scrollTop).toBe(327)
+    expect(documentTop).toBe(1500)
 })
 
 test('empty, invalid and disconnected snapshots retain the last confirmed stage without advancing', async () => {

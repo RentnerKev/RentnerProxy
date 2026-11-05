@@ -1,4 +1,3 @@
-import useValidationFeedback from '@/shared/Forms/Hooks/useValidationFeedback.ts'
 import {
     credentialPasswordSchema,
     emailSchema,
@@ -6,7 +5,7 @@ import {
 } from '@/lib/Auth/validation.ts'
 import type { AlternativeSignInOption, LoginLogicResult } from '../Types/login-logic.types.ts'
 import { startAuthentication } from '@simplewebauthn/browser'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -20,7 +19,6 @@ import { getPublicOidcProvidersHandler } from '@/features/Auth/Oidc/middleware.t
 import { oidcFeedbackCodeSchema } from '@/lib/Auth/Oidc/validation.ts'
 /** Coordinates local sign-in and native provider navigation, including restoration after browser Back. */
 export default function useLoginLogic() {
-    const feedback = useValidationFeedback()
     const navigate = useNavigate()
     const router = useRouter()
     const { t } = useTranslationStore()
@@ -130,11 +128,8 @@ export default function useLoginLogic() {
     })
     const form = useForm({
         defaultValues: { email: '', password: '' } satisfies LoginFormValues,
-        validators: { onSubmit: loginInputSchema },
-        listeners: {
-            onBlur: ({ fieldApi }) => feedback.handler.handleValidationCompleted([fieldApi.name]),
-        },
-        onSubmitInvalid: () => feedback.handler.handleValidationCompleted(['email', 'password']),
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: loginInputSchema },
         onSubmit: async ({ value }) => {
             if (localBusy.current || oidcBusy.current) return
             localBusy.current = true
@@ -259,7 +254,6 @@ export default function useLoginLogic() {
             isProviderCatalogUnavailable: providers.isError,
             oidcFeedback,
             alternativeSignInItems,
-            validationEpochs: feedback.state.validationEpochs,
         },
         handler: {
             handleSubmit,

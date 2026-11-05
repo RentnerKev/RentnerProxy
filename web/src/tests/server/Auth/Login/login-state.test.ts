@@ -374,6 +374,30 @@ beforeEach(() => {
 })
 
 describe('password authentication state', () => {
+    test.each([11, 257])(
+        'rejects a new password of %s code units without changing credentials or sessions',
+        async (length) => {
+            sessionCookie = cookieToken
+            const originalSessions = structuredClone(storedSessions)
+            await expect(
+                changeCurrentPasswordService({ password: 'x'.repeat(length) }),
+            ).rejects.toMatchObject({
+                code: 'password_policy',
+            })
+            expect(user.passwordHash).toBe(currentHash)
+            expect(storedSessions).toEqual(originalSessions)
+            expect(events).not.toContain('password-updated')
+        },
+    )
+
+    test('issues a session for an existing short password without applying the new-password policy', async () => {
+        user.passwordHash = await Bun.password.hash('x', { algorithm: 'argon2id' })
+        expect(await loginService({ email: user.email, password: 'x' })).toMatchObject({
+            success: true,
+        })
+        expect(storedSessions.length).toBeGreaterThan(0)
+    })
+
     test('changes a local password from an older active session without supplying the old password', async () => {
         sessionCookie = cookieToken
         storedSessions[0] = { ...storedSessions[0], reauthenticatedAt: new Date(0) }

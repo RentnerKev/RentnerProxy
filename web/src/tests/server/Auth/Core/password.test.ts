@@ -1,11 +1,32 @@
 import { describe, expect, test } from 'bun:test'
 
-import { hashPassword, isValidPassword } from '@/server/Auth/Core/password.server.ts'
+import {
+    hashPassword,
+    isValidPassword,
+    isValidNewPassword,
+} from '@/server/Auth/Core/password.server.ts'
 import { createOpaqueToken, hashOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 
 const PASSWORD = 'correct horse battery staple'
 
 describe('password hashing', () => {
+    test.each([0, 1, 11, 257])(
+        'rejects a new password of %i characters before hashing',
+        async (length) => {
+            const password = 'x'.repeat(length)
+            expect(isValidNewPassword(password)).toBeFalse()
+            await expect(hashPassword(password)).rejects.toMatchObject({ code: 'password_policy' })
+        },
+    )
+    test.each([
+        { label: 'minimum', password: 'x'.repeat(12) },
+        { label: 'maximum', password: 'x'.repeat(256) },
+        { label: 'UTF-16 maximum', password: '😀'.repeat(128) },
+    ])('hashes and verifies the $label password boundary', async ({ password }) => {
+        expect(isValidNewPassword(password)).toBeTrue()
+        expect(await Bun.password.verify(password, await hashPassword(password))).toBeTrue()
+    })
+
     test('accepts any non-empty password within the technical size limit', () => {
         expect(isValidPassword('x')).toBeTrue()
         expect(isValidPassword(' ')).toBeTrue()

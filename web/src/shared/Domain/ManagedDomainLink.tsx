@@ -4,11 +4,20 @@ import useManagedDomainLinkLogic from './Hooks/useManagedDomainLinkLogic.ts'
 
 const ManagedDomainLink = forwardRef<HTMLAnchorElement, ManagedDomainLinkProps>(
     function ManagedDomainLink(
-        { className = '', domain, onClick, onKeyDown, onPointerDown, ...anchorProps },
+        {
+            className = '',
+            domain,
+            scheme = 'https',
+            onClick,
+            onKeyDown,
+            onPointerDown,
+            ...anchorProps
+        },
         ref,
     ) {
         const { state, handler } = useManagedDomainLinkLogic({
             domain,
+            scheme,
             onClick,
             onKeyDown,
             onPointerDown,

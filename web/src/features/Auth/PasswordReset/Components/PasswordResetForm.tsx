@@ -13,7 +13,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
             noValidate
             onSubmit={handler.handleSubmit}
         >
-            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
+            <form.Field name="password">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -26,10 +26,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
                     />
                 )}
             </form.Field>
-            <form.Field
-                name="confirmPassword"
-                validators={{ onBlur: handler.validateConfirmPassword }}
-            >
+            <form.Field name="confirmPassword">
                 {(field) => (
                     <StringFormField
                         field={field}

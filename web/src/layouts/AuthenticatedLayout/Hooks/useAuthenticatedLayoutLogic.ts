@@ -4,7 +4,7 @@ import useApplicationLiveSync from '@/shared/Live/Hooks/useApplicationLiveSync.t
 import useThemeMode from '@/shared/Theme/Hooks/useThemeMode.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { toast } from '@rentnerkev/toasts'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import useControlLocalization from '@/layouts/RootLayout/Hooks/useControlLocalization.ts'
 import type { AuthenticatedLayoutLogicResult } from '../Types/authenticated-layout-logic.types.ts'
 import useNavigationGroupPreferences from './useNavigationGroupPreferences.ts'
@@ -13,8 +13,12 @@ import useRestoreProgress from './useRestoreProgress.ts'
 export default function useAuthenticatedLayoutLogic(
     user: AuthenticatedUser,
 ): AuthenticatedLayoutLogicResult {
-    const restore = useRestoreProgress()
+    const beforeRestoreHide = useRef<() => void>(() => {})
+    const restore = useRestoreProgress(() => beforeRestoreHide.current())
     const live = useApplicationLiveSync(restore.active)
+    useLayoutEffect(() => {
+        beforeRestoreHide.current = live.captureScroll
+    }, [live.captureScroll])
     useEffect(() => () => toast.dismissAll(), [])
     const logout = useLogout()
     const theme = useThemeMode(user.themeMode)

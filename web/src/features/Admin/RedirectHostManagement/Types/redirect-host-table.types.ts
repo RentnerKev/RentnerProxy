@@ -41,6 +41,7 @@ export interface RedirectHostTableActionsProps extends RedirectHostTableActionPr
 }
 export interface RedirectHostDomainsCellProps {
     readonly domains: ReadonlyArray<string>
+    readonly certificateId?: string | null
 }
 export interface RedirectHostDestinationCellProps {
     readonly destination: string

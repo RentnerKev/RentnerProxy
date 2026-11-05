@@ -44,7 +44,41 @@ describe('managed domain links', () => {
         expect(getManagedDomainHref('*.example.com')).toBeNull()
         expect(getManagedDomainHref('app.example.com/path')).toBeNull()
         expect(getManagedDomainHref('https://app.example.com')).toBeNull()
+        expect(getManagedDomainHref('APP.EXAMPLE.COM', 'http')).toBe('http://app.example.com')
+        for (const scheme of ['http', 'https'] as const) {
+            for (const domain of [
+                '*.example.com',
+                'app.example.com/path',
+                'user@app.example.com',
+                'app.example.com:8080',
+                'app.example.com?query',
+                'app.example.com#hash',
+                'app.example.com\\path',
+            ]) {
+                expect(getManagedDomainHref(domain, scheme)).toBeNull()
+            }
+        }
     })
+
+    for (const [HostDomainsCell, kind] of [
+        [ProxyHostDomainsCell, 'proxy'],
+        [RedirectHostDomainsCell, 'redirect'],
+    ] as const) {
+        for (const certificateId of [null, 'configured-certificate']) {
+            test(`${kind} uses the configured TLS scheme for visible and overflow domains (${certificateId})`, async () => {
+                const domains = ['first.example.com', 'second.example.com', 'overflow.example.com']
+                const scheme = certificateId ? 'https' : 'http'
+                const container = await render(
+                    <HostDomainsCell domains={domains} certificateId={certificateId} />,
+                )
+                expect(
+                    [...container.querySelectorAll('a')].map((link) => link.getAttribute('href')),
+                ).toEqual(domains.slice(0, 2).map((domain) => `${scheme}://${domain}`))
+                await act(async () => container.querySelector<HTMLButtonElement>('button')?.click())
+                expect(document.querySelector(`a[href="${scheme}://${domains[2]}"]`)).not.toBeNull()
+            })
+        }
+    }
 
     test('links proxy, certificate, and redirect domains safely without bubbling row actions', async () => {
         const rowClick = mock(() => {})

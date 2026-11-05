@@ -95,7 +95,8 @@
         "clearSelection": "Clear selection",
         "edit": "Edit",
         "delete": "Delete",
-        "automaticRecovery": "Retrying automatically…"
+        "automaticRecovery": "Retrying automatically…",
+        "close": "Close"
     },
     "inputs": {
         "invalidPhone": "Enter a valid phone number.",
@@ -240,7 +241,7 @@
         "user_not_found": "The user no longer exists.",
         "invalid_email": "Review the email address and try again.",
         "invalid_input": "Review the submitted values and try again.",
-        "password_policy": "Review the password and try again.",
+        "password_policy": "Use a password containing 12–256 characters.",
         "service_unavailable": "The service is temporarily unavailable. Try again.",
         "user_not_active": "This account is not active."
     },
@@ -1089,7 +1090,7 @@
                 "status": "Status",
                 "pendingHint": "New accounts remain pending until the invitation is accepted.",
                 "disabledHint": "Disable access from the user action menu.",
-                "roles": "Roles-Group",
+                "roles": "Roles",
                 "rolesReadOnly": "You can update profile details, but not this user’s role assignments.",
                 "createDescription": "Create the account, assign its initial access, and send an invitation.",
                 "editDescription": "Update account information and assigned roles.",

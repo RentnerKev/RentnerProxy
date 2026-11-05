@@ -115,7 +115,7 @@ describe('personal account boundary', () => {
     })
 
     test('requires password permission and delegates only the new password without reauthentication fields', async () => {
-        const input = { password: 'fixture-new' }
+        const input = { password: 'fixture-new-password' }
         boundary.failures.set('requirePermissionService', new Error('denied'))
         expect(await boundary.invoke(handlers.changePasswordHandler, input)).toMatchObject({
             success: false,

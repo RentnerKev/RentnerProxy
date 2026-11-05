@@ -5,11 +5,12 @@ export interface ManagedDomainLinkProps extends Omit<
     'children' | 'href'
 > {
     readonly domain: string
+    readonly scheme?: 'http' | 'https'
 }
 
 export type ManagedDomainLinkLogicParams = Pick<
     ManagedDomainLinkProps,
-    'domain' | 'onClick' | 'onKeyDown' | 'onPointerDown'
+    'domain' | 'scheme' | 'onClick' | 'onKeyDown' | 'onPointerDown'
 >
 
 export interface ManagedDomainLinkLogicResult {
@@ -27,6 +28,7 @@ export interface ManagedDomainLinkLogicResult {
 export interface ManagedDomainOverflowProps {
     readonly ariaLabel: string
     readonly domains: ReadonlyArray<string>
+    readonly scheme?: 'http' | 'https'
     readonly tone?: 'success' | 'danger'
     readonly descriptionId?: string | undefined
 }

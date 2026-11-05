@@ -4,7 +4,7 @@ import {
     newPasswordSchema,
 } from '@/lib/Auth/validation.ts'
 import type { PasswordResetLogicResult } from '../Types/password-reset-logic.types.ts'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -41,7 +41,8 @@ export default function usePasswordResetLogic() {
             password: '',
             confirmPassword: '',
         } satisfies PasswordResetFormValues,
-        validators: { onSubmit: passwordConfirmationInputSchema },
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: passwordConfirmationInputSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
 

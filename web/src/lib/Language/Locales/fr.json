@@ -97,7 +97,8 @@
         "clearSelection": "Effacer la sélection",
         "edit": "Modifier",
         "delete": "Supprimer",
-        "automaticRecovery": "Nouvelle tentative automatique…"
+        "automaticRecovery": "Nouvelle tentative automatique…",
+        "close": "Fermer"
     },
     "inputs": {
         "invalidPhone": "Saisissez un numéro de téléphone valide.",
@@ -242,7 +243,7 @@
         "user_not_found": "Cet utilisateur n’existe plus.",
         "invalid_email": "Vérifiez l’adresse e-mail et réessayez.",
         "invalid_input": "Vérifiez les valeurs saisies et réessayez.",
-        "password_policy": "Vérifiez le mot de passe et réessayez.",
+        "password_policy": "Utilisez un mot de passe de 12 à 256 caractères.",
         "service_unavailable": "Le service est temporairement indisponible. Réessayez.",
         "user_not_active": "Ce compte n’est pas actif."
     },
@@ -1094,7 +1095,7 @@
                 "status": "Statut",
                 "pendingHint": "Les nouveaux comptes restent en attente jusqu’à l’acceptation de l’invitation.",
                 "disabledHint": "Désactivez l’accès depuis le menu d’actions de l’utilisateur.",
-                "roles": "Groupe de rôles",
+                "roles": "Rôles",
                 "rolesReadOnly": "Vous pouvez modifier les informations du profil, mais pas les rôles attribués à cet utilisateur.",
                 "createDescription": "Créez le compte, attribuez son accès initial et envoyez une invitation.",
                 "editDescription": "Mettez à jour les informations du compte et les rôles attribués.",

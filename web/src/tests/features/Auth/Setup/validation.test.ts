@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import { setupInputSchema } from '@/features/Auth/Setup/validation.ts'
+import { acceptInviteInputSchema } from '@/features/Auth/AcceptInvite/validation.ts'
+import { tokenPasswordInputSchema } from '@/features/Auth/PasswordReset/validation.ts'
+import { changePasswordInputSchema } from '@/features/UserSettings/validation.ts'
+import { loginInputSchema } from '@/features/Auth/Login/validation.ts'
 import { credentialPasswordSchema, emailSchema, newPasswordSchema } from '@/lib/Auth/validation.ts'
 
 describe('authentication validation', () => {
@@ -8,10 +12,32 @@ describe('authentication validation', () => {
         expect(emailSchema.parse('  Owner@Example.COM ')).toBe('owner@example.com')
     })
 
-    test('accepts any non-empty password without strength rules', () => {
-        expect(newPasswordSchema.safeParse('x').success).toBeTrue()
-        expect(newPasswordSchema.safeParse(' ').success).toBeTrue()
-        expect(newPasswordSchema.safeParse('').success).toBeFalse()
+    test('requires twelve characters for new account passwords and preserves legacy login credentials', () => {
+        for (const password of ['', 'x', 'x'.repeat(11), 'x'.repeat(257)]) {
+            expect(newPasswordSchema.safeParse(password).success).toBeFalse()
+            const input = {
+                displayName: 'Owner',
+                email: 'owner@example.test',
+                password,
+                confirmPassword: password,
+                token: 'a'.repeat(43),
+            }
+            for (const schema of [
+                setupInputSchema,
+                acceptInviteInputSchema,
+                tokenPasswordInputSchema,
+                changePasswordInputSchema,
+            ]) {
+                expect(schema.safeParse(input).success).toBeFalse()
+            }
+        }
+        for (const password of ['x'.repeat(12), 'x'.repeat(256)]) {
+            expect(newPasswordSchema.safeParse(password).success).toBeTrue()
+        }
+        expect(credentialPasswordSchema.parse('x')).toBe('x')
+        expect(
+            loginInputSchema.safeParse({ email: 'owner@example.test', password: 'x' }).success,
+        ).toBeTrue()
     })
 
     test('does not trim or otherwise mutate passwords', () => {

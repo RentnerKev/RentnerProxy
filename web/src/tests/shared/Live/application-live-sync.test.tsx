@@ -727,18 +727,31 @@ test('a reconnect with a fresh matching session proof resumes the mounted page w
     draft.value = 'keep after backup'
     queryClient.setQueryData(['session-owned'], { preserved: true })
     const cached = queryClient.getQueryCache().find({ queryKey: ['session-owned'] })
-    await resumeTab()
-    expectProtectedHidden()
-    expect(invalidateSpy).not.toHaveBeenCalled()
-    await act(async () =>
-        FakeSocket.instances.at(-1)!.deliver({ ...snapshot, revision: 'restarted' }),
-    )
-    await flush()
-    expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
-    expect(container.querySelector('input')).toBe(draft)
-    expect(draft.value).toBe('keep after backup')
-    expect(queryClient.getQueryCache().find({ queryKey: ['session-owned'] })).toBe(cached)
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    const originalScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    let scrollTop = 1500
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => scrollTop })
+    const scroll = spyOn(window, 'scrollTo').mockImplementation(() => {})
+    try {
+        await resumeTab()
+        expectProtectedHidden()
+        expect(scroll).not.toHaveBeenCalled()
+        scrollTop = 0
+        expect(invalidateSpy).not.toHaveBeenCalled()
+        await act(async () =>
+            FakeSocket.instances.at(-1)!.deliver({ ...snapshot, revision: 'restarted' }),
+        )
+        await flush()
+        expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+        expect(container.querySelector('input')).toBe(draft)
+        expect(draft.value).toBe('keep after backup')
+        expect(queryClient.getQueryCache().find({ queryKey: ['session-owned'] })).toBe(cached)
+        expect(invalidateSpy).not.toHaveBeenCalled()
+        expect(scroll).toHaveBeenCalledWith({ left: 0, top: 1500, behavior: 'instant' })
+    } finally {
+        scroll.mockRestore()
+        if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll)
+        else Reflect.deleteProperty(window, 'scrollY')
+    }
 })
 
 test.each(['missing', 'different'] as const)(

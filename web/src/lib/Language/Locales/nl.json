@@ -95,7 +95,8 @@
         "clearSelection": "Selectie wissen",
         "edit": "Bewerken",
         "delete": "Verwijderen",
-        "automaticRecovery": "Automatisch opnieuw proberen…"
+        "automaticRecovery": "Automatisch opnieuw proberen…",
+        "close": "Sluiten"
     },
     "shell": {
         "backups": "Back-ups",
@@ -221,7 +222,7 @@
         "user_not_found": "De gebruiker bestaat niet meer.",
         "invalid_email": "Controleer het e-mailadres en probeer het opnieuw.",
         "invalid_input": "Controleer de ingediende waarden en probeer het opnieuw.",
-        "password_policy": "Controleer het wachtwoord en probeer het opnieuw.",
+        "password_policy": "Gebruik een wachtwoord van 12 tot 256 tekens.",
         "service_unavailable": "De dienst is tijdelijk niet beschikbaar. Probeer het opnieuw.",
         "user_not_active": "Dit account is niet actief."
     },
@@ -1070,7 +1071,7 @@
                 "status": "Status",
                 "pendingHint": "Nieuwe accounts blijven in afwachting totdat de uitnodiging is geaccepteerd.",
                 "disabledHint": "Schakel toegang uit via het actiemenu van de gebruiker.",
-                "roles": "Rollengroep",
+                "roles": "Rollen",
                 "rolesReadOnly": "Je kunt profielgegevens bijwerken, maar de roltoewijzingen van deze gebruiker niet wijzigen.",
                 "createDescription": "Maak het account aan, wijs de eerste toegangsrechten toe en verstuur een uitnodiging.",
                 "editDescription": "Werk accountgegevens en toegewezen rollen bij.",

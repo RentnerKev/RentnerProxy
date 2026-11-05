@@ -97,7 +97,8 @@
         "clearSelection": "Limpar seleção",
         "edit": "Editar",
         "delete": "Eliminar",
-        "automaticRecovery": "A tentar novamente automaticamente…"
+        "automaticRecovery": "A tentar novamente automaticamente…",
+        "close": "Fechar"
     },
     "inputs": {
         "invalidPhone": "Introduza um número de telefone válido.",
@@ -242,7 +243,7 @@
         "user_not_found": "O utilizador já não existe.",
         "invalid_email": "Reveja o endereço de e-mail e tente novamente.",
         "invalid_input": "Reveja os valores introduzidos e tente novamente.",
-        "password_policy": "Reveja a palavra-passe e tente novamente.",
+        "password_policy": "Usa uma palavra-passe de 12 a 256 caracteres.",
         "service_unavailable": "O serviço está temporariamente indisponível. Tente novamente.",
         "user_not_active": "Esta conta não está ativa."
     },
@@ -1091,7 +1092,7 @@
                 "status": "Estado",
                 "pendingHint": "As contas novas ficam pendentes até o convite ser aceite.",
                 "disabledHint": "Desative o acesso no menu de ações do utilizador.",
-                "roles": "Grupo de funções",
+                "roles": "Funções",
                 "rolesReadOnly": "Pode atualizar os dados do perfil, mas não as funções atribuídas a este utilizador.",
                 "createDescription": "Crie a conta, atribua o acesso inicial e envie um convite.",
                 "editDescription": "Atualize as informações da conta e as funções atribuídas.",

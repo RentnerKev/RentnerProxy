@@ -7,7 +7,7 @@ import {
 } from '@/lib/Auth/validation.ts'
 import type { SetupLogicResult } from '../Types/setup-logic.types.ts'
 import { useRef } from 'react'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
@@ -45,7 +45,8 @@ export default function useSetupLogic() {
             password: '',
             confirmPassword: '',
         } satisfies SetupFormValues,
-        validators: { onSubmit: setupInputSchema },
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: setupInputSchema },
         onSubmit: async ({ value }) => {
             if (submitInFlight.current) return
 

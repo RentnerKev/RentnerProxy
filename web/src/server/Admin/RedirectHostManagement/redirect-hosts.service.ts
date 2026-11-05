@@ -545,7 +545,8 @@ export async function searchRedirectHostsService(
     return getAuthDatabase()
         .select({
             id: redirectHosts.id,
-            label: sql<string>`coalesce((select ${hostDomains.domain} from ${hostDomains} where ${hostDomains.redirectHostId} = ${redirectHosts.id} order by ${hostDomains.domain} limit 1), '')`,
+            // Drizzle unqualifies column objects inside SELECT expressions, including nested SQL.
+            label: sql<string>`coalesce((select "host_domains"."domain" from ${hostDomains} where "host_domains"."redirect_host_id" = "redirect_hosts"."id" order by "host_domains"."domain" limit 1), '')`,
             detail: redirectHosts.destination,
         })
         .from(redirectHosts)

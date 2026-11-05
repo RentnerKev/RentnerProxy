@@ -7,6 +7,7 @@ import type {
 
 export default function useManagedDomainLinkLogic({
     domain,
+    scheme = 'https',
     onClick,
     onKeyDown,
     onPointerDown,
@@ -14,7 +15,7 @@ export default function useManagedDomainLinkLogic({
     const { t } = useTranslationStore()
     return {
         state: {
-            href: getManagedDomainHref(domain),
+            href: getManagedDomainHref(domain, scheme),
             ariaLabel: t('common.openDomainInNewTab', { domain }),
         },
         handler: {
