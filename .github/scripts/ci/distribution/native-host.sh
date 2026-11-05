@@ -97,7 +97,7 @@ for mode in package quadlet; do
     sudo systemctl --machine "$machine" reboot
     for (( attempt=0; attempt<120; attempt++ )); do
         current=$(sudo machinectl show "$machine" --property=Leader --value 2>/dev/null || true)
-        if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$boot" ]]; then break; fi
+        if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$boot" ]] && sudo systemctl --machine "$machine" show --property Version >/dev/null 2>&1; then break; fi
         (( attempt < 119 )) || exit 1
         sleep 1
     done
