@@ -87,7 +87,7 @@ async function pollMaintenance(): Promise<void> {
             restartingBootstrap = false
             return
         }
-        const destructivePhase = !['queued', 'validating'].includes(status.phase)
+        const destructivePhase = !['queued', 'preparing', 'validating'].includes(status.phase)
         if (
             !destructivelyQuiesced &&
             !restartingBootstrap &&

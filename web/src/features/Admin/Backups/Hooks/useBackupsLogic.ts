@@ -39,6 +39,9 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
     const mutationAbort = useRef<AbortController | null>(null)
     const liveGeneration = useRef(0)
     const downloadNotice = useRef<string | null>(null)
+    const observedJobs = useRef(new Map<string, string>())
+    const requestedBackups = useRef(new Set<string>())
+    const completedJobs = useRef(new Set<string>())
     const notifyAction = useCallback(
         (type: ToastType, key: string, requestId: string) => {
             const content = t(key)
@@ -131,6 +134,39 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
             notifyAction('success', 'admin.backups.messages.deleted', request.requestId)
         }
     }, [status, notifyAction])
+    useEffect(() => {
+        if (!status || forbidden) {
+            observedJobs.current.clear()
+            completedJobs.current.clear()
+            if (forbidden) requestedBackups.current.clear()
+            return
+        }
+        for (const job of status.jobs) {
+            const previous = observedJobs.current.get(job.id)
+            const expected =
+                previous === 'queued' ||
+                previous === 'running' ||
+                requestedBackups.current.has(job.requestId)
+            if (!expected || completedJobs.current.has(job.id)) continue
+            if (job.state === 'succeeded') {
+                completedJobs.current.add(job.id)
+                requestedBackups.current.delete(job.requestId)
+                notifyAction('success', 'admin.backups.messages.completed', job.requestId)
+            } else if (job.state === 'failed' || job.state === 'interrupted') {
+                completedJobs.current.add(job.id)
+                requestedBackups.current.delete(job.requestId)
+                notifyAction(
+                    'error',
+                    `admin.backups.errors.${job.error ?? 'execution_failed'}`,
+                    job.requestId,
+                )
+            }
+        }
+        observedJobs.current = new Map(status.jobs.map((job) => [job.id, job.state]))
+        completedJobs.current = new Set(
+            [...completedJobs.current].filter((id) => observedJobs.current.has(id)),
+        )
+    }, [status, forbidden, notifyAction])
     // oxlint-enable react/set-state-in-effect
 
     useEffect(() => {
@@ -171,6 +207,7 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
         mutationAbort.current = action
         startRequest.current ??= crypto.randomUUID()
         const requestId = startRequest.current
+        requestedBackups.current.add(requestId)
         try {
             await queryClient.cancelQueries({ queryKey })
             const saved = await requestBackup({ requestId }, action.signal)
@@ -186,7 +223,10 @@ export default function useBackupsLogic(props: BackupsPageProps): BackupsLogicRe
             revoke(error)
             const code = error instanceof BackupClientError ? error.code : 'unavailable'
             const unknown = ['unavailable', 'invalid_response', 'aborted'].includes(code)
-            if (!unknown) startRequest.current = null
+            if (!unknown) {
+                startRequest.current = null
+                requestedBackups.current.delete(requestId)
+            }
             setUncertain(unknown)
             notifyAction(
                 unknown ? 'warning' : 'error',

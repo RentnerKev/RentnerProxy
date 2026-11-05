@@ -803,7 +803,9 @@
                 "delete": "Usuń kopię"
             },
             "messages": {
-                "accepted": "Żądanie utworzenia kopii zostało zapisane. Podczas prac urządzenie może na krótko utracić połączenie; strona odświeży się automatycznie.",
+                "accepted": "Zlecono kopię zapasową. Jej stan aktualizuje się tutaj automatycznie.",
+                "completed": "Kopia zapasowa ukończona.",
+                "restored": "Kopia zapasowa została pomyślnie przywrócona.",
                 "uncertain": "Nie udało się potwierdzić wyniku żądania. Poczekaj na aktualizację historii na żywo. Ponowienie tego żądania używa tego samego identyfikatora i nie rozpoczyna tworzenia drugiej kopii.",
                 "saved": "Zapisano harmonogram i zasady przechowywania kopii.",
                 "restoreAccepted": "Zarejestrowano żądanie przywrócenia. Śledź potwierdzone etapy podczas odzyskiwania urządzenia.",
@@ -852,13 +854,14 @@
                 "returnToPage": "Wróć do poprzedniej strony",
                 "title": "Przywracanie urządzenia",
                 "description": "{{user}} przywraca kopię {{backup}}. Dotyczy to wszystkich użytkowników połączonych z tym urządzeniem.",
-                "progress": "{{percent}}% — ukończone etapy przywracania",
+                "progress": "Postęp przywracania: {{percent}}%",
                 "complete": "Potwierdzono przywrócenie i wznowienie usług. Nastąpi automatyczny powrót do poprzedniej strony.",
                 "failed": "Przywracanie nie powiodło się lub nie można potwierdzić wznowienia usług. Przed dalszym działaniem sprawdź stan urządzenia.",
                 "connectionLost": "Połączenie z urządzeniem zostało przerwane. Oczekiwanie na potwierdzony stan przywracania; zakończenie nie jest jeszcze potwierdzone.",
                 "actorUnknown": "Administrator",
                 "phases": {
                     "queued": "Przywracanie w kolejce",
+                    "preparing": "Przygotowywanie przywracania",
                     "validating": "Weryfikacja kopii",
                     "quiescing": "Wstrzymywanie usług",
                     "database": "Przywracanie bazy danych",

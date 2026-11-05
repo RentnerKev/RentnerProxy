@@ -49,7 +49,7 @@ test_maintenance() (
         if (
             local backup_control_directory="$scratch/$scenario"
             local crowdsec_control_directory="$scratch/$scenario/crowdsec"
-            local backup_exporter=dummy-exporter app_directory=dummy-app backup_recovery_job=''
+            local backup_exporter=dummy-exporter app_directory=dummy-app backup_recovery_job='' backup_maintenance_id=''
             local fixture_request_id=12345678-1234-4234-8234-123456789abc
             declare -a child_pids=() child_names=()
             mkdir "$crowdsec_control_directory"
@@ -71,6 +71,12 @@ test_maintenance() (
             backup_stop_consumer_phase() {
                 record "drain $1"
                 [[ $scenario != forced ]]
+            }
+            backup_quiesce_controller() { backup_maintenance_id=$1; record retain-controller; }
+            backup_stop_retained_caddy() {
+                [[ -n $backup_maintenance_id ]] || return 0
+                record stop-retained-caddy
+                backup_maintenance_id=''
             }
             backup_assert_consumers_stopped() {
                 record writer-check
@@ -100,11 +106,14 @@ test_maintenance() (
         case $scenario in
             success|execution_failed)
                 ((status == 0)) || fail "$scenario maintenance failed"
-                [[ $events == "drain application
+                [[ $events == "drain web
+retain-controller
 drain crowdsec
 writer-check
 export
 state-check
+stop-retained-caddy
+writer-check
 restart-crowdsec
 restart-controller
 restart-web
@@ -181,6 +190,7 @@ test_export_interruption() (
     (
         declare -a child_pids=() child_names=()
         local backup_exporter=dummy-exporter backup_recovery_job=''
+        backup_stop_retained_caddy() { :; }
         load_function "$entrypoint" start_child
         load_function "$entrypoint" shutdown_children
         load_function "$entrypoint" on_shutdown_signal
@@ -340,7 +350,7 @@ test_restore_maintenance() (
         (
             set -e
             local backup_control_directory="$scratch/$scenario" crowdsec_control_directory="$scratch/$scenario/crowdsec"
-            local backup_exporter=dummy-exporter backup_recovery_job=''
+            local backup_exporter=dummy-exporter backup_recovery_job='' backup_maintenance_id=''
             declare -a child_pids=() child_names=()
             mkdir "$crowdsec_control_directory"
             printf '{"id":"12345678-1234-4234-8234-123456789abc","kind":"restore"}\n' > "$backup_control_directory/request.json"
@@ -353,7 +363,22 @@ test_restore_maintenance() (
                 record "drain $1"
                 [[ $scenario != controller_failed || $1 != controller ]]
             }
-            backup_assert_consumers_stopped() { [[ $1 == preserve-web ]] || fail 'restore stopped the maintenance UI'; record writer-check; }
+            backup_quiesce_controller() {
+                backup_maintenance_id=$1
+                backup_stop_consumer_phase controller 23 || fatal 'controller failed to quiesce'
+            }
+            backup_stop_retained_caddy() {
+                [[ -n $backup_maintenance_id ]] || return 0
+                record stop-retained-caddy
+                backup_maintenance_id=''
+            }
+            backup_assert_consumers_stopped() {
+                if [[ ${1:-} == preserve-web ]]; then record writer-check
+                else
+                    [[ -z $backup_maintenance_id ]] || fail 'retained proxy survived final replacement'
+                    record final-writer-check
+                fi
+            }
             backup_assert_state_children_running() { record state-check; }
             backup_run_exporter() { [[ $2 == --restore ]] || fail 'restore invoked backup capture'; record restore; [[ $scenario != execution_failed ]]; }
             backup_write_result() { record "result $2"; }
@@ -374,14 +399,14 @@ test_restore_maintenance() (
         fi
         case $scenario in
             success)
-                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nlayout\nsecrets\ncrowdsec\ncontroller\nmigrations\nweb\nready\nresult success' ]] \
+                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nstop-retained-caddy\nfinal-writer-check\nlayout\nsecrets\ncrowdsec\ncontroller\nmigrations\nweb\nready\nresult success' ]] \
                     || fail 'restore lost writer fences, maintenance web continuity, key reload or verified success ordering'
                 ;;
             execution_failed)
                 [[ $(cat "$scratch/$scenario/events") != *$'drain web'* ]] || fail 'failed replacement restarted consumers'
                 ;;
             layout_failed)
-                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nlayout\nresult recovery_failed' ]] \
+                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nstop-retained-caddy\nfinal-writer-check\nlayout\nresult recovery_failed' ]] \
                     || fail 'unsafe restored layout continued service startup'
                 ;;
         esac

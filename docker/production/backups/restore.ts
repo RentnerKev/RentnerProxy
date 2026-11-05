@@ -263,6 +263,7 @@ export async function restoreManagedBackup(id: string, signal?: AbortSignal) {
         },
         false,
     )
+    await phase('validating', 8)
     const snapshot = join(backupRoot, '.restore-' + id)
     await mkdir(snapshot, { mode: 0o700 })
     const temporary = await mkdtemp('/tmp/rentnerproxy-validate-')
@@ -281,6 +282,7 @@ export async function restoreManagedBackup(id: string, signal?: AbortSignal) {
             ['crowdsec-state.tar', verified.metadata.crowdSecState],
         ] as const)
             await snapshotBackupArtifact(join(directory, name), join(snapshot, name), metadata)
+        await phase('validating', 12)
         const keyFile = await open(join(snapshot, 'app-encryption-key'), 'r')
         let key: Buffer
         try {
@@ -304,9 +306,12 @@ export async function restoreManagedBackup(id: string, signal?: AbortSignal) {
         } finally {
             await controller.close()
         }
+        await phase('validating', 15)
         await command(['bash', '-c', validationCommand(snapshot, temporary)], signal)
+        await phase('validating', 18)
         await phase('quiescing', 20)
         await awaitWebQuiescence(id, signal)
+        await phase('quiescing', 25)
         const sessions = await command(
             [...psql, '--tuples-only', '--no-align'],
             signal,

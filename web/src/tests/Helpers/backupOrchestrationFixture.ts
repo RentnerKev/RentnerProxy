@@ -472,6 +472,7 @@ export async function runBackupOrchestrationFixture(scenario: string) {
             downloadVerified,
             selectedDeleteSafe,
             restoreState: afterRestore.maintenance!.state,
+            restoreError: afterRestore.maintenance!.error,
             phase: JSON.parse(await readFile(join(control, 'restore-progress.json'), 'utf8')).phase,
             databaseValue: await command(
                 psql,

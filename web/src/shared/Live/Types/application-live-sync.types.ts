@@ -4,6 +4,7 @@ export interface ApplicationLiveSnapshot {
     readonly revision: string
     readonly userVersion: string
     readonly identityVersion?: string
+    readonly sessionVersion?: string
 }
 
 export interface ApplicationLiveSyncResult {

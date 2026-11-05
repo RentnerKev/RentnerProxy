@@ -780,7 +780,9 @@
                 "delete": "Back-up verwijderen"
             },
             "messages": {
-                "accepted": "Back-upaanvraag vastgelegd. De verbinding met de appliance kan tijdens het onderhoud kort wegvallen; deze pagina wordt automatisch vernieuwd.",
+                "accepted": "Back-up aangevraagd. De status wordt hier automatisch bijgewerkt.",
+                "completed": "Back-up voltooid.",
+                "restored": "Back-up succesvol hersteld.",
                 "uncertain": "Het resultaat van de aanvraag kon niet worden bevestigd. Wacht op de live-update van de geschiedenis. Een nieuwe poging gebruikt dezelfde aanvraagidentiteit en start geen tweede back-up.",
                 "saved": "Back-upschema en bewaarbeleid opgeslagen.",
                 "restoreAccepted": "Herstelaanvraag vastgelegd. Volg de bevestigde stappen terwijl het apparaat wordt hersteld.",
@@ -829,13 +831,14 @@
                 "returnToPage": "Terug naar de vorige pagina",
                 "title": "Apparaat wordt hersteld",
                 "description": "{{user}} herstelt back-up {{backup}}. Dit heeft gevolgen voor iedereen die met dit apparaat is verbonden.",
-                "progress": "{{percent}}% — voltooide herstelstappen",
+                "progress": "Herstelvoortgang: {{percent}}%",
                 "complete": "Herstel en hervatting van diensten bevestigd. Je keert automatisch terug naar de vorige pagina.",
                 "failed": "Het herstel is mislukt of de hervatting van diensten kon niet worden bevestigd. Controleer de apparaatstatus voordat je verdergaat.",
                 "connectionLost": "De verbinding met het apparaat is verbroken. We wachten op een bevestigde herstelstatus; voltooiing is nog niet bevestigd.",
                 "actorUnknown": "Een beheerder",
                 "phases": {
                     "queued": "Herstel in wachtrij",
+                    "preparing": "Herstel voorbereiden",
                     "validating": "Back-up controleren",
                     "quiescing": "Diensten pauzeren",
                     "database": "Database herstellen",

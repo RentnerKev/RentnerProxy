@@ -68,6 +68,7 @@ shutdown_children() {
         pid=${child_pids[$index]}
         kill -KILL "$pid" 2>/dev/null || true
     done
+    backup_stop_retained_caddy || log 'retained Caddy cleanup could not be confirmed'
     for index in "${!child_pids[@]}"; do
         case ${child_names[$index]} in web|controller|backup-export) continue ;; esac
         kill -TERM "${child_pids[$index]}" 2>/dev/null || true

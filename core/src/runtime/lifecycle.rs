@@ -324,10 +324,17 @@ impl ProxyRuntime {
                 "Apply drain deadline exceeded; forcing engine shutdown"
             );
         }
-        if let Some(engine) = &self.engine
-            && engine.shutdown_until(deadline).await.is_err()
-        {
-            warn!(stage = "shutdown", "Caddy required forced termination");
+        if let Some(engine) = &self.engine {
+            let retained = match engine.retain_for_backup_until(deadline).await {
+                Ok(retained) => retained,
+                Err(_) => {
+                    warn!(stage = "shutdown", "Caddy maintenance handoff failed");
+                    false
+                }
+            };
+            if !retained && engine.shutdown_until(deadline).await.is_err() {
+                warn!(stage = "shutdown", "Caddy required forced termination");
+            }
         }
         let _ = timeout_at(deadline, self.mark_unavailable()).await;
     }

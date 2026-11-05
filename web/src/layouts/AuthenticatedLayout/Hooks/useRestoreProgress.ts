@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
+import { toast } from '@rentnerkev/toasts'
+import { RESTORE_COMPLETION_VISIBLE_MS } from '@/config/backups.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { backupRestoreSnapshotSchema } from '@/lib/Backups/validation.ts'
 import type { ManagedBackupMaintenance } from '@/lib/Backups/Types/backups.types.ts'
 import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
@@ -8,9 +11,17 @@ import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
 export default function useRestoreProgress() {
     const queryClient = useQueryClient()
     const router = useRouter()
+    const { t } = useTranslationStore()
     const [maintenance, setMaintenance] = useState<ManagedBackupMaintenance | null>(null)
     const current = useRef<ManagedBackupMaintenance | null>(null)
     const completing = useRef<string | null>(null)
+    const retiredOperations = useRef(new Set<string>())
+    const retireOperation = useCallback((id: string) => {
+        const retired = retiredOperations.current
+        retired.add(id)
+        // Bound this to the same recent-operation window as maintenance receipts.
+        if (retired.size > 100) retired.delete(retired.values().next().value!)
+    }, [])
     const mounted = useRef(true)
     useEffect(() => {
         mounted.current = true
@@ -24,12 +35,18 @@ export default function useRestoreProgress() {
             if (!parsed.success) return
             const next = parsed.data.maintenance
             if (!next || next.operation !== 'restore') return
+            if (retiredOperations.current.has(next.id)) return
+            const previous = current.current
+            if (previous?.id === next.id && next.progressPercent < previous.progressPercent) return
             if (
                 next.state !== 'queued' &&
                 next.state !== 'running' &&
                 current.current?.id !== next.id
             )
                 return
+            // Socket snapshots are ordered and fenced to the active connection.
+            // Remember replaced IDs instead of comparing adjustable wall clocks.
+            if (previous && previous.id !== next.id) retireOperation(previous.id)
             // Preserve the route and its component state below the screen. A disconnect
             // or empty snapshot cannot confirm that destructive replacement finished.
             current.current = next
@@ -39,16 +56,26 @@ export default function useRestoreProgress() {
             try {
                 await queryClient.cancelQueries()
                 queryClient.clear()
-                await router.invalidate({ sync: true })
+                await Promise.all([
+                    router.invalidate({ sync: true }),
+                    new Promise<void>((resolve) =>
+                        setTimeout(resolve, RESTORE_COMPLETION_VISIBLE_MS),
+                    ),
+                ])
                 if (mounted.current && current.current?.id === next.id) {
+                    toast.success(t('admin.backups.messages.restored'), {
+                        title: t('toast.titles.success'),
+                        dedupeKey: `backup-restore:${next.id}`,
+                    })
                     current.current = null
+                    retireOperation(next.id)
                     setMaintenance(null)
                 }
             } catch {
                 completing.current = null
             }
         },
-        [queryClient, router],
+        [queryClient, router, t, retireOperation],
     )
     const status = useLiveQuery<unknown>({
         topic: 'backup-restore',
@@ -62,9 +89,10 @@ export default function useRestoreProgress() {
     const canDismiss =
         maintenance !== null &&
         (maintenance.state === 'failed' || maintenance.state === 'interrupted') &&
-        (maintenance.phase === 'queued' || maintenance.phase === 'validating')
+        ['queued', 'preparing', 'validating'].includes(maintenance.phase)
     function dismiss() {
         if (!canDismiss) return
+        retireOperation(maintenance.id)
         current.current = null
         setMaintenance(null)
     }

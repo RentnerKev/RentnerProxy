@@ -5,12 +5,17 @@ import { proxyAccessLogsQuerySchema } from '@/features/Admin/ProxyAccessLogs/val
 import { auditEventsQuerySchema } from '@/features/Admin/AuditLogs/validation.ts'
 import { getProxyAccessLogsService } from '@/server/Admin/ProxyAccessLogs/proxy-access-logs.service.ts'
 import { listAuditEventsService } from '@/server/Audit/audit-reader.service.ts'
-import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import {
+    requirePermissionService,
+    requireSessionService,
+    requireSessionPermission,
+} from '@/server/Auth/Access/authorization.service.ts'
 import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { checkFoundationHealthService } from '@/server/Foundation/health.service.ts'
 import { getPublicOrigin } from '@/server/env.server.ts'
 import { getApplicationRevision } from './applicationChanges.ts'
 import principalVersion from '@/lib/Auth/principalVersion.ts'
+import identityScopeVersion from '@/lib/Auth/identityScopeVersion.ts'
 import { getCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
@@ -73,11 +78,16 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 break
             }
             case 'app-events': {
-                const user = await requirePermissionService(PERMISSIONS.APP_ACCESS)
+                const session = await requireSessionService()
+                await requireSessionPermission(session, PERMISSIONS.APP_ACCESS)
+                const user = session.user
                 data = {
                     revision: getApplicationRevision(),
                     userVersion: revisionOf(user),
                     identityVersion: revisionOf(principalVersion(user)),
+                    sessionVersion: await identityScopeVersion(
+                        JSON.stringify([principalVersion(user), session.id]),
+                    ),
                 }
                 break
             }

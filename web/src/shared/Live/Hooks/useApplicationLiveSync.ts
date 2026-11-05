@@ -12,10 +12,15 @@ import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStat
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
 import useQueryFailureRecovery from './useQueryFailureRecovery.ts'
-import { LIVE_READ_RETRY_INITIAL_MS, LIVE_READ_RETRY_MAX_MS } from '@/config/realtime.config.ts'
+import {
+    LIVE_READ_RETRY_INITIAL_MS,
+    LIVE_READ_RETRY_MAX_MS,
+    LIVE_SNAPSHOT_TIMEOUT_MS,
+} from '@/config/realtime.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import principalVersion from '@/lib/Auth/principalVersion.ts'
+import identityScopeVersion from '@/lib/Auth/identityScopeVersion.ts'
 
 const snapshotsByClient = new WeakMap<QueryClient, ApplicationLiveSnapshot>()
 const identityScopesByClient = new WeakMap<QueryClient, string>()
@@ -55,7 +60,10 @@ function isApplicationLiveSnapshot(value: unknown): value is ApplicationLiveSnap
         typeof snapshot.userVersion === 'string' &&
         (snapshot.identityVersion === undefined ||
             (typeof snapshot.identityVersion === 'string' &&
-                /^[a-f0-9]{64}$/u.test(snapshot.identityVersion)))
+                /^[a-f0-9]{64}$/u.test(snapshot.identityVersion))) &&
+        (snapshot.sessionVersion === undefined ||
+            (typeof snapshot.sessionVersion === 'string' &&
+                /^[a-f0-9]{64}$/u.test(snapshot.sessionVersion)))
     )
 }
 
@@ -78,6 +86,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const queryClient = useQueryClient()
     const router = useRouter()
     const syncGeneration = useRef(0)
+    const sessionProofUnavailable = useRef(false)
     const identityPending = useRef(true)
     const initialVerificationPending = useRef(true)
     const [isIdentityPending, setIsIdentityPending] = useState(true)
@@ -85,9 +94,13 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const [identityFailures, setIdentityFailures] = useState(0)
     const [liveGeneration, setLiveGeneration] = useState(0)
     const wasSuspended = useRef(suspended)
+    const awaitingResume = useRef(false)
+    const [isAwaitingResume, setIsAwaitingResume] = useState(false)
 
     const revalidateIdentity = useCallback(
         (initial = false, background = false) => {
+            awaitingResume.current = false
+            setIsAwaitingResume(false)
             if (!initial) initialVerificationPending.current = false
             const generation = ++syncGeneration.current
             if (!background) {
@@ -201,10 +214,51 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
         isOwnedByWebSocket,
     )
 
+    useEffect(() => {
+        if (!isAwaitingResume || suspended) return
+        const timer = setTimeout(() => revalidateIdentity(), LIVE_SNAPSHOT_TIMEOUT_MS)
+        return () => clearTimeout(timer)
+    }, [isAwaitingResume, suspended, revalidateIdentity])
+
     const handleSnapshot = useCallback(
-        (snapshot: ApplicationLiveSnapshot) => {
+        async (snapshot: ApplicationLiveSnapshot) => {
             if (!isApplicationLiveSnapshot(snapshot)) return
-            if (identityPending.current) return
+            if (identityPending.current && !awaitingResume.current) return
+
+            if (
+                snapshot.sessionVersion &&
+                globalThis.crypto?.subtle &&
+                !sessionProofUnavailable.current
+            ) {
+                const generation = syncGeneration.current
+                const scope = identityScopesByClient.get(queryClient)
+                let expected: string | null
+                try {
+                    expected = scope ? await identityScopeVersion(scope) : null
+                } catch {
+                    if (generation !== syncGeneration.current) return
+                    // Retry through normal authenticated route validation once,
+                    // then use its established failure/backoff path for this mount.
+                    sessionProofUnavailable.current = true
+                    revalidateIdentity()
+                    return
+                }
+                if (generation !== syncGeneration.current) return
+                if (!expected || snapshot.sessionVersion !== expected) {
+                    revalidateIdentity()
+                    return
+                }
+                if (awaitingResume.current) {
+                    awaitingResume.current = false
+                    identityPending.current = false
+                    setIsAwaitingResume(false)
+                    setIsIdentityPending(false)
+                    setIdentityFailures(0)
+                }
+            } else if (awaitingResume.current) {
+                revalidateIdentity()
+                return
+            }
 
             const previous = snapshotsByClient.get(queryClient)
             if (
@@ -233,10 +287,24 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const status = useLiveQuery<ApplicationLiveSnapshot>({
         topic: 'app-events',
         query: {},
-        enabled: !isIdentityPending && !suspended,
+        enabled: (!isIdentityPending || isAwaitingResume) && !suspended,
         onData: handleSnapshot,
         onUnauthorized: () => revalidateIdentity(),
-        onResume: () => revalidateIdentity(),
+        onResume: () => {
+            if (
+                !snapshotsByClient.get(queryClient)?.sessionVersion ||
+                !globalThis.crypto?.subtle ||
+                sessionProofUnavailable.current
+            ) {
+                revalidateIdentity()
+                return
+            }
+            syncGeneration.current += 1
+            awaitingResume.current = true
+            identityPending.current = true
+            setIsAwaitingResume(true)
+            setIsIdentityPending(true)
+        },
         resetKey: liveGeneration,
     })
     return {

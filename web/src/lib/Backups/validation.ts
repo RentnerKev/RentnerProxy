@@ -31,6 +31,7 @@ export const managedBackupMaintenanceSchema = z.strictObject({
     state: z.enum(['queued', 'running', 'succeeded', 'failed', 'interrupted']),
     phase: z.enum([
         'queued',
+        'preparing',
         'validating',
         'quiescing',
         'database',

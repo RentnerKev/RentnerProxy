@@ -799,7 +799,9 @@
                 "delete": "Backup löschen"
             },
             "messages": {
-                "accepted": "Backup-Anfrage erfasst. Während der Wartung kann die Verbindung zur Appliance kurz unterbrochen werden; diese Seite wird automatisch aktualisiert.",
+                "accepted": "Backup angefordert. Der Status wird hier automatisch aktualisiert.",
+                "completed": "Backup fertig.",
+                "restored": "Backup erfolgreich wiederhergestellt.",
                 "uncertain": "Das Ergebnis der Anfrage konnte nicht bestätigt werden. Warte auf die Live-Aktualisierung des Verlaufs. Beim erneuten Senden wird dieselbe Anfragekennung verwendet und kein zweites Backup gestartet.",
                 "saved": "Backup-Zeitplan und Aufbewahrung gespeichert.",
                 "restoreAccepted": "Wiederherstellungsanfrage erfasst. Verfolge die bestätigten Schritte, während die Appliance wiederhergestellt wird.",
@@ -848,13 +850,14 @@
                 "returnToPage": "Zurück zur vorherigen Seite",
                 "title": "Appliance wird wiederhergestellt",
                 "description": "{{user}} stellt Backup {{backup}} wieder her. Das betrifft alle mit dieser Appliance verbundenen Benutzer.",
-                "progress": "{{percent}} % — abgeschlossene Wiederherstellungsschritte",
+                "progress": "Wiederherstellung: {{percent}} %",
                 "complete": "Wiederherstellung und Wiederaufnahme der Dienste bestätigt. Du kehrst automatisch zur vorherigen Seite zurück.",
                 "failed": "Die Wiederherstellung ist fehlgeschlagen oder die Wiederaufnahme der Dienste konnte nicht bestätigt werden. Prüfe den Zustand der Appliance, bevor du fortfährst.",
                 "connectionLost": "Die Verbindung zur Appliance wurde unterbrochen. Wir warten auf einen bestätigten Wiederherstellungsstatus; der Abschluss ist noch nicht bestätigt.",
                 "actorUnknown": "Ein Administrator",
                 "phases": {
                     "queued": "Wiederherstellung eingeplant",
+                    "preparing": "Wiederherstellung wird vorbereitet",
                     "validating": "Backup wird geprüft",
                     "quiescing": "Dienste werden pausiert",
                     "database": "Datenbank wird wiederhergestellt",

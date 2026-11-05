@@ -621,6 +621,7 @@ export async function startBackupAgent() {
                         .strictObject({
                             id: z.uuid(),
                             phase: z.enum([
+                                'preparing',
                                 'validating',
                                 'quiescing',
                                 'database',
