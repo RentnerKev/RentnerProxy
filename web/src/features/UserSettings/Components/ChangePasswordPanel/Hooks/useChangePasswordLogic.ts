@@ -1,7 +1,7 @@
 import { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import { newPasswordSchema } from '@/lib/Auth/validation.ts'
 import type { ChangePasswordLogicResult } from '../Types/change-password-logic.types.ts'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
 import { changePasswordHandler } from '../../../middleware.ts'
@@ -21,7 +21,8 @@ export default function useChangePasswordLogic() {
             password: '',
             confirmPassword: '',
         } satisfies ChangePasswordFormValues,
-        validators: { onSubmit: changePasswordFormSchema },
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: changePasswordFormSchema },
         onSubmit: async ({ value, formApi }) => {
             mutation.reset()
             try {

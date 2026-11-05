@@ -75,6 +75,7 @@ export function discoveryOverview(
             containerId: candidate.containerId,
             hostId: null,
             domains: candidate.domains,
+            certificateId: candidate.certificateId,
             target: candidate.target,
             state: 'create',
             issues: candidate.issues,

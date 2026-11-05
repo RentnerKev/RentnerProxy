@@ -457,7 +457,7 @@ test('restoring login from BFCache unlocks OIDC pending controls and cleans up i
     }
 })
 
-test('login validation toasts errors, retains invalid marking and clears after corrected submission', async () => {
+test('invalid login stays inline and becomes submittable after typing without blur', async () => {
     const container = document.createElement('div')
     document.body.append(container)
     root = createRoot(container)
@@ -492,19 +492,36 @@ test('login validation toasts errors, retains invalid marking and clears after c
         expect(container.querySelector(`label[for="${input.id}"]`)).not.toBeNull()
         expect(
             document.getElementById(`${input.id}-error`)?.classList.contains('sr-only'),
-        ).toBeTrue()
+        ).toBeFalse()
         expect(input.getAttribute('aria-describedby')).toBe(`${input.id}-error`)
     }
 
-    expect(errorToast.mock.calls.length).toBeGreaterThan(0)
-    expect(container.querySelector('[id$="-error"]:not(.sr-only)')).toBeNull()
+    expect(errorToast).not.toHaveBeenCalled()
+    expect(container.querySelectorAll('[id$="-error"]:not(.sr-only)')).toHaveLength(2)
     await act(async () => {
-        state!.form.setFieldValue('email', 'owner@example.test')
-        state!.form.setFieldValue('password', 'valid password')
-        await state!.form.handleSubmit()
+        for (const input of inputs) {
+            input.focus()
+            const value = input.name === 'email' ? 'owner@example.test' : 'x'
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+                input,
+                value,
+            )
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+    })
+    expect(state!.form.state.canSubmit).toBeTrue()
+    expect(
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled,
+    ).toBeFalse()
+    expect(errorToast).not.toHaveBeenCalled()
+    await act(async () => {
+        container
+            .querySelector('form:not([action])')!
+            .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
         await new Promise((resolve) => setTimeout(resolve, 5))
     })
     expect(login).toHaveBeenCalledTimes(1)
+    expect(errorToast).toHaveBeenCalledWith('Invalid credentials.', { title: 'Action failed' })
     expect(inputs.every((input) => input.getAttribute('aria-invalid') !== 'true')).toBeTrue()
     expect(container.querySelector('[role="alert"]')).toBeNull()
 })

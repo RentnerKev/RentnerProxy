@@ -38,6 +38,23 @@ test('managed backup diagnostics forward only fixed phases and bounded response 
     ).toBeUndefined()
     expect(progress.result(1).diagnostic).not.toContain('private-token')
 })
+
+test('online restore checkpoints pass through only for backups and reject incidental output', () => {
+    const progress = smokeProgress('backups')
+    const line = 'Managed online restore checkpoint: progress category=assertion'
+    expect(progress.consume(line)).toBe(line)
+    for (const unsafe of [
+        `${line} private-token`,
+        `prefix ${line}`,
+        line.replace('progress', 'private-token'),
+        line.replace('assertion', 'private-token'),
+        `${line}\nprivate-token`,
+        `${line}\n`,
+    ])
+        expect(progress.consume(unsafe)).toBeUndefined()
+    expect(progress.result(1).diagnostic).toBe(line)
+    expect(smokeProgress('production').consume(line)).toBeUndefined()
+})
 import {
     SMOKE_RUN_LABEL,
     restoreSmokeDiagnostic,

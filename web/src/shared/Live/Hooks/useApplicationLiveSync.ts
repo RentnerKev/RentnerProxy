@@ -12,6 +12,7 @@ import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStat
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import useLiveQuery from './useLiveQuery.ts'
 import useQueryFailureRecovery from './useQueryFailureRecovery.ts'
+import useLiveScrollRestoration from './useLiveScrollRestoration.ts'
 import {
     LIVE_READ_RETRY_INITIAL_MS,
     LIVE_READ_RETRY_MAX_MS,
@@ -93,9 +94,16 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const [identityGeneration, setIdentityGeneration] = useState(0)
     const [identityFailures, setIdentityFailures] = useState(0)
     const [liveGeneration, setLiveGeneration] = useState(0)
+    const [verificationGeneration, setVerificationGeneration] = useState(0)
     const wasSuspended = useRef(suspended)
     const awaitingResume = useRef(false)
     const [isAwaitingResume, setIsAwaitingResume] = useState(false)
+    const captureScroll = useLiveScrollRestoration(
+        isIdentityPending,
+        identityGeneration,
+        verificationGeneration,
+        suspended,
+    )
 
     const revalidateIdentity = useCallback(
         (initial = false, background = false) => {
@@ -104,6 +112,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
             if (!initial) initialVerificationPending.current = false
             const generation = ++syncGeneration.current
             if (!background) {
+                if (!identityPending.current) captureScroll()
                 identityPending.current = true
                 setIsIdentityPending(true)
             }
@@ -128,6 +137,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     const previousScope = identityScopesByClient.get(queryClient)
                     const changed = scope === null || previousScope !== scope
                     if (changed) {
+                        if (!identityPending.current) captureScroll()
                         identityPending.current = true
                         setIsIdentityPending(true)
                         void queryClient.cancelQueries()
@@ -146,6 +156,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     initialVerificationPending.current = false
                 } catch {
                     if (generation === syncGeneration.current) {
+                        if (!identityPending.current) captureScroll()
                         identityPending.current = true
                         setIsIdentityPending(true)
                         setIdentityFailures((failures) => failures + 1)
@@ -156,11 +167,12 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 identityPending.current = false
                 setIdentityFailures(0)
                 setIsIdentityPending(false)
+                setVerificationGeneration((current) => current + 1)
                 setLiveGeneration((current) => current + 1)
                 if (!initial) await refreshApplicationQueries(queryClient)
             })().catch(() => undefined)
         },
-        [queryClient, router],
+        [captureScroll, queryClient, router],
     )
 
     useEffect(() => {
@@ -254,6 +266,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     setIsAwaitingResume(false)
                     setIsIdentityPending(false)
                     setIdentityFailures(0)
+                    setVerificationGeneration((current) => current + 1)
                 }
             } else if (awaitingResume.current) {
                 revalidateIdentity()
@@ -300,6 +313,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 return
             }
             syncGeneration.current += 1
+            captureScroll()
             awaitingResume.current = true
             identityPending.current = true
             setIsAwaitingResume(true)
@@ -313,5 +327,6 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
         identityGeneration,
         hasIdentityError: identityFailures > 0,
         retryIdentity: () => revalidateIdentity(),
+        captureScroll,
     }
 }

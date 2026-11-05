@@ -54,12 +54,16 @@ export interface ProxyHostTableActionsProps extends ProxyHostTableActionProps {
 
 export interface ProxyHostDomainsCellProps {
     readonly domains: ReadonlyArray<string>
+    readonly certificateId?: string | null
+    readonly allowLinks?: boolean
     readonly enabled?: boolean
     readonly discovery?: ProxyHostSummary['discovery']
 }
 
 export interface ProxyHostDomainChipProps {
     readonly domain: string
+    readonly scheme: 'http' | 'https'
+    readonly allowLinks: boolean
     readonly status: 'enabled' | 'disabled' | undefined
     readonly descriptionId: string
 }

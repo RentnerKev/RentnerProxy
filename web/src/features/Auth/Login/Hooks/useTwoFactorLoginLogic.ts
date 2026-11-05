@@ -1,6 +1,5 @@
-import useValidationFeedback from '@/shared/Forms/Hooks/useValidationFeedback.ts'
 import type { TwoFactorLoginLogicResult } from '../Types/two-factor-login-logic.types.ts'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef } from 'react'
@@ -17,7 +16,6 @@ import {
 
 /** Coordinates second-factor verification and toast feedback for each completed status request. */
 export default function useTwoFactorLoginLogic() {
-    const feedback = useValidationFeedback()
     const navigate = useNavigate()
     const router = useRouter()
     const { t } = useTranslationStore()
@@ -101,11 +99,8 @@ export default function useTwoFactorLoginLogic() {
     }
     const form = useForm({
         defaultValues,
-        validators: { onSubmit: twoFactorLoginFormSchema },
-        listeners: {
-            onBlur: ({ fieldApi }) => feedback.handler.handleValidationCompleted([fieldApi.name]),
-        },
-        onSubmitInvalid: () => feedback.handler.handleValidationCompleted(['credential']),
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: twoFactorLoginFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
 
@@ -130,7 +125,6 @@ export default function useTwoFactorLoginLogic() {
             isPending: mutation.isPending,
             isValid: status.isSuccess && (status.data?.valid ?? false),
             methods,
-            validationEpoch: feedback.state.validationEpochs.credential ?? 0,
         },
         handler: {
             handleSubmit: (event) => {

@@ -92,6 +92,12 @@ let confirmedContext = { user, sessionId: 'session-a' }
 let authMatchStatus: 'success' | 'error' | 'pending' = 'success'
 let authMatchInvalid = false
 let routerLoading = false
+let committedPending: boolean[] = []
+const originalDocumentHeight = Object.getOwnPropertyDescriptor(
+    document.documentElement,
+    'scrollHeight',
+)
+const originalViewportHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight')
 
 function ActiveQueryProbe() {
     const [mfa, setMfa] = useState('')
@@ -117,6 +123,9 @@ function ActiveQueryProbe() {
 function Probe() {
     const { isIdentityPending, identityGeneration, hasIdentityError, retryIdentity } =
         useApplicationLiveSync()
+    useEffect(() => {
+        committedPending.push(isIdentityPending)
+    }, [isIdentityPending])
     useEffect(() => {
         retryIdentityForTest = retryIdentity
         return () => {
@@ -150,6 +159,12 @@ async function flush() {
 }
 
 beforeEach(() => {
+    committedPending = []
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+        configurable: true,
+        value: 4000,
+    })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 })
     confirmedContext = { user, sessionId: 'session-a' }
     authMatchStatus = 'success'
     authMatchInvalid = false
@@ -193,6 +208,11 @@ afterEach(async () => {
     invalidateSpy = undefined
     container.remove()
     globalThis.WebSocket = originalSocket
+    if (originalDocumentHeight)
+        Object.defineProperty(document.documentElement, 'scrollHeight', originalDocumentHeight)
+    else Reflect.deleteProperty(document.documentElement, 'scrollHeight')
+    if (originalViewportHeight) Object.defineProperty(window, 'innerHeight', originalViewportHeight)
+    else Reflect.deleteProperty(window, 'innerHeight')
     Reflect.deleteProperty(document, 'visibilityState')
     if (originalStateDescriptor) Object.defineProperty(router, 'state', originalStateDescriptor)
     else Reflect.deleteProperty(router, 'state')
@@ -727,18 +747,31 @@ test('a reconnect with a fresh matching session proof resumes the mounted page w
     draft.value = 'keep after backup'
     queryClient.setQueryData(['session-owned'], { preserved: true })
     const cached = queryClient.getQueryCache().find({ queryKey: ['session-owned'] })
-    await resumeTab()
-    expectProtectedHidden()
-    expect(invalidateSpy).not.toHaveBeenCalled()
-    await act(async () =>
-        FakeSocket.instances.at(-1)!.deliver({ ...snapshot, revision: 'restarted' }),
-    )
-    await flush()
-    expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
-    expect(container.querySelector('input')).toBe(draft)
-    expect(draft.value).toBe('keep after backup')
-    expect(queryClient.getQueryCache().find({ queryKey: ['session-owned'] })).toBe(cached)
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    const originalScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    let scrollTop = 1500
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => scrollTop })
+    const scroll = spyOn(window, 'scrollTo').mockImplementation(() => {})
+    try {
+        await resumeTab()
+        expectProtectedHidden()
+        expect(scroll).not.toHaveBeenCalled()
+        scrollTop = 0
+        expect(invalidateSpy).not.toHaveBeenCalled()
+        await act(async () =>
+            FakeSocket.instances.at(-1)!.deliver({ ...snapshot, revision: 'restarted' }),
+        )
+        await flush()
+        expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+        expect(container.querySelector('input')).toBe(draft)
+        expect(draft.value).toBe('keep after backup')
+        expect(queryClient.getQueryCache().find({ queryKey: ['session-owned'] })).toBe(cached)
+        expect(invalidateSpy).not.toHaveBeenCalled()
+        expect(scroll).toHaveBeenCalledWith({ left: 0, top: 1500, behavior: 'instant' })
+    } finally {
+        scroll.mockRestore()
+        if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll)
+        else Reflect.deleteProperty(window, 'scrollY')
+    }
 })
 
 test.each(['missing', 'different'] as const)(
@@ -857,4 +890,110 @@ test('a failed identity read recovers automatically without pressing a retry con
     expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
     expect(container.querySelector('input')).toBe(draft)
     expect(draft.value).toBe('keep while reconnecting')
+})
+
+test.each(['rejected', 'unconfirmed'] as const)(
+    'captures scroll before a %s background refresh hides the page and restores after retry',
+    async (result) => {
+        const pending = Promise.withResolvers<void>()
+        invalidateSpy = spyOn(router, 'invalidate')
+            .mockReturnValueOnce(pending.promise)
+            .mockResolvedValue(undefined)
+        await mountProbe()
+        const identityVersion = 'a'.repeat(64)
+        await act(async () =>
+            FakeSocket.instances
+                .at(-1)!
+                .deliver({ revision: 'before', userVersion: 'dark', identityVersion }),
+        )
+        const originalScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+        let top = 1500
+        Object.defineProperty(window, 'scrollY', { configurable: true, get: () => top })
+        const scroll = spyOn(window, 'scrollTo').mockImplementation(() => {})
+        try {
+            await act(async () =>
+                FakeSocket.instances
+                    .at(-1)!
+                    .deliver({ revision: 'after', userVersion: 'light', identityVersion }),
+            )
+            expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+            await act(async () => {
+                if (result === 'rejected') pending.reject(new Error('Synthetic background failure'))
+                else {
+                    authMatchStatus = 'error'
+                    pending.resolve()
+                }
+            })
+            expectProtectedHidden()
+            top = 0
+            expect(scroll).not.toHaveBeenCalled()
+            authMatchStatus = 'success'
+            await act(async () => retryIdentityForTest!())
+            expect(container.querySelector<HTMLElement>('[data-protected]')?.hidden).toBe(false)
+            expect(scroll).toHaveBeenCalledWith({ left: 0, top: 1500, behavior: 'instant' })
+        } finally {
+            pending.resolve()
+            scroll.mockRestore()
+            if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll)
+            else Reflect.deleteProperty(window, 'scrollY')
+        }
+    },
+)
+
+test('a matching proof in the resume batch releases scroll so a later check captures the new position', async () => {
+    invalidateSpy = spyOn(router, 'invalidate').mockResolvedValue(undefined)
+    await mountProbe()
+    const sessionVersion = await identityScopeVersion(
+        JSON.stringify([principalVersion(user), confirmedContext.sessionId]),
+    )
+    const snapshot = {
+        revision: 'same',
+        userVersion: 'same',
+        identityVersion: 'a'.repeat(64),
+        sessionVersion,
+    }
+    await act(async () => FakeSocket.instances.at(-1)!.deliver(snapshot))
+    await flush()
+    const originalScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    let top = 1500
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => top })
+    const scroll = spyOn(window, 'scrollTo').mockImplementation((options) => {
+        if (typeof options === 'object') top = options.top ?? top
+    })
+    const digest = spyOn(crypto.subtle, 'digest').mockResolvedValue(
+        Uint8Array.from(sessionVersion.match(/../g)!, (part) => Number.parseInt(part, 16)).buffer,
+    )
+    try {
+        committedPending = []
+        const initialConnections = FakeSocket.instances.length
+        await act(async () => {
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                value: 'hidden',
+            })
+            document.dispatchEvent(new Event('visibilitychange'))
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                value: 'visible',
+            })
+            document.dispatchEvent(new Event('visibilitychange'))
+            FakeSocket.instances.at(-1)!.deliver(snapshot)
+            await Promise.resolve()
+            await Promise.resolve()
+        })
+        expect(committedPending).not.toContain(true)
+        expect(scroll).toHaveBeenCalledTimes(1)
+        expect(FakeSocket.instances).toHaveLength(initialConnections + 1)
+        top = 720
+        window.dispatchEvent(new Event('wheel'))
+        await act(async () => retryIdentityForTest!())
+        expect(scroll).toHaveBeenLastCalledWith({ left: 0, top: 720, behavior: 'instant' })
+        expect(scroll).toHaveBeenCalledTimes(2)
+        expect(invalidateSpy).toHaveBeenCalledTimes(1)
+    } finally {
+        digest.mockRestore()
+        scroll.mockRestore()
+        if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll)
+        else Reflect.deleteProperty(window, 'scrollY')
+    }
 })

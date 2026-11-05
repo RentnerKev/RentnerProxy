@@ -1,9 +1,12 @@
-export function getManagedDomainHref(domain: string): string | null {
+export function getManagedDomainHref(
+    domain: string,
+    scheme: 'http' | 'https' = 'https',
+): string | null {
     const normalizedDomain = domain.toLowerCase()
     if (!normalizedDomain || normalizedDomain.includes('*')) return null
 
     try {
-        const url = new URL(`https://${normalizedDomain}`)
+        const url = new URL(`${scheme}://${normalizedDomain}`)
         if (
             url.hostname !== normalizedDomain ||
             url.username ||
@@ -15,7 +18,7 @@ export function getManagedDomainHref(domain: string): string | null {
         ) {
             return null
         }
-        return `https://${normalizedDomain}`
+        return `${scheme}://${normalizedDomain}`
     } catch {
         return null
     }

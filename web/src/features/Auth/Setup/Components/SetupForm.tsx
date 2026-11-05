@@ -13,7 +13,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
             noValidate
             onSubmit={handler.handleSubmit}
         >
-            <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
+            <form.Field name="displayName">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -25,7 +25,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                     />
                 )}
             </form.Field>
-            <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
+            <form.Field name="email">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -37,7 +37,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                     />
                 )}
             </form.Field>
-            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
+            <form.Field name="password">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -50,10 +50,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                     />
                 )}
             </form.Field>
-            <form.Field
-                name="confirmPassword"
-                validators={{ onBlur: handler.validateConfirmPassword }}
-            >
+            <form.Field name="confirmPassword">
                 {(field) => (
                     <StringFormField
                         field={field}

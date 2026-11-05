@@ -14,6 +14,24 @@ mock.module('@rentnerkev/toasts', () => ({ toast: { success, error } }))
 const { default: useForgotPasswordLogic } =
     await import('@/features/Auth/ForgotPassword/Hooks/useForgotPasswordLogic.ts')
 
+test('an empty reset request can be corrected and submitted without blur or validation toasts', async () => {
+    request.mockClear()
+    error.mockClear()
+    const hook = await mountHook(useForgotPasswordLogic)
+    try {
+        await hook.run(() => hook.value.form.handleSubmit())
+        expect(hook.value.form.state.canSubmit).toBeFalse()
+        expect(request).not.toHaveBeenCalled()
+        expect(error).not.toHaveBeenCalled()
+        await hook.run(() => hook.value.form.setFieldValue('email', 'fixture@example.com'))
+        expect(hook.value.form.state.canSubmit).toBeTrue()
+        await hook.run(() => hook.value.form.handleSubmit())
+        expect(request).toHaveBeenCalledTimes(1)
+    } finally {
+        await hook.dispose()
+    }
+})
+
 test('reset request validates email and surfaces successful, rejected and unavailable delivery without exposing account state', async () => {
     const hook = await mountHook(useForgotPasswordLogic)
     try {

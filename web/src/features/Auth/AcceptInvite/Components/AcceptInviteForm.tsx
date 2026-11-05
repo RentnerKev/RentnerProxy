@@ -13,7 +13,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
             noValidate
             onSubmit={handler.handleSubmit}
         >
-            <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
+            <form.Field name="displayName">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -25,7 +25,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                     />
                 )}
             </form.Field>
-            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
+            <form.Field name="password">
                 {(field) => (
                     <StringFormField
                         field={field}
@@ -38,10 +38,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                     />
                 )}
             </form.Field>
-            <form.Field
-                name="confirmPassword"
-                validators={{ onBlur: handler.validateConfirmPassword }}
-            >
+            <form.Field name="confirmPassword">
                 {(field) => (
                     <StringFormField
                         field={field}

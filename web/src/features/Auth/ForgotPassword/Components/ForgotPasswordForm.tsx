@@ -13,7 +13,7 @@ export default function ForgotPasswordForm({ state, form, handler }: ForgotPassw
             noValidate
             onSubmit={handler.handleSubmit}
         >
-            <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
+            <form.Field name="email">
                 {(field) => (
                     <StringFormField
                         field={field}

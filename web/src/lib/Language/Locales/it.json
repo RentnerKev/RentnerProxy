@@ -97,7 +97,8 @@
         "clearSelection": "Cancella selezione",
         "edit": "Modifica",
         "delete": "Elimina",
-        "automaticRecovery": "Nuovo tentativo automatico…"
+        "automaticRecovery": "Nuovo tentativo automatico…",
+        "close": "Chiudi"
     },
     "inputs": {
         "invalidPhone": "Inserisci un numero di telefono valido.",
@@ -224,7 +225,8 @@
         "totpInvalid": "Inserisci il codice di autenticazione a sei cifre.",
         "invalidValue": "Controlla questo valore e riprova.",
         "selectOption": "Seleziona un’opzione disponibile.",
-        "passwordMismatch": "Le password non corrispondono."
+        "passwordMismatch": "Le password non corrispondono.",
+        "passwordTooLong": "Questa password è troppo lunga."
     },
     "errors": {
         "rateLimited": "Troppe richieste. Riprova più tardi.",
@@ -242,7 +244,7 @@
         "user_not_found": "L’utente non esiste più.",
         "invalid_email": "Controlla l’indirizzo email e riprova.",
         "invalid_input": "Controlla i valori inseriti e riprova.",
-        "password_policy": "Controlla la password e riprova.",
+        "password_policy": "La password non soddisfa i requisiti di lunghezza.",
         "service_unavailable": "Il servizio non è temporaneamente disponibile. Riprova.",
         "user_not_active": "Questo account non è attivo."
     },
@@ -1091,7 +1093,7 @@
                 "status": "Stato",
                 "pendingHint": "I nuovi account restano in sospeso finché l’invito non viene accettato.",
                 "disabledHint": "Disattiva l’accesso dal menu delle azioni dell’utente.",
-                "roles": "Gruppo di ruoli",
+                "roles": "Ruoli",
                 "rolesReadOnly": "Puoi modificare i dati del profilo, ma non i ruoli assegnati a questo utente.",
                 "createDescription": "Crea l’account, assegna l’accesso iniziale e invia un invito.",
                 "editDescription": "Aggiorna le informazioni dell’account e i ruoli assegnati.",

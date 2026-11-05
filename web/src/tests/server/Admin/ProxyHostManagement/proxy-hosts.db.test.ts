@@ -65,6 +65,7 @@ import {
     disableProxyHostService,
     enableProxyHostService,
     getProxyHostsService,
+    searchProxyHostsService,
     updateProxyHostService,
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
 import {
@@ -73,6 +74,7 @@ import {
     disableRedirectHostService,
     enableRedirectHostService,
     getRedirectHostsService,
+    searchRedirectHostsService,
     updateRedirectHostService,
 } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import {
@@ -85,6 +87,7 @@ import {
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { RedirectHostDomainError } from '@/server/Admin/RedirectHostManagement/redirect-hosts.errors.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
+import { requireUserService } from '@/server/Auth/Access/authorization.service.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     discoveryCandidate,
@@ -811,6 +814,48 @@ describe('Docker discovery ownership with PostgreSQL', () => {
 })
 
 describe('ProxyHost management with PostgreSQL', () => {
+    integrationTest(
+        'correlates quick-search domain labels to each proxy and redirect host',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            await runAsUser(owner.id, async () => {
+                const actor = await requireUserService()
+                const proxyInput = proxyHostInput('search-proxy')
+                proxyInput.domains = [testDomain('z-proxy'), testDomain('a-proxy')]
+                const proxy = await createProxyHostService(proxyInput)
+                const otherProxy = await createProxyHostService(proxyHostInput('other-proxy'))
+                const redirectInput = redirectHostInput('search-redirect')
+                redirectInput.domains = [testDomain('z-redirect'), testDomain('a-redirect')]
+                const redirect = await createRedirectHostService(redirectInput)
+                const otherRedirect = await createRedirectHostService(
+                    redirectHostInput('other-redirect'),
+                )
+                const checkProxy = async (host: typeof proxy) => {
+                    const expected = { id: host.id, label: host.domains.toSorted()[0] }
+                    const results = await Promise.all([
+                        searchProxyHostsService(actor, { query: 'ignored', id: host.id }),
+                        searchProxyHostsService(actor, { query: host.domains[0]! }),
+                    ])
+                    for (const result of results) expect(result).toMatchObject([expected])
+                }
+                const checkRedirect = async (host: typeof redirect) => {
+                    const expected = { id: host.id, label: host.domains.toSorted()[0] }
+                    const results = await Promise.all([
+                        searchRedirectHostsService(actor, { query: 'ignored', id: host.id }),
+                        searchRedirectHostsService(actor, { query: host.domains[0]! }),
+                    ])
+                    for (const result of results) expect(result).toMatchObject([expected])
+                }
+                await Promise.all([
+                    checkProxy(proxy),
+                    checkProxy(otherProxy),
+                    checkRedirect(redirect),
+                    checkRedirect(otherRedirect),
+                ])
+            })
+        },
+    )
+
     integrationTest(
         'creates, updates, lists, and cascades multiple canonical domains',
         async () => {

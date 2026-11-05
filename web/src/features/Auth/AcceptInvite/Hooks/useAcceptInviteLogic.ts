@@ -5,7 +5,7 @@ import {
     newPasswordSchema,
 } from '@/lib/Auth/validation.ts'
 import type { AcceptInviteLogicResult } from '../Types/accept-invite-logic.types.ts'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
@@ -44,7 +44,8 @@ export default function useAcceptInviteLogic() {
             password: '',
             confirmPassword: '',
         } satisfies AcceptInviteFormValues,
-        validators: { onSubmit: acceptInviteFormSchema },
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: acceptInviteFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
 

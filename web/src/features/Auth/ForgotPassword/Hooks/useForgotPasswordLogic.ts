@@ -1,6 +1,6 @@
 import { emailSchema, getValidationMessage } from '@/lib/Auth/validation.ts'
 import type { ForgotPasswordLogicResult } from '../Types/forgot-password-logic.types.ts'
-import { useForm } from '@tanstack/react-form'
+import { revalidateLogic, useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
 import { toast } from '@rentnerkev/toasts'
@@ -29,7 +29,8 @@ export default function useForgotPasswordLogic() {
     })
     const form = useForm({
         defaultValues: { email: '' } satisfies ForgotPasswordFormValues,
-        validators: { onSubmit: forgotPasswordInputSchema },
+        validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+        validators: { onDynamic: forgotPasswordInputSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
 

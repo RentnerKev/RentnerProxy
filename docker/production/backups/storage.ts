@@ -1,3 +1,4 @@
+// oxlint-disable no-await-in-loop -- Retry only descriptors detached by atomic publication, with a fixed attempt limit.
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, rename, rm } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -18,15 +19,26 @@ export async function privateDirectory(path: string): Promise<void> {
 }
 
 export async function readPrivateJson(path: string, maximum = 512 * 1024): Promise<unknown> {
-    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
-    try {
-        const info = await file.stat()
-        if (!info.isFile() || info.nlink !== 1 || info.uid !== 0 || info.size > maximum)
-            throw new Error('invalid backup state')
-        return JSON.parse(await file.readFile('utf8')) as unknown
-    } finally {
-        await file.close()
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+        try {
+            const info = await file.stat()
+            if (
+                !info.isFile() ||
+                (info.nlink !== 0 && info.nlink !== 1) ||
+                info.uid !== 0 ||
+                info.size > maximum
+            )
+                throw new Error('invalid backup state')
+            // A rename can unlink this inode after open. Reopen the published name;
+            // never read a detached snapshot or relax the hardlink checks.
+            if (info.nlink === 0) continue
+            return JSON.parse(await file.readFile('utf8')) as unknown
+        } finally {
+            await file.close()
+        }
     }
+    throw new Error('invalid backup state')
 }
 
 export async function writePrivateJson(

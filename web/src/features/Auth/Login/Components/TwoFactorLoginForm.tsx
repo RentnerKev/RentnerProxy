@@ -25,10 +25,7 @@ export default function TwoFactorLoginForm({
         >
             <form.Subscribe selector={(formState) => formState.values.mode}>
                 {(mode) => (
-                    <form.Field
-                        name="credential"
-                        validators={{ onBlur: handler.validateCredential }}
-                    >
+                    <form.Field name="credential">
                         {(field) => (
                             <div className="grid gap-[0.45rem]">
                                 <label
@@ -65,8 +62,6 @@ export default function TwoFactorLoginForm({
                                 <FieldError
                                     id={`${field.name}-error`}
                                     errors={field.state.meta.errors}
-                                    feedback="toast"
-                                    validationEpoch={state.validationEpoch}
                                 />
                             </div>
                         )}

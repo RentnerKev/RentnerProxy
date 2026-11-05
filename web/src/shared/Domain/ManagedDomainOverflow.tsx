@@ -7,6 +7,8 @@ import ManagedDomainLink from './ManagedDomainLink.tsx'
 export default function ManagedDomainOverflow({
     ariaLabel,
     domains,
+    scheme = 'https',
+    allowLinks = true,
     tone = 'success',
     descriptionId,
 }: ManagedDomainOverflowProps) {
@@ -47,6 +49,8 @@ export default function ManagedDomainOverflow({
                                     ' max-w-64 wrap-anywhere'
                                 }
                                 domain={domain}
+                                scheme={scheme}
+                                allowLinks={allowLinks}
                                 aria-describedby={descriptionId}
                                 key={domain}
                             />

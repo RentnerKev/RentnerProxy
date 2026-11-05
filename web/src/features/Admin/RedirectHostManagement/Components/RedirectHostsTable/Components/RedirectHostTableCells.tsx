@@ -14,8 +14,9 @@ import type {
 } from '../../../Types/redirect-host-table.types.ts'
 const badge =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
-export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProps) {
+export function RedirectHostDomainsCell({ domains, certificateId }: RedirectHostDomainsCellProps) {
     const { t } = useTranslationStore()
+    const scheme = certificateId === null ? 'http' : 'https'
     return domains.length ? (
         <div className="flex flex-wrap items-center gap-[0.45rem]">
             {domains.slice(0, 2).map((domain) => (
@@ -25,6 +26,7 @@ export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProp
                         ' inline-block max-w-56 truncate'
                     }
                     domain={domain}
+                    scheme={scheme}
                     key={domain}
                 />
             ))}
@@ -32,6 +34,7 @@ export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProp
                 <ManagedDomainOverflow
                     ariaLabel={t('common.moreDomains', { count: domains.length - 2 })}
                     domains={domains.slice(2)}
+                    scheme={scheme}
                 />
             ) : null}
         </div>

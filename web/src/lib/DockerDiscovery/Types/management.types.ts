@@ -27,6 +27,7 @@ export interface DiscoveryRow {
     readonly containerId: string | null
     readonly hostId: string | null
     readonly domains: readonly string[]
+    readonly certificateId?: DiscoveryCandidate['certificateId']
     readonly target: DiscoveryCandidate['target']
     readonly state: DiscoveryRowState
     readonly issues: readonly string[]

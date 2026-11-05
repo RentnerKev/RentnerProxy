@@ -9,7 +9,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
 
     return (
         <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
-            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
+            <form.Field name="password">
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -33,10 +33,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                     </div>
                 )}
             </form.Field>
-            <form.Field
-                name="confirmPassword"
-                validators={{ onBlur: handler.validateConfirmPassword }}
-            >
+            <form.Field name="confirmPassword">
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label

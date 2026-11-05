@@ -95,7 +95,8 @@
         "clearSelection": "Auswahl löschen",
         "edit": "Bearbeiten",
         "delete": "Löschen",
-        "automaticRecovery": "Wird automatisch erneut versucht."
+        "automaticRecovery": "Wird automatisch erneut versucht.",
+        "close": "Schließen"
     },
     "inputs": {
         "invalidPhone": "Gib eine gültige Telefonnummer ein.",
@@ -222,7 +223,8 @@
         "totpInvalid": "Gib den sechsstelligen Authenticator-Code ein.",
         "invalidValue": "Prüfe diesen Wert und versuche es erneut.",
         "selectOption": "Wähle eine verfügbare Option aus.",
-        "passwordMismatch": "Die Passwörter stimmen nicht überein."
+        "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+        "passwordTooLong": "Dieses Passwort ist zu lang."
     },
     "errors": {
         "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
@@ -240,7 +242,7 @@
         "user_not_found": "Der Benutzer existiert nicht mehr.",
         "invalid_email": "Prüfe die E-Mail-Adresse und versuche es erneut.",
         "invalid_input": "Prüfe die eingegebenen Werte und versuche es erneut.",
-        "password_policy": "Prüfe das Passwort und versuche es erneut.",
+        "password_policy": "Das Passwort erfüllt die Anforderungen an die Länge nicht.",
         "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Versuche es erneut.",
         "user_not_active": "Dieses Konto ist nicht aktiv."
     },
@@ -1092,7 +1094,7 @@
                 "status": "Status",
                 "pendingHint": "Neue Konten bleiben ausstehend, bis die Einladung angenommen wurde.",
                 "disabledHint": "Deaktiviere den Zugriff über das Benutzeraktionsmenü.",
-                "roles": "Rollen-Gruppe",
+                "roles": "Rollen",
                 "rolesReadOnly": "Profildaten können aktualisiert werden, aber nicht die Rollenzuweisungen dieses Benutzers.",
                 "createDescription": "Erstelle das Konto, weise den ersten Zugriff zu und sende eine Einladung.",
                 "editDescription": "Aktualisiere Kontodaten und zugewiesene Rollen.",
@@ -4082,13 +4084,13 @@
         "current": "Aktuelle Akzentfarbe",
         "default": "Standardfarbe",
         "label": "Akzentfarbe",
-        "hint": "Wählen Sie eine Akzentfarbe für Schaltflächen, Hervorhebungen und Bedienelemente.",
+        "hint": "Wähle eine Akzentfarbe für Schaltflächen, Hervorhebungen und Bedienelemente.",
         "preview": "Vorschau",
         "previewButton": "Vorschau-Schaltfläche",
         "reset": "Auf Standard zurücksetzen",
         "saved": "Akzentfarbe für dein Konto gespeichert.",
         "errors": {
-            "invalidColor": "Geben Sie eine gültige Farbe ein.",
+            "invalidColor": "Gib eine gültige Farbe ein.",
             "saveFailed": "Die Akzentfarbe konnte nicht gespeichert werden.",
             "loadFailed": "Die Akzentfarbe konnte nicht geladen werden."
         },

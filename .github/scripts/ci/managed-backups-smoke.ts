@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+import { isOnlineRestoreDiagnostic } from './online-restore-diagnostics.ts'
 import { sharedSmokeImage, verifySharedSmokeImage } from '../../../scripts/smoke/images.ts'
 import { runMaintenanceProcess } from '../../../scripts/backup/maintenance-process.ts'
 import { verifyPublishedBackup } from '../../../scripts/backup/publication.ts'
@@ -20,6 +21,10 @@ import {
     managedBackupStatusSchema,
 } from '../../../web/src/lib/Backups/validation.ts'
 import type { ManagedBackupStatus } from '../../../web/src/lib/Backups/Types/backups.types.ts'
+
+export function managedRestoreDiagnostic(stderr: string): string | undefined {
+    return stderr.split(/\r?\n/u).find((line) => isOnlineRestoreDiagnostic(line))
+}
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const containerProbe = '/tmp/managed-backup-probe.js'
@@ -165,6 +170,18 @@ export async function runManagedBackupsSmoke(): Promise<number> {
                 ].includes(operation)
             )
                 console.error('Managed backup fixture failed during ' + phase)
+            if (
+                [
+                    'fixture probe online-restore',
+                    'fixture probe online-restore-interrupt',
+                    'fixture probe online-restore-recover',
+                ].includes(operation)
+            ) {
+                const checkpoint = managedRestoreDiagnostic(
+                    Buffer.from(result.stderr).toString('utf8'),
+                )
+                if (checkpoint) console.error(checkpoint)
+            }
             const downloadStatus =
                 /Managed backup download response: status=\d{3} tar=(?:true|false) private=(?:true|false) attachment=(?:true|false)/u.exec(
                     Buffer.from(result.stderr).toString('utf8'),

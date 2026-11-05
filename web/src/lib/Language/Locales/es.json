@@ -97,7 +97,8 @@
         "clearSelection": "Borrar selección",
         "edit": "Editar",
         "delete": "Eliminar",
-        "automaticRecovery": "Reintentando automáticamente…"
+        "automaticRecovery": "Reintentando automáticamente…",
+        "close": "Cerrar"
     },
     "inputs": {
         "invalidPhone": "Introduce un número de teléfono válido.",
@@ -224,7 +225,8 @@
         "totpInvalid": "Introduce el código de seis dígitos de la aplicación de autenticación.",
         "invalidValue": "Revisa este valor y vuelve a intentarlo.",
         "selectOption": "Selecciona una opción disponible.",
-        "passwordMismatch": "Las contraseñas no coinciden."
+        "passwordMismatch": "Las contraseñas no coinciden.",
+        "passwordTooLong": "Esta contraseña es demasiado larga."
     },
     "errors": {
         "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo más tarde.",
@@ -242,7 +244,7 @@
         "user_not_found": "El usuario ya no existe.",
         "invalid_email": "Revisa la dirección de correo electrónico y vuelve a intentarlo.",
         "invalid_input": "Revisa los valores introducidos y vuelve a intentarlo.",
-        "password_policy": "Revisa la contraseña y vuelve a intentarlo.",
+        "password_policy": "La contraseña no cumple los requisitos de longitud.",
         "service_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo.",
         "user_not_active": "Esta cuenta no está activa."
     },
@@ -1094,7 +1096,7 @@
                 "status": "Estado",
                 "pendingHint": "Las cuentas nuevas quedan pendientes hasta aceptar la invitación.",
                 "disabledHint": "Desactiva el acceso desde el menú de acciones del usuario.",
-                "roles": "Grupo de roles",
+                "roles": "Roles",
                 "rolesReadOnly": "Puedes actualizar los datos del perfil, pero no las asignaciones de roles de este usuario.",
                 "createDescription": "Crea la cuenta, asigna su acceso inicial y envía una invitación.",
                 "editDescription": "Actualiza la información de la cuenta y sus roles asignados.",

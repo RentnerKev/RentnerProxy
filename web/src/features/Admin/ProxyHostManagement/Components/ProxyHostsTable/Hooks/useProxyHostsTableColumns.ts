@@ -78,6 +78,7 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostDomainsCell, {
                         domains: row.original.domains,
+                        certificateId: row.original.certificateId,
                         enabled: row.original.enabled,
                         discovery: row.original.discovery,
                     }),

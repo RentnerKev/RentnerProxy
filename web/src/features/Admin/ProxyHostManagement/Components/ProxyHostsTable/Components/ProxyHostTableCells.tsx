@@ -20,7 +20,13 @@ import type {
 const statusBadgeClassName =
     'inline-flex w-fit rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
-function DomainChip({ domain, status, descriptionId }: ProxyHostDomainChipProps) {
+function DomainChip({
+    domain,
+    scheme,
+    allowLinks,
+    status,
+    descriptionId,
+}: ProxyHostDomainChipProps) {
     const chipClassName =
         `inline-flex items-center rounded-full border px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold ${status === 'disabled' ? 'border-danger-text/20 bg-danger-bg text-danger-text' : 'border-success-text/20 bg-success-bg text-success-text'}` +
         ' inline-block max-w-56 truncate align-bottom'
@@ -29,6 +35,8 @@ function DomainChip({ domain, status, descriptionId }: ProxyHostDomainChipProps)
         <ManagedDomainLink
             className={chipClassName}
             domain={domain}
+            scheme={scheme}
+            allowLinks={allowLinks}
             aria-describedby={status ? descriptionId : undefined}
             data-status={status}
         />
@@ -43,12 +51,19 @@ function DomainChip({ domain, status, descriptionId }: ProxyHostDomainChipProps)
     )
 }
 
-export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostDomainsCellProps) {
+export function ProxyHostDomainsCell({
+    domains,
+    certificateId,
+    allowLinks = true,
+    discovery,
+    enabled,
+}: ProxyHostDomainsCellProps) {
     const { t } = useTranslationStore()
     const descriptionId = useId()
     const status = enabled === undefined ? undefined : enabled ? 'enabled' : 'disabled'
     const visibleDomains = domains.slice(0, 2)
     const extraDomains = domains.slice(2)
+    const scheme = certificateId === null ? 'http' : 'https'
 
     if (visibleDomains.length === 0) {
         return <span className="text-muted">—</span>
@@ -65,6 +80,8 @@ export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostD
                 {visibleDomains.map((domain) => (
                     <DomainChip
                         domain={domain}
+                        scheme={scheme}
+                        allowLinks={allowLinks}
                         key={domain}
                         status={status}
                         descriptionId={descriptionId}
@@ -74,6 +91,8 @@ export function ProxyHostDomainsCell({ domains, discovery, enabled }: ProxyHostD
                     <ManagedDomainOverflow
                         ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
                         domains={extraDomains}
+                        scheme={scheme}
+                        allowLinks={allowLinks}
                         tone={status === 'disabled' ? 'danger' : 'success'}
                         descriptionId={status ? descriptionId : undefined}
                     />

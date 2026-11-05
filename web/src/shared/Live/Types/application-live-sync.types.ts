@@ -13,4 +13,5 @@ export interface ApplicationLiveSyncResult {
     readonly hasIdentityError: boolean
     readonly identityGeneration: number
     readonly retryIdentity: () => void
+    readonly captureScroll: () => void
 }
