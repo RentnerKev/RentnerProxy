@@ -22,7 +22,9 @@ concurrency:
 jobs:
     pr-preview-source:
         name: PR Preview Source
-        if: github.event.pull_request.state == 'open'
+        if: >-
+            github.event.pull_request.state == 'open' &&
+            (github.event.action != 'edited' || github.event.changes.base.ref.from != '')
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:

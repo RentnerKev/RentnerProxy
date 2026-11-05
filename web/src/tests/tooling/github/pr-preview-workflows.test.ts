@@ -48,7 +48,7 @@ describe('trusted PR trigger proof', () => {
         expect(trigger).toContain('persist-credentials: false')
         expect(trigger).toContain('contents: read')
         expect(trigger).toMatch(
-            /pr-preview-source:\s+name: PR Preview Source\s+if: github\.event\.pull_request\.state == 'open'\s+runs-on:/u,
+            /pr-preview-source:\s+name: PR Preview Source\s+if: >-\s+github\.event\.pull_request\.state == 'open' &&\s+\(github\.event\.action != 'edited' \|\| github\.event\.changes\.base\.ref\.from != ''\)\s+runs-on:/u,
         )
         expect(trigger).not.toContain('github.event.pull_request.head.sha')
         expect(trigger).not.toContain('contents: write')
