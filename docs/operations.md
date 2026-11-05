@@ -170,9 +170,12 @@ TXT values while preserving foreign values and your permanent CNAME/NS delegatio
 ### Renewal, failures and recovery
 
 For manual mode, enable a notification channel subscribed to **Certificate renewal**
-in your notification settings and check its delivery status. When a renewal requires
-fresh proofs, an action-required notification points the operator to the certificate;
-open **Details**, publish the new values and choose **Check DNS and continue** before
+in your notification settings, with **Minimum severity** set to **Warning** or **Error**.
+Confirm that delivery is enabled by the administrator and check its delivery status.
+After a restore, review the saved destinations and select **Resume delivery** to lift
+the restore pause. When a renewal requires fresh proofs, an action-required notification
+points the operator to the certificate. Open **Details**, publish the new values and
+choose **Check DNS and continue** before
 the order and active certificate expire. Notifications do not publish records.
 The previous active certificate remains installed during renewal, but it can still
 expire if nobody completes the challenge. Manual mode cannot promise unattended renewal.
