@@ -12,7 +12,9 @@ work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 # Deliberately no GitHub token, registry login or signature-check bypass.
 curl --fail --silent --show-error --location --proto '=https' "$base/keys/$PACKAGE_SIGNING_FINGERPRINT.asc" --output "$work/key.asc"
-actual=$(gpg --batch --with-colons --show-keys "$work/key.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+listing=$(gpg --batch --with-colons --show-keys "$work/key.asc")
+[[ $(awk -F: '$1 == "pub" {count++} END {print count+0}' <<< "$listing") == 1 ]] || exit 1
+actual=$(awk -F: '$1 == "fpr" {print $10; exit}' <<< "$listing")
 [[ "$actual" == "$PACKAGE_SIGNING_FINGERPRINT" ]] || exit 1
 curl --fail --silent --show-error --location --proto '=https' "$base/catalog.json" --output "$work/catalog.json"
 curl --fail --silent --show-error --location --proto '=https' "$base/catalog.json.asc" --output "$work/catalog.json.asc"
