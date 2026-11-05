@@ -2,9 +2,48 @@ import { describe, expect, test } from 'bun:test'
 import {
     managedBackupSmokeCompose,
     validateManagedBackupTestImage,
+    managedRestoreDiagnostic,
 } from '../../../../.github/scripts/ci/managed-backups-smoke.ts'
 import { backupNotificationPayloadSchema } from '../../../../.github/scripts/ci/fixtures/managed-backup-probe.ts'
 import { SMOKE_RUN_LABEL, smokeRunScope } from '../../../../scripts/smoke/resources.ts'
+import {
+    onlineRestoreFailureDiagnostic,
+    isOnlineRestoreDiagnostic,
+} from '../../../../.github/scripts/ci/fixtures/managed-restore-probe.ts'
+
+test('online restore diagnostics expose only fixed checkpoints and exception categories', () => {
+    const secret = 'synthetic-private-session-and-SQL'
+    const assertion = new Error(secret)
+    assertion.name = 'AssertionError'
+    const cases = [
+        [assertion, 'assertion'],
+        [new DOMException(secret, 'TimeoutError'), 'timeout'],
+        [new DOMException(secret, 'AbortError'), 'timeout'],
+        [new Error(secret), 'other'],
+        [{ message: secret, actual: secret, expected: secret }, 'other'],
+    ] as const
+    for (const [error, category] of cases) {
+        const line = onlineRestoreFailureDiagnostic('restore-start', error)
+        expect(line).toBe(`Managed online restore checkpoint: restore-start category=${category}`)
+        expect(isOnlineRestoreDiagnostic(line)).toBeTrue()
+        expect(managedRestoreDiagnostic(`${secret}\n${line}\n${secret}`)).toBe(line)
+        for (const unsafe of [
+            `prefix ${line}`,
+            `${line} ${secret}`,
+            line.replace('restore-start', secret),
+            line.replace(`category=${category}`, `category=${secret}`),
+            `${line}\n${secret}`,
+            `${line}\n`,
+        ]) {
+            expect(isOnlineRestoreDiagnostic(unsafe)).toBeFalse()
+        }
+        expect(managedRestoreDiagnostic(`${line} ${secret}`)).toBeUndefined()
+        expect(line).not.toContain(secret)
+    }
+    const first = onlineRestoreFailureDiagnostic('progress', assertion)
+    const second = onlineRestoreFailureDiagnostic('completion-api', assertion)
+    expect(managedRestoreDiagnostic(`${first}\r\n${second}`)).toBe(first)
+})
 
 describe('managed backup isolated smoke configuration', () => {
     test('accepts explicit repository tags and content-addressed image references', () => {

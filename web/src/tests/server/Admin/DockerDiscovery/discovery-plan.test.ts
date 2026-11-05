@@ -34,6 +34,32 @@ function owned() {
     })
 }
 const empty = { hosts: [], domains: [] }
+
+test.each([null, DISCOVERY_HOST])(
+    'discovery rows preserve candidate TLS configuration (%s)',
+    (certificateId) => {
+        const plan = createDiscoveryPlan(
+            discoverySnapshot([discoveryCandidate({ certificateId })]),
+            discoveryRegistry(),
+            empty,
+        )
+        expect(plan.rows[0]?.certificateId).toBe(certificateId)
+    },
+)
+
+test.each([null, DISCOVERY_HOST])(
+    'owner-only rows preserve saved host TLS configuration (%s)',
+    (certificateId) => {
+        const plan = createDiscoveryPlan(discoverySnapshot([]), owned(), {
+            hosts: [discoveredHost({ certificateId })],
+            domains: [],
+        })
+        expect(plan.rows[0]?.certificateId).toBe(certificateId)
+        expect(
+            createDiscoveryPlan(discoverySnapshot([]), owned(), empty).rows[0]?.certificateId,
+        ).toBeUndefined()
+    },
+)
 test('preview creates eligible explicitly labeled candidates and is deterministic', () => {
     const a = createDiscoveryPlan(discoverySnapshot(), discoveryRegistry(), empty)
     expect(a.rows[0]?.state).toBe('create')

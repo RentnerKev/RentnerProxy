@@ -254,15 +254,46 @@ test('APP_ACCESS-only users see the global actor, backup and genuine checkpoint 
 test('restore preserves the route, search, scroll and mounted drafts until confirmed cache refresh completes', async () => {
     await mount()
     const originalDocumentScroll = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    const originalDocumentHeight = Object.getOwnPropertyDescriptor(
+        document.documentElement,
+        'scrollHeight',
+    )
+    const originalViewportHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight')
+    const originalObserver = globalThis.ResizeObserver
     let documentTop = 1500
+    let documentHeight = 4000
+    let layoutChanged: (() => void) | undefined
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+        configurable: true,
+        get: () => documentHeight,
+    })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 })
+    globalThis.ResizeObserver = class {
+        constructor(callback: ResizeObserverCallback) {
+            layoutChanged = () => callback([], this as unknown as ResizeObserver)
+        }
+        observe() {}
+        disconnect() {}
+    } as unknown as typeof ResizeObserver
     Object.defineProperty(window, 'scrollY', { configurable: true, get: () => documentTop })
     const documentScroll = spyOn(window, 'scrollTo').mockImplementation((options) => {
-        if (typeof options === 'object') documentTop = options.top ?? documentTop
+        if (typeof options === 'object')
+            documentTop = Math.min(
+                options.top ?? documentTop,
+                Math.max(0, documentHeight - window.innerHeight),
+            )
     })
     restorers.push(() => {
         documentScroll.mockRestore()
         if (originalDocumentScroll) Object.defineProperty(window, 'scrollY', originalDocumentScroll)
         else Reflect.deleteProperty(window, 'scrollY')
+        if (originalDocumentHeight)
+            Object.defineProperty(document.documentElement, 'scrollHeight', originalDocumentHeight)
+        else Reflect.deleteProperty(document.documentElement, 'scrollHeight')
+        if (originalViewportHeight)
+            Object.defineProperty(window, 'innerHeight', originalViewportHeight)
+        else Reflect.deleteProperty(window, 'innerHeight')
+        globalThis.ResizeObserver = originalObserver
     })
     const routeState = container.querySelector<HTMLElement>('[data-route-state]')!
     const draft = routeState.querySelector('input')!
@@ -275,6 +306,7 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
     const clear = client.clear.bind(client)
     const clearSpy = spyOn(client, 'clear').mockImplementation(() => {
         calls.push('clear')
+        documentHeight = 1100
         clear()
     })
     const cancelSpy = spyOn(client, 'cancelQueries').mockImplementation(async () => {
@@ -324,6 +356,9 @@ test('restore preserves the route, search, scroll and mounted drafts until confi
     expect(draft.value).toBe('unfinished work')
     expect(routeState.textContent).toContain('Draft count 1')
     expect(routeState.scrollTop).toBe(327)
+    expect(documentScroll).not.toHaveBeenCalled()
+    documentHeight = 4000
+    await act(async () => layoutChanged!())
     expect(documentTop).toBe(1500)
 })
 

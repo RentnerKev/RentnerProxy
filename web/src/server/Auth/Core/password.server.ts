@@ -1,6 +1,7 @@
 import '@tanstack/react-start/server-only'
 
-import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '@/config/auth.config.ts'
+import { PASSWORD_MAX_LENGTH } from '@/config/auth.config.ts'
+import { hasMinimumNewPasswordLength } from '@/lib/Auth/passwordPolicy.ts'
 import { AuthDomainError } from './errors.server.ts'
 
 export function isValidPassword(password: string): boolean {
@@ -8,14 +9,14 @@ export function isValidPassword(password: string): boolean {
 }
 
 export function isValidNewPassword(password: string): boolean {
-    return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH
+    return password.length <= PASSWORD_MAX_LENGTH && hasMinimumNewPasswordLength(password)
 }
 
 function validatePassword(password: string): void {
     if (!isValidNewPassword(password)) {
         throw new AuthDomainError(
             'password_policy',
-            `Password must contain between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+            'Password does not meet the length requirements.',
         )
     }
 }

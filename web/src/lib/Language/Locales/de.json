@@ -223,7 +223,8 @@
         "totpInvalid": "Gib den sechsstelligen Authenticator-Code ein.",
         "invalidValue": "Prüfe diesen Wert und versuche es erneut.",
         "selectOption": "Wähle eine verfügbare Option aus.",
-        "passwordMismatch": "Die Passwörter stimmen nicht überein."
+        "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+        "passwordTooLong": "Dieses Passwort ist zu lang."
     },
     "errors": {
         "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
@@ -241,7 +242,7 @@
         "user_not_found": "Der Benutzer existiert nicht mehr.",
         "invalid_email": "Prüfe die E-Mail-Adresse und versuche es erneut.",
         "invalid_input": "Prüfe die eingegebenen Werte und versuche es erneut.",
-        "password_policy": "Verwende ein Passwort mit 12–256 Zeichen.",
+        "password_policy": "Das Passwort erfüllt die Anforderungen an die Länge nicht.",
         "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Versuche es erneut.",
         "user_not_active": "Dieses Konto ist nicht aktiv."
     },

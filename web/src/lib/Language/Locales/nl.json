@@ -204,7 +204,8 @@
         "totpInvalid": "Voer de zescijferige code uit je authenticator in.",
         "invalidValue": "Controleer deze waarde en probeer het opnieuw.",
         "selectOption": "Kies een beschikbare optie.",
-        "passwordMismatch": "De wachtwoorden komen niet overeen."
+        "passwordMismatch": "De wachtwoorden komen niet overeen.",
+        "passwordTooLong": "Dit wachtwoord is te lang."
     },
     "errors": {
         "rateLimited": "Te veel verzoeken. Probeer het later opnieuw.",
@@ -222,7 +223,7 @@
         "user_not_found": "De gebruiker bestaat niet meer.",
         "invalid_email": "Controleer het e-mailadres en probeer het opnieuw.",
         "invalid_input": "Controleer de ingediende waarden en probeer het opnieuw.",
-        "password_policy": "Gebruik een wachtwoord van 12 tot 256 tekens.",
+        "password_policy": "Het wachtwoord voldoet niet aan de lengtevereisten.",
         "service_unavailable": "De dienst is tijdelijk niet beschikbaar. Probeer het opnieuw.",
         "user_not_active": "Dit account is niet actief."
     },

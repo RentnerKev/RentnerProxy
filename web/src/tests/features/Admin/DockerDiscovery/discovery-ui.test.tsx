@@ -240,6 +240,37 @@ async function live(value: DiscoveryOverview, set: (value: DiscoveryOverview) =>
 }
 
 describe('Docker discovery management UI', () => {
+    test.each([null, DISCOVERY_HOST])(
+        'links visible and overflow discovery domains using candidate TLS configuration (%s)',
+        async (certificateId) => {
+            const domains = ['first.example.com', 'second.example.com', 'overflow.example.com']
+            const f = fixture(discoveryOverview([discoveryCandidate({ domains, certificateId })]))
+            await render(f.api)
+            const scheme = certificateId ? 'https' : 'http'
+            expect(
+                [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].map((link) =>
+                    link.getAttribute('href'),
+                ),
+            ).toEqual(domains.slice(0, 2).map((domain) => `${scheme}://${domain}`))
+            await click(document.querySelector('button[aria-label="Show 1 more domains"]')!)
+            const overflowLink = document.querySelector<HTMLAnchorElement>(
+                `a[href="${scheme}://${domains[2]}"]`,
+            )
+            expect(overflowLink?.target).toBe('_blank')
+            expect(overflowLink?.rel).toBe('noopener noreferrer')
+        },
+    )
+
+    test('keeps HTTPS for discovery rows whose certificate configuration is unknown', async () => {
+        const overview = discoveryOverview()
+        const { certificateId: _certificateId, ...unknownRow } = overview.rows[0]!
+        const f = fixture({ ...overview, rows: [unknownRow] })
+        await render(f.api)
+        expect(document.querySelector('tbody a')?.getAttribute('href')).toBe(
+            'https://app.example.com',
+        )
+    })
+
     test('renders conflicting identities independently and supports search plus row status filters', async () => {
         const candidates = [
             discoveryCandidate(),

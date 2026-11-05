@@ -227,7 +227,8 @@
         "totpInvalid": "Wpisz sześciocyfrowy kod z aplikacji uwierzytelniającej.",
         "invalidValue": "Sprawdź tę wartość i spróbuj ponownie.",
         "selectOption": "Wybierz dostępną opcję.",
-        "passwordMismatch": "Hasła nie są zgodne."
+        "passwordMismatch": "Hasła nie są zgodne.",
+        "passwordTooLong": "To hasło jest za długie."
     },
     "errors": {
         "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie później.",
@@ -245,7 +246,7 @@
         "user_not_found": "Ten użytkownik już nie istnieje.",
         "invalid_email": "Sprawdź adres e-mail i spróbuj ponownie.",
         "invalid_input": "Sprawdź przesłane wartości i spróbuj ponownie.",
-        "password_policy": "Użyj hasła zawierającego od 12 do 256 znaków.",
+        "password_policy": "Hasło nie spełnia wymagań dotyczących długości.",
         "service_unavailable": "Usługa jest tymczasowo niedostępna. Spróbuj ponownie.",
         "user_not_active": "To konto nie jest aktywne."
     },

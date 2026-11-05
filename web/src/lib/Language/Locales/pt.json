@@ -225,7 +225,8 @@
         "totpInvalid": "Introduza o código de seis dígitos da aplicação autenticadora.",
         "invalidValue": "Reveja este valor e tente novamente.",
         "selectOption": "Selecione uma opção disponível.",
-        "passwordMismatch": "As palavras-passe não coincidem."
+        "passwordMismatch": "As palavras-passe não coincidem.",
+        "passwordTooLong": "Esta palavra-passe é demasiado longa."
     },
     "errors": {
         "rateLimited": "Demasiados pedidos. Tente novamente mais tarde.",
@@ -243,7 +244,7 @@
         "user_not_found": "O utilizador já não existe.",
         "invalid_email": "Reveja o endereço de e-mail e tente novamente.",
         "invalid_input": "Reveja os valores introduzidos e tente novamente.",
-        "password_policy": "Usa uma palavra-passe de 12 a 256 caracteres.",
+        "password_policy": "A palavra-passe não cumpre os requisitos de comprimento.",
         "service_unavailable": "O serviço está temporariamente indisponível. Tente novamente.",
         "user_not_active": "Esta conta não está ativa."
     },

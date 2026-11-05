@@ -374,7 +374,7 @@ beforeEach(() => {
 })
 
 describe('password authentication state', () => {
-    test.each([11, 257])(
+    test.each([1, 257])(
         'rejects a new password of %s code units without changing credentials or sessions',
         async (length) => {
             sessionCookie = cookieToken

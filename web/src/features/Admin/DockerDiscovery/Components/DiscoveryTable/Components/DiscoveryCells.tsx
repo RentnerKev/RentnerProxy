@@ -29,7 +29,12 @@ export function DiscoverySourceCell({ row }: DiscoveryCellProps) {
     )
 }
 export function DiscoveryDomainsCell({ row }: DiscoveryCellProps) {
-    return <ProxyHostDomainsCell domains={row.domains} />
+    return (
+        <ProxyHostDomainsCell
+            domains={row.domains}
+            {...(row.certificateId !== undefined ? { certificateId: row.certificateId } : {})}
+        />
+    )
 }
 export function DiscoveryTargetCell({ row }: DiscoveryCellProps) {
     const { t } = useTranslationStore()

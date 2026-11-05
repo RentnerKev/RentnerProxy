@@ -2,9 +2,11 @@ import type { ValidationIssue } from './Types/field-errors.types.ts'
 import type { z } from 'zod'
 
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
+import { PASSWORD_TOO_LONG_MESSAGE } from '@/lib/Auth/passwordPolicy.ts'
 
 function localizeValidationIssue(t: Translate, issue: ValidationIssue): string {
     if (/^(?:validation|account|admin)\./u.test(issue.message ?? '')) return t(issue.message!)
+    if (issue.message === PASSWORD_TOO_LONG_MESSAGE) return t('validation.passwordTooLong')
     if (issue.code === 'too_small') {
         const min = Number(issue.minimum ?? 1)
         if (issue.origin === 'string') {

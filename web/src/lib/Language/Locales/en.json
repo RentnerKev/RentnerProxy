@@ -223,7 +223,8 @@
         "totpInvalid": "Enter the six-digit authenticator code.",
         "invalidValue": "Review this value and try again.",
         "selectOption": "Select an available option.",
-        "passwordMismatch": "The passwords do not match."
+        "passwordMismatch": "The passwords do not match.",
+        "passwordTooLong": "This password is too long."
     },
     "errors": {
         "rateLimited": "Too many requests. Try again later.",
@@ -241,7 +242,7 @@
         "user_not_found": "The user no longer exists.",
         "invalid_email": "Review the email address and try again.",
         "invalid_input": "Review the submitted values and try again.",
-        "password_policy": "Use a password containing 12–256 characters.",
+        "password_policy": "The password does not meet the length requirements.",
         "service_unavailable": "The service is temporarily unavailable. Try again.",
         "user_not_active": "This account is not active."
     },

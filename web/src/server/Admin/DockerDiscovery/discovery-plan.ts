@@ -128,6 +128,7 @@ export function createDiscoveryPlan(
             containerId: candidate.containerId,
             hostId: owner?.hostId ?? null,
             domains: candidate.domains,
+            certificateId: candidate.certificateId,
             target: candidate.target,
             state: error && ['current', 'create', 'update'].includes(state) ? 'conflicted' : state,
             issues: [...new Set(issues)],
@@ -135,12 +136,14 @@ export function createDiscoveryPlan(
     }
     for (const owner of registry.owners) {
         if (observed.has(owner.key)) continue
+        const host = hosts.get(owner.hostId)
         rows.push({
             key: owner.key,
             sourceId: owner.sourceId,
             containerId: owner.containerId,
             hostId: owner.hostId,
             domains: owner.domains,
+            ...(host ? { certificateId: host.certificateId } : {}),
             target: null,
             state:
                 owner.state === 'detached'

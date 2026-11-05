@@ -276,6 +276,16 @@ afterEach(async () => {
 
 describe('localized accessible host tags', () => {
     test.each(['proxy', 'redirect'] as const)(
+        'the %s table forwards HTTP-only certificate state to domain links',
+        async (kind) => {
+            await render(<HostTableRefreshProbe kind={kind} />)
+            const domain = document.querySelector<HTMLAnchorElement>('tbody a')!
+            expect(domain.textContent).toBe('app.example.com')
+            expect(domain.getAttribute('href')).toBe('http://app.example.com')
+        },
+    )
+
+    test.each(['proxy', 'redirect'] as const)(
         'keeps %s tag selection and its draft open during pointer selection and authenticated route refreshes',
         async (kind) => {
             states[kind] = structuredClone(states.proxy)

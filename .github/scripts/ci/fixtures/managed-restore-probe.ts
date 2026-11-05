@@ -11,6 +11,7 @@ import {
 import { SESSION_COOKIE_NAME } from '../../../../web/src/config/auth.config.ts'
 import { sqlQuote } from './appliance-storage.ts'
 import { createProxyRuntimeSnapshot } from '../../../../web/src/server/ProxyRuntime/proxy-runtime-snapshot.ts'
+import type { RestoreCheckpoint } from './Types/managed-restore-probe.types.ts'
 
 const origin = 'https://managed-backup.invalid'
 const managementPort = 8080
@@ -22,6 +23,40 @@ const recoveryFixtureSchema = z.strictObject({
     currentToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/u),
     before: z.uuid(),
 })
+
+let checkpoint: RestoreCheckpoint = 'fixture'
+
+export function isOnlineRestoreDiagnostic(line: string): boolean {
+    if (line.includes('\n') || line.includes('\r')) return false
+    return /^Managed online restore checkpoint: (?:fixture|management-proxy|seed|backup-connect|backup-start|backup-complete|session-update|restore-connect|restore-start|restore-complete|progress|completion-stream|completion-api|completion-files|interrupted-checkpoint|recovery-fixture) category=(?:assertion|timeout|other)$/u.test(
+        line,
+    )
+}
+
+export function onlineRestoreFailureDiagnostic(phase: RestoreCheckpoint, error: unknown): string {
+    const category =
+        error instanceof Error
+            ? error.name === 'AssertionError'
+                ? 'assertion'
+                : error.name === 'TimeoutError' || error.name === 'AbortError'
+                  ? 'timeout'
+                  : 'other'
+            : 'other'
+    const line = `Managed online restore checkpoint: ${phase} category=${category}`
+    return isOnlineRestoreDiagnostic(line)
+        ? line
+        : 'Managed online restore checkpoint: fixture category=other'
+}
+
+async function diagnose<T>(operation: () => Promise<T>): Promise<T> {
+    checkpoint = 'fixture'
+    try {
+        return await operation()
+    } catch (error) {
+        console.error(onlineRestoreFailureDiagnostic(checkpoint, error))
+        throw error
+    }
+}
 
 async function psql(statement: string) {
     const process = Bun.spawn(
@@ -222,6 +257,7 @@ async function prepareManagementProxy() {
 }
 
 async function verifyCompletion(fixture: z.infer<typeof recoveryFixtureSchema>) {
+    checkpoint = 'restore-complete'
     await wait(async () => {
         const state = managedBackupStateSchema.parse(JSON.parse(await readFile(statePath, 'utf8')))
         const current = state.maintenance
@@ -230,6 +266,7 @@ async function verifyCompletion(fixture: z.infer<typeof recoveryFixtureSchema>) 
     })
     const reconnected = live(fixture.currentToken)
     try {
+        checkpoint = 'completion-stream'
         const completed = await wait(async () =>
             reconnected.snapshots.find(
                 (snapshot) =>
@@ -242,11 +279,13 @@ async function verifyCompletion(fixture: z.infer<typeof recoveryFixtureSchema>) 
     } finally {
         reconnected.close()
     }
+    checkpoint = 'completion-api'
     const response = await request(fixture.currentToken, '/api/admin/backups/status')
     assert.equal(response.status, 200, 'authenticated routes must resume after confirmed recovery')
     const ready = await fetch('http://127.0.0.1:3000/health/ready')
     await ready.body?.cancel()
     assert.equal(ready.status, 200)
+    checkpoint = 'completion-files'
     assert.equal(await readFile(markerPath, 'utf8'), fixture.before)
     assert.equal(
         await psql(
@@ -267,18 +306,27 @@ async function verifyCompletion(fixture: z.infer<typeof recoveryFixtureSchema>) 
 }
 
 export async function verifyRestartedWebRestore() {
-    await assertFixture()
-    return verifyCompletion(
-        recoveryFixtureSchema.parse(JSON.parse(await readFile(recoveryFixturePath, 'utf8'))),
-    )
+    return diagnose(async () => {
+        await assertFixture()
+        checkpoint = 'recovery-fixture'
+        return verifyCompletion(
+            recoveryFixtureSchema.parse(JSON.parse(await readFile(recoveryFixturePath, 'utf8'))),
+        )
+    })
 }
 
 /** Runs only in the existing private smoke appliance, using fresh local identities and no external services. */
 export async function verifyManagedWebRestore(interruptRestart = false) {
+    return diagnose(() => runManagedWebRestore(interruptRestart))
+}
+
+async function runManagedWebRestore(interruptRestart: boolean) {
     await assertFixture()
+    checkpoint = 'management-proxy'
     const closeProxy = await prepareManagementProxy()
     let backupObserver: ReturnType<typeof live> | undefined
     try {
+        checkpoint = 'seed'
         const actor = randomUUID(),
             token = randomBytes(32).toString('base64url'),
             before = randomUUID()
@@ -299,11 +347,14 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
         // Previously their Caddy shutdown consumed the controller's entire 20s budget.
         const connectedBackupObserver = live(token)
         backupObserver = connectedBackupObserver
+        checkpoint = 'backup-connect'
         await wait(async () => (connectedBackupObserver.snapshots.length ? true : undefined))
+        checkpoint = 'backup-start'
         assert.equal(
             (await request(token, '/api/admin/backups/start', { requestId: backupRequest })).status,
             202,
         )
+        checkpoint = 'backup-complete'
         const backup = await wait(async () => {
             const state = managedBackupStateSchema.parse(
                 JSON.parse(await readFile(statePath, 'utf8')),
@@ -331,6 +382,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
             return pending.some(Boolean) ? undefined : job
         })
         backupObserver.close()
+        checkpoint = 'session-update'
         // The browser that requests recovery may have signed in after the backup.
         const currentToken = randomBytes(32).toString('base64url')
         await psql(
@@ -340,6 +392,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
         await writeFile(markerPath, 'after', { mode: 0o600 })
         const observer = live(currentToken)
         try {
+            checkpoint = 'restore-connect'
             await wait(async () => (observer.snapshots.length ? true : undefined))
             if (interruptRestart) {
                 // Fault only this disposable container layer. The host repairs it after the
@@ -350,6 +403,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 )
             }
             const requestId = randomUUID()
+            checkpoint = 'restore-start'
             const accepted = await request(currentToken, '/api/admin/backups/restore', {
                 requestId,
                 jobId: backup.id,
@@ -361,6 +415,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
             assert.equal(operation?.requestId, requestId)
             const fixture = { operationId: operation.id, currentToken, before }
             if (interruptRestart) {
+                checkpoint = 'interrupted-checkpoint'
                 await writeFile(recoveryFixturePath, JSON.stringify(fixture), {
                     mode: 0o600,
                     flag: 'wx',
@@ -377,6 +432,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 })
                 return { recoveryPending: true }
             }
+            checkpoint = 'restore-complete'
             await wait(async () => {
                 const state = managedBackupStateSchema.parse(
                     JSON.parse(await readFile(statePath, 'utf8')),
@@ -386,6 +442,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 assert.ok(current?.state !== 'failed' && current?.state !== 'interrupted')
                 return current?.state === 'succeeded' ? current : undefined
             })
+            checkpoint = 'progress'
             assert.ok(
                 observer.snapshots.some(
                     (snapshot) =>
@@ -406,6 +463,7 @@ export async function verifyManagedWebRestore(interruptRestart = false) {
                 progress.toSorted((left, right) => left - right),
                 'progress must never regress',
             )
+            checkpoint = 'completion-stream'
             const resumed = await wait(async () =>
                 observer.snapshots.find(
                     (snapshot) =>

@@ -12,8 +12,8 @@ describe('authentication validation', () => {
         expect(emailSchema.parse('  Owner@Example.COM ')).toBe('owner@example.com')
     })
 
-    test('requires twelve characters for new account passwords and preserves legacy login credentials', () => {
-        for (const password of ['', 'x', 'x'.repeat(11), 'x'.repeat(257)]) {
+    test('requires two code points for new account passwords and preserves legacy login credentials', () => {
+        for (const password of ['', 'x', 'x'.repeat(257), '😀']) {
             expect(newPasswordSchema.safeParse(password).success).toBeFalse()
             const input = {
                 displayName: 'Owner',
@@ -31,13 +31,28 @@ describe('authentication validation', () => {
                 expect(schema.safeParse(input).success).toBeFalse()
             }
         }
-        for (const password of ['x'.repeat(12), 'x'.repeat(256)]) {
+        for (const password of ['x'.repeat(2), 'x'.repeat(256), '😀'.repeat(2)]) {
             expect(newPasswordSchema.safeParse(password).success).toBeTrue()
         }
         expect(credentialPasswordSchema.parse('x')).toBe('x')
+        expect(credentialPasswordSchema.parse('😀'.repeat(6))).toBe('😀'.repeat(6))
         expect(
             loginInputSchema.safeParse({ email: 'owner@example.test', password: 'x' }).success,
         ).toBeTrue()
+    })
+
+    test('reports the Unicode minimum with the structured issue used by localized account forms', () => {
+        const result = newPasswordSchema.safeParse('😀')
+        expect(result.success).toBeFalse()
+        if (!result.success) {
+            expect(result.error.issues[0]).toMatchObject({
+                code: 'too_small',
+                origin: 'string',
+                minimum: 2,
+                inclusive: true,
+                message: 'Password must contain at least 2 characters.',
+            })
+        }
     })
 
     test('does not trim or otherwise mutate passwords', () => {
@@ -64,7 +79,7 @@ describe('authentication validation', () => {
                     origin: 'string',
                     maximum: 256,
                     inclusive: true,
-                    message: 'Password must contain at most 256 characters.',
+                    message: 'Password is too long.',
                 })
             }
         }

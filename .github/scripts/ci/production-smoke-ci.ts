@@ -1,4 +1,5 @@
 import type { Suite, Result } from './Types/production-smoke-ci.types.ts'
+import { isOnlineRestoreDiagnostic } from './fixtures/managed-restore-probe.ts'
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isDockerBuildDiagnostic } from '../../../scripts/smoke/docker-build-diagnostics.ts'
@@ -91,6 +92,10 @@ export function smokeProgress(suite: Suite) {
     ])
     return {
         consume(line: string): string | undefined {
+            if (suite === 'backups' && isOnlineRestoreDiagnostic(line)) {
+                diagnostic = line
+                return diagnostic
+            }
             if (
                 suite === 'backups' &&
                 (/^Managed backup fixture failed during (?:setup|web-auth|web-config|web-notifications|download-auth|download-response|download-archive|download-expired|download-audit|online-restore)$/u.test(

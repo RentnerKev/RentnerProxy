@@ -225,7 +225,8 @@
         "totpInvalid": "Introduce el código de seis dígitos de la aplicación de autenticación.",
         "invalidValue": "Revisa este valor y vuelve a intentarlo.",
         "selectOption": "Selecciona una opción disponible.",
-        "passwordMismatch": "Las contraseñas no coinciden."
+        "passwordMismatch": "Las contraseñas no coinciden.",
+        "passwordTooLong": "Esta contraseña es demasiado larga."
     },
     "errors": {
         "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo más tarde.",
@@ -243,7 +244,7 @@
         "user_not_found": "El usuario ya no existe.",
         "invalid_email": "Revisa la dirección de correo electrónico y vuelve a intentarlo.",
         "invalid_input": "Revisa los valores introducidos y vuelve a intentarlo.",
-        "password_policy": "Usa una contraseña de entre 12 y 256 caracteres.",
+        "password_policy": "La contraseña no cumple los requisitos de longitud.",
         "service_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo.",
         "user_not_active": "Esta cuenta no está activa."
     },

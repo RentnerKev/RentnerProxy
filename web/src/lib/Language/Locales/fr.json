@@ -225,7 +225,8 @@
         "totpInvalid": "Saisissez le code à six chiffres de l’application d’authentification.",
         "invalidValue": "Vérifiez cette valeur et réessayez.",
         "selectOption": "Sélectionnez une option disponible.",
-        "passwordMismatch": "Les mots de passe ne correspondent pas."
+        "passwordMismatch": "Les mots de passe ne correspondent pas.",
+        "passwordTooLong": "Ce mot de passe est trop long."
     },
     "errors": {
         "rateLimited": "Trop de demandes. Réessayez plus tard.",
@@ -243,7 +244,7 @@
         "user_not_found": "Cet utilisateur n’existe plus.",
         "invalid_email": "Vérifiez l’adresse e-mail et réessayez.",
         "invalid_input": "Vérifiez les valeurs saisies et réessayez.",
-        "password_policy": "Utilisez un mot de passe de 12 à 256 caractères.",
+        "password_policy": "Le mot de passe ne respecte pas les exigences de longueur.",
         "service_unavailable": "Le service est temporairement indisponible. Réessayez.",
         "user_not_active": "Ce compte n’est pas actif."
     },

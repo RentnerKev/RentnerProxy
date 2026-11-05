@@ -10,7 +10,7 @@ import { createOpaqueToken, hashOpaqueToken } from '@/server/Auth/Core/tokens.se
 const PASSWORD = 'correct horse battery staple'
 
 describe('password hashing', () => {
-    test.each([0, 1, 11, 257])(
+    test.each([0, 1, 257])(
         'rejects a new password of %i characters before hashing',
         async (length) => {
             const password = 'x'.repeat(length)
@@ -19,7 +19,15 @@ describe('password hashing', () => {
         },
     )
     test.each([
-        { label: 'minimum', password: 'x'.repeat(12) },
+        { label: 'one Unicode code point', password: '😀' },
+        { label: 'over the UTF-16 maximum', password: '😀'.repeat(129) },
+    ])('rejects $label before hashing', async ({ password }) => {
+        expect(isValidNewPassword(password)).toBeFalse()
+        await expect(hashPassword(password)).rejects.toMatchObject({ code: 'password_policy' })
+    })
+    test.each([
+        { label: 'minimum', password: 'x'.repeat(2) },
+        { label: 'Unicode minimum', password: '😀'.repeat(2) },
         { label: 'maximum', password: 'x'.repeat(256) },
         { label: 'UTF-16 maximum', password: '😀'.repeat(128) },
     ])('hashes and verifies the $label password boundary', async ({ password }) => {
@@ -30,6 +38,7 @@ describe('password hashing', () => {
     test('accepts any non-empty password within the technical size limit', () => {
         expect(isValidPassword('x')).toBeTrue()
         expect(isValidPassword(' ')).toBeTrue()
+        expect(isValidPassword('😀'.repeat(6))).toBeTrue()
         expect(isValidPassword('')).toBeFalse()
         expect(isValidPassword('x'.repeat(256))).toBeTrue()
         expect(isValidPassword('x'.repeat(257))).toBeFalse()

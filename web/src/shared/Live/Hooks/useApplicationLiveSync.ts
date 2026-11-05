@@ -94,13 +94,15 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     const [identityGeneration, setIdentityGeneration] = useState(0)
     const [identityFailures, setIdentityFailures] = useState(0)
     const [liveGeneration, setLiveGeneration] = useState(0)
+    const [verificationGeneration, setVerificationGeneration] = useState(0)
     const wasSuspended = useRef(suspended)
     const awaitingResume = useRef(false)
     const [isAwaitingResume, setIsAwaitingResume] = useState(false)
     const captureScroll = useLiveScrollRestoration(
         isIdentityPending,
         identityGeneration,
-        liveGeneration,
+        verificationGeneration,
+        suspended,
     )
 
     const revalidateIdentity = useCallback(
@@ -135,6 +137,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     const previousScope = identityScopesByClient.get(queryClient)
                     const changed = scope === null || previousScope !== scope
                     if (changed) {
+                        if (!identityPending.current) captureScroll()
                         identityPending.current = true
                         setIsIdentityPending(true)
                         void queryClient.cancelQueries()
@@ -153,6 +156,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     initialVerificationPending.current = false
                 } catch {
                     if (generation === syncGeneration.current) {
+                        if (!identityPending.current) captureScroll()
                         identityPending.current = true
                         setIsIdentityPending(true)
                         setIdentityFailures((failures) => failures + 1)
@@ -163,6 +167,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                 identityPending.current = false
                 setIdentityFailures(0)
                 setIsIdentityPending(false)
+                setVerificationGeneration((current) => current + 1)
                 setLiveGeneration((current) => current + 1)
                 if (!initial) await refreshApplicationQueries(queryClient)
             })().catch(() => undefined)
@@ -261,6 +266,7 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
                     setIsAwaitingResume(false)
                     setIsIdentityPending(false)
                     setIdentityFailures(0)
+                    setVerificationGeneration((current) => current + 1)
                 }
             } else if (awaitingResume.current) {
                 revalidateIdentity()

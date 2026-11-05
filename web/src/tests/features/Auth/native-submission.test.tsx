@@ -246,11 +246,7 @@ for (const [label, Form, fields] of [
             }
         })
         expect(Boolean(container.querySelector('input[aria-invalid="true"]'))).toBeFalse()
-        if (label !== 'password reset' && label !== 'invite acceptance') {
-            expect(
-                form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled,
-            ).toBeFalse()
-        }
+        expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBeFalse()
         await act(async () => {
             form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
             await new Promise((resolve) => setTimeout(resolve, 5))
