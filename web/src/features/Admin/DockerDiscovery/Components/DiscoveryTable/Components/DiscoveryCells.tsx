@@ -32,7 +32,7 @@ export function DiscoveryDomainsCell({ row }: DiscoveryCellProps) {
     return (
         <ProxyHostDomainsCell
             domains={row.domains}
-            allowLinks={row.state !== 'conflicted'}
+            allowLinks={row.state !== 'conflicted' && !row.issues.includes('domain_conflict')}
             {...(row.certificateId !== undefined ? { certificateId: row.certificateId } : {})}
         />
     )
