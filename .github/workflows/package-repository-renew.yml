@@ -113,9 +113,13 @@ jobs:
 
     consumer:
         needs: [refresh, deploy]
-        name: Verify renewed consumer metadata
+        name: Verify renewed ${{ matrix.target }} consumer metadata
         runs-on: ubuntu-latest
         timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [debian, fedora]
         permissions:
             contents: read
         steps:
@@ -124,10 +128,17 @@ jobs:
               with:
                   persist-credentials: false
                   ref: ${{ github.workflow_sha }}
-            - name: Build clean Debian consumer
-              run: docker build --file docker/tooling/distribution/Dockerfile.debian --tag rp-package-consumer:fixture .
+            - name: Build clean native package consumer
+              env:
+                  TARGET: ${{ matrix.target }}
+              run: docker build --file "docker/tooling/distribution/Dockerfile.$TARGET" --tag rp-package-consumer:fixture .
+            - name: Set up native verification runtime
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
             - name: Verify published signatures without authentication
               env:
+                  TARGET: ${{ matrix.target }}
                   PACKAGE_SIGNING_FINGERPRINT: ${{ needs.refresh.outputs.fingerprint }}
                   PACKAGE_REPOSITORY_URL: ${{ needs.refresh.outputs.repository_url }}
-              run: docker run --rm --env TARGET=debian --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --entrypoint bash rp-package-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh
+              run: docker run --rm --env TARGET --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --mount "type=bind,source=$(command -v bun),target=/usr/local/bin/bun,readonly" --entrypoint bash rp-package-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh

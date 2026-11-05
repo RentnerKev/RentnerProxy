@@ -1,6 +1,17 @@
 // oxlint-disable no-await-in-loop -- Offline maintenance phases are ordered and fail closed.
 import { createHash } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, open, readFile, rename, rm } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import {
+    chmod,
+    lstat,
+    mkdir,
+    mkdtemp,
+    open,
+    readFile,
+    rename,
+    rm,
+    writeFile,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 import { CURRENT_COMPATIBILITY_PROFILE } from '../../../web/src/config/compatibility.config.ts'
 import { managedBackupSourceSchema } from '../../../web/src/lib/Backups/validation.ts'
@@ -129,6 +140,60 @@ export async function offlineBackup() {
     await publishProductionBackup(staging, '/backup/complete', metadata)
 }
 
+export async function offlineValidate() {
+    const snapshot = '/tmp/rentnerproxy-validated'
+    const output = await lstat(snapshot)
+    if (!output.isDirectory() || output.isSymbolicLink() || output.uid !== 0)
+        throw new Error('Invalid private validation snapshot directory')
+    await chmod(snapshot, 0o700)
+    const validation = await mkdtemp('/tmp/rentnerproxy-offline-validation-')
+    try {
+        const { backupId } = await snapshotProductionRestore('/backup', snapshot)
+        await command(['chown', 'postgres:postgres', validation])
+        await command(['bash', '-c', validationCommand(snapshot, validation)])
+        await writeFile(
+            join(snapshot, 'isolated-validation.json'),
+            JSON.stringify({ schemaVersion: 1, backupId }) + '\n',
+            {
+                flag: 'wx',
+                mode: 0o600,
+            },
+        )
+    } finally {
+        await rm(validation, { recursive: true, force: true })
+    }
+}
+
+export async function readIsolatedValidationProof(path = '/backup/isolated-validation.json') {
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+    try {
+        const info = await file.stat()
+        if (
+            !info.isFile() ||
+            info.uid !== 0 ||
+            info.nlink !== 1 ||
+            (info.mode & 0o022) !== 0 ||
+            info.size > 256
+        )
+            throw new Error('Invalid isolated validation proof')
+        const proof: unknown = JSON.parse(await file.readFile('utf8'))
+        if (
+            !proof ||
+            typeof proof !== 'object' ||
+            Array.isArray(proof) ||
+            !('schemaVersion' in proof) ||
+            proof.schemaVersion !== 1 ||
+            !('backupId' in proof) ||
+            typeof proof.backupId !== 'string' ||
+            !/^[a-f0-9]{64}$/u.test(proof.backupId)
+        )
+            throw new Error('Invalid isolated validation proof')
+        return proof.backupId
+    } finally {
+        await file.close()
+    }
+}
+
 export async function offlineRestore(options: readonly string[]) {
     if (
         !options.includes('--confirm-replace') ||
@@ -140,17 +205,16 @@ export async function offlineRestore(options: readonly string[]) {
     )
         throw new Error('Restore requires explicit, nonduplicate recovery options')
     const snapshot = await mkdtemp('/tmp/rentnerproxy-offline-')
-    const validation = await mkdtemp('/tmp/rentnerproxy-offline-validation-')
     await chmod(snapshot, 0o700)
     try {
+        const validatedId = await readIsolatedValidationProof()
         const { metadata, backupId } = await snapshotProductionRestore('/backup', snapshot)
+        if (validatedId !== backupId) throw new Error('Backup changed after isolated validation')
         assertDeploymentCompatible(
             metadata,
             deployment(),
             options.includes('--allow-deployment-change'),
         )
-        await command(['chown', 'postgres:postgres', validation])
-        await command(['bash', '-c', validationCommand(snapshot, validation)])
         process.env.RENTNERPROXY_RESTORE_BACKUP_ID = backupId
         process.env.RENTNERPROXY_RESTORE_RESUME = String(options.includes('--resume'))
         const pending = Buffer.from(
@@ -175,7 +239,6 @@ export async function offlineRestore(options: readonly string[]) {
         await completeProductionRestore()
     } finally {
         await rm(snapshot, { recursive: true, force: true })
-        await rm(validation, { recursive: true, force: true })
     }
 }
 
@@ -200,6 +263,7 @@ if (import.meta.main) {
         if (process.getuid?.() !== 0) throw new Error('Offline maintenance requires root')
         const [operation, ...options] = process.argv.slice(2)
         if (operation === 'backup' && !options.length) await offlineBackup()
+        else if (operation === 'validate' && !options.length) await offlineValidate()
         else if (operation === 'restore') await offlineRestore(options)
         else throw new Error('Invalid offline maintenance operation')
     } catch {

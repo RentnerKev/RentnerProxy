@@ -97,6 +97,11 @@ jobs:
                   RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
                   RELEASE_TAG: ${{ inputs.version }}
               run: bash automation/.github/scripts/release/verify-release-identity.sh
+            - name: Recheck the peeled release tag before signing
+              env:
+                  RELEASE_TAG: ${{ inputs.version }}
+                  REVISION: ${{ inputs.revision }}
+              run: bash automation/.github/scripts/release/verify-tag-revision.sh
             - name: Sign verified artifacts with the protected owner key
               env:
                   REVISION: ${{ inputs.revision }}

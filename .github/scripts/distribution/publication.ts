@@ -9,6 +9,8 @@ import { distributionWorkflowIdentity } from './prepare.ts'
 import { distributionPayload } from './payload.ts'
 import { parseDistributionRelease, distributionPackageVersion } from './release.ts'
 import { distributionCommand } from './process.ts'
+import { verifyImmutableRepositoryManifest, writeImmutableRepositoryManifest } from './history.ts'
+import { maximumRepositoryFiles } from './limits.ts'
 import {
     readRepositoryCatalog,
     repositoryUrl,
@@ -19,12 +21,12 @@ import {
 
 export function validateRepositoryTree(bytes: Uint8Array): void {
     const entries = Buffer.from(bytes).toString('utf8').split('\0').filter(Boolean)
-    if (entries.length > 16384) throw new Error('Repository history is too large')
+    if (entries.length > maximumRepositoryFiles) throw new Error('Repository history is too large')
     for (const entry of entries) {
         const match = /^100644 blob [a-f0-9]{40}\t(public\/[A-Za-z0-9_./+-]+)$/u.exec(entry)
         const path = match?.[1] || ''
         const approved =
-            /^public\/(?:keys\/(?:[A-F0-9]{40}|rentnerproxy)\.asc|apt\/(?:pool\/main\/rentnerproxy-[A-Za-z0-9_.-]+\.deb|dists\/(?:alpha|beta|stable)\/(?:InRelease|Release(?:\.gpg)?|main\/binary-(?:amd64|arm64)\/Packages(?:\.gz)?))|rpm\/(?:alpha|beta|stable)\/(?:x86_64|aarch64)\/(?:Packages\/rentnerproxy-[A-Za-z0-9_.-]+\.rpm|repodata\/(?:repomd\.xml(?:\.asc)?|[a-f0-9]{64}-[A-Za-z0-9_.-]+))|releases\/v[A-Za-z0-9_.-]+\/[1-9][0-9]*\/(?:amd64|arm64)\/(?:rentnerproxy-[A-Za-z0-9_.-]+\.(?:deb|rpm|tar\.gz)|SHA256SUMS(?:\.asc)?|release\.json(?:\.asc)?|INSTALL\.txt)|deliverables\/v[A-Za-z0-9_.-]+\/(?:rentnerproxy-[A-Za-z0-9_.-]+|native-[A-Za-z0-9_.-]+\.json|assessed-image-evidence\.json|distribution\.intoto\.json(?:\.asc)?|[A-F0-9]{40}\.asc|MAINTAINER\.txt)|catalog\.json(?:\.asc)?|INSTALL\.txt|index\.html)$/u.test(
+            /^public\/(?:keys\/(?:[A-F0-9]{40}|rentnerproxy)\.asc|apt\/(?:pool\/main\/rentnerproxy-[A-Za-z0-9_.-]+\.deb|dists\/(?:alpha|beta|stable)\/(?:InRelease|Release(?:\.gpg)?|main\/binary-(?:amd64|arm64)\/Packages(?:\.gz)?))|rpm\/(?:alpha|beta|stable)\/(?:x86_64|aarch64)\/(?:Packages\/rentnerproxy-[A-Za-z0-9_.-]+\.rpm|repodata\/(?:repomd\.xml(?:\.asc)?|[a-f0-9]{64}-[A-Za-z0-9_.-]+))|releases\/v[A-Za-z0-9_.-]+\/[1-9][0-9]*\/(?:amd64|arm64)\/(?:rentnerproxy-[A-Za-z0-9_.-]+\.(?:deb|rpm|tar\.gz)|SHA256SUMS(?:\.asc)?|release\.json(?:\.asc)?|INSTALL\.txt)|deliverables\/v[A-Za-z0-9_.-]+\/(?:rentnerproxy-[A-Za-z0-9_.-]+|native-[A-Za-z0-9_.-]+\.json|assessed-image-evidence\.json|distribution\.intoto\.json(?:\.asc)?|[A-F0-9]{40}\.asc|MAINTAINER\.txt)|(?:catalog|immutable-files)\.json(?:\.asc)?|INSTALL\.txt|index\.html)$/u.test(
                 path,
             )
         if (!match || !approved || path.split('/').some((part) => !part || part.startsWith('.')))
@@ -125,6 +127,13 @@ All distribution artifacts bind the exact source SHA and assessed OCI root,
 including its per-platform SBOM/provenance. The data-only repository branch keeps
 immutable package versions; publication refuses a conflicting retry. Channel
 indexes are rebuilt only after native Debian/Fedora AMD64/ARM64 gates pass.
+The signed immutable-files.json covers retained release guides, packages, keys
+and deliverables. Renewal verifies this complete record before publishing.
+Capacity is bounded to 1,000 architecture entries (500 dual-architecture releases)
+and 32,768 staged files, budgeted against the real emitted file count in CI.
+Before reaching that catalog limit, introduce a new repository epoch while
+preserving the previous anonymous URLs and keys; never prune immutable versions
+silently. Capacity exhaustion stops signing before any release publication.
 Signing finishes before any image tag is published. The publisher verifies the
 sealed public snapshot and its exact data-branch parent without a signing key.
 If that parent changed, rerun signing and dependent jobs; never force-push it.
@@ -180,6 +189,7 @@ export async function verifyRepositoryHistory(
         join(root, 'catalog.json'),
     ])
     await readRepositoryCatalog(root)
+    await verifyImmutableRepositoryManifest(root, home)
 }
 
 export async function signDistribution(options: {
@@ -266,6 +276,7 @@ export async function signDistribution(options: {
             }
             for (const file of await bundleFiles(retainedAssets))
                 await copyFile(join(retainedAssets, file), join(options.assets, file))
+            await writeImmutableRepositoryManifest(options.publicRoot, home, fingerprint)
             return entries
         }
         const selected = entries.filter(
@@ -384,6 +395,7 @@ export async function signDistribution(options: {
         await mkdir(retainedAssets, { recursive: true })
         for (const file of await bundleFiles(options.assets))
             await copyFile(join(options.assets, file), join(retainedAssets, file))
+        await writeImmutableRepositoryManifest(options.publicRoot, home, fingerprint)
         return entries
     })
 }
@@ -427,6 +439,32 @@ export async function uploadReleaseAssets(
     }
 }
 
+export async function refreshDistribution(options: {
+    root: string
+    source: string
+    key: Uint8Array
+    fingerprint: string
+    previousFingerprints: readonly string[]
+    baseUrl: string
+}) {
+    return withSigningKey(options.key, options.fingerprint, async (home) => {
+        await verifyRepositoryHistory(options.root, home, [
+            options.fingerprint,
+            ...options.previousFingerprints,
+        ])
+        const entries = await updatePackageRepository({
+            root: options.root,
+            source: options.source,
+            fingerprint: options.fingerprint,
+            baseUrl: options.baseUrl,
+            artifacts: [],
+            home,
+        })
+        await writeImmutableRepositoryManifest(options.root, home, options.fingerprint)
+        return entries
+    })
+}
+
 if (import.meta.main) {
     const action = process.argv[2]
     if (action === 'validate-tree') validateRepositoryTree(await readFile(ociText(process.argv[3])))
@@ -459,24 +497,18 @@ if (import.meta.main) {
         delete process.env.PACKAGE_SIGNING_KEY
         const root = resolve(ociText(env.PUBLIC_DIRECTORY)),
             fingerprint = signingFingerprint(ociText(env.PACKAGE_SIGNING_FINGERPRINT))
-        await withSigningKey(key, fingerprint, async (home) => {
-            await verifyRepositoryHistory(root, home, [
-                fingerprint,
-                ...(env.PACKAGE_PREVIOUS_FINGERPRINTS || '')
-                    .split(',')
-                    .filter(Boolean)
-                    .map(signingFingerprint),
-            ])
-            await updatePackageRepository({
-                root,
-                source: resolve(ociText(env.SOURCE_DIRECTORY)),
-                artifacts: [],
-                home,
-                fingerprint,
-                baseUrl: repositoryUrl(
-                    env.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy',
-                ),
-            })
+        await refreshDistribution({
+            root,
+            key,
+            fingerprint,
+            previousFingerprints: (env.PACKAGE_PREVIOUS_FINGERPRINTS || '')
+                .split(',')
+                .filter(Boolean)
+                .map(signingFingerprint),
+            source: resolve(ociText(env.SOURCE_DIRECTORY)),
+            baseUrl: repositoryUrl(
+                env.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy',
+            ),
         })
     } else if (action === 'upload')
         await uploadReleaseAssets(resolve(ociText(process.env.RELEASE_ASSET_DIRECTORY)))

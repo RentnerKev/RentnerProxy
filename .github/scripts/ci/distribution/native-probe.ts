@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { distributionCommand } from '../../distribution/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
+import { validationAttackSql } from './validation-fixture.ts'
 import {
     seedPersistenceFixture,
     readPersistenceSnapshot,
@@ -54,7 +55,7 @@ async function controller(path: string, method = 'GET', body?: unknown): Promise
     )
 }
 
-async function traffic() {
+async function traffic(verifyPersisted = false) {
     const backend = Bun.serve({
         hostname: '0.0.0.0',
         port: 19081,
@@ -77,10 +78,13 @@ async function traffic() {
             httpSettings: {},
             trustedCas: [],
         }
-        await controller('/internal/v1/proxy/config', 'PUT', {
-            ...config,
-            revision: 'sha256:' + createHash('sha256').update(JSON.stringify(config)).digest('hex'),
-        })
+        const install = () =>
+            controller('/internal/v1/proxy/config', 'PUT', {
+                ...config,
+                revision:
+                    'sha256:' + createHash('sha256').update(JSON.stringify(config)).digest('hex'),
+            })
+        if (!verifyPersisted) await install()
         for (let attempt = 0; attempt < 60; attempt++) {
             try {
                 assert.equal(
@@ -102,6 +106,7 @@ async function traffic() {
                 await Bun.sleep(500)
             }
         }
+        if (verifyPersisted) await install()
         await command([
             'podman',
             'cp',
@@ -249,6 +254,20 @@ async function run() {
             container,
             "INSERT INTO rentnerproxy.system_settings(key,value) VALUES ('distribution_probe','\"original\"'::jsonb)",
         )
+    } else if (phase === 'malicious') {
+        stage = 'isolated SQL validation attack fixture'
+        await psql(command, container, validationAttackSql)
+        await command([
+            'podman',
+            'exec',
+            '--user',
+            'postgres',
+            container,
+            'sh',
+            '-c',
+            'printf original > /var/lib/rentnerproxy/postgres-data/validation-canary',
+        ])
+        return
     } else if (phase === 'mutate') {
         await psql(
             command,
@@ -367,16 +386,16 @@ async function run() {
         '10001:10003:710',
     )
     stage = 'HTTP and verified TLS traffic'
-    await traffic()
+    await traffic(true)
 }
 
 if (import.meta.main) {
     try {
         await run()
         console.log(
-            process.argv[2] === 'mutate'
-                ? 'Native restore-marker mutation completed.'
-                : 'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.',
+            process.argv[2] === 'seed' || process.argv[2] === 'verify'
+                ? 'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.'
+                : `Native ${process.argv[2]} fixture step completed.`,
         )
     } catch (error) {
         console.error(

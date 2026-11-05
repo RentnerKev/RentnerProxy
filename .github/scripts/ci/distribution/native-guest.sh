@@ -53,6 +53,23 @@ probe() {
     printf 'Checking native %s %s %s: %s\n' "$TARGET" "$ARCHITECTURE" "$MODE" "$1"
     /root/bun --no-env-file /test/native-probe.js "$1"
 }
+consumer() {
+    local work version
+    local -a release
+    work=$(mktemp -d /root/consumer-XXXXXXXX)
+    mapfile -t release < <(/root/bun --no-env-file -e 'const r=await Bun.file("/usr/share/rentnerproxy/release.json").json();console.log([r.version,r.revision,r.digest].join("\n"))')
+    [[ ${#release[@]} == 3 ]] || exit 1
+    local -x RELEASE_VERSION=${release[0]} RELEASE_REVISION=${release[1]} RELEASE_DIGEST=${release[2]}
+    cp /test/repo-initial/catalog.json "$work/catalog.json"
+    version=$(/root/bun --no-env-file /automation/.github/scripts/distribution/consumer.ts version "$work")
+    if [[ "$TARGET" == debian ]]; then
+        (cd "$work"; apt-get download "rentnerproxy=$version")
+    else
+        dnf --assumeyes download --destdir "$work" "rentnerproxy-$version.$(rpm --eval '%{_arch}')"
+    fi
+    /root/bun --no-env-file /automation/.github/scripts/distribution/consumer.ts verify "$work"
+    rm -rf -- "$work"
+}
 case "$phase" in
     install)
         install -d -m 0755 /etc/containers/registries.conf.d
@@ -74,9 +91,24 @@ MIRROR
                 printf corrupted > /root/repository-probe/repodata/repomd.xml.asc
                 if dnf "${probe_repository[@]}"; then exit 1; fi
             fi
+            metadata_hash=$(sha256sum /usr/share/rentnerproxy/release.json)
+            install -d -m 0700 /root/package-overlay
+            tar -xzf /test/packages/"$ARCHITECTURE"/*-quadlet.tar.gz -C /root/package-overlay
+            if bash /root/package-overlay/install.sh; then exit 1; fi
+            [[ $(sha256sum /usr/share/rentnerproxy/release.json) == "$metadata_hash" ]] || exit 1
+            rm -rf -- /root/package-overlay
         else
             install -d -m 0700 /root/quadlet
             tar -xzf /test/packages/"$ARCHITECTURE"/*-quadlet.tar.gz -C /root/quadlet
+            # A partial fresh install can be removed, but changed present files cannot.
+            [[ ! -e /usr/bin/rentnerproxy ]] || exit 1
+            install -m 0755 /root/quadlet/usr/bin/rentnerproxy /usr/bin/rentnerproxy
+            printf '\n# changed fixture\n' >> /usr/bin/rentnerproxy
+            if bash /root/quadlet/uninstall.sh; then exit 1; fi
+            [[ -f /usr/bin/rentnerproxy ]] || exit 1
+            install -m 0755 /root/quadlet/usr/bin/rentnerproxy /usr/bin/rentnerproxy
+            bash /root/quadlet/uninstall.sh
+            [[ ! -e /usr/bin/rentnerproxy ]] || exit 1
             bash /root/quadlet/install.sh
         fi
         if systemctl is-active --quiet rentnerproxy.service; then exit 1; fi
@@ -92,8 +124,14 @@ SMTP_PASSWORD=isolated-synthetic-fixture
 CONFIGURATION
         chmod 0600 /etc/rentnerproxy/appliance.env
         rentnerproxy start
+        install -d -m 0700 '/root/colon:backup'
+        if rentnerproxy backup '/root/colon:backup'; then exit 1; fi
+        if rentnerproxy restore '/root/colon:backup' --confirm-replace; then exit 1; fi
+        systemctl is-active --quiet rentnerproxy.service
+        rmdir -- '/root/colon:backup'
         podman cp rentnerproxy:/usr/local/bin/bun /root/bun
         chmod 0700 /root/bun
+        if [[ "$MODE" == package ]]; then consumer; fi
         probe seed
         install -d -m 0700 /root/backups
         rentnerproxy backup /root/backups
@@ -104,6 +142,24 @@ CONFIGURATION
         printf broken > /root/bad-backup/postgres.dump
         if rentnerproxy restore /root/bad-backup --confirm-replace; then exit 1; fi
         if systemctl is-active --quiet rentnerproxy.service; then exit 1; fi
+        rentnerproxy start
+        # A generated-column function executes during pg_restore. Its canary
+        # write must be unable to reach the appliance when validation rejects it.
+        probe malicious
+        install -d -m 0700 /root/evil-backups
+        rentnerproxy backup /root/evil-backups
+        evil_backup=$(find /root/evil-backups -mindepth 1 -maxdepth 1 -type d -name 'rentnerproxy-*' -print)
+        [[ -n "$evil_backup" && "$evil_backup" != *$'\n'* ]] || exit 1
+        if rentnerproxy restore "$evil_backup" --confirm-replace; then exit 1; fi
+        if systemctl is-active --quiet rentnerproxy.service; then exit 1; fi
+        mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' rentnerproxy-data)
+        [[ $(< "$mountpoint/postgres-data/validation-canary") == original ]] || exit 1
+        # Positive control on this explicitly isolated fixture: the same SQL
+        # does overwrite the canary if the forbidden data-volume mount is added.
+        install -d -m 0700 /root/validation-control
+        image=$(< /usr/share/rentnerproxy/image)
+        if podman run --rm --image-volume=ignore --network none --volume "$evil_backup:/backup:ro,Z" --volume /root/validation-control:/tmp/rentnerproxy-validated:Z --volume rentnerproxy-data:/var/lib/rentnerproxy:Z --entrypoint bun "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js validate; then exit 1; fi
+        [[ $(< "$mountpoint/postgres-data/validation-canary") == overwritten ]] || exit 1
         rentnerproxy start
         probe mutate
         rentnerproxy restore "$backup" --confirm-replace
@@ -154,6 +210,13 @@ CONFIGURATION
         rentnerproxy stop
         volume_hash=$(podman volume inspect --format '{{.Mountpoint}}' rentnerproxy-data)
         [[ -f "$volume_hash/bootstrap/secrets-v1.json" ]] || exit 1
+        rentnerproxy purge-data --confirm-purge
+        if podman volume exists rentnerproxy-data; then exit 1; fi
+        rentnerproxy restore "$backup" --confirm-replace
+        probe verify
+        rentnerproxy stop
+        volume_hash=$(podman volume inspect --format '{{.Mountpoint}}' rentnerproxy-data)
+        [[ -f "$volume_hash/bootstrap/secrets-v1.json" ]] || exit 1
         if [[ "$MODE" == package ]]; then
             if [[ "$TARGET" == debian ]]; then apt-get purge --yes rentnerproxy; else dnf --assumeyes remove rentnerproxy; fi
         else
@@ -163,7 +226,7 @@ CONFIGURATION
         # Only this explicitly marked disposable appliance is purged for the next fresh install.
         /root/quadlet-cli purge-data --confirm-purge
         rm -- /etc/rentnerproxy/appliance.env
-        rm -rf -- /root/quadlet /root/backups /root/bad-backup
+        rm -rf -- /root/quadlet /root/backups /root/bad-backup /root/evil-backups /root/validation-control
         ;;
     *) exit 1 ;;
 esac

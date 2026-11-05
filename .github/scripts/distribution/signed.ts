@@ -6,6 +6,7 @@ import { validateRepositoryTree } from './publication.ts'
 import { distributionWorkflowIdentity } from './prepare.ts'
 import { repositoryUrl, signingFingerprint } from './repository.ts'
 import { ociRecord, ociText } from '../lib/oci-layout.ts'
+import { maximumRepositoryFiles } from './limits.ts'
 
 async function repositoryParent(repository: string): Promise<string> {
     const path = join(repository, '.git/rentnerproxy-parent'),
@@ -30,7 +31,7 @@ function separateDirectories(source: string, target: string) {
 }
 
 async function publicPaths(root: string): Promise<string[]> {
-    const paths = await bundleFiles(root)
+    const paths = await bundleFiles(root, '', maximumRepositoryFiles)
     validateRepositoryTree(
         Buffer.from(
             paths.map((path) => `100644 blob ${'0'.repeat(40)}\tpublic/${path}\0`).join(''),
@@ -66,7 +67,11 @@ export async function sealSignedDistribution(options: {
         { flag: 'wx' },
     )
     return {
-        sha256: await writeDistributionBundle(options.output, options.identity),
+        sha256: await writeDistributionBundle(
+            options.output,
+            options.identity,
+            maximumRepositoryFiles,
+        ),
         fingerprint,
         baseUrl,
     }
@@ -82,7 +87,12 @@ export async function restoreSignedDistribution(options: {
     separateDirectories(options.input, options.repository)
     separateDirectories(options.input, options.assets)
     separateDirectories(options.repository, options.assets)
-    await verifyDistributionBundle(options.input, options.expectedHash, options.identity)
+    await verifyDistributionBundle(
+        options.input,
+        options.expectedHash,
+        options.identity,
+        maximumRepositoryFiles,
+    )
     const raw = ociRecord(
         JSON.parse(await readFile(join(options.input, 'publication.json'), 'utf8')),
     )

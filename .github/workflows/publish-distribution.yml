@@ -88,6 +88,11 @@ jobs:
                   RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
                   RELEASE_TAG: ${{ inputs.version }}
               run: bash automation/.github/scripts/release/verify-release-identity.sh
+            - name: Recheck the peeled release tag before publication
+              env:
+                  RELEASE_TAG: ${{ inputs.version }}
+                  REVISION: ${{ inputs.revision }}
+              run: bash automation/.github/scripts/release/verify-tag-revision.sh
             - name: Retain immutable signed versions with a non-force data-branch update
               env:
                   AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
@@ -144,10 +149,17 @@ jobs:
               env:
                   TARGET: ${{ matrix.target }}
               run: docker build --file "docker/tooling/distribution/Dockerfile.$TARGET" --tag rp-distribution-consumer:fixture .
+            - name: Set up native verification runtime
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
             - name: Verify public metadata and downloads with the pinned owner key
               env:
                   TARGET: ${{ matrix.target }}
                   RELEASE_CHANNEL: ${{ inputs.channel }}
+                  RELEASE_VERSION: ${{ inputs.version }}
+                  RELEASE_REVISION: ${{ inputs.revision }}
+                  RELEASE_DIGEST: ${{ inputs.digest }}
                   PACKAGE_REPOSITORY_URL: ${{ inputs.repository_url }}
                   PACKAGE_SIGNING_FINGERPRINT: ${{ inputs.fingerprint }}
-              run: docker run --rm --env TARGET --env RELEASE_CHANNEL --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --entrypoint bash rp-distribution-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh
+              run: docker run --rm --env TARGET --env RELEASE_CHANNEL --env RELEASE_VERSION --env RELEASE_REVISION --env RELEASE_DIGEST --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --mount "type=bind,source=$(command -v bun),target=/usr/local/bin/bun,readonly" --entrypoint bash rp-distribution-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh

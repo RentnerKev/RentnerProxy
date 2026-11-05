@@ -1,6 +1,16 @@
 // oxlint-disable no-await-in-loop -- Immutable versions are checked before repository pointers are rebuilt.
 import { createHash } from 'node:crypto'
-import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import {
+    chmod,
+    copyFile,
+    lstat,
+    mkdir,
+    mkdtemp,
+    readFile,
+    readdir,
+    rm,
+    writeFile,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { gzipSync } from 'node:zlib'
@@ -13,6 +23,7 @@ import { distributionBytes, distributionCommand } from './process.ts'
 import { verifyDistributionPackage, verifyQuadletArchive } from './packages.ts'
 import { ociRecord } from '../lib/oci-layout.ts'
 import type { DistributionRelease } from './Types/distribution.types.ts'
+import { maximumRepositoryEntries } from './limits.ts'
 
 interface RepositoryEntry {
     readonly release: DistributionRelease
@@ -118,14 +129,20 @@ async function fileIdentity(path: string) {
     return { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }
 }
 
-export async function readRepositoryCatalog(root: string): Promise<RepositoryEntry[]> {
-    const raw: unknown = JSON.parse(
-        (await regular(join(root, 'catalog.json'), 2 * 1024 * 1024)).toString('utf8'),
-    )
-    if (!Array.isArray(raw) || raw.length > 1000) throw new Error('Invalid repository history')
+export function parseRepositoryCatalog(raw: unknown): RepositoryEntry[] {
+    if (!Array.isArray(raw) || raw.length > maximumRepositoryEntries)
+        throw new Error('Invalid repository history')
     const entries = raw.map(catalogEntry)
     if (new Set(entries.map((entry) => entry.directory)).size !== entries.length)
         throw new Error('Duplicate immutable repository version')
+    return entries
+}
+
+export async function readRepositoryCatalog(root: string): Promise<RepositoryEntry[]> {
+    const entries = parseRepositoryCatalog(
+        JSON.parse((await regular(join(root, 'catalog.json'), 2 * 1024 * 1024)).toString('utf8')),
+    )
+    await assertCatalogDirectories(root, entries)
     for (const entry of entries)
         for (const file of entry.files) {
             const actual = await fileIdentity(join(root, entry.directory, file.file))
@@ -269,6 +286,7 @@ export async function updatePackageRepository(options: {
         throw error
     })
     const entries = existing ? await readRepositoryCatalog(root) : []
+    if (!existing) await assertCatalogDirectories(root, entries)
     await mkdir(join(root, 'keys'), { recursive: true })
     const publicKey = await distributionBytes([
         'gpg',
@@ -464,4 +482,35 @@ export async function updatePackageRepository(options: {
         '<!doctype html><html lang="en"><meta charset="utf-8"><title>RentnerProxy packages</title><h1>RentnerProxy Linux appliance</h1><a href="INSTALL.txt">Installation, updates and recovery</a><p>Debian 13 / Fedora 44; AMD64 / ARM64; rootful Podman/Quadlet.</p></html>\n',
     )
     return entries
+}
+
+async function assertCatalogDirectories(root: string, entries: readonly RepositoryEntry[]) {
+    const expected = new Set(entries.map((entry) => entry.directory))
+    const releases = await lstat(join(root, 'releases')).catch(() => null)
+    if (!releases) return
+    if (!releases.isDirectory()) throw new Error('Invalid immutable release directory')
+    for (const version of await readdir(join(root, 'releases'), { withFileTypes: true })) {
+        const versionPath = 'releases/' + version.name
+        if (
+            !version.isDirectory() ||
+            !entries.some((entry) => entry.directory.startsWith(versionPath + '/'))
+        )
+            throw new Error('Release directory is missing from the signed catalog')
+        for (const revision of await readdir(join(root, versionPath), { withFileTypes: true })) {
+            const revisionPath = versionPath + '/' + revision.name
+            if (
+                !revision.isDirectory() ||
+                !entries.some((entry) => entry.directory.startsWith(revisionPath + '/'))
+            )
+                throw new Error('Release directory is missing from the signed catalog')
+            for (const architecture of await readdir(join(root, revisionPath), {
+                withFileTypes: true,
+            }))
+                if (
+                    !architecture.isDirectory() ||
+                    !expected.has(revisionPath + '/' + architecture.name)
+                )
+                    throw new Error('Release directory is missing from the signed catalog')
+        }
+    }
 }

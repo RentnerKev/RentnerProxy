@@ -21,6 +21,9 @@ import { assertPackageFiles, packageCpio, packageTar } from './archive.ts'
 import type { DistributionPayloadFile, DistributionRelease } from './Types/distribution.types.ts'
 
 const debDependencies = 'bash, coreutils, nftables, util-linux, podman (>= 5.4), systemd (>= 252)'
+const packageOwnershipGuard =
+    'if command -v dpkg-query >/dev/null && dpkg-query --search /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use apt-get to manage rentnerproxy." >&2; exit 1; fi\n' +
+    'if command -v rpm >/dev/null && rpm -qf /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use dnf to manage rentnerproxy." >&2; exit 1; fi\n'
 const debPrerm =
     '#!/bin/bash\nset -eu\nif [[ ${1:-} == remove ]]; then\n' +
     packageStop.split('\n').slice(2).join('\n') +
@@ -32,7 +35,9 @@ const debPostrm =
 
 export function quadletInstaller(payload: readonly DistributionPayloadFile[]): string {
     return (
-        '#!/bin/bash\nset -eu\n[[ $(id -u) == 0 ]] || exit 1\nhere=$(cd -- "$(dirname -- "$0")" && pwd)\n' +
+        '#!/bin/bash\nset -eu\n[[ $(id -u) == 0 ]] || exit 1\n' +
+        packageOwnershipGuard +
+        'here=$(cd -- "$(dirname -- "$0")" && pwd)\n' +
         packagePreinstall.split('\n').slice(1).join('\n') +
         payload
             .map(
@@ -46,15 +51,20 @@ export function quadletInstaller(payload: readonly DistributionPayloadFile[]): s
 }
 
 export function quadletUninstaller(payload: readonly DistributionPayloadFile[]): string {
-    const checksums = payload
-        .map((file) => createHash('sha256').update(file.content).digest('hex') + '  /' + file.path)
-        .join('\n')
+    const checks = payload
+        .map((file) => {
+            const path = '/' + file.path,
+                checksum = createHash('sha256').update(file.content).digest('hex')
+            return `if [[ -e ${path} || -L ${path} ]]; then\n    [[ -f ${path} && ! -L ${path} ]] || exit 1\n    printf '%s\\n' '${checksum}  ${path}' | sha256sum --check --status\nfi\n`
+        })
+        .join('')
     return (
-        '#!/bin/bash\nset -eu\n[[ $(id -u) == 0 ]] || exit 1\nif command -v dpkg-query >/dev/null && dpkg-query --search /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use apt-get remove rentnerproxy." >&2; exit 1; fi\nif command -v rpm >/dev/null && rpm -qf /usr/bin/rentnerproxy >/dev/null 2>&1; then echo "Use dnf remove rentnerproxy." >&2; exit 1; fi\nsha256sum --check --status <<\'OWNED_VENDOR_FILES\'\n' +
-        checksums +
-        '\nOWNED_VENDOR_FILES\n/usr/bin/rentnerproxy stop\n' +
-        payload.map((file) => 'rm -- /' + file.path).join('\n') +
-        '\nsystemctl daemon-reload\n'
+        '#!/bin/bash\nset -eu\n[[ $(id -u) == 0 ]] || exit 1\n' +
+        packageOwnershipGuard +
+        checks +
+        'if [[ -d /run/systemd/system ]] && systemctl cat rentnerproxy.service >/dev/null 2>&1; then\n    if [[ -x /usr/bin/rentnerproxy ]]; then /usr/bin/rentnerproxy stop\n    elif systemctl is-active --quiet rentnerproxy.service; then echo "Restore the matching CLI before stopping the active appliance." >&2; exit 1\n    fi\nfi\n' +
+        payload.map((file) => 'rm -f -- /' + file.path).join('\n') +
+        '\nif [[ -d /run/systemd/system ]]; then systemctl daemon-reload; fi\n'
     )
 }
 

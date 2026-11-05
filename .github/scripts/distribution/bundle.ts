@@ -3,8 +3,19 @@ import { lstat, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { ociRecord } from '../lib/oci-layout.ts'
+import { maximumRepositoryFiles } from './limits.ts'
 
-export async function bundleFiles(directory: string, prefix = ''): Promise<string[]> {
+export async function bundleFiles(
+    directory: string,
+    prefix = '',
+    maximumFiles = 4096,
+): Promise<string[]> {
+    if (
+        !Number.isSafeInteger(maximumFiles) ||
+        maximumFiles < 1 ||
+        maximumFiles > maximumRepositoryFiles
+    )
+        throw new Error('Invalid distribution file limit')
     const entries = await readdir(directory, { withFileTypes: true })
     const files: string[] = []
     for (const entry of entries) {
@@ -12,10 +23,12 @@ export async function bundleFiles(directory: string, prefix = ''): Promise<strin
             throw new Error('Invalid artifact path')
         const path = prefix + entry.name
         if (entry.isDirectory())
-            files.push(...(await bundleFiles(join(directory, entry.name), path + '/')))
+            files.push(
+                ...(await bundleFiles(join(directory, entry.name), path + '/', maximumFiles)),
+            )
         else if (entry.isFile()) files.push(path)
         else throw new Error('Artifact links are forbidden')
-        if (files.length > 4096) throw new Error('Artifact bundle is too large')
+        if (files.length > maximumFiles) throw new Error('Artifact bundle is too large')
     }
     return files.toSorted()
 }
@@ -38,8 +51,10 @@ export async function writeDistributionBundle(
         runId: string
         runAttempt: number
     },
+    maximumFiles = 4096,
 ): Promise<string> {
-    const files = await bundleFiles(root)
+    const files = await bundleFiles(root, '', maximumFiles)
+    if (files.length >= maximumFiles) throw new Error('Artifact bundle is too large')
     const manifest = {
         schemaVersion: 1,
         ...identity,
@@ -64,6 +79,7 @@ export async function verifyDistributionBundle(
         runId: string
         runAttempt: number
     },
+    maximumFiles = 4096,
 ): Promise<void> {
     if (
         !/^[a-f0-9]{64}$/u.test(expectedHash) ||
@@ -83,7 +99,9 @@ export async function verifyDistributionBundle(
         !Array.isArray(manifest.files)
     )
         throw new Error('Distribution proof identity mismatch')
-    const paths = (await bundleFiles(root)).filter((file) => file !== 'bundle.json')
+    const paths = (await bundleFiles(root, '', maximumFiles)).filter(
+        (file) => file !== 'bundle.json',
+    )
     if (manifest.files.length !== paths.length)
         throw new Error('Unexpected distribution bundle files')
     for (const [index, path] of paths.entries()) {

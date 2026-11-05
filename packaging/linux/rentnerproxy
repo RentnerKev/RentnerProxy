@@ -40,6 +40,7 @@ restart an already-running appliance and preserve configuration and data.
 For rollback, stop the appliance, install the exact previous signed package,
 then restore its compatible v4 backup. An image-only downgrade is not a database
 rollback. Failed or interrupted restores remain stopped; resume the SAME backup.
+Restore needs free disk for a private snapshot under /var/tmp and validation database.
 Use Admin > Backups for online managed backups and restore. The commands above
 also work while application startup is broken and never need a host Bun install.
 Existing Docker/Compose data is not imported or removed automatically.
@@ -152,9 +153,9 @@ maintenance() {
     fi
     preflight
     private_directory "$path"
+    [[ "$path" != *:* ]] || fail 'Backup and restore paths must not contain colons.'
     if ! resource_exists volume "$volume"; then
         [[ "$operation" == restore ]] || fail 'No initialized appliance data volume exists.'
-        podman volume create --label "io.rentnerproxy.distribution=$owner" "$volume" >/dev/null
     fi
     image=$(< "$metadata/image")
     platform=$(< "$metadata/platform")
@@ -188,7 +189,16 @@ maintenance() {
     else
         systemctl stop "$service"
         [[ -z $(podman ps --filter "volume=$volume" --format '{{.Names}}') ]] || fail 'A running container still uses the appliance volume.'
-        podman "${arguments[@]}" --volume "$path:/backup:ro,Z" "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js restore "$@"
+        backup_parent=/var/tmp
+        temporary=$(mktemp -d "$backup_parent/.rentnerproxy-XXXXXXXX")
+        private_directory "$temporary"
+        # SQL validation receives neither the appliance volume nor its environment.
+        # The root-private snapshot and its proof bind the later restore to these bytes.
+        podman run --rm --image-volume=ignore --name "$maintenance_name" --label "io.rentnerproxy.maintenance=$maintenance_name" --network none --platform "$platform" --volume "$path:/backup:ro,Z" --volume "$temporary:/tmp/rentnerproxy-validated:Z" --entrypoint bun "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js validate || fail 'Backup validation failed; the appliance remains stopped.'
+        if ! resource_exists volume "$volume"; then
+            podman volume create --label "io.rentnerproxy.distribution=$owner" "$volume" >/dev/null
+        fi
+        podman "${arguments[@]}" --volume "$temporary:/backup:ro,Z" "$image" --no-env-file /opt/rentnerproxy/web/backup-maintenance.js restore "$@"
         rm -- "$maintenance_root/active"
         maintenance_name=''
         systemctl start "$service"

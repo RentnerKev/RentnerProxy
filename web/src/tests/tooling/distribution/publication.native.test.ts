@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Exercise immutable signing, retries and tamper rejection against real GPG/RPM tools.
 import { expect, test } from 'bun:test'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +19,13 @@ import {
     signDistribution,
     validateRepositoryTree,
     verifyRepositoryHistory,
+    refreshDistribution,
 } from '../../../../../.github/scripts/distribution/publication.ts'
+import {
+    maximumRepositoryEntries,
+    maximumRepositoryFiles,
+} from '../../../../../.github/scripts/distribution/limits.ts'
+import { verifyImmutableRepositoryManifest } from '../../../../../.github/scripts/distribution/history.ts'
 import { identity, platformFixture, workflow } from '../github/fixtures/oci.ts'
 
 const enabled = process.platform === 'linux' && process.env.RENTNERPROXY_PACKAGE_TEST === '1'
@@ -150,6 +156,17 @@ test.skipIf(!enabled)(
             ).toEqual(hashes)
             await verifyRepositoryHistory(root, home, [fingerprint])
             const paths = await bundleFiles(root)
+            const dynamic = paths.filter((path) =>
+                /^(?:releases\/|deliverables\/|apt\/pool\/|rpm\/[^/]+\/[^/]+\/Packages\/)/u.test(
+                    path,
+                ),
+            ).length
+            // Stable releases have two additional RPM channel copies. Also reserve
+            // one public-key rotation per release and the current staged assets.
+            const releases = maximumRepositoryEntries / 2
+            expect(
+                (dynamic + 2) * releases + paths.length - dynamic + releases + files.length + 3,
+            ).toBeLessThan(maximumRepositoryFiles)
             validateRepositoryTree(
                 Buffer.from(
                     paths.map((path) => `100644 blob ${'a'.repeat(40)}\tpublic/${path}\0`).join(''),
@@ -162,6 +179,75 @@ test.skipIf(!enabled)(
                 expected.digest,
             )
             expect(provenance.subject).toHaveLength(files.length - 2)
+            const renewal = {
+                root,
+                source,
+                key,
+                fingerprint,
+                previousFingerprints: [],
+                baseUrl: options.baseUrl,
+            }
+            expect(await refreshDistribution(renewal)).toHaveLength(2)
+            await verifyRepositoryHistory(root, home, [fingerprint])
+            for (const path of [
+                `releases/${identity.version}/1/amd64/INSTALL.txt`,
+                `deliverables/${identity.version}/MAINTAINER.txt`,
+            ]) {
+                const absolute = join(root, path),
+                    original = await readFile(absolute),
+                    metadataHash = await distributionFileHash(
+                        join(root, 'apt/dists/beta/InRelease'),
+                    )
+                await writeFile(absolute, 'unsigned installation command substitution')
+                await expect(refreshDistribution(renewal)).rejects.toThrow('checksum')
+                expect(await distributionFileHash(join(root, 'apt/dists/beta/InRelease'))).toBe(
+                    metadataHash,
+                )
+                await writeFile(absolute, original)
+            }
+            await verifyRepositoryHistory(root, home, [fingerprint])
+            const manifestPath = join(root, 'immutable-files.json'),
+                manifestBytes = await readFile(manifestPath),
+                signatureBytes = await readFile(manifestPath + '.asc'),
+                manifest = JSON.parse(manifestBytes.toString('utf8'))
+            for (const changed of [
+                { ...manifest, schemaVersion: 2 },
+                { ...manifest, files: null },
+                {
+                    ...manifest,
+                    files: [{ ...manifest.files[0], bytes: -1 }, ...manifest.files.slice(1)],
+                },
+            ]) {
+                await writeFile(manifestPath, JSON.stringify(changed))
+                await distributionCommand([
+                    'gpg',
+                    '--homedir',
+                    home,
+                    '--batch',
+                    '--yes',
+                    '--local-user',
+                    fingerprint,
+                    '--armor',
+                    '--detach-sign',
+                    manifestPath,
+                ])
+                await expect(verifyImmutableRepositoryManifest(root, home)).rejects.toThrow()
+            }
+            await writeFile(manifestPath, manifestBytes)
+            await writeFile(manifestPath + '.asc', signatureBytes)
+            const extra = join(root, 'keys/unsigned-extra.asc')
+            await writeFile(extra, 'unrecorded immutable file')
+            await expect(verifyImmutableRepositoryManifest(root, home)).rejects.toThrow(
+                'complete history',
+            )
+            await rm(extra)
+            const heldKeys = join(directory, 'held-keys')
+            await rename(join(root, 'keys'), heldKeys)
+            await writeFile(join(root, 'keys'), 'not a directory')
+            await expect(verifyImmutableRepositoryManifest(root, home)).rejects.toThrow('directory')
+            await rm(join(root, 'keys'))
+            await rename(heldKeys, join(root, 'keys'))
+            await verifyImmutableRepositoryManifest(root, home)
             // Tampering with a retained asset cannot become a new signed release retry.
             const retainedDeb = paths.find(
                 (path) => path.startsWith('deliverables/') && path.endsWith('.deb'),

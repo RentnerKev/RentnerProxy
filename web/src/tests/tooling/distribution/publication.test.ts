@@ -17,6 +17,23 @@ import {
 } from '../../../../../.github/scripts/distribution/bundle.ts'
 import { identity, platformFixture, workflow } from '../github/fixtures/oci.ts'
 
+test('bounded bundles reserve space for their own manifest and retain separate producer limits', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'rp-bundle-bound-')),
+        expected = { ...identity, ...workflow, digest: 'sha256:' + 'b'.repeat(64) }
+    try {
+        await writeFile(join(root, 'fixture'), 'data')
+        await expect(bundleFiles(root, '', 0)).rejects.toThrow('file limit')
+        await expect(bundleFiles(root, '', Infinity)).rejects.toThrow('file limit')
+        await expect(writeDistributionBundle(root, expected, 1)).rejects.toThrow('too large')
+        const hash = await writeDistributionBundle(root, expected, 2)
+        await verifyDistributionBundle(root, hash, expected, 2)
+        await writeFile(join(root, 'extra'), 'extra')
+        await expect(verifyDistributionBundle(root, hash, expected, 2)).rejects.toThrow('too large')
+    } finally {
+        await rm(root, { recursive: true, force: true })
+    }
+})
+
 function entry(path: string, mode = '100644') {
     return Buffer.from(`${mode} blob ${'a'.repeat(40)}\t${path}\0`)
 }

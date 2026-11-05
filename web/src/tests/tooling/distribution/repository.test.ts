@@ -1,16 +1,78 @@
+// oxlint-disable no-await-in-loop -- Remove each malformed directory before replaying the same catalog again.
 import { expect, test } from 'bun:test'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
     artifactFilename,
     assertSigningKey,
     consumerInstructions,
     repositoryUrl,
     signingFingerprint,
+    readRepositoryCatalog,
+    updatePackageRepository,
 } from '../../../../../.github/scripts/distribution/repository.ts'
 import {
     assertPackageFiles,
     packageCpio,
     packageTar,
 } from '../../../../../.github/scripts/distribution/archive.ts'
+
+test('repository replay rejects orphaned version, revision and architecture directories before rebuilding indexes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'rp-catalog-tree-'))
+    const release = {
+        schemaVersion: 1,
+        version: 'v1.0.0-beta.3',
+        revision: 'a'.repeat(40),
+        digest: 'sha256:' + 'b'.repeat(64),
+        platform: 'linux/amd64',
+        packageRevision: 1,
+    }
+    const directory = 'releases/v1.0.0-beta.3/1/amd64',
+        content = 'fixture',
+        files = ['deb', 'rpm', 'tar.gz'].map((suffix) => ({
+            file: 'rentnerproxy-fixture.' + suffix,
+            bytes: content.length,
+            sha256: createHash('sha256').update(content).digest('hex'),
+        }))
+    try {
+        await mkdir(join(root, directory), { recursive: true })
+        for (const file of files) await writeFile(join(root, directory, file.file), content)
+        await writeFile(join(root, 'catalog.json'), JSON.stringify([{ release, directory, files }]))
+        expect(await readRepositoryCatalog(root)).toHaveLength(1)
+        for (const orphan of [
+            'releases/v1.0.0-beta.4/1/amd64',
+            'releases/v1.0.0-beta.3/2',
+            'releases/v1.0.0-beta.3/1/arm64',
+        ]) {
+            await mkdir(join(root, orphan), { recursive: true })
+            await expect(readRepositoryCatalog(root)).rejects.toThrow(
+                'missing from the signed catalog',
+            )
+            // Remove only the newly created unknown version/revision/architecture.
+            const remove = orphan.startsWith('releases/v1.0.0-beta.4/')
+                ? 'releases/v1.0.0-beta.4'
+                : orphan
+            await rm(join(root, remove), { recursive: true, force: true })
+        }
+        await writeFile(join(root, 'catalog.json'), '[]')
+        await expect(readRepositoryCatalog(root)).rejects.toThrow('missing from the signed catalog')
+        await rm(join(root, 'catalog.json'))
+        await expect(
+            updatePackageRepository({
+                root,
+                source: root,
+                artifacts: [],
+                home: join(root, 'unused'),
+                fingerprint: 'A'.repeat(40),
+                baseUrl: 'https://example.invalid',
+            }),
+        ).rejects.toThrow('missing from the signed catalog')
+    } finally {
+        await rm(root, { recursive: true, force: true })
+    }
+})
 
 test('pins public repository URLs, file names and scoped key trust', () => {
     expect(repositoryUrl('https://rentnerkev.github.io/RentnerProxy/')).toBe(

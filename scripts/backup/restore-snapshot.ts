@@ -17,7 +17,7 @@ import {
 const stateArchiveName = 'controller-state.tar'
 
 async function readBackupFile(path: string, maximumBytes: number): Promise<Buffer> {
-    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
     try {
         const info = await file.stat()
         if (!info.isFile() || info.size > maximumBytes) throw new Error('unsupported backup file')
