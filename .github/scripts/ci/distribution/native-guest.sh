@@ -5,6 +5,12 @@ umask 077
 [[ ${ARCHITECTURE:-} == amd64 || ${ARCHITECTURE:-} == arm64 ]] || exit 1
 [[ ${TARGET:-} == debian || ${TARGET:-} == fedora ]] || exit 1
 [[ ${MODE:-} == package || ${MODE:-} == quadlet ]] || exit 1
+failed() {
+    local result=$?
+    printf 'Native %s %s %s failed at line %s (exit %s).\n' "$TARGET" "$ARCHITECTURE" "$MODE" "$1" "$result" >&2
+    exit "$result"
+}
+trap 'failed "$LINENO"' ERR
 # shellcheck source=/dev/null
 source /etc/os-release
 case "$TARGET/$ID/$VERSION_ID" in debian/debian/13|fedora/fedora/44) ;; *) exit 1 ;; esac
@@ -43,7 +49,10 @@ REPO
         dnf --assumeyes --refresh makecache
     fi
 }
-probe() { /root/bun --no-env-file /test/native-probe.js "$1"; }
+probe() {
+    printf 'Checking native %s %s %s: %s\n' "$TARGET" "$ARCHITECTURE" "$MODE" "$1"
+    /root/bun --no-env-file /test/native-probe.js "$1"
+}
 case "$phase" in
     install)
         install -d -m 0755 /etc/containers/registries.conf.d
@@ -88,6 +97,7 @@ CONFIGURATION
         probe seed
         install -d -m 0700 /root/backups
         rentnerproxy backup /root/backups
+        probe verify
         backup=$(find /root/backups -mindepth 1 -maxdepth 1 -type d -name 'rentnerproxy-*' -print)
         [[ -n "$backup" && "$backup" != *$'\n'* ]] || exit 1
         cp -a -- "$backup" /root/bad-backup

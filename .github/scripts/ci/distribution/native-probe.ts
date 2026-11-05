@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { distributionCommand } from '../../distribution/process.ts'
+import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import {
     seedPersistenceFixture,
     readPersistenceSnapshot,
@@ -185,6 +186,26 @@ async function initializeTraffic() {
     )
 }
 
+async function waitForCertificateCursor() {
+    for (let attempt = 0; attempt < 120; attempt++) {
+        const page = (await controller('/internal/v1/certificates/events?limit=200')) as {
+            hasMore: boolean
+            nextCursor: string
+        }
+        const cursor = await psql(
+            command,
+            container,
+            "SELECT coalesce(cursor, '') FROM rentnerproxy.certificate_event_cursor WHERE id=1",
+        )
+        if (!page.hasMore && page.nextCursor && cursor === page.nextCursor) return
+        assert.ok(
+            attempt < 119,
+            'Certificate event fixture did not settle before its backup baseline',
+        )
+        await Bun.sleep(500)
+    }
+}
+
 async function run() {
     assert.equal(process.platform, 'linux')
     assert.equal(process.getuid?.(), 0)
@@ -208,6 +229,10 @@ async function run() {
     )
     const phase = process.argv[2]
     if (phase === 'seed') {
+        stage = 'test certificate and route initialization'
+        await initializeTraffic()
+        await traffic()
+        await waitForCertificateCursor()
         stage = 'persistence seed'
         const fixture = await seedPersistenceFixture({
             command,
@@ -224,8 +249,6 @@ async function run() {
             container,
             "INSERT INTO rentnerproxy.system_settings(key,value) VALUES ('distribution_probe','\"original\"'::jsonb)",
         )
-        stage = 'test certificate and route initialization'
-        await initializeTraffic()
     } else if (phase === 'mutate') {
         await psql(
             command,
@@ -238,7 +261,34 @@ async function run() {
         await readFile('/root/distribution-state.json', 'utf8'),
     )
     stage = 'persistence verification'
-    await assertPersistenceFixture({ command, containerId: container, fixture, expected })
+    try {
+        await assertPersistenceFixture({ command, containerId: container, fixture, expected })
+    } catch (error) {
+        const actual = await readPersistenceSnapshot({ command, containerId: container, fixture })
+        const changed = Object.keys(expected).flatMap((key) => {
+            const before = expected[key],
+                after = actual[key]
+            if (JSON.stringify(before) === JSON.stringify(after)) return []
+            if (
+                before &&
+                after &&
+                typeof before === 'object' &&
+                typeof after === 'object' &&
+                !Array.isArray(before) &&
+                !Array.isArray(after)
+            )
+                return Object.keys(before)
+                    .filter(
+                        (field) =>
+                            JSON.stringify(before[field]) !==
+                            JSON.stringify((after as Record<string, unknown>)[field]),
+                    )
+                    .map((field) => key + '.' + field)
+            return [key]
+        })
+        console.error('Changed native persistence columns:', changed.join(', '))
+        throw error
+    }
     await assertPersistenceRequestDecrypts({ command, containerId: container, fixture })
     assert.equal(
         await psql(
@@ -249,7 +299,20 @@ async function run() {
         'original',
     )
     stage = 'management and Valkey readiness'
-    assert.equal((await fetch('http://127.0.0.1:81/health/ready')).status, 200)
+    await waitForSmoke(
+        async () => {
+            const response = await fetch('http://127.0.0.1:81/health/ready', {
+                signal: AbortSignal.timeout(1000),
+            })
+            await response.body?.cancel()
+            return response.status === 200
+        },
+        {
+            timeoutMs: 30_000,
+            intervalMs: 250,
+            timeoutError: () => new Error('Published management endpoint did not become ready'),
+        },
+    )
     assert.equal(
         await command([
             'podman',
@@ -311,7 +374,9 @@ if (import.meta.main) {
     try {
         await run()
         console.log(
-            'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.',
+            process.argv[2] === 'mutate'
+                ? 'Native restore-marker mutation completed.'
+                : 'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.',
         )
     } catch (error) {
         console.error(

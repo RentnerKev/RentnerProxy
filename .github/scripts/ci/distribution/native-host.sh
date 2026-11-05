@@ -79,7 +79,11 @@ sudo tar --extract --file "$work/rootfs.tar" --directory "$rootfs"
 sudo chown root:root "$rootfs"
 # HTTP consumer traffic is anonymous. The fixture key and all packages are public test data.
 python3 -m http.server 18888 --bind 192.0.2.1 --directory "$DISTRIBUTION_DIRECTORY" > "$work/http.log" 2>&1 & server_pid=$!
-sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed --setenv=SYSTEMD_NSPAWN_API_VFS_WRITABLE=network --collect systemd-nspawn --settings=no --quiet --keep-unit --boot --capability=CAP_NET_ADMIN,CAP_BPF --system-call-filter='bpf @keyring' --network-namespace-path="/run/netns/$network" --resolv-conf=copy-uplink --directory "$rootfs" --machine "$machine" --link-journal=no --bind-ro="$DISTRIBUTION_DIRECTORY:/test" --bind-ro="$SOURCE_DIRECTORY:/automation"
+# Match systemd-nspawn@.service: --keep-unit reports guest reboot as exit 133.
+sudo systemd-run --unit "$machine" --property=Delegate=yes --property=KillMode=mixed \
+    --property=RestartForceExitStatus=133 --property=SuccessExitStatus=133 \
+    --setenv=SYSTEMD_NSPAWN_API_VFS_WRITABLE=network --collect \
+    systemd-nspawn --settings=no --quiet --keep-unit --boot --capability=CAP_NET_ADMIN,CAP_BPF --system-call-filter='bpf @keyring' --network-namespace-path="/run/netns/$network" --resolv-conf=copy-uplink --directory "$rootfs" --machine "$machine" --link-journal=no --bind-ro="$DISTRIBUTION_DIRECTORY:/test" --bind-ro="$SOURCE_DIRECTORY:/automation"
 for (( attempt=0; attempt<120; attempt++ )); do
     if sudo systemctl --machine "$machine" show --property Version >/dev/null 2>&1; then break; fi
     if sudo systemctl is-failed --quiet "$machine.service"; then exit 1; fi
@@ -97,7 +101,7 @@ for mode in package quadlet; do
     sudo systemctl --machine "$machine" reboot
     for (( attempt=0; attempt<120; attempt++ )); do
         current=$(sudo machinectl show "$machine" --property=Leader --value 2>/dev/null || true)
-        if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$boot" ]]; then break; fi
+        if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$boot" ]] && sudo systemctl --machine "$machine" show --property Version >/dev/null 2>&1; then break; fi
         (( attempt < 119 )) || exit 1
         sleep 1
     done
