@@ -52,6 +52,8 @@ jobs:
               run: |
                   export REVISION=$(jq -r .revision "$DISTRIBUTION_DIRECTORY/bundle.json") VERSION=v1.0.0-beta.9999
                   export EXPECTED_DIGEST=$(jq -r .digest "$DISTRIBUTION_DIRECTORY/bundle.json")
+                  bun --no-env-file build .github/scripts/ci/distribution/native-probe.ts --target=bun --outfile="$DISTRIBUTION_DIRECTORY/native-probe.js"
+                  bun --no-env-file -e 'import {readFile,rm} from "node:fs/promises"; import {join} from "node:path"; import {writeDistributionBundle} from "./.github/scripts/distribution/bundle.ts"; const root=process.env.DISTRIBUTION_DIRECTORY; const {revision,version,digest,runId,runAttempt}=JSON.parse(await readFile(join(root,"bundle.json"),"utf8")); await rm(join(root,"bundle.json")); await writeDistributionBundle(root,{revision,version,digest,runId,runAttempt})'
                   export ARCHIVE_SHA256=$(sha256sum "$CANDIDATE_DIRECTORY/candidate-image.tar" | cut -d ' ' -f1)
                   export BUNDLE_SHA256=$(sha256sum "$DISTRIBUTION_DIRECTORY/bundle.json" | cut -d ' ' -f1)
                   export GITHUB_RUN_ID=41932448192 GITHUB_RUN_ATTEMPT=1

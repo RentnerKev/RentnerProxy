@@ -287,8 +287,11 @@ if (import.meta.main) {
         console.log(
             'Native appliance state, encryption, bundled services and HTTP/1.1 + HTTP/2 + HTTP/3 passed.',
         )
-    } catch {
-        console.error('Native distribution probe failed')
+    } catch (error) {
+        console.error(
+            'Native distribution probe failed:',
+            error instanceof Error ? error.message : 'unknown failure',
+        )
         process.exitCode = 1
     }
 }
