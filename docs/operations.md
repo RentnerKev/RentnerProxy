@@ -15,8 +15,8 @@ using the full upstream static feature profile and RE2 2023-03-01. Reviewed,
 read-only module locks update gRPC to 1.84.0 and `golang.org/x/crypto` to 0.58.0;
 the build verifies both binaries' embedded dependency versions. The official
 image continues to supply configuration and the pinned Hub assets.
-The [engine build sources](../docker/crowdsec/tooling/engine-build/)
-record the remaining build and compatibility constraints. Axum 0.8.9 also
+The [engine build notes](../docker/crowdsec/tooling/engine-build/README.md)
+explain the remaining RE2 and Kubernetes compatibility pins. Axum 0.8.9 also
 requires its exact matchit 0.8.4 dependency; the current stable dependency
 refresh retains these upstream constraints.
 These updates do not establish that an image passes the complete dependency
