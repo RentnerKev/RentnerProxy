@@ -71,6 +71,19 @@ MIRROR
             bash /root/quadlet/install.sh
         fi
         if systemctl is-active --quiet rentnerproxy.service; then exit 1; fi
+        # Reused assessed OCI fixtures predate the explicit OCI-compatible
+        # health configuration. Exercise the proposed Quadlet settings as a
+        # temporary drop-in; the real PR gate rebuilds its exact packages.
+        install -d /etc/containers/systemd/rentnerproxy.container.d
+        cat > /etc/containers/systemd/rentnerproxy.container.d/health.conf <<'HEALTH'
+[Container]
+HealthCmd=bun /opt/rentnerproxy/web/docker/web/healthcheck.ts
+HealthInterval=10s
+HealthTimeout=5s
+HealthStartPeriod=60s
+HealthRetries=12
+HEALTH
+        systemctl daemon-reload
         cat > /etc/rentnerproxy/appliance.env <<'CONFIGURATION'
 PUBLIC_ORIGIN=https://management.distribution.invalid
 PROXY_TRUSTED_PROXY_CIDRS=
