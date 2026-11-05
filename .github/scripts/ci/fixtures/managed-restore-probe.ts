@@ -11,7 +11,7 @@ import {
 import { SESSION_COOKIE_NAME } from '../../../../web/src/config/auth.config.ts'
 import { sqlQuote } from './appliance-storage.ts'
 import { createProxyRuntimeSnapshot } from '../../../../web/src/server/ProxyRuntime/proxy-runtime-snapshot.ts'
-import type { RestoreCheckpoint } from './Types/managed-restore-probe.types.ts'
+import type { RestoreCheckpoint, RestoreProgressLock } from './Types/managed-restore-probe.types.ts'
 
 const origin = 'https://managed-backup.invalid'
 const managementPort = 8080
@@ -87,14 +87,93 @@ async function psql(statement: string) {
     return output.trim()
 }
 
-async function wait<T>(read: () => Promise<T | undefined>) {
-    const until = Date.now() + 180_000
+async function wait<T>(read: () => Promise<T | undefined>, timeoutMs = 180_000) {
+    const until = Date.now() + timeoutMs
     while (Date.now() < until) {
         const value = await read()
         if (value !== undefined) return value
         await Bun.sleep(100)
     }
     throw new Error('Online restore fixture did not reach its checkpoint')
+}
+
+async function holdRestoreProgress(): Promise<RestoreProgressLock> {
+    // Created after the backup: DROP SCHEMA must wait for this fixture-owned table,
+    // and the genuine replacement removes it without changing the archived data.
+    await psql('CREATE TABLE rentnerproxy.online_restore_progress_fixture (marker boolean);')
+    const locker = Bun.spawn(
+        [
+            'gosu',
+            'postgres',
+            'psql',
+            '--no-psqlrc',
+            '--no-password',
+            '--quiet',
+            '--set=ON_ERROR_STOP=1',
+            '--host=/var/run/postgresql',
+            '--username=postgres',
+            '--dbname=rentnerproxy',
+        ],
+        { stdin: 'pipe', stdout: 'pipe', stderr: 'ignore' },
+    )
+    let ready = false
+    const drained = (async () => {
+        let output = ''
+        for await (const chunk of locker.stdout) {
+            output = (output + Buffer.from(chunk).toString('utf8')).slice(-1024)
+            ready ||= output.includes('restore-fixture-lock-ready')
+        }
+    })()
+    // Both the SQL session and its owned client have a bound, including parent failure.
+    const lifetime = setTimeout(() => locker.kill('SIGKILL'), 60_000)
+    let releasing: Promise<void> | undefined
+    const assertHeld = () => {
+        assert.equal(locker.exitCode, null, 'restore fixture lock client must remain alive')
+        assert.equal(locker.signalCode, null, 'restore fixture lock client must not be terminated')
+    }
+    const release = () => {
+        releasing ??= (async () => {
+            // EOF also rolls back if writing the explicit rollback fails.
+            const force = setTimeout(() => locker.kill('SIGKILL'), 1_000)
+            try {
+                if (locker.exitCode === null && locker.signalCode === null) {
+                    await locker.stdin.write('ROLLBACK;\n\\quit\n')
+                    await locker.stdin.flush()
+                }
+            } finally {
+                try {
+                    await locker.stdin.end()
+                } finally {
+                    try {
+                        const code = await locker.exited
+                        await drained
+                        assert.equal(code, 0, 'restore fixture lock client must exit cleanly')
+                    } finally {
+                        clearTimeout(force)
+                        clearTimeout(lifetime)
+                    }
+                }
+            }
+        })()
+        return releasing
+    }
+    try {
+        await locker.stdin.write(
+            "BEGIN;\nSET LOCAL idle_in_transaction_session_timeout = '60s';\n" +
+                "SET LOCAL statement_timeout = '5s';\n" +
+                'LOCK TABLE rentnerproxy.online_restore_progress_fixture IN ACCESS SHARE MODE;\n' +
+                '\\echo restore-fixture-lock-ready\n',
+        )
+        await locker.stdin.flush()
+        await wait(async () => {
+            assertHeld()
+            return ready ? true : undefined
+        }, 5_000)
+        return { release, assertHeld }
+    } catch (error) {
+        await release()
+        throw error
+    }
 }
 
 async function request(token: string, path: string, body?: object) {
@@ -391,9 +470,11 @@ async function runManagedWebRestore(interruptRestart: boolean) {
         )
         await writeFile(markerPath, 'after', { mode: 0o600 })
         const observer = live(currentToken)
+        let progressLock: RestoreProgressLock | undefined
         try {
             checkpoint = 'restore-connect'
             await wait(async () => (observer.snapshots.length ? true : undefined))
+            if (!interruptRestart) progressLock = await holdRestoreProgress()
             if (interruptRestart) {
                 // Fault only this disposable container layer. The host repairs it after the
                 // supervisor fails closed, then starts the exact same persisted volume.
@@ -431,6 +512,23 @@ async function runManagedWebRestore(interruptRestart: boolean) {
                         : undefined
                 })
                 return { recoveryPending: true }
+            }
+            checkpoint = 'progress'
+            // Web caches authorized maintenance viewers and closes its DB pool before
+            // acknowledging quiescence. This snapshot bypasses DB auth, so the pending
+            // DROP SCHEMA lock cannot block the self-proxied progress observation.
+            try {
+                await wait(async () => {
+                    progressLock!.assertHeld()
+                    return observer.snapshots.find(
+                        (snapshot) =>
+                            snapshot.maintenance?.id === operation.id &&
+                            snapshot.maintenance.phase === 'database' &&
+                            snapshot.maintenance.progressPercent === 30,
+                    )
+                }, 45_000)
+            } finally {
+                await progressLock!.release()
             }
             checkpoint = 'restore-complete'
             await wait(async () => {
@@ -478,7 +576,11 @@ async function runManagedWebRestore(interruptRestart: boolean) {
             )
             return await verifyCompletion(fixture)
         } finally {
-            observer.close()
+            try {
+                await progressLock?.release()
+            } finally {
+                observer.close()
+            }
         }
     } finally {
         backupObserver?.close()

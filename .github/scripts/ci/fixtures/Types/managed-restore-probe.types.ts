@@ -15,3 +15,8 @@ export type RestoreCheckpoint =
     | 'completion-files'
     | 'interrupted-checkpoint'
     | 'recovery-fixture'
+
+export interface RestoreProgressLock {
+    release: () => Promise<void>
+    assertHeld: () => void
+}
