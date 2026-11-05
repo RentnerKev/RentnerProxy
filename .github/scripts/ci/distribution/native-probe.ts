@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop -- Native lifecycle probes deliberately check durable state between phases.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { distributionCommand } from '../../distribution/process.ts'
 import {
     seedPersistenceFixture,
@@ -22,16 +22,15 @@ async function command(args: string[], timeoutMs?: number) {
         ).trim()
     } catch (error) {
         const result = error instanceof Error ? error.cause : undefined
+        // Only the anonymous curl fixture may expose bounded TLS diagnostics.
         if (
+            args.includes('localhost/rentnerproxy-distribution-http3:fixture') &&
             result &&
             typeof result === 'object' &&
             'stderr' in result &&
-            result.stderr instanceof Uint8Array
+            typeof result.stderr === 'string'
         )
-            console.error(
-                'Isolated native tool stderr:',
-                Buffer.from(result.stderr).toString('utf8').slice(0, 2048),
-            )
+            console.error('Native anonymous TLS probe:', result.stderr.slice(0, 2048))
         throw new Error('Native ' + stage + ' command failed: ' + args.slice(0, 5).join(' '), {
             cause: error,
         })
@@ -108,6 +107,8 @@ async function traffic() {
             container + ':/var/lib/rentnerproxy/proxy/distribution-ca.pem',
             '/root/distribution-ca.pem',
         ])
+        // The client runs as UID 65532. This is a public test CA, not a private key.
+        await chmod('/root/distribution-ca.pem', 0o644)
         for (const protocol of ['--http1.1', '--http2', '--http3-only']) {
             const response = await command([
                 'podman',
