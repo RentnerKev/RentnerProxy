@@ -4,7 +4,7 @@ FROM mirror.gcr.io/library/postgres:18.6@sha256:3a4264520e121176619f54ff867d1277
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates \
+    && apt-get install -y --no-install-recommends git ca-certificates apt-utils createrepo-c gnupg gpgv podman rpm rpm2cpio skopeo \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10002 rentnerproxy \
     && useradd --uid 10002 --gid rentnerproxy --no-create-home rentnerproxy \
@@ -13,4 +13,5 @@ RUN apt-get update \
     && git config --system --add safe.directory /workspace
 
 WORKDIR /workspace
+ENV RENTNERPROXY_PACKAGE_TEST=1
 ENTRYPOINT ["bun", "--no-env-file"]

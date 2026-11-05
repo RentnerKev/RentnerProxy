@@ -17,6 +17,7 @@ test('backup build identity is deterministic, responds to deployed content chang
         'lib/rentnerproxy-backups.sh',
         'web/backup-agent.js',
         'web/backup-export.js',
+        'web/backup-maintenance.js',
         'web/migrate.js',
         'web/web/dist/server/index.js',
         'web/web/dist/client/app.js',

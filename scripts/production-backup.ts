@@ -3,7 +3,7 @@ import { CURRENT_COMPATIBILITY_PROFILE } from '../web/src/config/compatibility.c
 import { readDeploymentEnvironmentVariable } from '../web/src/lib/Environment/deployment-environment.ts'
 import { createMaintenanceCommands } from './backup/maintenance-commands.ts'
 import { commandOption, composeArguments, readComposeProject } from './backup/compose.ts'
-import { postgresShutdownScript } from './backup/postgres-shutdown.ts'
+import { postgresDumpCommand } from './backup/volume-commands.ts'
 import { waitForApplianceReadiness } from './backup/appliance-readiness.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import { crowdSecArchiveExclusions, validateStateArchiveFile } from './backup/format.ts'
@@ -171,17 +171,6 @@ async function backup(): Promise<void> {
             'export application encryption key',
         )
 
-        const dumpCommand =
-            'set -Eeuo pipefail; ' +
-            postgresShutdownScript() +
-            '; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { stop_postgres; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
-            databaseUser +
-            ' --dbname=' +
-            database +
-            ' >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done; "$ready"; gosu postgres pg_dump --host=/var/run/postgresql --format=custom --no-owner --no-acl --username=' +
-            databaseUser +
-            ' --dbname=' +
-            database
         const dump = await runCommandFile(
             [
                 ...compose,
@@ -193,7 +182,7 @@ async function backup(): Promise<void> {
                 'bash',
                 applianceService,
                 '-c',
-                dumpCommand,
+                postgresDumpCommand(),
             ],
             dumpPath,
             'create PostgreSQL dump',

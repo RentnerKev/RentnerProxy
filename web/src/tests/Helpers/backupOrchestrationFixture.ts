@@ -83,6 +83,7 @@ export async function runBackupOrchestrationFixture(scenario: string) {
                 'docker/web/bootstrap-secrets.ts',
                 'docker/web/validate-backup.ts',
                 'scripts/production-restore.ts',
+                'scripts/backup/volume-commands.ts',
             ],
             {
                 '/var/lib/rentnerproxy': app,

@@ -50,7 +50,7 @@ export const coverageSourceExclusions = [
     },
     {
         pattern:
-            /^\.github\/scripts\/(?:ci\/platform-backup\.ts|release\/(?:candidate|portability)-runtime\.ts)$/u,
+            /^\.github\/scripts\/(?:ci\/(?:platform-backup\.ts|distribution\/.*\.ts)|release\/(?:candidate|portability)-runtime\.ts)$/u,
         reason: 'native Docker integration test runner',
     },
     { pattern: /(?:^|\/)(?:Fixtures|fixtures)\//u, reason: 'test fixtures' },

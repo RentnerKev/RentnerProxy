@@ -1,0 +1,165 @@
+name: Publish signed Linux distribution
+
+on:
+    workflow_call:
+        inputs:
+            revision:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            digest:
+                required: true
+                type: string
+            signed_bundle_sha256:
+                required: true
+                type: string
+            fingerprint:
+                required: true
+                type: string
+            repository_url:
+                required: true
+                type: string
+            release_id:
+                required: true
+                type: number
+            published_at:
+                required: true
+                type: string
+            channel:
+                required: true
+                type: string
+            prerelease:
+                required: true
+                type: boolean
+
+permissions: {}
+
+jobs:
+    publish:
+        if: >-
+            github.repository == 'RentnerKev/RentnerProxy' &&
+            github.event_name == 'release' && github.event.action == 'published' &&
+            startsWith(github.ref, 'refs/tags/') &&
+            github.event.release.id == inputs.release_id &&
+            github.event.release.tag_name == inputs.version
+        name: Publish sealed signed packages
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: write
+        steps:
+            - name: Check out trusted publisher automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Set up Bun without source installation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Download sealed public distribution data
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: signed-distribution-${{ github.run_id }}
+                  path: ${{ runner.temp }}/signed-distribution
+            - name: Read data-only repository history without publication credentials
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+              run: bash automation/.github/scripts/distribution/read-repository.sh
+            - name: Verify sealed bytes and unchanged repository parent
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  SIGNED_BUNDLE_SHA256: ${{ inputs.signed_bundle_sha256 }}
+                  SIGNED_DIRECTORY: ${{ runner.temp }}/signed-distribution
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+              run: bun --no-env-file automation/.github/scripts/distribution/signed.ts restore
+            - name: Recheck authoritative release before publication
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  RELEASE_TAG: ${{ inputs.version }}
+              run: bash automation/.github/scripts/release/verify-release-identity.sh
+            - name: Recheck the peeled release tag before publication
+              env:
+                  RELEASE_TAG: ${{ inputs.version }}
+                  REVISION: ${{ inputs.revision }}
+              run: bash automation/.github/scripts/release/verify-tag-revision.sh
+            - name: Retain immutable signed versions with a non-force data-branch update
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bash automation/.github/scripts/distribution/push-repository.sh
+            - name: Upload immutable versioned release deliverables
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  VERSION: ${{ inputs.version }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+              run: bun --no-env-file automation/.github/scripts/distribution/publication.ts upload
+            - name: Prepare data-only Pages artifact
+              uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+              with:
+                  path: ${{ runner.temp }}/package-repository/public
+
+    deploy:
+        name: Deploy signed package repository
+        needs: publish
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Atomically deploy the verified repository snapshot
+              id: deployment
+              uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+    consumer:
+        name: Anonymous published ${{ matrix.target }} consumer
+        needs: [publish, deploy]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 20
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [debian, fedora]
+                runner: [ubuntu-latest, ubuntu-24.04-arm]
+        steps:
+            - name: Check out trusted consumer verification
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.workflow_sha }}
+            - name: Build clean supported consumer
+              env:
+                  TARGET: ${{ matrix.target }}
+              run: docker build --file "docker/tooling/distribution/Dockerfile.$TARGET" --tag rp-distribution-consumer:fixture .
+            - name: Set up native verification runtime
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Verify public metadata and downloads with the pinned owner key
+              env:
+                  TARGET: ${{ matrix.target }}
+                  RELEASE_CHANNEL: ${{ inputs.channel }}
+                  RELEASE_VERSION: ${{ inputs.version }}
+                  RELEASE_REVISION: ${{ inputs.revision }}
+                  RELEASE_DIGEST: ${{ inputs.digest }}
+                  PACKAGE_REPOSITORY_URL: ${{ inputs.repository_url }}
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ inputs.fingerprint }}
+              run: docker run --rm --env TARGET --env RELEASE_CHANNEL --env RELEASE_VERSION --env RELEASE_REVISION --env RELEASE_DIGEST --env PACKAGE_REPOSITORY_URL --env PACKAGE_SIGNING_FINGERPRINT --mount "type=bind,source=$GITHUB_WORKSPACE,target=/automation,readonly" --mount "type=bind,source=$(command -v bun),target=/usr/local/bin/bun,readonly" --entrypoint bash rp-distribution-consumer:fixture /automation/.github/scripts/distribution/published-consumer.sh

@@ -1,0 +1,150 @@
+name: Validate Linux distribution
+
+on:
+    workflow_call:
+        inputs:
+            revision:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            digest:
+                required: true
+                type: string
+            archive_sha256:
+                required: true
+                type: string
+            evidence_sha256:
+                required: true
+                type: string
+        outputs:
+            bundle_sha256:
+                value: ${{ jobs.packages.outputs.bundle_sha256 }}
+
+permissions: {}
+
+jobs:
+    packages:
+        if: github.repository == 'RentnerKev/RentnerProxy'
+        name: Build and verify DEB, RPM and Quadlet artifacts
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        outputs:
+            bundle_sha256: ${{ steps.packages.outputs.bundle_sha256 }}
+        steps:
+            - name: Check out trusted distribution automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Check out exact assessed source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ inputs.revision }}
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install locked source dependencies without publication credentials
+              working-directory: source
+              run: bun install --frozen-lockfile
+            - name: Download assessed image and native proof
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/candidate
+            - name: Build isolated package toolchain
+              run: docker build --file automation/docker/tooling/distribution/Dockerfile --tag rp-distribution:tools automation
+            - name: Verify real package ordering, contents and signature rejection
+              run: |
+                  docker run --rm --env RENTNERPROXY_PACKAGE_TEST=1 --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/work" rp-distribution:tools test ./web/src/tests/tooling/distribution/packages.native.test.ts
+                  docker run --rm --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/work,readonly" --entrypoint shellcheck rp-distribution:tools packaging/linux/rentnerproxy
+            - name: Build package artifacts from the exact approved OCI root
+              id: packages
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+                  EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+              run: |
+                  mkdir "$RUNNER_TEMP/distribution"
+                  docker run --rm --env REVISION --env VERSION --env EXPECTED_DIGEST --env ARCHIVE_SHA256 --env EVIDENCE_SHA256 --env GITHUB_RUN_ID --env GITHUB_RUN_ATTEMPT --env SOURCE_DIRECTORY=/source --env CANDIDATE_DIRECTORY=/candidate --env DISTRIBUTION_DIRECTORY=/output --env GITHUB_OUTPUT=/output/github-output --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/source,readonly" --mount "type=bind,source=$GITHUB_WORKSPACE/automation,target=/automation,readonly" --mount "type=bind,source=$RUNNER_TEMP/candidate,target=/candidate,readonly" --mount "type=bind,source=$RUNNER_TEMP/distribution,target=/output" rp-distribution:tools /automation/.github/scripts/distribution/prepare.ts build
+                  cat "$RUNNER_TEMP/distribution/github-output" >> "$GITHUB_OUTPUT"
+                  rm "$RUNNER_TEMP/distribution/github-output"
+            - name: Preserve immutable distribution candidates and public fixture repositories
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: distribution-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/distribution
+                  if-no-files-found: error
+                  retention-days: 30
+
+    native:
+        name: Native ${{ matrix.target }} ${{ matrix.architecture }} lifecycle
+        needs: packages
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 60
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [debian, fedora]
+                architecture: [amd64, arm64]
+                include:
+                    - architecture: amd64
+                      runner: ubuntu-latest
+                    - architecture: arm64
+                      runner: ubuntu-24.04-arm
+        steps:
+            - name: Check out trusted native test automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install disposable target host tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends skopeo systemd-container
+            - name: Download assessed image
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: assessed-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/candidate
+            - name: Download immutable distribution candidates
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: distribution-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/distribution
+            - name: Verify native package-manager and Quadlet lifecycle
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+                  BUNDLE_SHA256: ${{ needs.packages.outputs.bundle_sha256 }}
+                  ARCHITECTURE: ${{ matrix.architecture }}
+                  TARGET: ${{ matrix.target }}
+                  SOURCE_DIRECTORY: ${{ github.workspace }}/automation
+                  CANDIDATE_DIRECTORY: ${{ runner.temp }}/candidate
+                  DISTRIBUTION_DIRECTORY: ${{ runner.temp }}/distribution
+              run: bash automation/.github/scripts/ci/distribution/native-host.sh
+            - name: Preserve native lifecycle proof
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: distribution-native-${{ matrix.target }}-${{ matrix.architecture }}-${{ github.run_id }}
+                  path: ${{ runner.temp }}/distribution/native-${{ matrix.target }}-${{ matrix.architecture }}.json
+                  if-no-files-found: error
+                  retention-days: 30

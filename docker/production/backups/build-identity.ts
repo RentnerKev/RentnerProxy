@@ -25,6 +25,7 @@ for (const path of [
     '/usr/local/lib/rentnerproxy-backups.sh',
     root + '/backup-agent.js',
     root + '/backup-export.js',
+    root + '/backup-maintenance.js',
     root + '/migrate.js',
     ...(await files(root + '/web/dist')),
     ...(await files(root + '/web/drizzle')),

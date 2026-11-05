@@ -251,6 +251,42 @@ describe('shared release pipeline', () => {
         expect(pipeline).toContain('name: assessed-candidate-${{ github.run_id }}')
     })
 
+    test('gates moving image tags on protected signing and keeps the private key out of publication jobs', async () => {
+        const pipeline = Bun.YAML.parse(await workflow('release-pipeline.yml')) as {
+            jobs: Record<string, { needs?: string[] }>
+            concurrency: { group: string }
+        }
+        const signing = Bun.YAML.parse(await workflow('sign-distribution.yml')) as {
+            jobs: {
+                sign: {
+                    if: string
+                    environment: string
+                    permissions: Record<string, string>
+                    steps: { env?: Record<string, string> }[]
+                }
+            }
+        }
+        expect(pipeline.jobs['sign-distribution']!.needs).toContain('distribution')
+        expect(pipeline.jobs['publish-image']!.needs).toContain('sign-distribution')
+        expect(pipeline.jobs['publish-distribution']!.needs).toEqual(
+            expect.arrayContaining(['publish-image', 'sign-distribution']),
+        )
+        expect(pipeline.concurrency.group).toBe('signed-package-repository')
+        expect(signing.jobs.sign.environment).toBe('package-signing')
+        expect(signing.jobs.sign.permissions).toEqual({ contents: 'read' })
+        expect(signing.jobs.sign.if).toContain("github.event_name == 'release'")
+        expect(signing.jobs.sign.if).toContain('github.event.release.id == inputs.release_id')
+        const keySteps = signing.jobs.sign.steps.filter((step) => step.env?.PACKAGE_SIGNING_KEY)
+        expect(keySteps).toHaveLength(1)
+        expect(keySteps[0]!.env).not.toHaveProperty('GH_TOKEN')
+        const publisher = await workflow('publish-distribution.yml')
+        expect(publisher).not.toContain('PACKAGE_SIGNING_KEY')
+        expect(publisher).not.toContain('bun install')
+        expect(publisher).toContain('SIGNED_BUNDLE_SHA256:')
+        expect(publisher).toContain('signed.ts restore')
+        expect(publisher).not.toContain('group: signed-package-repository')
+    })
+
     test('uses only the expected GitHub token permissions and no legacy registry settings', async () => {
         const pipeline =
             (await workflow('release-pipeline.yml')) +
