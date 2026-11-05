@@ -421,4 +421,7 @@ start_web
 # A persisted schedule may already be queued. Let web finish installing its
 # shutdown handlers before the maintenance loop is allowed to signal it.
 wait_for_web_readiness
+# A failed final restart can finish recovery only after this boot proves every
+# service ready. The agent records the matching completion and releases web writers.
+bun --no-env-file "$backup_exporter" --confirm-restarted-restore
 monitor_children

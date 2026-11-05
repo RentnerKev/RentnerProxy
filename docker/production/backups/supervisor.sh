@@ -37,8 +37,8 @@ start_backup_agent() {
             || fatal 'the backup control directory is not root-owned'
     fi
     install -d -m 0750 -o root -g rentnerproxy "$backup_control_directory"
-    # /run can survive a container stop/start. Do not accept an old socket as ready.
-    rm -f -- "$backup_control_directory/agent.sock"
+    # /run can survive a stop/start. Discard readiness evidence from the previous boot.
+    rm -f -- "$backup_control_directory/agent.sock" "$backup_control_directory/restore-restarted.json"
     start_child backups flock --no-fork -n "$lock_file" \
         bun --no-env-file "$app_directory/backup-agent.js"
     wait_for_command 'backup agent' test -S "$backup_control_directory/agent.sock"

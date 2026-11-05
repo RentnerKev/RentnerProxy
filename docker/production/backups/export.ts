@@ -163,7 +163,10 @@ if (import.meta.main) {
     try {
         const args = process.argv.slice(2)
         if (process.getuid?.() !== 0) throw new Error('backup requires owned supervisor')
-        if (args.length === 1 && args[0] === '--request-id') {
+        if (args.length === 1 && args[0] === '--confirm-restarted-restore') {
+            const { confirmRestartedRestore } = await import('./restart-recovery.ts')
+            await confirmRestartedRestore()
+        } else if (args.length === 1 && args[0] === '--request-id') {
             const request = z
                 .strictObject({ id: z.uuid(), kind: z.literal('restore').optional() })
                 .parse(await readPrivateJson(controlRoot + '/active.json', 1024))

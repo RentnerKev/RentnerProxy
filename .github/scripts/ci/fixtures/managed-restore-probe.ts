@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { chown, lstat, readFile, writeFile } from 'node:fs/promises'
+import { z } from 'zod'
 import {
     backupRestoreSnapshotSchema,
     managedBackupStateSchema,
@@ -13,6 +14,12 @@ import { sqlQuote } from './appliance-storage.ts'
 const origin = 'https://managed-backup.invalid'
 const statePath = '/var/lib/rentnerproxy/backups/jobs.json'
 const markerPath = '/var/lib/rentnerproxy/proxy/online-restore-fixture-marker'
+const recoveryFixturePath = '/var/lib/rentnerproxy/backups/online-restore-fixture.json'
+const recoveryFixtureSchema = z.strictObject({
+    operationId: z.uuid(),
+    currentToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/u),
+    before: z.uuid(),
+})
 
 async function psql(statement: string) {
     const process = Bun.spawn(
@@ -96,14 +103,70 @@ function live(token: string) {
     return { socket, snapshots }
 }
 
-/** Runs only in the existing private smoke appliance, using fresh local identities and no external services. */
-export async function verifyManagedWebRestore() {
+async function assertFixture() {
     assert.equal(process.getuid?.(), 0)
     assert.equal(process.env.PUBLIC_ORIGIN, origin)
     assert.equal(
         await readFile('/var/lib/rentnerproxy/proxy/managed-backup-smoke-marker', 'utf8'),
         'isolated-managed-backup-fixture',
     )
+}
+
+async function verifyCompletion(fixture: z.infer<typeof recoveryFixtureSchema>) {
+    await wait(async () => {
+        const state = managedBackupStateSchema.parse(JSON.parse(await readFile(statePath, 'utf8')))
+        const current = state.maintenance
+        assert.equal(current?.id, fixture.operationId)
+        return current?.state === 'succeeded' ? current : undefined
+    })
+    const reconnected = live(fixture.currentToken)
+    try {
+        const completed = await wait(async () =>
+            reconnected.snapshots.find(
+                (snapshot) =>
+                    snapshot.maintenance?.id === fixture.operationId &&
+                    snapshot.maintenance.state === 'succeeded',
+            ),
+        )
+        assert.equal(completed.maintenance?.phase, 'complete')
+        assert.equal(completed.maintenance?.progressPercent, 100)
+    } finally {
+        reconnected.socket.close()
+    }
+    const response = await request(fixture.currentToken, '/api/admin/backups/status')
+    assert.equal(response.status, 200, 'authenticated routes must resume after confirmed recovery')
+    const ready = await fetch('http://127.0.0.1:3000/health/ready')
+    await ready.body?.cancel()
+    assert.equal(ready.status, 200)
+    assert.equal(await readFile(markerPath, 'utf8'), fixture.before)
+    assert.equal(
+        await psql(
+            `SELECT value::text FROM rentnerproxy.system_settings WHERE key='online_restore_fixture'`,
+        ),
+        JSON.stringify(fixture.before),
+    )
+    for (const [path, mode] of [
+        ['proxy', 0o710],
+        ['proxy/logs', 0o2750],
+    ] as const) {
+        const info = await lstat('/var/lib/rentnerproxy/' + path)
+        assert.equal(info.uid, 10001)
+        assert.equal(info.gid, 10003)
+        assert.equal(info.mode & 0o7777, mode)
+    }
+    return { restored: true }
+}
+
+export async function verifyRestartedWebRestore() {
+    await assertFixture()
+    return verifyCompletion(
+        recoveryFixtureSchema.parse(JSON.parse(await readFile(recoveryFixturePath, 'utf8'))),
+    )
+}
+
+/** Runs only in the existing private smoke appliance, using fresh local identities and no external services. */
+export async function verifyManagedWebRestore(interruptRestart = false) {
+    await assertFixture()
     const actor = randomUUID(),
         token = randomBytes(32).toString('base64url'),
         before = randomUUID()
@@ -158,6 +221,14 @@ export async function verifyManagedWebRestore() {
     const observer = live(currentToken)
     try {
         await wait(async () => (observer.snapshots.length ? true : undefined))
+        if (interruptRestart) {
+            // Fault only this disposable container layer. The host repairs it after the
+            // supervisor fails closed, then starts the exact same persisted volume.
+            await writeFile(
+                '/opt/rentnerproxy/web/docker/web/healthcheck.ts',
+                'process.exitCode = 1\n',
+            )
+        }
         const requestId = randomUUID()
         const accepted = await request(currentToken, '/api/admin/backups/restore', {
             requestId,
@@ -166,7 +237,26 @@ export async function verifyManagedWebRestore() {
         })
         assert.equal(accepted.status, 202)
         const operation = managedBackupStatusSchema.parse(accepted.value).maintenance
+        assert.ok(operation)
         assert.equal(operation?.requestId, requestId)
+        const fixture = { operationId: operation.id, currentToken, before }
+        if (interruptRestart) {
+            await writeFile(recoveryFixturePath, JSON.stringify(fixture), {
+                mode: 0o600,
+                flag: 'wx',
+            })
+            await wait(async () => {
+                const state = managedBackupStateSchema.parse(
+                    JSON.parse(await readFile(statePath, 'utf8')),
+                )
+                assert.equal(state.maintenance?.id, operation.id)
+                return state.maintenance?.phase === 'restarting' &&
+                    state.maintenance.progressPercent === 90
+                    ? true
+                    : undefined
+            })
+            return { recoveryPending: true }
+        }
         await wait(async () => {
             const state = managedBackupStateSchema.parse(
                 JSON.parse(await readFile(statePath, 'utf8')),
@@ -188,46 +278,7 @@ export async function verifyManagedWebRestore() {
             WebSocket.CLOSED,
             'the original maintenance connection must close during web restart',
         )
-        const reconnected = live(currentToken)
-        try {
-            const completed = await wait(async () =>
-                reconnected.snapshots.find(
-                    (snapshot) =>
-                        snapshot.maintenance?.id === operation?.id &&
-                        snapshot.maintenance.state === 'succeeded',
-                ),
-            )
-            assert.equal(completed.maintenance?.phase, 'complete')
-            assert.equal(completed.maintenance?.progressPercent, 100)
-        } finally {
-            reconnected.socket.close()
-        }
-        const response = await request(currentToken, '/api/admin/backups/status')
-        assert.equal(
-            response.status,
-            200,
-            'normal authenticated routes must be unfenced after confirmed recovery',
-        )
-        const ready = await fetch('http://127.0.0.1:3000/health/ready')
-        await ready.body?.cancel()
-        assert.equal(ready.status, 200)
-        assert.equal(await readFile(markerPath, 'utf8'), before)
-        assert.equal(
-            await psql(
-                `SELECT value::text FROM rentnerproxy.system_settings WHERE key='online_restore_fixture'`,
-            ),
-            JSON.stringify(before),
-        )
-        for (const [path, mode] of [
-            ['proxy', 0o710],
-            ['proxy/logs', 0o2750],
-        ] as const) {
-            const info = await lstat('/var/lib/rentnerproxy/' + path)
-            assert.equal(info.uid, 10001)
-            assert.equal(info.gid, 10003)
-            assert.equal(info.mode & 0o7777, mode)
-        }
-        return { restored: true }
+        return await verifyCompletion(fixture)
     } finally {
         observer.socket.close()
     }

@@ -35,7 +35,7 @@ import {
     SESSION_COOKIE_NAME,
 } from '../../../../web/src/config/auth.config.ts'
 import { sqlQuote } from './appliance-storage.ts'
-import { verifyManagedWebRestore } from './managed-restore-probe.ts'
+import { verifyManagedWebRestore, verifyRestartedWebRestore } from './managed-restore-probe.ts'
 import { backupAuditCursorSchema as notificationCursorSchema } from '../../../../web/src/server/Admin/Backups/backup-outcomes.ts'
 
 const statePath = '/var/lib/rentnerproxy/backups/jobs.json'
@@ -64,6 +64,8 @@ const probeModes = [
     'audit-settled',
     'restore-progress',
     'online-restore',
+    'online-restore-interrupt',
+    'online-restore-recover',
     'seed',
     'markers',
     'status',
@@ -153,9 +155,15 @@ async function denied(operation: () => Promise<unknown>) {
 
 /** Dispatches private fixture actions; settled observes the agent's post-maintenance control cleanup. */
 async function run(mode: (typeof probeModes)[number]) {
-    if (mode === 'online-restore') {
+    if (
+        mode === 'online-restore' ||
+        mode === 'online-restore-interrupt' ||
+        mode === 'online-restore-recover'
+    ) {
         failurePhase = 'online-restore'
-        return verifyManagedWebRestore()
+        return mode === 'online-restore-recover'
+            ? verifyRestartedWebRestore()
+            : verifyManagedWebRestore(mode === 'online-restore-interrupt')
     }
     if (mode === 'web-isolation') {
         assert.equal(process.getuid?.(), 10002)

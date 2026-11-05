@@ -301,6 +301,12 @@ test_startup_admission() (
             "$@"
         }
         bun() {
+            if [[ $* == '--no-env-file dummy-exporter --confirm-restarted-restore' ]]; then
+                [[ -e $scratch/web-ready && $readiness_probes == 3 ]] \
+                    || fail 'restore recovery was confirmed before web readiness'
+                touch "$scratch/restore-confirmed"
+                return
+            fi
             if [[ $* == '--no-env-file dummy-exporter --request-kind' ]]; then
                 printf 'backup\n'
                 return
@@ -313,7 +319,7 @@ test_startup_admission() (
         }
         sleep() { :; }
         perform_managed_backup() {
-            [[ -e $scratch/web-started && -e $scratch/web-ready && $readiness_probes == 3 ]] \
+            [[ -e $scratch/web-started && -e $scratch/web-ready && -e $scratch/restore-confirmed && $readiness_probes == 3 ]] \
                 || fail 'queued maintenance entered before initial web readiness'
             touch "$scratch/maintenance-started"
             exit 0
@@ -326,12 +332,13 @@ test_startup_admission() (
 )
 
 test_restore_maintenance() (
-    local scratch scenario
+    local scratch scenario scenario_pid
     scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-restore-maintenance.XXXXXX")
     trap 'rm -rf -- "$scratch"' EXIT
     for scenario in success execution_failed controller_failed layout_failed web_failed; do
         mkdir "$scratch/$scenario"
-        if (
+        (
+            set -e
             local backup_control_directory="$scratch/$scenario" crowdsec_control_directory="$scratch/$scenario/crowdsec"
             local backup_exporter=dummy-exporter backup_recovery_job=''
             declare -a child_pids=() child_names=()
@@ -350,7 +357,7 @@ test_restore_maintenance() (
             backup_assert_state_children_running() { record state-check; }
             backup_run_exporter() { [[ $2 == --restore ]] || fail 'restore invoked backup capture'; record restore; [[ $scenario != execution_failed ]]; }
             backup_write_result() { record "result $2"; }
-            initialize_layout() { record layout; [[ $scenario != layout_failed ]] || fatal 'restored layout is unsafe'; }
+            initialize_layout() { record layout; [[ $scenario != layout_failed ]]; }
             initialize_secrets() { record secrets; }
             start_crowdsec_supervisor() { record crowdsec; }
             start_controller() { record controller; }
@@ -358,7 +365,9 @@ test_restore_maintenance() (
             start_web() { record web; }
             wait_for_web_readiness() { record ready; [[ $scenario != web_failed ]] || fatal 'restored web failed readiness'; }
             perform_managed_restore
-        ); then
+        ) &
+        scenario_pid=$!
+        if wait "$scenario_pid"; then
             [[ $scenario == success ]] || fail "restore failure was accepted: $scenario"
         else
             [[ $scenario != success ]] || fail 'valid restore fixture failed'
@@ -371,12 +380,36 @@ test_restore_maintenance() (
             execution_failed)
                 [[ $(cat "$scratch/$scenario/events") != *$'drain web'* ]] || fail 'failed replacement restarted consumers'
                 ;;
+            layout_failed)
+                [[ $(cat "$scratch/$scenario/events") == $'drain controller\ndrain crowdsec\nwriter-check\nrestore\nstate-check\ndrain web\nlayout\nresult recovery_failed' ]] \
+                    || fail 'unsafe restored layout continued service startup'
+                ;;
         esac
         if [[ $scenario != success ]]; then
             [[ $(cat "$scratch/$scenario/events") != *'result success'* ]] || fail 'restore emitted false success'
         fi
     done
     printf 'PASS: restore preserves maintenance web, fences all state writers, reloads keys and proves readiness before success\n'
+)
+
+test_restart_proof_reset() (
+    local scratch
+    scratch=$(mktemp -d "${TMPDIR:-/tmp}/rentnerproxy-restore-proof.XXXXXX")
+    trap 'rm -rf -- "$scratch"' EXIT
+    local backup_control_directory="$scratch" backup_state_directory="$scratch" app_directory=dummy-app
+    touch "$scratch/agent.sock" "$scratch/restore-restarted.json"
+    load_function "$backup_supervisor" start_backup_agent
+    initialize_backup_lock() { :; }
+    install() { :; }
+    start_child() {
+        [[ ! -e $scratch/agent.sock && ! -e $scratch/restore-restarted.json ]] \
+            || fail 'new agent accepted readiness evidence from the previous boot'
+        touch "$scratch/new-agent"
+    }
+    wait_for_command() { :; }
+    start_backup_agent
+    [[ -e $scratch/new-agent ]] || fail 'fresh backup agent was not started'
+    printf 'PASS: each agent boot discards stale restore readiness evidence before startup\n'
 )
 
 test_lock_filesystem() (
@@ -441,4 +474,5 @@ test_drain
 test_export_outcome
 test_export_interruption
 test_startup_admission
+test_restart_proof_reset
 test_restore_maintenance

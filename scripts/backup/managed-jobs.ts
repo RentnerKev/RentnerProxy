@@ -659,7 +659,55 @@ export async function createManagedBackupEngine(dependencies: ManagedBackupDepen
 
     /* eslint-enable no-await-in-loop */
 
+    async function recoverRestartedRestore(): Promise<boolean> {
+        await chain
+        const operation = state.maintenance
+        if (
+            executing ||
+            downloadActive ||
+            offHostBusy() ||
+            !dependencies.recoverRestore ||
+            operation?.operation !== 'restore' ||
+            operation.phase !== 'restarting' ||
+            operation.progressPercent < 90 ||
+            (operation.state !== 'failed' && operation.state !== 'interrupted')
+        )
+            return false
+        executing = true
+        try {
+            // Keep scheduled work paused while the supervisor is proving this boot ready.
+            if (!(await dependencies.recoverRestore(structuredClone(operation)))) return true
+            await mutate((draft) => {
+                const current = draft.maintenance
+                if (
+                    !current ||
+                    current.id !== operation.id ||
+                    current.phase !== 'restarting' ||
+                    (current.state !== 'failed' && current.state !== 'interrupted')
+                )
+                    throw new ManagedBackupError('recovery_failed')
+                current.state = 'succeeded'
+                current.error = null
+                current.phase = 'complete'
+                current.progressPercent = 100
+                current.finishedAt = dependencies.now()
+                audit(
+                    draft,
+                    'restore_succeeded',
+                    draft.jobs.find((job) => job.id === current.artifactId) ?? null,
+                    current.actorId,
+                )
+                const receipt = draft.maintenanceRequests?.find((entry) => entry.id === current.id)
+                if (receipt) Object.assign(receipt, current)
+            })
+            return true
+        } finally {
+            executing = false
+        }
+    }
+
     async function tick() {
+        if (await recoverRestartedRestore()) return
         if (offHostAuditBlocked && !offHostConfigurationActive && !offHostRecovery)
             await reconcileOffHostAudit().catch(() => {})
         if (offHostBusy()) return
