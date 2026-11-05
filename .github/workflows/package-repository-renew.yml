@@ -12,8 +12,32 @@ concurrency:
     cancel-in-progress: false
 
 jobs:
-    refresh:
+    history:
         if: github.repository == 'RentnerKev/RentnerProxy' && github.ref == 'refs/heads/main'
+        name: Check whether signed publication has been initialized
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+        outputs:
+            exists: ${{ steps.history.outputs.exists }}
+        steps:
+            - name: Probe public data branch without credentials
+              id: history
+              run: |
+                  status=0
+                  remote=$(git ls-remote --exit-code https://github.com/RentnerKev/RentnerProxy.git refs/heads/package-repository) || status=$?
+                  if [[ "$status" == 2 ]]; then
+                      printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+                  elif [[ "$status" == 0 && "$remote" =~ ^[a-f0-9]{40}[[:space:]]refs/heads/package-repository$ ]]; then
+                      printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+                  else
+                      exit 1
+                  fi
+
+    refresh:
+        needs: history
+        if: needs.history.outputs.exists == 'true'
         name: Renew metadata from immutable signed history
         runs-on: ubuntu-latest
         timeout-minutes: 15

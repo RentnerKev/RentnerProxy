@@ -125,6 +125,9 @@ All distribution artifacts bind the exact source SHA and assessed OCI root,
 including its per-platform SBOM/provenance. The data-only repository branch keeps
 immutable package versions; publication refuses a conflicting retry. Channel
 indexes are rebuilt only after native Debian/Fedora AMD64/ARM64 gates pass.
+Signing finishes before any image tag is published. The publisher verifies the
+sealed public snapshot and its exact data-branch parent without a signing key.
+If that parent changed, rerun signing and dependent jobs; never force-push it.
 Normal PRs do not run a long soak test. Release preparation remains separate.
 `
 }
@@ -356,7 +359,7 @@ export async function signDistribution(options: {
                 },
                 runDetails: {
                     builder: {
-                        id: 'https://github.com/RentnerKev/RentnerProxy/.github/workflows/publish-distribution.yml',
+                        id: 'https://github.com/RentnerKev/RentnerProxy/.github/workflows/sign-distribution.yml',
                     },
                     metadata: {
                         invocationId: `https://github.com/RentnerKev/RentnerProxy/actions/runs/${options.identity.runId}/attempts/${options.identity.runAttempt}`,

@@ -26,6 +26,10 @@ on:
 
 permissions: {}
 
+concurrency:
+    group: signed-package-repository
+    cancel-in-progress: false
+
 env:
     BUN_VERSION: 1.4.4
 
@@ -141,11 +145,25 @@ jobs:
             archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
             evidence_sha256: ${{ needs.build.outputs.evidence_sha256 }}
 
+    sign-distribution:
+        needs: [prepare, build, distribution]
+        permissions:
+            contents: read
+        uses: ./.github/workflows/sign-distribution.yml
+        with:
+            revision: ${{ needs.prepare.outputs.revision }}
+            version: ${{ inputs.release_tag }}
+            digest: ${{ needs.build.outputs.digest }}
+            bundle_sha256: ${{ needs.distribution.outputs.bundle_sha256 }}
+            release_id: ${{ inputs.release_id }}
+            published_at: ${{ inputs.published_at }}
+            prerelease: ${{ inputs.prerelease }}
+
     publish-image:
         needs:
             - prepare
             - build
-            - distribution
+            - sign-distribution
         permissions:
             contents: read
             packages: write
@@ -162,7 +180,7 @@ jobs:
                 ${{ needs.prepare.outputs.channel_tag }}
 
     publish-distribution:
-        needs: [prepare, build, distribution, publish-image]
+        needs: [prepare, build, sign-distribution, publish-image]
         permissions:
             contents: write
             pages: write
@@ -172,10 +190,13 @@ jobs:
             revision: ${{ needs.prepare.outputs.revision }}
             version: ${{ inputs.release_tag }}
             digest: ${{ needs.build.outputs.digest }}
-            bundle_sha256: ${{ needs.distribution.outputs.bundle_sha256 }}
+            signed_bundle_sha256: ${{ needs.sign-distribution.outputs.signed_bundle_sha256 }}
+            fingerprint: ${{ needs.sign-distribution.outputs.fingerprint }}
+            repository_url: ${{ needs.sign-distribution.outputs.repository_url }}
             release_id: ${{ inputs.release_id }}
             published_at: ${{ inputs.published_at }}
             channel: ${{ inputs.channel }}
+            prerelease: ${{ inputs.prerelease }}
 
     publish:
         name: Publish release notes

@@ -188,7 +188,8 @@ export function consumerInstructions(base: string, fingerprint: string): string 
     repositoryUrl(base)
     signingFingerprint(fingerprint)
     return `RentnerProxy complete OCI appliance — Debian 13 / Fedora 44, AMD64 / ARM64.
-Requires rootful Podman >= 5.4, systemd >= 252, cgroup v2. Rootless is not supported.
+Requires rootful Podman >= 5.4, systemd >= 252, cgroup v2 and nftables.
+Rootless is not supported.
 The image is pinned to the assessed GHCR digest, including all bundled services.
 
 First verify the fingerprint through the owner/release announcement independently:
@@ -237,7 +238,8 @@ Admin > Backups retains the existing online backup/restore contract.
 
 Quadlet archive: verify SHA256SUMS.asc with this key, verify SHA256SUMS,
 extract the versioned *-quadlet.tar.gz into an empty private directory and run
-sudo bash ./install.sh; configure/start as above. Upgrades repeat with the next
+sudo bash ./install.sh after installing the prerequisites above; configure/start
+as above. Upgrades repeat with the next
 verified archive. Removal: sudo bash ./uninstall.sh from the matching verified
 archive. It verifies owned vendor files and preserves /etc and appliance data.
 

@@ -9,6 +9,7 @@ on:
             - '.github/workflows/release-pipeline.yml'
             - '.github/workflows/build-distribution.yml'
             - '.github/workflows/publish-distribution.yml'
+            - '.github/workflows/sign-distribution.yml'
             - '.github/scripts/distribution/**'
             - '.github/scripts/ci/distribution/**'
             - 'packaging/**'

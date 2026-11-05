@@ -20,7 +20,7 @@ import { distributionBytes, distributionCommand } from './process.ts'
 import { assertPackageFiles, packageCpio, packageTar } from './archive.ts'
 import type { DistributionPayloadFile, DistributionRelease } from './Types/distribution.types.ts'
 
-const debDependencies = 'bash, coreutils, util-linux, podman (>= 5.4), systemd (>= 252)'
+const debDependencies = 'bash, coreutils, nftables, util-linux, podman (>= 5.4), systemd (>= 252)'
 const debPrerm =
     '#!/bin/bash\nset -eu\nif [[ ${1:-} == remove ]]; then\n' +
     packageStop.split('\n').slice(2).join('\n') +

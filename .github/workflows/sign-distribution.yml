@@ -1,0 +1,136 @@
+name: Sign assessed Linux distribution
+
+on:
+    workflow_call:
+        inputs:
+            revision:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            digest:
+                required: true
+                type: string
+            bundle_sha256:
+                required: true
+                type: string
+            release_id:
+                required: true
+                type: number
+            published_at:
+                required: true
+                type: string
+            prerelease:
+                required: true
+                type: boolean
+        outputs:
+            signed_bundle_sha256:
+                value: ${{ jobs.sign.outputs.signed_bundle_sha256 }}
+            fingerprint:
+                value: ${{ jobs.sign.outputs.fingerprint }}
+            repository_url:
+                value: ${{ jobs.sign.outputs.repository_url }}
+
+permissions: {}
+
+jobs:
+    sign:
+        if: >-
+            github.repository == 'RentnerKev/RentnerProxy' &&
+            github.event_name == 'release' && github.event.action == 'published' &&
+            startsWith(github.ref, 'refs/tags/') &&
+            github.event.release.id == inputs.release_id &&
+            github.event.release.tag_name == inputs.version
+        name: Sign exact assessed and natively tested packages
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: package-signing
+        permissions:
+            contents: read
+        outputs:
+            signed_bundle_sha256: ${{ steps.seal.outputs.signed_bundle_sha256 }}
+            fingerprint: ${{ steps.seal.outputs.fingerprint }}
+            repository_url: ${{ steps.seal.outputs.repository_url }}
+        steps:
+            - name: Check out trusted signing automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+            - name: Check out exact release payload as data
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ inputs.revision }}
+            - name: Set up Bun without source installation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+            - name: Install trusted system signing tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends apt-utils createrepo-c gnupg rpm rpm2cpio
+            - name: Download immutable candidates
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: distribution-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/distribution
+            - name: Download all four native target proofs
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  pattern: distribution-native-*-${{ github.run_id }}
+                  merge-multiple: true
+                  path: ${{ runner.temp }}/distribution-proofs
+            - name: Read data-only public repository history
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+              run: bash automation/.github/scripts/distribution/read-repository.sh
+            - name: Recheck authoritative release before signing
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  RELEASE_TAG: ${{ inputs.version }}
+              run: bash automation/.github/scripts/release/verify-release-identity.sh
+            - name: Sign verified artifacts with the protected owner key
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  BUNDLE_SHA256: ${{ inputs.bundle_sha256 }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  DISTRIBUTION_DIRECTORY: ${{ runner.temp }}/distribution
+                  NATIVE_REPORT_DIRECTORY: ${{ runner.temp }}/distribution-proofs
+                  SOURCE_DIRECTORY: ${{ github.workspace }}/source
+                  PUBLIC_DIRECTORY: ${{ runner.temp }}/package-repository/public
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+                  PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  PACKAGE_PREVIOUS_FINGERPRINTS: ${{ vars.PACKAGE_PREVIOUS_FINGERPRINTS }}
+                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+              run: bun --no-env-file automation/.github/scripts/distribution/publication.ts sign
+            - name: Seal signed data before any release publication
+              id: seal
+              env:
+                  REVISION: ${{ inputs.revision }}
+                  VERSION: ${{ inputs.version }}
+                  EXPECTED_DIGEST: ${{ inputs.digest }}
+                  REPOSITORY_DIRECTORY: ${{ runner.temp }}/package-repository
+                  RELEASE_ASSET_DIRECTORY: ${{ runner.temp }}/release-distribution
+                  SIGNED_DIRECTORY: ${{ runner.temp }}/signed-distribution
+                  PACKAGE_SIGNING_FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
+                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerkev.github.io/RentnerProxy' }}
+              run: bun --no-env-file automation/.github/scripts/distribution/signed.ts seal
+            - name: Store only sealed public distribution data
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  if-no-files-found: error
+                  name: signed-distribution-${{ github.run_id }}
+                  overwrite: true
+                  path: ${{ runner.temp }}/signed-distribution
+                  retention-days: 30
