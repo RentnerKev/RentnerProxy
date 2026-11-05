@@ -38,6 +38,7 @@ func validate(profile string, info *debug.BuildInfo) error {
 	case "caddy":
 		expected = map[string]string{
 			caddyModule:                                  "v2.11.7",
+			"github.com/go-jose/go-jose/v4":              "v4.1.9",
 			"golang.org/x/net":                           "v0.62.0",
 			"github.com/crowdsecurity/crowdsec":          "v1.8.2",
 			"github.com/hslatman/caddy-crowdsec-bouncer": "v0.14.2-0.20261030164527-4a6ce1d3094d",
@@ -60,6 +61,9 @@ func validate(profile string, info *debug.BuildInfo) error {
 	for _, dep := range info.Deps {
 		if dep == nil {
 			return fmt.Errorf("missing dependency metadata")
+		}
+		if profile == "caddy" && dep.Path == "github.com/go-jose/go-jose/v3" {
+			return fmt.Errorf("obsolete JOSE dependency %s", dep.Path)
 		}
 		if profile == "caddy" && dep.Path == caddyModule && dep.Replace == nil {
 			return fmt.Errorf("expected patched local source replacement for %s", caddyModule)

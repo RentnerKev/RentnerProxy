@@ -19,6 +19,7 @@ func fixture(profile string) *debug.BuildInfo {
 			{Path: "github.com/mholt/caddy-l4", Version: "v0.1.3-0.20261029145729-f607ccea1b7d"},
 			{Path: caddyModule, Version: "v2.11.7", Replace: &debug.Module{Path: caddySource}},
 			{Path: responseCache, Replace: &debug.Module{Path: "/opt/rentnerproxy-responsecache", Version: "(devel)"}},
+			{Path: "github.com/go-jose/go-jose/v4", Version: "v4.1.9"},
 		}
 		info.Settings = []debug.BuildSetting{{Key: "CGO_ENABLED", Value: "0"}}
 	} else {
@@ -53,7 +54,15 @@ func TestPolicies(t *testing.T) {
 				"foreign fork": func(i *debug.BuildInfo) {
 					i.Deps = append(i.Deps, &debug.Module{Path: "foreign/module", Replace: &debug.Module{Path: "foreign/fork", Version: "v1.0.0"}})
 				},
-				"nested replacement": func(i *debug.BuildInfo) { i.Deps[len(i.Deps)-1].Replace.Replace = &debug.Module{Path: "foreign/fork"} },
+				"nested replacement": func(i *debug.BuildInfo) {
+					for _, dep := range i.Deps {
+						if dep.Replace != nil {
+							dep.Replace.Replace = &debug.Module{Path: "foreign/fork"}
+							return
+						}
+					}
+					t.Fatal("fixture has no dependency replacement")
+				},
 			}
 			for name, mutate := range cases {
 				t.Run(name, func(t *testing.T) {
@@ -78,6 +87,40 @@ func TestPolicies(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCaddyJOSEPolicy(t *testing.T) {
+	for _, replacement := range []*debug.Module{
+		nil,
+		{Path: "github.com/go-jose/go-jose/v4", Version: "v4.1.9"},
+	} {
+		info := fixture("caddy")
+		info.Deps = append(info.Deps, &debug.Module{
+			Path: "github.com/go-jose/go-jose/v3", Version: "v3.0.5", Replace: replacement,
+		})
+		if err := validate("caddy", info); err == nil || err.Error() != "obsolete JOSE dependency github.com/go-jose/go-jose/v3" {
+			t.Fatalf("accepted legacy JOSE alongside patched v4: %v", err)
+		}
+	}
+	info := fixture("caddy")
+	info.Deps = info.Deps[:len(info.Deps)-1]
+	if err := validate("caddy", info); err == nil {
+		t.Fatal("accepted Caddy without patched JOSE v4")
+	}
+	for _, version := range []string{"v4.1.5", "v4.1.7", ""} {
+		for _, replaced := range []bool{false, true} {
+			info = fixture("caddy")
+			dep := info.Deps[len(info.Deps)-1]
+			if replaced {
+				dep.Replace = &debug.Module{Path: dep.Path, Version: version}
+			} else {
+				dep.Version = version
+			}
+			if err := validate("caddy", info); err == nil {
+				t.Fatalf("accepted unreviewed JOSE version %q (replacement=%v)", version, replaced)
+			}
+		}
 	}
 }
 
