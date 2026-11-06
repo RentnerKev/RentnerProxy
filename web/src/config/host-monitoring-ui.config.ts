@@ -5,4 +5,5 @@ export const HOST_MONITORING_UI = {
     summaryBatchLimit: 100,
     historyPageLimit: 100,
     historyLoadedLimit: 300,
+    historySlots: 40,
 } as const

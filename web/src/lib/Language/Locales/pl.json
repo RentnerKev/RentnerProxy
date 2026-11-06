@@ -3879,6 +3879,7 @@
             "intervalSeconds": "Interwał (sekundy)",
             "timeoutMs": "Limit czasu (milisekundy)",
             "expectedStatus": "Oczekiwany status HTTP",
+            "expectedStatusHint": "Domyślna wartość 200 akceptuje HTTP 200–399, w tym przekierowania. Pozostałe wartości wymagają dokładnego dopasowania.",
             "failureThreshold": "Liczba błędów przed potwierdzeniem awarii",
             "recoveryThreshold": "Liczba sukcesów przed potwierdzeniem przywrócenia",
             "retentionDays": "Przechowywanie (dni)",

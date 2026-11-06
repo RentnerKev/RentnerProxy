@@ -244,21 +244,28 @@ describe('host monitoring probe adapter', () => {
         },
     )
 
-    test('configured 302 is healthy without following a redirect', async () => {
-        const claim = fixture()
-        claim.policy.expectedStatus = 302
-        const result = domainDiagnosticsFixture()
-        result.stages.upstream = {
-            ...result.stages.upstream,
-            status: 'unknown',
-            code: 'redirect_not_followed',
-            httpStatus: 302,
-        }
-        const probe = harness({ inspect: async () => result })
-        await probe.run(claim, new AbortController().signal)
-        expect(probe.outcomes).toEqual([
-            { status: 'healthy', code: 'expected_status', durationMs: 1, httpStatus: 302 },
-        ])
-        expect(probe.releases).toEqual([claim])
-    })
+    test.each([
+        [200, 307],
+        [200, 308],
+        [302, 302],
+    ])(
+        'status setting %i accepts HTTP %i without following redirects',
+        async (expectedStatus, httpStatus) => {
+            const claim = fixture()
+            claim.policy.expectedStatus = expectedStatus
+            const result = domainDiagnosticsFixture()
+            result.stages.upstream = {
+                ...result.stages.upstream,
+                status: 'unknown',
+                code: 'redirect_not_followed',
+                httpStatus,
+            }
+            const probe = harness({ inspect: async () => result })
+            await probe.run(claim, new AbortController().signal)
+            expect(probe.outcomes).toEqual([
+                { status: 'healthy', code: 'expected_status', durationMs: 1, httpStatus },
+            ])
+            expect(probe.releases).toEqual([claim])
+        },
+    )
 })

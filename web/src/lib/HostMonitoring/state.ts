@@ -1,4 +1,5 @@
 import { domainDiagnosticsResultSchema } from '@/lib/RuntimeDiagnostics/domainDiagnostics.ts'
+import { HOST_MONITORING_DEFAULTS } from '@/config/host-monitoring.config.ts'
 import type {
     HostMonitoringOutcome,
     HostMonitoringOutcomeCode,
@@ -40,13 +41,19 @@ export function classifyHostMonitoringOutcome(
     const durationMs = upstream.durationMs
     if (tls.code === 'tls_failed')
         return { status: 'unhealthy', code: 'tls_failed', durationMs, httpStatus: null }
-    if (upstream.httpStatus !== null)
+    if (upstream.httpStatus !== null) {
+        const accepted =
+            upstream.httpStatus === expectedStatus ||
+            (expectedStatus === HOST_MONITORING_DEFAULTS.expectedStatus &&
+                upstream.httpStatus >= 200 &&
+                upstream.httpStatus < 400)
         return {
-            status: upstream.httpStatus === expectedStatus ? 'healthy' : 'unhealthy',
-            code: upstream.httpStatus === expectedStatus ? 'expected_status' : 'unexpected_status',
+            status: accepted ? 'healthy' : 'unhealthy',
+            code: accepted ? 'expected_status' : 'unexpected_status',
             durationMs,
             httpStatus: upstream.httpStatus,
         }
+    }
     if (
         upstream.code === 'upstream_unreachable' ||
         upstream.code === 'upstream_timeout' ||

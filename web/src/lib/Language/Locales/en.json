@@ -3849,6 +3849,7 @@
             "intervalSeconds": "Interval (seconds)",
             "timeoutMs": "Timeout (milliseconds)",
             "expectedStatus": "Expected HTTP status",
+            "expectedStatusHint": "The default 200 accepts HTTP 200–399, including redirects. Other values require an exact match.",
             "failureThreshold": "Failures before outage",
             "recoveryThreshold": "Successes before recovery",
             "retentionDays": "Retention (days)",

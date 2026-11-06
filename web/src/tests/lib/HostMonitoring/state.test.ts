@@ -50,7 +50,11 @@ function diagnostic(http: number) {
             ? stage('passed', 'upstream_responded', http)
             : http >= 300 && http < 400
               ? stage('unknown', 'redirect_not_followed', http)
-              : stage('unknown', 'unexpected_status', http)
+              : http === 401 || http === 403
+                ? stage('failed', 'access_denied', http)
+                : http >= 500
+                  ? stage('failed', 'upstream_error', http)
+                  : stage('unknown', 'unexpected_status', http)
     return {
         hostType: 'proxy',
         hostId: '00000000-0000-4000-8000-000000000001',
@@ -70,14 +74,35 @@ function diagnostic(http: number) {
 }
 
 describe('host monitoring classification', () => {
-    test.each([200, 302, 404])(
-        'requires the exact configured HTTP status including %s',
+    test.each([200, 201, 204, 206, 299, 300, 301, 302, 303, 304, 307, 308, 399])(
+        'accepts HTTP %s with the default availability check',
+        (status) => {
+            expect(classifyHostMonitoringOutcome(diagnostic(status), 200)).toEqual({
+                status: 'healthy',
+                code: 'expected_status',
+                durationMs: 12,
+                httpStatus: status,
+            })
+        },
+    )
+
+    test.each([100, 199, 400, 401, 403, 404, 500, 503, 599])(
+        'rejects HTTP %s with the default availability check',
+        (status) => {
+            expect(classifyHostMonitoringOutcome(diagnostic(status), 200)).toEqual({
+                status: 'unhealthy',
+                code: 'unexpected_status',
+                durationMs: 12,
+                httpStatus: status,
+            })
+        },
+    )
+
+    test.each([201, 204, 302, 307, 404, 500])(
+        'requires the exact custom HTTP status %s',
         (status) => {
             expect(classifyHostMonitoringOutcome(diagnostic(status), status).status).toBe('healthy')
-            expect(
-                classifyHostMonitoringOutcome(diagnostic(status), status === 200 ? 201 : 200)
-                    .status,
-            ).toBe('unhealthy')
+            expect(classifyHostMonitoringOutcome(diagnostic(200), status).status).toBe('unhealthy')
         },
     )
 

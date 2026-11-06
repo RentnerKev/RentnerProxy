@@ -5,9 +5,13 @@ import type {
     HostMonitoringHistoryQuery,
     HostMonitoringSettings,
 } from '@/lib/HostMonitoring/Types/host-monitoring.types.ts'
-import type { HostMonitoringHistoryView } from '@/lib/HostMonitoring/Types/host-monitoring-client.types.ts'
+import type {
+    HostMonitoringHistoryView,
+    HostMonitoringObservationView,
+} from '@/lib/HostMonitoring/Types/host-monitoring-client.types.ts'
 import type {
     HostAvailability,
+    MonitoringCheckSlot,
     MonitoringPeriod,
 } from '@/lib/HostMonitoring/Types/host-monitoring-presentation.types.ts'
 export interface HostAvailabilityBadgeProps {
@@ -42,6 +46,7 @@ export interface MonitoringDialogState {
     readonly historyError: boolean
     readonly historyLoading: boolean
     readonly observations: HostMonitoringHistoryView['observations']
+    readonly checkSlots: readonly MonitoringCheckSlot<HostMonitoringObservationView>[]
     readonly status: HostMonitoringHistoryQuery['status']
     readonly period: MonitoringPeriod
     readonly more: boolean

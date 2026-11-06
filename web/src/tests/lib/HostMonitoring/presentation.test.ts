@@ -1,7 +1,35 @@
 import { describe, expect, test } from 'bun:test'
-import { durationSeries, monitoringSince } from '@/lib/HostMonitoring/presentation.ts'
+import { HOST_MONITORING_UI } from '@/config/host-monitoring-ui.config.ts'
+import {
+    durationSeries,
+    monitoringCheckSlots,
+    monitoringSince,
+} from '@/lib/HostMonitoring/presentation.ts'
 
 describe('monitoring presentation', () => {
+    test('check slots reserve missing history and place chronological measurements at the right', () => {
+        const latest = { id: 'latest', checkedAt: new Date(3000), status: 'healthy' }
+        const oldest = { id: 'oldest', checkedAt: new Date(1000), status: 'unhealthy' }
+        const samples = [latest, oldest]
+        const slots = monitoringCheckSlots(samples)
+        expect(slots).toHaveLength(HOST_MONITORING_UI.historySlots)
+        expect(slots.slice(0, -2).every((slot) => slot.observation === null)).toBe(true)
+        expect(slots.slice(-2).map((slot) => slot.observation)).toEqual([oldest, latest])
+        expect(samples).toEqual([latest, oldest])
+        const empty = monitoringCheckSlots([])
+        expect(empty).toHaveLength(HOST_MONITORING_UI.historySlots)
+        expect(empty.every((slot) => slot.observation === null)).toBe(true)
+        expect(new Set(empty.map((slot) => slot.id)).size).toBe(empty.length)
+    })
+    test('a full strip keeps only the latest measurements without placeholders', () => {
+        const samples = Array.from({ length: HOST_MONITORING_UI.historySlots + 5 }, (_, index) => ({
+            id: `check-${index}`,
+            checkedAt: new Date(index * 1000),
+        })).toReversed()
+        const slots = monitoringCheckSlots(samples)
+        expect(slots.map((slot) => slot.observation)).toEqual(samples.toReversed().slice(5))
+        expect(slots).toHaveLength(HOST_MONITORING_UI.historySlots)
+    })
     test('time filters are explicit UTC bounds and recent has no bound', () => {
         const now = Date.parse('2026-10-29T12:00:00.000Z')
         expect(monitoringSince('recent', now)).toBeUndefined()

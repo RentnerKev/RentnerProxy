@@ -203,6 +203,13 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
                                                         label={t(
                                                             `admin.hostMonitoring.${setting.name}`,
                                                         )}
+                                                        description={
+                                                            setting.name === 'expectedStatus'
+                                                                ? t(
+                                                                      'admin.hostMonitoring.expectedStatusHint',
+                                                                  )
+                                                                : undefined
+                                                        }
                                                         value={String(field.state.value)}
                                                         onValueChange={(value) =>
                                                             field.handleChange(Number(value))

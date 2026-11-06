@@ -3849,6 +3849,7 @@
             "intervalSeconds": "Intervall (Sekunden)",
             "timeoutMs": "Zeitlimit (Millisekunden)",
             "expectedStatus": "Erwarteter HTTP-Status",
+            "expectedStatusHint": "Der Standardwert 200 akzeptiert HTTP 200–399 einschließlich Weiterleitungen. Andere Werte müssen exakt übereinstimmen.",
             "failureThreshold": "Fehlversuche bis zum Ausfall",
             "recoveryThreshold": "Erfolge bis zur Wiederherstellung",
             "retentionDays": "Aufbewahrung (Tage)",

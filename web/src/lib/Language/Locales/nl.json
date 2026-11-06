@@ -3830,6 +3830,7 @@
             "intervalSeconds": "Interval (seconden)",
             "timeoutMs": "Time-out (milliseconden)",
             "expectedStatus": "Verwachte HTTP-status",
+            "expectedStatusHint": "De standaardwaarde 200 accepteert HTTP 200–399, inclusief omleidingen. Andere waarden vereisen een exacte overeenkomst.",
             "failureThreshold": "Mislukkingen voordat een storing wordt bevestigd",
             "recoveryThreshold": "Successen voordat herstel wordt bevestigd",
             "retentionDays": "Bewaartermijn (dagen)",

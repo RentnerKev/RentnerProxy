@@ -13,7 +13,7 @@ import {
 } from '@/lib/HostMonitoring/hostMonitoringClient.ts'
 import { hostMonitoringQueryKeys } from '@/lib/HostMonitoring/hostMonitoringCache.ts'
 import { hostMonitoringSettingsSchema } from '@/lib/HostMonitoring/validation.ts'
-import { monitoringSince } from '@/lib/HostMonitoring/presentation.ts'
+import { monitoringCheckSlots, monitoringSince } from '@/lib/HostMonitoring/presentation.ts'
 import type {
     HostMonitoringHistoryQuery,
     HostMonitoringSettings,
@@ -307,6 +307,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }),
         [locale],
     )
+    const checkSlots = useMemo(() => monitoringCheckSlots(observations), [observations])
     const handler: MonitoringDialogHandler = {
         handleOpenChange: (open) => {
             if (!mutation.isPending && (!dirty || open || forbidden)) props.onOpenChange(open)
@@ -374,6 +375,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         historyError: historyQuery.isError && historyQuery.data === undefined,
         historyLoading: historyQuery.isPending,
         observations,
+        checkSlots,
         status,
         period,
         more: Boolean(historyQuery.hasNextPage),

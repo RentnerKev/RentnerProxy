@@ -3,6 +3,7 @@ import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import MonitoringDurationChart from './MonitoringDurationChart/index.tsx'
 import MonitoringChecksTable from './MonitoringChecksTable/index.tsx'
+import MonitoringCheckStrip from './MonitoringCheckStrip.tsx'
 import HostAvailabilityBadge from './HostAvailabilityBadge.tsx'
 import TableFilterSelect from '@/shared/Table/Components/TableFilterSelect.tsx'
 import type {
@@ -77,31 +78,12 @@ export default function MonitoringOverview({
             ) : (
                 <>
                     {state.observations.length > 0 ? (
-                        <>
-                            <MonitoringDurationChart observations={state.observations} />
-                            <div
-                                className="flex gap-1 overflow-hidden"
-                                aria-label={t('admin.hostMonitoring.observations')}
-                            >
-                                {state.observations
-                                    .slice(0, 40)
-                                    .toReversed()
-                                    .map((observation) => (
-                                        <span
-                                            key={observation.id}
-                                            title={`${handler.formatDate(observation.checkedAt)} · ${t(`admin.hostMonitoring.states.${observation.status}`)}`}
-                                            className={`h-5 min-w-1 flex-1 rounded-sm ${observation.status === 'healthy' ? 'bg-success-text' : observation.status === 'unhealthy' ? 'bg-danger-text' : 'bg-border-strong'}`}
-                                        >
-                                            <span className="sr-only">
-                                                {t(
-                                                    `admin.hostMonitoring.states.${observation.status}`,
-                                                )}
-                                            </span>
-                                        </span>
-                                    ))}
-                            </div>
-                        </>
+                        <MonitoringDurationChart observations={state.observations} />
                     ) : null}
+                    <MonitoringCheckStrip
+                        slots={state.checkSlots}
+                        formatDate={handler.formatDate}
+                    />
                     <MonitoringChecksTable
                         key={`${state.status}:${state.period}`}
                         observations={state.observations}

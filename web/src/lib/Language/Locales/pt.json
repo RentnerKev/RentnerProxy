@@ -3877,6 +3877,7 @@
             "intervalSeconds": "Intervalo (segundos)",
             "timeoutMs": "Tempo limite (milissegundos)",
             "expectedStatus": "Estado HTTP esperado",
+            "expectedStatusHint": "O valor predefinido 200 aceita HTTP 200–399, incluindo redirecionamentos. Os outros valores exigem uma correspondência exata.",
             "failureThreshold": "Falhas antes de confirmar uma interrupção",
             "recoveryThreshold": "Sucessos antes de confirmar a recuperação",
             "retentionDays": "Retenção (dias)",
