@@ -176,15 +176,16 @@ export default function useApplicationLiveSync(suspended = false): ApplicationLi
     )
 
     useEffect(() => {
-        let active = true
+        const lifecycle = new AbortController()
         const verifyInitial = () =>
             queueMicrotask(() => {
-                if (active && initialVerificationPending.current) revalidateIdentity(true)
+                if (!lifecycle.signal.aborted && initialVerificationPending.current)
+                    revalidateIdentity(true)
             })
         const unsubscribe = router.subscribe('onResolved', verifyInitial)
         verifyInitial()
         return () => {
-            active = false
+            lifecycle.abort()
             unsubscribe()
             syncGeneration.current += 1
         }

@@ -1,5 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
-import { ArrowUp, CircleAlert } from 'lucide-react'
+import { ArrowUp, CircleExclamationPoint } from 'lucide-react'
 
 import { APP_VERSION } from '@/lib/ApplicationVersion/version.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -36,7 +36,7 @@ export default function ApplicationVersion({ data, onOpen }: ApplicationVersionP
                         className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-amber-400 hover:bg-amber-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
                     >
                         {data.status === 'unavailable' ? (
-                            <CircleAlert className="size-4" aria-hidden="true" />
+                            <CircleExclamationPoint className="size-4" aria-hidden="true" />
                         ) : (
                             <span className="application-update-signal inline-flex rounded-full p-1">
                                 <ArrowUp className="size-4" aria-hidden="true" />

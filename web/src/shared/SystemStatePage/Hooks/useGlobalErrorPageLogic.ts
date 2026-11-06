@@ -21,20 +21,24 @@ export default function useGlobalErrorPageLogic({
 
     useEffect(() => {
         if (!automaticRecovery) return
-        let active = true
-        let pending = false
-        let timer: ReturnType<typeof setTimeout> | undefined
+        const lifecycle = new AbortController()
+        const recovery: { pending: boolean; timer?: ReturnType<typeof setTimeout> } = {
+            pending: false,
+        }
         const attempts = recoveryAttempts.get(router) ?? { attempts: 0, lastAttempt: Date.now() }
         recoveryAttempts.set(router, attempts)
 
         const schedule = () => {
-            clearTimeout(timer)
+            clearTimeout(recovery.timer)
             const delay = Math.min(1000 * 2 ** Math.min(attempts.attempts, 5), 30_000)
-            timer = setTimeout(recover, Math.max(0, attempts.lastAttempt + delay - Date.now()))
+            recovery.timer = setTimeout(
+                recover,
+                Math.max(0, attempts.lastAttempt + delay - Date.now()),
+            )
         }
         const recover = () => {
-            if (!active || pending) return
-            clearTimeout(timer)
+            if (lifecycle.signal.aborted || recovery.pending) return
+            clearTimeout(recovery.timer)
             if (navigator.onLine === false || document.visibilityState === 'hidden') return
             if (details.reload) {
                 // Persist only a timestamp so a still-broken asset cannot cause a reload loop.
@@ -49,7 +53,7 @@ export default function useGlobalErrorPageLogic({
                               )
                             : 0
                     if (remaining > 0) {
-                        timer = setTimeout(recover, remaining)
+                        recovery.timer = setTimeout(recover, remaining)
                         return
                     }
                     sessionStorage.setItem(assetRecoveryKey, String(Date.now()))
@@ -57,11 +61,11 @@ export default function useGlobalErrorPageLogic({
                     // Without durable cooldown storage, automatic reload cannot be guarded.
                     return
                 }
-                pending = true
+                recovery.pending = true
                 window.location.reload()
                 return
             }
-            pending = true
+            recovery.pending = true
             attempts.attempts += 1
             attempts.lastAttempt = Date.now()
             reset()
@@ -69,12 +73,16 @@ export default function useGlobalErrorPageLogic({
                 .invalidate()
                 .catch(() => {})
                 .finally(() => {
-                    pending = false
-                    if (active) schedule()
+                    recovery.pending = false
+                    if (!lifecycle.signal.aborted) schedule()
                 })
         }
         const resume = () => {
-            if (!active || navigator.onLine === false || document.visibilityState === 'hidden')
+            if (
+                lifecycle.signal.aborted ||
+                navigator.onLine === false ||
+                document.visibilityState === 'hidden'
+            )
                 return
             schedule()
         }
@@ -83,8 +91,8 @@ export default function useGlobalErrorPageLogic({
         window.addEventListener('online', resume)
         document.addEventListener('visibilitychange', resume)
         return () => {
-            active = false
-            clearTimeout(timer)
+            lifecycle.abort()
+            clearTimeout(recovery.timer)
             window.removeEventListener('focus', resume)
             window.removeEventListener('online', resume)
             document.removeEventListener('visibilitychange', resume)

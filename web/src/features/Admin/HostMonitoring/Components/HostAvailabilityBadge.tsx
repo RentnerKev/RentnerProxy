@@ -4,7 +4,7 @@ import {
     Clock3,
     LoaderCircle,
     PauseCircle,
-    TriangleAlert,
+    TriangleExclamationPoint,
     XCircle,
 } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -30,7 +30,7 @@ export default function HostAvailabilityBadge({
             ) : availability === 'disabled' || availability === 'host_disabled' ? (
                 <PauseCircle aria-hidden="true" className="size-3.5" />
             ) : availability === 'domain_removed' || availability === 'unavailable' ? (
-                <TriangleAlert aria-hidden="true" className="size-3.5" />
+                <TriangleExclamationPoint aria-hidden="true" className="size-3.5" />
             ) : (
                 <CircleHelp aria-hidden="true" className="size-3.5" />
             )}

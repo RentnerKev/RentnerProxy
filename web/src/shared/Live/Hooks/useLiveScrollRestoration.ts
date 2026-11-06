@@ -28,13 +28,13 @@ export default function useLiveScrollRestoration(
     useLayoutEffect(() => {
         if (pending || suspended || verificationGeneration === 0 || !saved.current) return
         const position = saved.current
-        let active = true
+        const lifecycle = new AbortController()
         let observer: ResizeObserver | undefined
         let timer: ReturnType<typeof setTimeout> | undefined
         let unsubscribe: (() => void) | undefined
         const intentEvents = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
         const cleanup = () => {
-            active = false
+            lifecycle.abort()
             observer?.disconnect()
             clearTimeout(timer)
             unsubscribe?.()
@@ -42,12 +42,12 @@ export default function useLiveScrollRestoration(
             for (const event of intentEvents) window.removeEventListener(event, cancel, true)
         }
         const cancel = () => {
-            if (!active) return
+            if (lifecycle.signal.aborted) return
             saved.current = null
             cleanup()
         }
         const restore = (expired = false) => {
-            if (!active) return
+            if (lifecycle.signal.aborted) return
             const location = router.state.location
             // Every retry belongs to the same principal, URL and history entry.
             if (
@@ -75,7 +75,7 @@ export default function useLiveScrollRestoration(
         }
         const retry = () => restore()
         restore()
-        if (!active) return
+        if (lifecycle.signal.aborted) return
 
         // Cache clearing can reveal a short loading page before its data arrives.
         // Observe layout growth instead of consuming an offset the browser would clamp.

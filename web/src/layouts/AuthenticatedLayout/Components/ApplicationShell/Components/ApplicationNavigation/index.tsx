@@ -15,7 +15,7 @@ import {
     Import,
     ScrollText,
     Shield,
-    ShieldAlert,
+    ShieldExclamationPoint,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react'
@@ -159,7 +159,7 @@ export default function ApplicationNavigation({
                                             strokeWidth={1.8}
                                         />
                                     ) : item.to === '/security' ? (
-                                        <ShieldAlert
+                                        <ShieldExclamationPoint
                                             aria-hidden="true"
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}

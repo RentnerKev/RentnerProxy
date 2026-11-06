@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
-import { TriangleAlert, X } from 'lucide-react'
+import { TriangleExclamationPoint, X } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import usePageAlertsLogic from './Hooks/usePageAlertsLogic.ts'
@@ -49,7 +49,11 @@ export default function PageAlerts() {
                         className={`grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring motion-reduce:transition-none ${state.severity === 'error' ? 'text-danger-text' : 'text-warning-text'}`}
                         data-severity={state.severity}
                     >
-                        <TriangleAlert aria-hidden="true" className="size-5" strokeWidth={2} />
+                        <TriangleExclamationPoint
+                            aria-hidden="true"
+                            className="size-5"
+                            strokeWidth={2}
+                        />
                     </button>
                 </Popover.Trigger>
             </CustomTooltip>
@@ -75,7 +79,7 @@ export default function PageAlerts() {
                         {state.alerts.map((alert) => (
                             <li key={alert.id} className="grid gap-2 border-t border-border pt-3">
                                 <div className="flex items-start gap-2">
-                                    <TriangleAlert
+                                    <TriangleExclamationPoint
                                         aria-hidden="true"
                                         className={`mt-0.5 size-4 shrink-0 ${alert.severity === 'error' ? 'text-danger-text' : 'text-warning-text'}`}
                                     />
