@@ -2,7 +2,14 @@ name: RentnerProxy Release Pipeline
 
 on:
     workflow_call:
+        secrets:
+            PACKAGE_SIGNING_KEY:
+                required: true
         inputs:
+            expected_revision:
+                description: Exact source commit that the release tag must retain
+                required: true
+                type: string
             channel:
                 description: Release channel derived from the tag (alpha, beta or stable)
                 required: true
@@ -34,8 +41,30 @@ env:
     BUN_VERSION: 1.4.4
 
 jobs:
+    signing-configuration:
+        name: Check protected signing configuration
+        if: >-
+            github.repository == 'RentnerKev/RentnerProxy' &&
+            ((github.event_name == 'release' && github.event.action == 'published') ||
+             (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+              github.workflow_ref == 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'))
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        environment: package-signing
+        permissions: {}
+        steps:
+            - name: Require the protected signing key before building
+              env:
+                  SIGNING_KEY_CONFIGURED: ${{ secrets.PACKAGE_SIGNING_KEY != '' }}
+              run: |
+                  if [[ "$SIGNING_KEY_CONFIGURED" != true ]]; then
+                      echo '::error::PACKAGE_SIGNING_KEY is unavailable in the protected signing environment.'
+                      exit 1
+                  fi
+
     building:
         name: Show release building status
+        needs: signing-configuration
         runs-on: ubuntu-latest
         timeout-minutes: 5
         permissions:
@@ -116,6 +145,7 @@ jobs:
             - name: Verify release source and banner
               id: release
               env:
+                  EXPECTED_REVISION: ${{ inputs.expected_revision }}
                   RELEASE_CHANNEL: ${{ inputs.channel }}
                   RELEASE_TAG: ${{ inputs.release_tag }}
               shell: bash
@@ -162,6 +192,8 @@ jobs:
         permissions:
             contents: read
         uses: ./.github/workflows/sign-distribution.yml
+        secrets:
+            PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
         with:
             revision: ${{ needs.prepare.outputs.revision }}
             version: ${{ inputs.release_tag }}

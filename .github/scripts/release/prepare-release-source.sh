@@ -12,6 +12,10 @@ tag_revision="$(git -C source rev-list -n 1 "$tag_ref")"
     echo "::error::Checked-out HEAD does not match the authoritative release tag."
     exit 1
 }
+if [[ ! "${EXPECTED_REVISION:-}" =~ ^[0-9a-f]{40}$ || "$revision" != "$EXPECTED_REVISION" ]]; then
+    echo "::error::Release tag does not match the expected immutable source revision."
+    exit 1
+fi
 
 dockerfile_relative='docker/production/Dockerfile'
 dockerignore_relative='docker/production/Dockerfile.dockerignore'

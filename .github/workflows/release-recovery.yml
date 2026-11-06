@@ -1,0 +1,90 @@
+name: Recover published release
+
+on:
+    workflow_dispatch:
+        inputs:
+            release_id:
+                description: Existing published GitHub release ID
+                required: true
+                type: string
+            release_tag:
+                description: Existing immutable release tag
+                required: true
+                type: string
+            revision:
+                description: Original 40-character source commit
+                required: true
+                type: string
+            published_at:
+                description: Original UTC publication timestamp (YYYY-MM-DDTHH:mm:ssZ)
+                required: true
+                type: string
+
+permissions: {}
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    resolve:
+        name: Verify existing published release
+        if: github.repository == 'RentnerKev/RentnerProxy' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read
+            actions: read
+        outputs:
+            release_id: ${{ steps.release.outputs.release_id }}
+            release_tag: ${{ steps.release.outputs.release_tag }}
+            revision: ${{ steps.release.outputs.revision }}
+            published_at: ${{ steps.release.outputs.published_at }}
+            prerelease: ${{ steps.release.outputs.prerelease }}
+            channel: ${{ steps.release.outputs.channel }}
+        steps:
+            - name: Check out trusted recovery automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+                  fetch-depth: 0
+
+            - name: Set up Bun without source installation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+
+            - name: Pin original release, tag, source and successful source CI
+              id: release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/automation
+                  AUTOMATION_REVISION: ${{ github.workflow_sha }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+                  REVISION: ${{ inputs.revision }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+              run: bash automation/.github/scripts/release/resolve-release-recovery.sh
+
+    release:
+        name: Recover release
+        needs: resolve
+        permissions:
+            actions: read
+            contents: write
+            issues: read
+            packages: write
+            pages: write
+            id-token: write
+        uses: ./.github/workflows/release-pipeline.yml
+        secrets:
+            PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+        with:
+            channel: ${{ needs.resolve.outputs.channel }}
+            expected_revision: ${{ needs.resolve.outputs.revision }}
+            prerelease: ${{ fromJSON(needs.resolve.outputs.prerelease) }}
+            published_at: ${{ needs.resolve.outputs.published_at }}
+            release_id: ${{ fromJSON(needs.resolve.outputs.release_id) }}
+            release_tag: ${{ needs.resolve.outputs.release_tag }}

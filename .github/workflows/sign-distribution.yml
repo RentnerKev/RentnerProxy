@@ -2,6 +2,9 @@ name: Sign assessed Linux distribution
 
 on:
     workflow_call:
+        secrets:
+            PACKAGE_SIGNING_KEY:
+                required: true
         inputs:
             revision:
                 required: true
@@ -38,10 +41,16 @@ jobs:
     sign:
         if: >-
             github.repository == 'RentnerKev/RentnerProxy' &&
-            github.event_name == 'release' && github.event.action == 'published' &&
-            startsWith(github.ref, 'refs/tags/') &&
-            github.event.release.id == inputs.release_id &&
-            github.event.release.tag_name == inputs.version
+            ((github.event_name == 'release' && github.event.action == 'published' &&
+              startsWith(github.ref, 'refs/tags/') &&
+              github.event.release.id == inputs.release_id &&
+              github.event.release.tag_name == inputs.version) ||
+             (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+              github.workflow_ref == 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main' &&
+              format('{0}', inputs.release_id) == github.event.inputs.release_id &&
+              inputs.version == github.event.inputs.release_tag &&
+              inputs.revision == github.event.inputs.revision &&
+              inputs.published_at == github.event.inputs.published_at))
         name: Sign exact assessed and natively tested packages
         runs-on: ubuntu-latest
         timeout-minutes: 20
@@ -53,6 +62,15 @@ jobs:
             fingerprint: ${{ steps.seal.outputs.fingerprint }}
             repository_url: ${{ steps.seal.outputs.repository_url }}
         steps:
+            - name: Require the protected signing key
+              env:
+                  SIGNING_KEY_CONFIGURED: ${{ secrets.PACKAGE_SIGNING_KEY != '' }}
+              run: |
+                  if [[ "$SIGNING_KEY_CONFIGURED" != true ]]; then
+                      echo '::error::PACKAGE_SIGNING_KEY is unavailable in the protected signing environment.'
+                      exit 1
+                  fi
+
             - name: Check out trusted signing automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:

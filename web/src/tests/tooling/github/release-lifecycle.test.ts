@@ -112,7 +112,7 @@ test('isolates the immediate building write and generates final notes after all 
         >
     }
     const building = pipeline.jobs.building!
-    expect(building.needs).toBeUndefined()
+    expect(building.needs).toBe('signing-configuration')
     expect(building.permissions).toEqual({ contents: 'write' })
     expect(building.steps?.find((step) => step.with?.path === 'automation')?.with?.ref).toBe(
         '${{ github.workflow_sha }}',

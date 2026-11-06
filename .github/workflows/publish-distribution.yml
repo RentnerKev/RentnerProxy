@@ -40,10 +40,16 @@ jobs:
     publish:
         if: >-
             github.repository == 'RentnerKev/RentnerProxy' &&
-            github.event_name == 'release' && github.event.action == 'published' &&
-            startsWith(github.ref, 'refs/tags/') &&
-            github.event.release.id == inputs.release_id &&
-            github.event.release.tag_name == inputs.version
+            ((github.event_name == 'release' && github.event.action == 'published' &&
+              startsWith(github.ref, 'refs/tags/') &&
+              github.event.release.id == inputs.release_id &&
+              github.event.release.tag_name == inputs.version) ||
+             (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+              github.workflow_ref == 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main' &&
+              format('{0}', inputs.release_id) == github.event.inputs.release_id &&
+              inputs.version == github.event.inputs.release_tag &&
+              inputs.revision == github.event.inputs.revision &&
+              inputs.published_at == github.event.inputs.published_at))
         name: Publish sealed signed packages
         runs-on: ubuntu-latest
         timeout-minutes: 20
