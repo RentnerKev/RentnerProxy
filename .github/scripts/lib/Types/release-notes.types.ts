@@ -55,7 +55,8 @@ export interface ReleaseNotesDocumentInput {
     channel: ReleaseChannel
     publishedAt: string
     image: string
-    bannerAssetName: string
+    bannerRevision: string
+    contributorMediaUrls?: Readonly<Record<string, string>>
     issues: readonly GitHubIssue[]
     config: ReleaseNotesConfig
     previousTag?: string
@@ -70,7 +71,7 @@ export interface RenderedReleaseNotes {
 export interface BuildingReleaseNotesInput {
     repository: string
     tagName: string
-    bannerAssetName: string
+    bannerRevision: string
 }
 
 export interface ParsedReleaseTag {

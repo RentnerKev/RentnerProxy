@@ -1,6 +1,7 @@
 // oxlint-disable no-await-in-loop -- Verify release proofs and immutable downloads before publication.
-import { copyFile, lstat, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { ociRecord, ociText } from '../lib/oci-layout.ts'
 import { parseNativeImageEvidence, parsePortabilityEvidence } from '../release/multiarch-image.ts'
@@ -11,6 +12,7 @@ import { parseDistributionRelease, distributionPackageVersion } from './release.
 import { distributionCommand } from './process.ts'
 import { verifyImmutableRepositoryManifest, writeImmutableRepositoryManifest } from './history.ts'
 import { maximumRepositoryFiles } from './limits.ts'
+import { prepareCompactReleaseAssets } from './compact-assets.ts'
 import {
     readRepositoryCatalog,
     repositoryUrl,
@@ -411,31 +413,37 @@ export async function uploadReleaseAssets(
     const command = options.command ?? distributionCommand
     distributionPackageVersion(tag)
     if (!/^\d+$/u.test(releaseId)) throw new Error('Invalid authoritative release ID')
-    const release = ociRecord(
-        JSON.parse(
-            await command(['gh', 'api', 'repos/RentnerKev/RentnerProxy/releases/' + releaseId]),
-        ),
-    )
-    if (release.tag_name !== tag || release.draft !== false || !Array.isArray(release.assets))
-        throw new Error('Release identity changed')
-    for (const file of await bundleFiles(directory)) {
-        if (file.includes('/')) throw new Error('Nested release asset')
-        const existing = release.assets.map(ociRecord).find((asset) => asset.name === file)
-        const path = join(directory, file)
-        if (existing) {
-            // GitHub exposes the server-side asset digest; avoid mutating immutable retries.
-            if (existing.digest !== 'sha256:' + (await distributionFileHash(path)))
-                throw new Error('Immutable GitHub release asset collision')
-        } else
-            await command([
-                'gh',
-                'release',
-                'upload',
-                tag,
-                path,
-                '--repo',
-                'RentnerKev/RentnerProxy',
-            ])
+    const staging = await mkdtemp(join(tmpdir(), 'rentnerproxy-compact-publication-'))
+    try {
+        await prepareCompactReleaseAssets(directory, staging, tag)
+        const release = ociRecord(
+            JSON.parse(
+                await command(['gh', 'api', 'repos/RentnerKev/RentnerProxy/releases/' + releaseId]),
+            ),
+        )
+        if (release.tag_name !== tag || release.draft !== false || !Array.isArray(release.assets))
+            throw new Error('Release identity changed')
+        for (const file of await bundleFiles(staging)) {
+            if (file.includes('/')) throw new Error('Nested release asset')
+            const existing = release.assets.map(ociRecord).find((asset) => asset.name === file)
+            const path = join(staging, file)
+            if (existing) {
+                // GitHub exposes the server-side asset digest; avoid mutating immutable retries.
+                if (existing.digest !== 'sha256:' + (await distributionFileHash(path)))
+                    throw new Error('Immutable GitHub release asset collision')
+            } else
+                await command([
+                    'gh',
+                    'release',
+                    'upload',
+                    tag,
+                    path,
+                    '--repo',
+                    'RentnerKev/RentnerProxy',
+                ])
+        }
+    } finally {
+        await rm(staging, { recursive: true, force: true })
     }
 }
 

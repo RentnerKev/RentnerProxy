@@ -2,7 +2,7 @@
 import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import {
     validateRepositoryTree,
     uploadReleaseAssets,
@@ -15,6 +15,7 @@ import {
     verifyDistributionBundle,
     writeDistributionBundle,
 } from '../../../../../.github/scripts/distribution/bundle.ts'
+import { distributionAssetsFixture } from './fixtures/compact-assets.ts'
 import { identity, platformFixture, workflow } from '../github/fixtures/oci.ts'
 
 test('bounded bundles reserve space for their own manifest and retain separate producer limits', async () => {
@@ -156,20 +157,26 @@ test('all four native distribution reports must bind the same assessed image and
 test('release asset publication reuses identical checksums and refuses conflicting retries or changed releases', async () => {
     const root = await mkdtemp(join(tmpdir(), 'rp-release-assets-'))
     try {
-        await writeFile(join(root, 'fixture.deb'), 'approved package')
-        const digest = 'sha256:' + (await distributionFileHash(join(root, 'fixture.deb')))
+        await distributionAssetsFixture(root)
         const calls: readonly string[][] = []
         const actions: string[][] = calls as string[][]
         let assets: { name: string; digest: string }[] = [],
             tag = identity.version
         const command = async (args: readonly string[]) => {
             actions.push([...args])
-            return args[1] === 'api' ? JSON.stringify({ tag_name: tag, draft: false, assets }) : ''
+            if (args[1] === 'api') return JSON.stringify({ tag_name: tag, draft: false, assets })
+            const path = args[4]!
+            assets.push({
+                name: basename(path),
+                digest: 'sha256:' + (await distributionFileHash(path)),
+            })
+            return ''
         }
         const options = { tag: identity.version, releaseId: '123', command }
         await uploadReleaseAssets(root, options)
-        expect(actions.filter((args) => args[1] === 'release')).toHaveLength(1)
-        assets = [{ name: 'fixture.deb', digest }]
+        expect(actions.filter((args) => args[1] === 'release')).toHaveLength(8)
+        expect(assets.filter((asset) => /\.(deb|rpm|tar\.gz)$/.test(asset.name))).toHaveLength(7)
+        expect(assets.some((asset) => asset.name === 'distribution.intoto.json')).toBeFalse()
         actions.length = 0
         await uploadReleaseAssets(root, options)
         expect(actions.filter((args) => args[1] === 'release')).toHaveLength(0)

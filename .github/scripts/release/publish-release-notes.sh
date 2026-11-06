@@ -18,12 +18,8 @@ fi
 
 bash "$script_directory/publish-release-readiness.sh" --validate-only
 
-shopt -s nullglob
-contributor_assets=("$artifact_directory"/contributor-*.png)
 gh release upload "$RELEASE_TAG" \
-    "$artifact_directory/release-banner.png" \
     "$artifact_directory/$CHANGELOG_FILENAME" \
-    "${contributor_assets[@]}" \
     --clobber \
     --repo "$GITHUB_REPOSITORY" || {
     echo "::error::Uploading GitHub release assets failed."

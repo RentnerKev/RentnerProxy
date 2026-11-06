@@ -6,6 +6,12 @@ import type {
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
+import { contributorAvatarAssetName, contributorLogins } from '../lib/contributor-avatars.ts'
+import {
+    githubMediaRequest,
+    publishReleaseMedia,
+    validateMediaRevision,
+} from '../lib/release-media.ts'
 import { prepareContributorAvatars } from './prepare-contributor-avatars.ts'
 
 import {
@@ -189,7 +195,10 @@ export async function generateReleaseNotes(
         channel: input.channel,
         publishedAt: input.release.publishedAt,
         image: input.image,
-        bannerAssetName: input.bannerAssetName,
+        bannerRevision: input.bannerRevision,
+        ...(input.contributorMediaUrls === undefined
+            ? {}
+            : { contributorMediaUrls: input.contributorMediaUrls }),
         issues,
         config: input.config,
         ...(previousTag === undefined ? {} : { previousTag }),
@@ -288,6 +297,8 @@ async function main(): Promise<void> {
     const prerelease = parseBooleanEnvironment('RELEASE_PRERELEASE')
     const channel = parseChannel(requiredEnvironment('RELEASE_CHANNEL'))
     const image = requiredEnvironment('RELEASE_IMAGE')
+    const bannerRevision = requiredEnvironment('RELEASE_MEDIA_REVISION')
+    validateMediaRevision(bannerRevision)
     const releaseId = Number(requiredEnvironment('RELEASE_ID'))
     if (!Number.isSafeInteger(releaseId) || releaseId <= 0) {
         throw new Error('RELEASE_ID must be a positive integer')
@@ -303,7 +314,7 @@ async function main(): Promise<void> {
             release: { id: releaseId, tagName, prerelease, publishedAt },
             channel,
             image,
-            bannerAssetName: 'release-banner.png',
+            bannerRevision,
             config,
         },
         client,
@@ -311,10 +322,39 @@ async function main(): Promise<void> {
 
     await mkdir(outputDirectory, { recursive: true })
     await prepareContributorAvatars(result.issues, outputDirectory)
+    const logins = contributorLogins(result.issues)
+    const files = await Promise.all(
+        logins.map(async (login) => {
+            const name = contributorAvatarAssetName(login)
+            return { name, bytes: await readFile(resolve(outputDirectory, name)) }
+        }),
+    )
+    const contributorMediaUrls =
+        files.length === 0
+            ? {}
+            : (
+                  await publishReleaseMedia(
+                      { repository, tagName, files },
+                      githubMediaRequest(repository, token),
+                  )
+              ).urls
+    const rendered = renderReleaseNotes({
+        repository,
+        tagName,
+        channel,
+        publishedAt,
+        image,
+        bannerRevision,
+        contributorMediaUrls,
+        issues: result.issues,
+        config,
+        initialRelease: result.previousTag === undefined,
+        ...(result.previousTag === undefined ? {} : { previousTag: result.previousTag }),
+    })
     const changelogFilename = `RentnerProxy-${tagName}-CHANGELOG.md`
     await Promise.all([
-        writeFile(resolve(outputDirectory, 'release-body.md'), result.body, 'utf8'),
-        writeFile(resolve(outputDirectory, changelogFilename), result.changelog, 'utf8'),
+        writeFile(resolve(outputDirectory, 'release-body.md'), rendered.body, 'utf8'),
+        writeFile(resolve(outputDirectory, changelogFilename), rendered.changelog, 'utf8'),
     ])
 
     process.stdout.write(

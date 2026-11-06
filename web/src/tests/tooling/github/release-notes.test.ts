@@ -61,7 +61,7 @@ function documentInput(overrides: Partial<Parameters<typeof renderReleaseNotes>[
         channel: 'stable' as const,
         publishedAt: '2026-09-02T12:00:00Z',
         image: 'ghcr.io/rentnerkev/rentnerproxy',
-        bannerAssetName: 'release-banner.png',
+        bannerRevision: 'a'.repeat(40),
         issues: [] as GitHubIssue[],
         config,
         initialRelease: false,
@@ -286,6 +286,9 @@ describe('release note rendering', () => {
     test('deduplicates contributors and excludes bots', () => {
         const body = renderReleaseNotes(
             documentInput({
+                contributorMediaUrls: {
+                    'contributor-alice.png': `https://raw.githubusercontent.com/RentnerKev/RentnerProxy/${'b'.repeat(40)}/releases/v1.2.0/${'c'.repeat(64)}/contributor-alice.png`,
+                },
                 issues: [
                     issue(1, { user: { login: 'Alice', type: 'User' } }),
                     issue(2, { user: { login: 'alice', type: 'User' } }),
@@ -294,7 +297,9 @@ describe('release note rendering', () => {
             }),
         ).body
         expect(body.match(/href="https:\/\/github\.com\/alice"/gi)).toHaveLength(1)
-        expect(body).toContain('/releases/download/v1.2.0/contributor-alice.png')
+        expect(body).toContain(
+            '/' + 'b'.repeat(40) + '/releases/v1.2.0/' + 'c'.repeat(64) + '/contributor-alice.png',
+        )
         expect(body).toMatch(/width="48" height="48" alt="@alice"/i)
         expect(body).not.toContain('dependabot')
     })
@@ -335,10 +340,12 @@ describe('release note rendering', () => {
         const body = renderBuildingReleaseNotes({
             repository: 'RentnerKev/RentnerProxy',
             tagName: 'v1.0.0-beta.3',
-            bannerAssetName: 'building-banner.png',
+            bannerRevision: 'a'.repeat(40),
         })
         expect(body.startsWith('![New Version is Building](')).toBe(true)
-        expect(body).toContain('/releases/download/v1.0.0-beta.3/building-banner.png')
+        expect(body).toContain(
+            `/${'a'.repeat(40)}/.github/assets/release-banners/building-release-banner.png`,
+        )
         expect(body).toContain('# 🚧 New Version is Building')
         expect(body).toContain('**RentnerProxy `v1.0.0-beta.3` is building.**')
         for (const hidden of [
@@ -354,14 +361,14 @@ describe('release note rendering', () => {
             renderBuildingReleaseNotes({
                 repository: '../escape',
                 tagName: 'v1.0.0',
-                bannerAssetName: 'building-banner.png',
+                bannerRevision: 'a'.repeat(40),
             }),
         ).toThrow()
         expect(() =>
             renderBuildingReleaseNotes({
                 repository: 'RentnerKev/RentnerProxy',
                 tagName: '../escape',
-                bannerAssetName: 'building-banner.png',
+                bannerRevision: 'a'.repeat(40),
             }),
         ).toThrow()
     })
@@ -498,7 +505,7 @@ describe('GitHub API integration boundary', () => {
                     },
                     channel: 'beta',
                     image: 'ghcr.io/rentnerkev/rentnerproxy',
-                    bannerAssetName: 'release-banner.png',
+                    bannerRevision: 'a'.repeat(40),
                     config,
                 },
                 client,
@@ -538,7 +545,7 @@ describe('GitHub API integration boundary', () => {
                 },
                 channel: 'stable',
                 image: 'ghcr.io/rentnerkev/rentnerproxy',
-                bannerAssetName: 'release-banner.png',
+                bannerRevision: 'a'.repeat(40),
                 config,
             },
             client,
@@ -592,7 +599,7 @@ describe('GitHub API integration boundary', () => {
                 },
                 channel: 'stable',
                 image: 'ghcr.io/rentnerkev/rentnerproxy',
-                bannerAssetName: 'release-banner.png',
+                bannerRevision: 'a'.repeat(40),
                 config,
             },
             client,
@@ -645,7 +652,7 @@ describe('GitHub API integration boundary', () => {
                 },
                 channel: 'beta',
                 image: 'ghcr.io/rentnerkev/rentnerproxy',
-                bannerAssetName: 'release-banner.png',
+                bannerRevision: 'a'.repeat(40),
                 config,
             },
             client,

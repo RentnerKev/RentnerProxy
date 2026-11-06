@@ -9,7 +9,7 @@ if (import.meta.main) {
         renderBuildingReleaseNotes({
             repository: process.env.GITHUB_REPOSITORY ?? '',
             tagName: process.env.RELEASE_TAG ?? '',
-            bannerAssetName: 'building-banner.png',
+            bannerRevision: process.env.RELEASE_MEDIA_REVISION ?? '',
         }),
     )
 }

@@ -25,9 +25,6 @@ bun --no-env-file "$script_directory/generate-building-release-notes.ts"
 }
 
 bash "$script_directory/verify-release-identity.sh"
-gh release upload "$RELEASE_TAG" "$artifact_directory/building-banner.png" \
-    --clobber --repo "$GITHUB_REPOSITORY"
-bash "$script_directory/verify-release-identity.sh"
 gh release edit "$RELEASE_TAG" --notes-file "$artifact_directory/building-body.md" \
     --repo "$GITHUB_REPOSITORY"
 
@@ -38,7 +35,7 @@ release_assets="$(
     echo "::error::Listing stale release control assets failed."
     exit 1
 }
-for control_asset in 'rentnerproxy-update.json' 'release-banner.png' "RentnerProxy-$RELEASE_TAG-CHANGELOG.md" 'contributor-avatar'; do
+for control_asset in 'rentnerproxy-update.json' 'building-banner.png' 'release-banner.png' "RentnerProxy-$RELEASE_TAG-CHANGELOG.md" 'contributor-avatar'; do
     while IFS=$'\t' read -r asset_id asset_name; do
         if [[ "$control_asset" == 'contributor-avatar' ]]; then
             [[ "$asset_name" =~ ^contributor-[a-z0-9]([a-z0-9-]{0,37}[a-z0-9])?\.(png|svg)$ ]] || continue

@@ -77,6 +77,7 @@ test('building CLI creates only the public building body without a token or issu
                     RUNNER_TEMP: directory,
                     GITHUB_REPOSITORY: 'RentnerKev/RentnerProxy',
                     RELEASE_TAG: 'v1.0.0-beta.3',
+                    RELEASE_MEDIA_REVISION: 'a'.repeat(40),
                     GITHUB_TOKEN: '',
                     GH_TOKEN: '',
                 },
@@ -91,10 +92,12 @@ test('building CLI creates only the public building body without a token or issu
             'utf8',
         )
         expect(body).toContain('New Version is Building')
-        expect(body).toContain('v1.0.0-beta.3/building-banner.png')
+        expect(body).toContain(
+            `/${'a'.repeat(40)}/.github/assets/release-banners/building-release-banner.png`,
+        )
         expect(body).not.toContain('CHANGELOG')
         expect(body).not.toContain('Contributors')
-        expect(body).not.toContain('release-banner.png')
+        expect(body).not.toContain('/beta-release-banner.png')
     } finally {
         await rm(directory, { recursive: true, force: true })
     }
@@ -144,7 +147,7 @@ test('isolates the immediate building write and generates final notes after all 
 })
 
 test.each(['success', 'stale', 'tag', 'banner', 'identity', 'delete-identity', 'delete-failure'])(
-    'validates the building state before publishing its asset and body: %s',
+    'validates the building state before publishing its pinned media body: %s',
     async (failure) => {
         const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-building-lifecycle-'))
         try {
@@ -177,7 +180,7 @@ if [[ "$1" == api ]]; then
     if [[ "$2" == --method ]]; then
         printf 'delete %s\\n' "$(basename "$4")" >> "$FIXTURE_EVENTS"
         [[ "$FIXTURE_FAILURE" != delete-failure ]]
-        [[ "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/11" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/12" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/13" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/14" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/15" ]]
+        [[ "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/11" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/12" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/13" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/14" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/15" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/26" ]]
         exit
     elif [[ "$2" == */assets ]]; then
         [[ "$2" == 'repos/RentnerKev/RentnerProxy/releases/123/assets' ]]
@@ -254,13 +257,13 @@ printf 'building' > "$RUNNER_TEMP/rentnerproxy-release/building-body.md"
             }
             expect(await readFile(events, 'utf8')).toBe(
                 failure === 'stale'
-                    ? 'upload\nedit\nlist 123\ndelete 11\ndelete 12\ndelete 13\ndelete 14\ndelete 15\n'
+                    ? 'edit\nlist 123\ndelete 11\ndelete 26\ndelete 12\ndelete 13\ndelete 14\ndelete 15\n'
                     : failure === 'success'
-                      ? 'upload\nedit\nlist 123\n'.repeat(2)
+                      ? 'edit\nlist 123\ndelete 26\n'.repeat(2)
                       : failure === 'delete-identity'
-                        ? 'upload\nedit\nlist 123\n'
+                        ? 'edit\nlist 123\n'
                         : failure === 'delete-failure'
-                          ? 'upload\nedit\nlist 123\ndelete 11\n'
+                          ? 'edit\nlist 123\ndelete 11\n'
                           : '',
             )
         } finally {
@@ -425,11 +428,9 @@ esac
             if (success) {
                 const uploaded = await readFile(join(directory, 'uploaded'), 'utf8')
                 expect(uploaded).not.toContain('contributor-*.png')
-                if (failure === 'no-avatars') expect(uploaded).not.toContain('contributor-')
-                else {
-                    expect(uploaded).toContain('contributor-kevin.png')
-                    expect(uploaded).toContain('contributor-second-user.png')
-                }
+                expect(uploaded).not.toContain('contributor-')
+                expect(uploaded).not.toContain('release-banner.png')
+                expect(uploaded).toContain('RentnerProxy-v1.0.0-CHANGELOG.md')
             }
             expect(await readFile(body, 'utf8')).toBe(success ? 'final' : 'building')
         } finally {

@@ -23,6 +23,7 @@ export interface GenerateReleaseNotesInput {
     release: CurrentRelease
     channel: ReleaseChannel
     image: string
-    bannerAssetName: string
+    bannerRevision: string
+    contributorMediaUrls?: Readonly<Record<string, string>>
     config: ReleaseNotesConfig
 }

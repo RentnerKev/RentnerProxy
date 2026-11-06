@@ -1,4 +1,5 @@
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
+import { repositoryMediaUrl } from './release-media.ts'
 import { contributorAvatarAssetName, contributorLogins } from './contributor-avatars.ts'
 import type {
     ReleaseChannel,
@@ -310,7 +311,20 @@ function renderIssueChangelog(input: ReleaseNotesDocumentInput): string {
                 '<p>',
                 ...contributors.map((login) => {
                     const profile = `https://github.com/${encodeURIComponent(login)}`
-                    const avatar = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/${contributorAvatarAssetName(login)}`
+                    const avatar = input.contributorMediaUrls?.[contributorAvatarAssetName(login)]
+                    if (avatar === undefined)
+                        return `<a href="${profile}" title="@${login}">@${login}</a>`
+                    const parsed = new URL(avatar)
+                    if (
+                        parsed.origin !== 'https://raw.githubusercontent.com' ||
+                        !parsed.pathname.startsWith(`/${input.repository}/`) ||
+                        !/^\/[a-zA-Z0-9-]+\/[a-zA-Z0-9._-]+\/[a-f0-9]{40}\/releases\/v[0-9A-Za-z.-]+\/[a-f0-9]{64}\/contributor-[a-z0-9-]+\.png$/.test(
+                            parsed.pathname,
+                        ) ||
+                        parsed.search ||
+                        parsed.hash
+                    )
+                        throw new Error('Invalid immutable contributor media URL')
                     return `<a href="${profile}" title="@${login}"><img src="${avatar}" width="48" height="48" alt="@${login}" /></a>`
                 }),
                 '</p>',
@@ -356,7 +370,11 @@ export function renderBuildingReleaseNotes(input: BuildingReleaseNotesInput): st
     const channel = deriveReleaseChannel(input.tagName)
     validateReleaseTag(input.tagName, channel !== 'stable')
     validateRepository(input.repository)
-    const bannerUrl = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/${encodeURIComponent(input.bannerAssetName)}`
+    const bannerUrl = repositoryMediaUrl(
+        input.repository,
+        input.bannerRevision,
+        '.github/assets/release-banners/building-release-banner.png',
+    )
     return [
         `![New Version is Building](${bannerUrl})`,
         '',
@@ -406,9 +424,15 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
               ]
     const issueChangelog = renderIssueChangelog(input)
     const upgradeCompatibility = renderUpgradeCompatibility(input.tagName, input.channel)
-    const bannerUrl = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(
-        input.tagName,
-    )}/${encodeURIComponent(input.bannerAssetName)}`
+    const bannerFilename =
+        input.channel === 'stable'
+            ? 'new-release-banner.png'
+            : `${input.channel}-release-banner.png`
+    const bannerUrl = repositoryMediaUrl(
+        input.repository,
+        input.bannerRevision,
+        `.github/assets/release-banners/${bannerFilename}`,
+    )
     const channelImage = `${input.image}:${channelTag}`
     const immutableImage = `${input.image}:${input.tagName}`
     const codeFence = String.fromCharCode(96).repeat(3)
@@ -434,6 +458,8 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         `| 🦭 **Podman / Quadlet** | Versioned Quadlet archive | [Install & verify](${installGuide}) |`,
         `| 🐧 **Debian 13** | Signed APT repository and DEB packages | [APT setup](${installGuide}) |`,
         `| 🎩 **Fedora 44** | Signed DNF repository and RPM packages | [DNF setup](${installGuide}) |`,
+        '',
+        `[Installation guide](${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/INSTALL.txt) · [Verification files](${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/RentnerProxy-${encodeURIComponent(input.tagName)}-verification.tar.gz)`,
         '',
         'Linux packages use rootful Podman/Quadlet, systemd and cgroup v2. The installation guide covers signing-key verification, setup, updates and recovery.',
         '',

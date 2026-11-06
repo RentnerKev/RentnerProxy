@@ -87,6 +87,7 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_CHANNEL: ${{ inputs.channel }}
                   RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_MEDIA_REVISION: ${{ github.workflow_sha }}
                   RELEASE_PRERELEASE: ${{ inputs.prerelease }}
                   RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
                   RELEASE_TAG: ${{ inputs.release_tag }}
@@ -293,6 +294,7 @@ jobs:
                   RELEASE_CHANNEL: ${{ inputs.channel }}
                   RELEASE_ID: ${{ inputs.release_id }}
                   RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+                  RELEASE_MEDIA_REVISION: ${{ github.workflow_sha }}
                   RELEASE_PRERELEASE: ${{ inputs.prerelease }}
                   RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
                   RELEASE_TAG: ${{ inputs.release_tag }}

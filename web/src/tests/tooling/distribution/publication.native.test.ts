@@ -26,6 +26,12 @@ import {
     maximumRepositoryFiles,
 } from '../../../../../.github/scripts/distribution/limits.ts'
 import { verifyImmutableRepositoryManifest } from '../../../../../.github/scripts/distribution/history.ts'
+import {
+    prepareCompactReleaseAssets,
+    readVerificationArchive,
+    verificationArchiveName,
+    verifyCompactReleaseAssets,
+} from '../../../../../.github/scripts/distribution/compact-assets.ts'
 import { identity, platformFixture, workflow } from '../github/fixtures/oci.ts'
 
 const enabled = process.platform === 'linux' && process.env.RENTNERPROXY_PACKAGE_TEST === '1'
@@ -139,6 +145,28 @@ test.skipIf(!enabled)(
             const files = await bundleFiles(options.assets)
             expect(files).toContain('distribution.intoto.json.asc')
             expect(files.filter((file) => file.endsWith('.spdx.json'))).toHaveLength(2)
+            const compact = join(directory, 'compact-assets')
+            await prepareCompactReleaseAssets(options.assets, compact, expected.version)
+            const compactProof = await verifyCompactReleaseAssets(compact, expected.version)
+            expect(compactProof.installers).toHaveLength(6)
+            const metadata = readVerificationArchive(
+                await readFile(join(compact, verificationArchiveName(expected.version))),
+            )
+            const extracted = join(directory, 'extracted-verification')
+            await mkdir(extracted)
+            await Promise.all(
+                [...metadata].map(([name, bytes]) => writeFile(join(extracted, name), bytes)),
+            )
+            await distributionCommand([
+                'gpg',
+                '--homedir',
+                home,
+                '--batch',
+                '--no-auto-key-retrieve',
+                '--verify',
+                join(extracted, 'distribution.intoto.json.asc'),
+                join(extracted, 'distribution.intoto.json'),
+            ])
             const hashes = await Promise.all(
                 files.map((file) => distributionFileHash(join(options.assets, file))),
             )

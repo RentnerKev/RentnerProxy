@@ -21,6 +21,7 @@ test('release notes CLI writes reviewed outputs from an offline API and rejects 
         RELEASE_CHANNEL: 'stable',
         RELEASE_IMAGE: 'ghcr.io/rentnerkev/rentnerproxy',
         RELEASE_ID: '123',
+        RELEASE_MEDIA_REVISION: 'a'.repeat(40),
     }
     async function run(
         changes: Record<string, string> = {},
