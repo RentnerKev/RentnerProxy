@@ -1,3 +1,4 @@
+import { toast } from '@rentnerkev/toasts'
 import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
@@ -65,6 +66,9 @@ const historyObservation = {
     durationMs: 40,
     httpStatus: 200,
 }
+let successToast: ReturnType<typeof spyOn<typeof toast, 'success'>>
+let errorToast: ReturnType<typeof spyOn<typeof toast, 'error'>>
+let warningToast: ReturnType<typeof spyOn<typeof toast, 'warning'>>
 let root: Root | null = null
 let client: InstanceType<typeof QueryClient>
 let logic: ReturnType<typeof useHostMonitoringDialogLogic>
@@ -114,6 +118,9 @@ async function render(input = props, actualDialog = false) {
     return container
 }
 beforeEach(() => {
+    successToast = spyOn(toast, 'success').mockReturnValue('success')
+    errorToast = spyOn(toast, 'error').mockReturnValue('error')
+    warningToast = spyOn(toast, 'warning').mockReturnValue('warning')
     requests.length = 0
     responsePolicy = structuredClone(policy)
     responseHistory = { observations: [], incidents: [], nextCursor: null }
@@ -150,6 +157,9 @@ afterEach(async () => {
     root = null
     client.clear()
     fetchSpy.mockRestore()
+    successToast.mockRestore()
+    errorToast.mockRestore()
+    warningToast.mockRestore()
     document.body.replaceChildren()
 })
 
@@ -216,6 +226,10 @@ test('live invalidation preserves a dirty draft and its original optimistic vers
     ).toBe(nextVersion)
     expect(logic.state.conflict).toBe(true)
     expect(logic.form.getFieldValue('intervalSeconds')).toBe(100)
+    expect(warningToast).toHaveBeenCalledTimes(2)
+    expect(warningToast).toHaveBeenLastCalledWith(expect.any(String), { title: 'Please note' })
+    await flush()
+    expect(warningToast).toHaveBeenCalledTimes(2)
 })
 test('bounds prevent invalid save and filters are sent before history pagination', async () => {
     await render()
@@ -477,4 +491,151 @@ test('live invalidation recovers an initial failure and clean settings adopt a l
     await flush()
     expect(logic.form.getFieldValue('intervalSeconds')).toBe(120)
     expect(logic.state.dirty).toBe(false)
+})
+
+test('save success and failure emit localized toasts once while preserving failed drafts', async () => {
+    await render()
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 90)
+    })
+    responsePolicy = { ...policy, settings: { ...policy.settings, intervalSeconds: 90 } }
+    await act(async () => {
+        await logic.form.handleSubmit()
+    })
+    await flush()
+    expect(successToast).toHaveBeenCalledWith('Monitoring settings saved.', { title: 'Success' })
+    expect(logic.state.dirty).toBe(false)
+    postStatus = 503
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 100)
+    })
+    await act(async () => {
+        await logic.form.handleSubmit()
+    })
+    await flush()
+    expect(errorToast).toHaveBeenCalledWith('Monitoring settings could not be saved.', {
+        title: 'Action failed',
+    })
+    expect(logic.form.getFieldValue('intervalSeconds')).toBe(100)
+    expect(logic.state.dirty).toBe(true)
+    await flush()
+    expect(successToast).toHaveBeenCalledTimes(1)
+    expect(errorToast).toHaveBeenCalledTimes(1)
+})
+
+test.each(['close', 'unmount', 'host', 'permissions'] as const)(
+    'late saves do not publish UI feedback after %s changes',
+    async (change) => {
+        await render()
+        let finish!: (response: Response) => void
+        fetchSpy.mockImplementationOnce(
+            Object.assign(
+                () =>
+                    new Promise<Response>((resolve) => {
+                        finish = resolve
+                    }),
+                { preconnect: fetch.preconnect },
+            ),
+        )
+        await act(async () => {
+            logic.form.setFieldValue('intervalSeconds', 90)
+        })
+        await act(async () => {
+            await logic.form.handleSubmit()
+        })
+        const saved = {
+            ...policy,
+            version: nextVersion,
+            settings: { ...policy.settings, intervalSeconds: 90 },
+        }
+        const changedProps =
+            change === 'close'
+                ? { ...props, open: false }
+                : change === 'host'
+                  ? {
+                        ...props,
+                        host: { ...props.host, id: nextVersion, domains: ['new.example.test'] },
+                    }
+                  : { ...props, permissions: [PERMISSIONS.PROXY_HOSTS_VIEW] }
+        if (change === 'host')
+            responsePolicy = {
+                ...policy,
+                proxyHostId: nextVersion,
+                settings: { ...policy.settings, domain: 'new.example.test', intervalSeconds: 120 },
+            }
+        else responsePolicy = saved
+        await act(async () => {
+            if (change === 'unmount') {
+                root?.unmount()
+                root = null
+            } else
+                root!.render(
+                    withTestLanguage(
+                        <QueryClientProvider client={client}>
+                            <Harness {...changedProps} />
+                        </QueryClientProvider>,
+                    ),
+                )
+        })
+        await flush()
+        await act(async () => {
+            finish(Response.json(saved))
+        })
+        await flush()
+        expect(successToast).not.toHaveBeenCalled()
+        expect(errorToast).not.toHaveBeenCalled()
+        expect(warningToast).not.toHaveBeenCalled()
+        expect(client.getQueryData(hostMonitoringQueryKeys.policy(hostId))).toEqual(
+            expect.objectContaining({ version: nextVersion }),
+        )
+        if (change === 'host') {
+            expect(logic.form.getFieldValue('domain')).toBe('new.example.test')
+            expect(logic.form.getFieldValue('intervalSeconds')).toBe(120)
+        }
+    },
+)
+
+test('late save errors cannot revoke access or overwrite the next host draft', async () => {
+    await render()
+    let finish!: (response: Response) => void
+    fetchSpy.mockImplementationOnce(
+        Object.assign(
+            () =>
+                new Promise<Response>((resolve) => {
+                    finish = resolve
+                }),
+            { preconnect: fetch.preconnect },
+        ),
+    )
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 90)
+    })
+    await act(async () => {
+        await logic.form.handleSubmit()
+    })
+    responsePolicy = {
+        ...policy,
+        proxyHostId: nextVersion,
+        settings: { ...policy.settings, domain: 'new.example.test', intervalSeconds: 120 },
+    }
+    await act(async () =>
+        root!.render(
+            withTestLanguage(
+                <QueryClientProvider client={client}>
+                    <Harness
+                        {...props}
+                        host={{ ...props.host, id: nextVersion, domains: ['new.example.test'] }}
+                    />
+                </QueryClientProvider>,
+            ),
+        ),
+    )
+    await flush()
+    await act(async () => {
+        finish(Response.json({ error: 'permission_denied' }, { status: 403 }))
+    })
+    await flush()
+    expect(logic.state.canView).toBe(true)
+    expect(logic.form.getFieldValue('domain')).toBe('new.example.test')
+    expect(errorToast).not.toHaveBeenCalled()
 })

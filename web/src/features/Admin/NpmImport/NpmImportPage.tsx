@@ -48,11 +48,6 @@ export default function NpmImportPage() {
                             : t('admin.npmImport.preview')}
                     </button>
                 </div>
-                {state.error ? (
-                    <p role="alert" className="mt-4 text-sm text-danger-text">
-                        {t(`admin.npmImport.errors.${state.error}`)}
-                    </p>
-                ) : null}
             </section>
             {state.preview ? (
                 <ImportPreviewPanel

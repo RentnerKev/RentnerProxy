@@ -11,7 +11,7 @@ export function useMigrationLogic(): MigrationLogicResult {
     const { t } = useTranslationStore()
     const [source, setSource] = useState<MigrationSource>('rentnerproxy')
     const [exporting, setExporting] = useState(false)
-    const { state, handler, setter } = useImportWorkflow({
+    const { state, handler } = useImportWorkflow({
         endpoint: '/api/migration',
         errorNamespace: 'migration',
         source,
@@ -44,7 +44,6 @@ export function useMigrationLogic(): MigrationLogicResult {
 
     async function downloadExport(): Promise<void> {
         if (exporting) return
-        setter.setError(null)
         setExporting(true)
         try {
             const response = await fetch('/api/migration/export', { credentials: 'same-origin' })
@@ -62,7 +61,6 @@ export function useMigrationLogic(): MigrationLogicResult {
                 title: t('toast.titles.success'),
             })
         } catch {
-            setter.setError('export_failed')
             toast.error(t('admin.migration.errors.export_failed'), {
                 title: t('toast.titles.error'),
             })
@@ -77,7 +75,6 @@ export function useMigrationLogic(): MigrationLogicResult {
             preview: state.preview,
             result: state.result,
             busy: state.busy,
-            error: state.error,
             source,
             exporting,
         },

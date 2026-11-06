@@ -150,7 +150,10 @@ describe('linked identity accounts', () => {
         expect(posts).toHaveLength(1)
         expect(JSON.parse(String(posts[0]![1]?.body))).toEqual({ providerId, expectedRevision: 7 })
         expect(success).toHaveBeenCalled()
-        expect(container.textContent).toContain('account.oidc.unlinkedSuccess')
+        expect(container.textContent).not.toContain('account.oidc.unlinkedSuccess')
+        expect(success).toHaveBeenCalledWith('account.oidc.unlinkedSuccess', {
+            title: 'toast.titles.success',
+        })
     })
     test('shows revision conflicts and refreshes without automatically retrying', async () => {
         fetchMock
@@ -161,7 +164,10 @@ describe('linked identity accounts', () => {
             .mockResolvedValue(Response.json(connections(true)))
         await render()
         await click('account.oidc.unlink')
-        expect(container.textContent).toContain('account.oidc.error.conflict')
+        expect(container.textContent).not.toContain('account.oidc.error.conflict')
+        expect(error).toHaveBeenCalledWith('account.oidc.error.conflict', {
+            title: 'toast.titles.error',
+        })
         expect(
             fetchMock.mock.calls.filter((call) => call[1]?.method === 'GET').length,
         ).toBeGreaterThan(1)
@@ -255,7 +261,10 @@ describe('linked identity accounts', () => {
         feedback = { oidcResult: 'linked' }
         fetchMock.mockResolvedValue(Response.json(connections(true)))
         await render()
-        expect(container.textContent).toContain('account.oidc.linkedSuccess')
+        expect(container.textContent).not.toContain('account.oidc.linkedSuccess')
+        expect(success).toHaveBeenCalledWith('account.oidc.linkedSuccess', {
+            title: 'toast.titles.success',
+        })
         expect(success).toHaveBeenCalledTimes(1)
         expect(navigate).toHaveBeenCalledWith({
             to: '/account',
@@ -270,7 +279,10 @@ describe('linked identity accounts', () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         await click('account.oidc.link')
-        expect(container.textContent).toContain('account.oidc.error.failed')
+        expect(container.textContent).not.toContain('account.oidc.error.failed')
+        expect(error).toHaveBeenCalledWith('account.oidc.error.failed', {
+            title: 'toast.titles.error',
+        })
         expect(container.textContent).not.toContain('private diagnostic')
         expect(container.querySelector('dialog')).toBeNull()
         await click('account.oidc.link')
@@ -328,7 +340,10 @@ describe('linked identity accounts', () => {
         fetchMock.mockResolvedValue(Response.json(connections()))
         await render()
         expect(success).not.toHaveBeenCalled()
-        expect(container.textContent).toContain('account.oidc.error.failed')
+        expect(container.textContent).not.toContain('account.oidc.error.failed')
+        expect(error).toHaveBeenCalledWith('account.oidc.error.failed', {
+            title: 'toast.titles.error',
+        })
         expect(error).toHaveBeenCalledTimes(1)
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
@@ -339,7 +354,10 @@ describe('linked identity accounts', () => {
         )
         await render()
         expect(success).not.toHaveBeenCalled()
-        expect(container.textContent).toContain('account.oidc.error.failed')
+        expect(container.textContent).not.toContain('account.oidc.error.failed')
+        expect(error).toHaveBeenCalledWith('account.oidc.error.failed', {
+            title: 'toast.titles.error',
+        })
         expect(error).toHaveBeenCalledTimes(1)
         expect(fetchMock).toHaveBeenCalledTimes(4)
     })

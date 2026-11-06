@@ -67,7 +67,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
     const report = useCallback(
         (error: unknown) => {
             if (error instanceof ProviderSecretRequiredError) {
-                toast.error(t('oidc.errors.secret'))
+                toast.error(t('oidc.errors.secret'), { title: t('toast.titles.error') })
                 return
             }
             const code =
@@ -84,6 +84,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             ]
             toast.error(
                 t(`oidc.errors.${known.includes(code) ? code : 'configuration_unavailable'}`),
+                { title: t('toast.titles.error') },
             )
             if (code === 'configuration_conflict') setConflict(true)
         },
@@ -200,7 +201,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
             setEditing(null)
             setDeleteTarget(null)
             setConflict(false)
-            toast.success(t('oidc.saved'))
+            toast.success(t('oidc.saved'), { title: t('toast.titles.success') })
         } catch (error) {
             report(error)
             if (error instanceof ProviderRequestError && error.message === 'configuration_conflict')
@@ -279,7 +280,7 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 providerId: provider.id,
                 expectedRevision: query.data.revision,
             })
-            toast.success(t('oidc.tested'))
+            toast.success(t('oidc.tested'), { title: t('toast.titles.success') })
         } catch (error) {
             report(error)
         } finally {
@@ -359,10 +360,10 @@ export default function useOidcProvidersLogic(): OidcProvidersLogicResult {
                 try {
                     if (query.data?.callbackUrl) {
                         await navigator.clipboard.writeText(query.data.callbackUrl)
-                        toast.success(t('oidc.copied'))
+                        toast.success(t('oidc.copied'), { title: t('toast.titles.success') })
                     }
                 } catch {
-                    toast.error(t('oidc.errors.copy'))
+                    toast.error(t('oidc.errors.copy'), { title: t('toast.titles.error') })
                 }
             },
             /** Captures a delete target and its base revision for the confirmation flow. */

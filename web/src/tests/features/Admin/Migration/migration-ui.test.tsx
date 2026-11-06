@@ -85,9 +85,8 @@ test('source selection resets the file and uses the shared input and feedback co
 
     await act(async () => preview.click())
     expect(
-        container.querySelector('section[aria-labelledby="migration-source-title"] [role="alert"]')
-            ?.textContent,
-    ).toContain('exceeds the limit')
+        container.querySelector('section[aria-labelledby="migration-source-title"] [role="alert"]'),
+    ).toBeNull()
     expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
         'exceeds the limit',
     )

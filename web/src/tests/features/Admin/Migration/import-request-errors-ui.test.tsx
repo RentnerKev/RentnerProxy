@@ -5,7 +5,7 @@ import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.typ
 
 import { INPUT_PROVIDER_PROPS } from '@/config/input.config.ts'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
@@ -35,7 +35,10 @@ afterEach(async () => {
     document.body.replaceChildren()
 })
 
-async function render(kind: 'migration' | 'npmImport'): Promise<HTMLElement> {
+async function render(
+    kind: 'migration' | 'npmImport',
+    language: 'en' | 'de' = 'en',
+): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
     root = createRoot(container)
@@ -51,6 +54,7 @@ async function render(kind: 'migration' | 'npmImport'): Promise<HTMLElement> {
                         </SelectProvider>
                     </InputProvider>
                 </TooltipProvider>,
+                language,
             ),
         )
     })
@@ -175,8 +179,9 @@ for (const kind of ['migration', 'npmImport'] as const) {
             expect(
                 container.querySelector('section[aria-labelledby="npm-preview-title"]'),
             ).toBeNull()
-            expect(document.querySelector('.rentnerproxy-toast-success') !== null).toBe(
-                kind === 'migration',
+            expect(document.querySelectorAll('.rentnerproxy-toast-success')).toHaveLength(1)
+            expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+                catalogs.en.toast.titles.success,
             )
             await selectFile(container, 1)
             expect(container.querySelector('[aria-live="polite"]')).toBeNull()
@@ -203,13 +208,13 @@ for (const kind of ['migration', 'npmImport'] as const) {
             const container = await render(kind)
             fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
             await clickPreview(container)
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain(uncertainty)
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                uncertainty,
+            )
             expect(container.textContent).not.toContain('rolled back')
             expect(container.textContent).not.toContain('errors.Failed to fetch')
-            if (kind === 'migration')
-                expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
-                    uncertainty,
-                )
+            expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
         })
 
         test('explains HTML gateway failures as an unconfirmed request', async () => {
@@ -218,7 +223,10 @@ for (const kind of ['migration', 'npmImport'] as const) {
                 new Response('<html>Bad gateway</html>', { status: 502 }),
             )
             await clickPreview(container)
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain(uncertainty)
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                uncertainty,
+            )
             expect(container.textContent).not.toContain('Unexpected token')
         })
 
@@ -228,8 +236,13 @@ for (const kind of ['migration', 'npmImport'] as const) {
                 Response.json({ error: 'fingerprint_mismatch' }, { status: 409 }),
             )
             await clickPreview(container)
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain('changed')
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain('Analyze')
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                'changed',
+            )
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                'Analyze',
+            )
             expect(container.textContent).not.toContain(uncertainty)
         })
 
@@ -239,7 +252,8 @@ for (const kind of ['migration', 'npmImport'] as const) {
                 Response.json({ error: 'nothing_to_import' }, { status: 409 }),
             )
             await clickPreview(container)
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
                 kind === 'npmImport' ? 'Nothing remains eligible to import' : uncertainty,
             )
         })
@@ -250,7 +264,10 @@ for (const kind of ['migration', 'npmImport'] as const) {
                 Response.json({ error: 'internal_stack_details' }, { status: 500 }),
             )
             await clickPreview(container)
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain(uncertainty)
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                uncertainty,
+            )
             expect(container.textContent).not.toContain('internal_stack_details')
         })
 
@@ -267,7 +284,9 @@ for (const kind of ['migration', 'npmImport'] as const) {
                 apply.click()
                 await new Promise((resolve) => setTimeout(resolve, 20))
             })
-            expect(container.querySelector('[role="alert"]')?.textContent).toContain(uncertainty)
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                uncertainty,
+            )
             expect(container.querySelector('[aria-live="polite"]')).toBeNull()
             expect(
                 container.querySelector(
@@ -302,10 +321,10 @@ for (const [kind, source, label, limit] of [
         await selectFile(container, limit * 1024 * 1024 + 1)
         await clickPreview(container)
         expect(fetchMock.mock.calls).toHaveLength(count)
-        expect(container.querySelector('[role="alert"]')?.textContent).toContain('exceeds the')
-        expect(document.querySelector('.rentnerproxy-toast-error') !== null).toBe(
-            kind === 'migration',
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'exceeds the',
         )
+        expect(document.querySelector('.rentnerproxy-toast-error') !== null).toBe(true)
     })
 }
 
@@ -327,9 +346,45 @@ test('migration keeps warning feedback for partial apply and independent export 
     ])
     expect(
         container.querySelector('section[aria-labelledby="migration-export-title"] [role="alert"]'),
-    ).not.toBeNull()
+    ).toBeNull()
+    expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+    expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+        catalogs.en.admin.migration.errors.export_failed,
+    )
     expect(
         container.querySelector('section[aria-labelledby="migration-source-title"] [role="alert"]'),
     ).toBeNull()
     expect(container.textContent).toContain('partial')
+})
+
+for (const kind of ['migration', 'npmImport'] as const) {
+    test(`${kind} shows exactly one German error toast with localized title and body`, async () => {
+        const container = await render(kind, 'de')
+        fetchMock.mockRejectedValueOnce(new TypeError('private diagnostic'))
+        const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+            (entry) => entry.textContent?.trim() === catalogs.de.admin.npmImport.preview,
+        )!
+        await act(async () => button.click())
+        const toasts = document.querySelectorAll('.rentnerproxy-toast-error')
+        expect(toasts).toHaveLength(1)
+        expect(toasts[0]?.textContent).toContain(catalogs.de.toast.titles.error)
+        expect(toasts[0]?.textContent).toContain(catalogs.de.admin[kind].errors.request_failed)
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(container.textContent).not.toContain('private diagnostic')
+    })
+}
+
+test('NPM partial apply reports one localized warning and preserves the detailed result', async () => {
+    const container = await render('npmImport')
+    fetchMock.mockResolvedValueOnce(Response.json(previewFixture))
+    await clickPreview(container)
+    fetchMock.mockResolvedValueOnce(Response.json(resultFixture('partial-npm', 1)))
+    await clickApply(container)
+    const warnings = document.querySelectorAll('.rentnerproxy-toast-warning')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]?.textContent).toContain(catalogs.en.toast.titles.warning)
+    expect(warnings[0]?.textContent).toContain('1 failed')
+    expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('partial-npm')
 })

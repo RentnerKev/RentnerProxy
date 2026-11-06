@@ -27,7 +27,6 @@ export default function useLoginLogic() {
     const [oidcAttempt, setOidcAttempt] = useState(0)
     const oidcGeneration = useRef(0)
     const cancelBusy = useRef(false)
-    const [oidcFeedback, setOidcFeedback] = useState<string | null>(null)
     const oidcBusy = useRef(false)
     const localBusy = useRef(false)
     const formBusy = useRef(false)
@@ -46,7 +45,6 @@ export default function useLoginLogic() {
         if (reportedOidcFailure.current) return
         reportedOidcFailure.current = true
         const message = `auth.oidc.${oidcFailureCode}`
-        setOidcFeedback(message)
         toast.error(t(message), { title: t('toast.titles.error') })
         // Consume the fixed failure marker so refresh and browser Back do not repeat the notice.
         void navigate({ to: '/login', search: {}, replace: true }).catch(() => {})
@@ -203,7 +201,6 @@ export default function useLoginLogic() {
         oidcBusy.current = true
         oidcGeneration.current += 1
         setOidcAttempt(oidcGeneration.current)
-        setOidcFeedback(null)
         setIsOidcPending(true)
     }
 
@@ -230,7 +227,7 @@ export default function useLoginLogic() {
             oidcGeneration.current += 1
             oidcBusy.current = false
             setIsOidcPending(false)
-            setOidcFeedback('auth.oidc.failed')
+            toast.error(t('auth.oidc.failed'), { title: t('toast.titles.error') })
         }
     }
 
@@ -252,7 +249,6 @@ export default function useLoginLogic() {
             isOidcPending,
             isProviderCatalogPending: providers.isPending,
             isProviderCatalogUnavailable: providers.isError,
-            oidcFeedback,
             alternativeSignInItems,
         },
         handler: {

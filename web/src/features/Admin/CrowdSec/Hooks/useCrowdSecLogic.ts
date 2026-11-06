@@ -2,7 +2,7 @@ import type { FieldErrors } from '../Types/crowd-sec-logic.types.ts'
 import { invalidateCrowdSecConfigurationCache } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import { toast } from '@rentnerkev/toasts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { CrowdSecMode } from '@/config/Types/crowdsec-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -58,6 +58,21 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
     const [enrollmentKey, setEnrollmentKey] = useState('')
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
     const [transition, setTransition] = useState<CrowdSecTransition | null>(null)
+    const [previousCanUpdate, setPreviousCanUpdate] = useState(canUpdate)
+    if (previousCanUpdate !== canUpdate) {
+        setPreviousCanUpdate(canUpdate)
+        if (!canUpdate) setTransition(null)
+    }
+    const saveGeneration = useRef(0)
+    const reportedCompletion = useRef<number | null>(null)
+    useEffect(() => {
+        if (!canUpdate) {
+            saveGeneration.current += 1
+        }
+        return () => {
+            saveGeneration.current += 1
+        }
+    }, [canUpdate])
     const transitionActive = transition?.phase === 'running' || transition?.phase === 'delayed'
     const query = useQuery({
         queryKey: crowdSecQueryKeys.configuration,
@@ -77,7 +92,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
           )
         : null
     const displayedTransition =
-        transition && transitionProgress?.complete
+        transition && transition.phase !== 'error' && transitionProgress?.complete
             ? { ...transition, phase: 'complete' as const }
             : transition
 
@@ -98,7 +113,13 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
     }, [transition?.phase, transition?.startedAt])
 
     useEffect(() => {
-        if (displayedTransition?.phase !== 'complete') return
+        if (!canUpdate || displayedTransition?.phase !== 'complete') return
+        if (reportedCompletion.current !== displayedTransition.attemptId) {
+            reportedCompletion.current = displayedTransition.attemptId
+            toast.success(t(`admin.crowdSec.progress.${displayedTransition.targetMode}.complete`), {
+                title: t('toast.titles.success'),
+            })
+        }
         const timer = setTimeout(() => {
             setDraftMode(null)
             setDraftApiUrl(null)
@@ -107,7 +128,13 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             setTransition(null)
         }, COMPLETION_VISIBLE_MS)
         return () => clearTimeout(timer)
-    }, [displayedTransition?.phase])
+    }, [
+        canUpdate,
+        displayedTransition?.phase,
+        displayedTransition?.attemptId,
+        displayedTransition?.targetMode,
+        t,
+    ])
 
     const testMutation = useMutation({
         mutationFn: async () => {
@@ -142,18 +169,19 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
         }: {
             input: ReturnType<typeof updateCrowdSecConfigurationSchema.parse>
             tracksProgress: boolean
+            attemptId: number
         }) => updateCrowdSecConfigurationHandler({ data: input }),
-        onSuccess: (result, { tracksProgress }) => {
+        onSuccess: (result, { tracksProgress, attemptId }) => {
+            if (saveGeneration.current !== attemptId || !canUpdate) return
             if (!result.success) {
                 if (tracksProgress) {
                     setTransition((current) =>
                         current && current.phase !== 'complete'
-                            ? { ...current, phase: 'error', errorMessage: t(result.message) }
+                            ? { ...current, phase: 'error' }
                             : current,
                     )
-                } else {
-                    toast.error(t(result.message), { title: t('toast.titles.error') })
                 }
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             setDraftMode(null)
@@ -173,13 +201,17 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                 toast[kind](t(result.message), { title: t(`toast.titles.${kind}`) })
             }
         },
-        onError: (_error, { tracksProgress }) => {
+        onError: (_error, { tracksProgress, attemptId }) => {
+            if (saveGeneration.current !== attemptId || !canUpdate) return
             if (tracksProgress) {
                 setTransition((current) =>
                     current && current.phase !== 'complete'
                         ? { ...current, connectionInterrupted: true }
                         : current,
                 )
+                toast.warning(t('admin.crowdSec.progress.connectionInterrupted'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
                 toast.error(t('admin.crowdSec.errors.saveFailed'), {
                     title: t('toast.titles.error'),
@@ -327,17 +359,22 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                         : parsed.data.mode === 'disabled' && configuration?.mode === 'managed'
                           ? 'disabled'
                           : null
+                const attemptId = ++saveGeneration.current
                 if (targetMode) {
                     setTransition({
+                        attemptId,
                         targetMode,
                         startedAt: Date.now(),
                         phase: 'running',
                         connectionInterrupted: false,
                         runtimePending: false,
-                        errorMessage: null,
                     })
                 }
-                saveMutation.mutate({ input: parsed.data, tracksProgress: targetMode !== null })
+                saveMutation.mutate({
+                    input: parsed.data,
+                    tracksProgress: targetMode !== null,
+                    attemptId,
+                })
             },
             closeTransition: () => {
                 if (!displayedTransition || displayedTransition.phase === 'running') return

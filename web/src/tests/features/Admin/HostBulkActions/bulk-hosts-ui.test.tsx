@@ -1,5 +1,6 @@
 // oxlint-disable no-await-in-loop -- React updates must be flushed between bounded polling attempts.
-import { afterEach, beforeEach, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, expect, mock, spyOn, test } from 'bun:test'
+import { toast } from '@rentnerkev/toasts'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
@@ -62,8 +63,9 @@ mock.module('@/features/Admin/HostBulkActions/middleware.ts', () => ({
 mock.module('@/features/Admin/AccessPolicyManagement/middleware.ts', () => ({
     getAssignableAccessPoliciesHandler: async () => [],
 }))
+const certificates = mock(async () => [])
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
-    getAssignableCertificatesHandler: async () => [],
+    getAssignableCertificatesHandler: certificates,
 }))
 mock.module('@/features/Admin/HostTags/middleware.ts', () => ({
     getHostTagCatalogHandler: async () => ({ revision: 0, tags: [] }),
@@ -75,6 +77,9 @@ const { default: ProxyHostsTable } =
     await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostsTable/index.tsx')
 const { default: RedirectHostsTable } =
     await import('@/features/Admin/RedirectHostManagement/Components/RedirectHostsTable/index.tsx')
+let successToast: ReturnType<typeof spyOn<typeof toast, 'success'>>
+let errorToast: ReturnType<typeof spyOn<typeof toast, 'error'>>
+let warningToast: ReturnType<typeof spyOn<typeof toast, 'warning'>>
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
 
@@ -179,14 +184,21 @@ function table(
 }
 
 beforeEach(() => {
+    successToast = spyOn(toast, 'success').mockReturnValue('success')
+    errorToast = spyOn(toast, 'error').mockReturnValue('error')
+    warningToast = spyOn(toast, 'warning').mockReturnValue('warning')
     preview.mockClear()
     apply.mockClear()
+    certificates.mockClear()
 })
 afterEach(async () => {
     await act(async () => root?.unmount())
     client?.clear()
     document.body.innerHTML = ''
     root = undefined
+    successToast.mockRestore()
+    errorToast.mockRestore()
+    warningToast.mockRestore()
 })
 
 test('read-only users have no bulk selection controls', async () => {
@@ -266,7 +278,9 @@ test('requires a preview, sends only ready hosts, and keeps skipped rows and pen
     ])
     expect(document.body.textContent).toContain('Übersprungen')
     expect(document.body.textContent).toContain('Docker-Discovery')
-    expect(document.querySelector('[role="alert"]')?.textContent).toBeTruthy()
+    expect(warningToast).toHaveBeenCalledWith(expect.any(String), { title: 'Bitte beachten' })
+    expect(warningToast.mock.calls[0]?.[0]).not.toContain('admin.')
+    expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
     expect(button('Vorschau anwenden').disabled).toBe(true)
     await click(button('Erneut vorschauen'))
     await waitFor(() => preview.mock.calls.length === 2)
@@ -311,7 +325,12 @@ test('a failed apply clears the preview and never displays internal error conten
     await click(button('Änderungen vorschauen'))
     await waitFor(() => !button('Vorschau anwenden').disabled)
     await click(button('Vorschau anwenden'))
-    await waitFor(() => document.querySelector('[role="alert"]') !== null)
+    await waitFor(() => errorToast.mock.calls.length === 1)
+    expect(errorToast).toHaveBeenCalledWith(
+        'Die Anfrage ist fehlgeschlagen. Erstelle eine neue Vorschau und versuche es erneut.',
+        { title: 'Aktion fehlgeschlagen' },
+    )
+    expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
     expect(document.body.textContent).not.toContain('credential')
     expect(button('Vorschau anwenden').disabled).toBe(true)
 })
@@ -350,3 +369,211 @@ test('redirect-only managers can select redirect hosts with their own permission
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
     expect(document.body.textContent).not.toContain('admin.bulkHosts')
 })
+
+test('failed preview reports a localized toast without revealing internal errors', async () => {
+    preview.mockRejectedValueOnce(new Error('private preview fixture'))
+    await render(
+        <HostBulkModal
+            kind="proxy"
+            permissions={[PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_DISABLE]}
+            hostIds={[firstId]}
+            onOpenChange={() => undefined}
+        />,
+    )
+    await click(button('Änderungen vorschauen'))
+    await waitFor(() => errorToast.mock.calls.length === 1)
+    expect(errorToast).toHaveBeenCalledWith(
+        'Die Anfrage ist fehlgeschlagen. Erstelle eine neue Vorschau und versuche es erneut.',
+        { title: 'Aktion fehlgeschlagen' },
+    )
+    expect(button('Vorschau anwenden').disabled).toBe(true)
+    expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
+    expect(document.body.textContent).not.toContain('private preview fixture')
+})
+
+test('fully applied batches report success while partial results report a warning', async () => {
+    apply.mockResolvedValueOnce({
+        success: true,
+        value: {
+            runtimeStatus: 'applied',
+            rows: [{ id: firstId, label: 'one.example.test', status: 'applied' }],
+        },
+    })
+    await render(
+        <HostBulkModal
+            kind="proxy"
+            permissions={[PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_DISABLE]}
+            hostIds={[firstId, secondId]}
+            onOpenChange={() => undefined}
+        />,
+    )
+    await click(button('Änderungen vorschauen'))
+    await waitFor(() => !button('Vorschau anwenden').disabled)
+    await click(button('Vorschau anwenden'))
+    await waitFor(() => warningToast.mock.calls.length === 1)
+    expect(warningToast).toHaveBeenCalledWith(
+        expect.stringContaining('fehlgeschlagene oder übersprungene Hosts'),
+        { title: 'Bitte beachten' },
+    )
+    expect(successToast).not.toHaveBeenCalled()
+    preview.mockResolvedValueOnce({
+        success: true,
+        value: {
+            runtimeStatus: 'unchanged',
+            rows: [
+                {
+                    id: firstId,
+                    label: 'one.example.test',
+                    status: 'ready',
+                    version: 'a'.repeat(64),
+                },
+            ],
+        },
+    })
+    apply.mockResolvedValueOnce({
+        success: true,
+        value: {
+            runtimeStatus: 'applied',
+            rows: [{ id: firstId, label: 'one.example.test', status: 'applied' }],
+        },
+    })
+    await click(button('Erneut vorschauen'))
+    await waitFor(() => !button('Vorschau anwenden').disabled)
+    await click(button('Vorschau anwenden'))
+    await waitFor(() => successToast.mock.calls.length === 1)
+    expect(successToast).toHaveBeenCalledWith('Gespeichert', { title: 'Erfolgreich' })
+})
+
+test('failed assignment loading reports one toast and keeps preview blocked across renders', async () => {
+    certificates.mockRejectedValueOnce(new Error('private options fixture'))
+    const modal = (
+        <HostBulkModal
+            kind="proxy"
+            permissions={[PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_UPDATE]}
+            hostIds={[firstId]}
+            onOpenChange={() => undefined}
+        />
+    )
+    await render(modal)
+    const select = document.querySelector<HTMLElement>('[role="combobox"]')!
+    await act(async () =>
+        select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
+    )
+    await waitFor(() => document.querySelectorAll('[role="option"]').length === 3)
+    const certificate = [...document.querySelectorAll('[role="option"]')].find((option) =>
+        option.textContent?.includes('Zertifikat zuweisen'),
+    )!
+    await click(certificate)
+    await waitFor(() => errorToast.mock.calls.length === 1)
+    expect(button('Änderungen vorschauen').disabled).toBe(true)
+    expect(errorToast).toHaveBeenCalledWith(
+        'Die Anfrage ist fehlgeschlagen. Erstelle eine neue Vorschau und versuche es erneut.',
+        { title: 'Aktion fehlgeschlagen' },
+    )
+    await render(modal)
+    expect(errorToast).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
+    expect(document.body.textContent).not.toContain('private options fixture')
+})
+
+test.each(['unmount', 'hosts', 'permissions'] as const)(
+    'late preview failures do not affect the modal after %s changes',
+    async (change) => {
+        let fail!: (error: Error) => void
+        preview.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, reject) => {
+                    fail = reject
+                }),
+        )
+        const modalProps = {
+            kind: 'proxy' as const,
+            permissions: [PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_DISABLE],
+            hostIds: [firstId],
+            onOpenChange: () => undefined,
+        }
+        await render(<HostBulkModal {...modalProps} />)
+        await click(button('Änderungen vorschauen'))
+        if (change === 'unmount') {
+            await act(async () => root?.unmount())
+            root = undefined
+        } else {
+            await render(
+                <HostBulkModal
+                    {...modalProps}
+                    hostIds={change === 'hosts' ? [secondId] : [firstId]}
+                    permissions={
+                        change === 'permissions'
+                            ? [PERMISSIONS.PROXY_HOSTS_VIEW]
+                            : modalProps.permissions
+                    }
+                />,
+            )
+        }
+        await act(async () => {
+            fail(new Error('private late preview error'))
+            await new Promise((resolve) => setTimeout(resolve, 15))
+        })
+        expect(errorToast).not.toHaveBeenCalled()
+        expect(successToast).not.toHaveBeenCalled()
+    },
+)
+
+test.each(['unmount', 'hosts', 'permissions'] as const)(
+    'late applied results invalidate host data without old feedback after %s changes',
+    async (change) => {
+        let finish!: (value: { success: true; value: BulkHostResult }) => void
+        apply.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const modalProps = {
+            kind: 'proxy' as const,
+            permissions: [PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_DISABLE],
+            hostIds: [firstId],
+            onOpenChange: () => undefined,
+        }
+        await render(<HostBulkModal {...modalProps} />)
+        await click(button('Änderungen vorschauen'))
+        await waitFor(() => !button('Vorschau anwenden').disabled)
+        const invalidate = spyOn(client, 'invalidateQueries')
+        try {
+            await click(button('Vorschau anwenden'))
+            if (change === 'unmount') {
+                await act(async () => root?.unmount())
+                root = undefined
+            } else {
+                await render(
+                    <HostBulkModal
+                        {...modalProps}
+                        hostIds={change === 'hosts' ? [secondId] : [firstId]}
+                        permissions={
+                            change === 'permissions'
+                                ? [PERMISSIONS.PROXY_HOSTS_VIEW]
+                                : modalProps.permissions
+                        }
+                    />,
+                )
+            }
+            await act(async () => {
+                finish({
+                    success: true,
+                    value: {
+                        runtimeStatus: 'applied',
+                        rows: [{ id: firstId, label: 'old.example.test', status: 'applied' }],
+                    },
+                })
+                await new Promise((resolve) => setTimeout(resolve, 15))
+            })
+            expect(invalidate).toHaveBeenCalledTimes(2)
+            expect(successToast).not.toHaveBeenCalled()
+            expect(warningToast).not.toHaveBeenCalled()
+            expect(document.querySelector('caption')?.textContent ?? '').not.toContain('Ergebnisse')
+            if (change !== 'unmount') expect(button('Vorschau anwenden').disabled).toBe(true)
+        } finally {
+            invalidate.mockRestore()
+        }
+    },
+)

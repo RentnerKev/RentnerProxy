@@ -21,9 +21,7 @@ export default function RecoveryCodesModal({ codes, onClose }: RecoveryCodesModa
                         variant="secondary"
                         onClick={() => void logic.handler.copy()}
                     >
-                        {logic.state.copied
-                            ? t('account.recoveryCodes.copied')
-                            : t('account.recoveryCodes.copyAll')}
+                        {t('account.recoveryCodes.copyAll')}
                     </ModalActionButton>
                     <ModalActionButton type="button" onClick={onClose}>
                         {t('account.recoveryCodes.saved')}

@@ -46,19 +46,8 @@ export default function OidcConnectionsPanel({ userId, canUpdate }: OidcConnecti
             {state.error ? (
                 <FormMessage tone="error">account.oidc.error.unavailable</FormMessage>
             ) : null}
-            {state.message ? (
-                <FormMessage
-                    tone={
-                        state.message === 'account.oidc.unlinkedSuccess' ||
-                        state.message === 'account.oidc.linkedSuccess'
-                            ? 'success'
-                            : state.message === 'account.oidc.pending'
-                              ? 'info'
-                              : 'error'
-                    }
-                >
-                    {state.message}
-                </FormMessage>
+            {state.isNavigating ? (
+                <FormMessage tone="info">account.oidc.pending</FormMessage>
             ) : null}
             {state.isNavigating ? (
                 <button

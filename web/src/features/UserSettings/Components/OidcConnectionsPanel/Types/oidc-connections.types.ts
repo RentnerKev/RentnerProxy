@@ -15,7 +15,6 @@ export interface OidcConnectionsLogicResult {
         isLoading: boolean
         error: Error | null
         canUpdate: boolean
-        message: string | null
         isPending: boolean
         isNavigating: boolean
         action: OidcConnectionAction | null

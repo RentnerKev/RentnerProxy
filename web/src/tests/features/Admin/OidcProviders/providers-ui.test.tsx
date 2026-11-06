@@ -64,7 +64,7 @@ let pendingRead: Promise<void> | null
 let readUnavailable: boolean
 const writes: SaveOidcProvidersInput[] = []
 const probes: unknown[] = []
-const feedback: { kind: string; message: unknown }[] = []
+const feedback: { kind: string; message: string; title: string | undefined }[] = []
 let restores: (() => void)[] = []
 function initial(): OidcProvidersSummary {
     return {
@@ -98,8 +98,8 @@ beforeEach(() => {
     probes.length = 0
     feedback.length = 0
     restores = (['success', 'error'] as const).map((kind) => {
-        const spy = spyOn(toast, kind).mockImplementation((message) => {
-            feedback.push({ kind, message })
+        const spy = spyOn(toast, kind).mockImplementation((message, options) => {
+            feedback.push({ kind, message, title: options?.title })
             return 'toast'
         })
         return () => spy.mockRestore()
@@ -156,6 +156,10 @@ afterEach(async () => {
     client?.clear()
     document.body.replaceChildren()
     restores.forEach((restore) => restore())
+    for (const { kind, message, title } of feedback) {
+        expect(title).toBe(kind === 'success' ? 'Success' : 'Action failed')
+        expect(message.trim().length).toBeGreaterThan(0)
+    }
 })
 async function waitFor(condition: () => boolean) {
     const deadline = Date.now() + 2500
@@ -243,6 +247,50 @@ function visible(account: AuthenticatedUser) {
 }
 
 describe('OIDC provider setup UI', () => {
+    test('reports a trust change without a replacement secret with a title and body', async () => {
+        await render()
+        await click(button('Edit provider'))
+        await fill('oidc-clientId', 'changed-client')
+        await act(async () => {
+            await submit()
+            await waitFor(() => feedback.length > 0 && !button('Save changes', dialog()).disabled)
+        })
+        expect(feedback[0]).toEqual({
+            kind: 'error',
+            title: 'Action failed',
+            message: 'A new client secret is required for this provider or trust change.',
+        })
+        expect(writes).toHaveLength(0)
+        expect(dialog()).not.toBeNull()
+    })
+    test('reports a successful provider probe with a title and body', async () => {
+        await render()
+        await click(button('Test saved provider'))
+        await waitFor(() => feedback.length > 0)
+        expect(feedback[0]).toEqual({
+            kind: 'success',
+            title: 'Success',
+            message: 'Saved provider metadata verified. This does not test a user sign-in.',
+        })
+    })
+    test.each([true, false])(
+        'reports callback copying with a title and body when clipboard success is %s',
+        async (success) => {
+            const clipboard = spyOn(navigator.clipboard, 'writeText')
+            if (success) clipboard.mockResolvedValue(undefined)
+            else clipboard.mockRejectedValue(new Error('Clipboard unavailable'))
+            restores.push(() => clipboard.mockRestore())
+            await render()
+            await click(document.querySelector('[aria-label="Copy callback URL"]')!)
+            await waitFor(() => feedback.length > 0)
+            expect(clipboard).toHaveBeenCalledWith(snapshot.callbackUrl!)
+            expect(feedback[0]).toEqual({
+                kind: success ? 'success' : 'error',
+                title: success ? 'Success' : 'Action failed',
+                message: success ? 'Callback URL copied.' : 'Callback URL could not be copied.',
+            })
+        },
+    )
     test('freezes unavailable roles and recovers from live invalidation without a refresh control', async () => {
         rolesUnavailable = true
         await render()

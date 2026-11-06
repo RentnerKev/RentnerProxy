@@ -121,6 +121,12 @@ async function renderPage(permissions: readonly string[]): Promise<HTMLElement> 
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
     activeRoot = createRoot(container)
+    await renderPermissions(permissions)
+    await waitFor(() => container.textContent?.includes('Protection source') === true)
+    return container
+}
+
+async function renderPermissions(permissions: readonly string[]): Promise<void> {
     await act(async () => {
         activeRoot?.render(
             withTestLanguage(
@@ -135,8 +141,6 @@ async function renderPage(permissions: readonly string[]): Promise<HTMLElement> 
         )
         await Promise.resolve()
     })
-    await waitFor(() => container.textContent?.includes('Protection source') === true)
-    return container
 }
 
 async function click(element: Element): Promise<void> {
@@ -420,7 +424,10 @@ describe('CrowdSec management UI', () => {
         )
         expect(progressValue()).toBe(0)
 
-        releaseSave?.()
+        await act(async () => {
+            releaseSave?.()
+            await saveGate
+        })
         await waitFor(() => progressValue() === 30)
 
         configurationFetchFails = true
@@ -455,9 +462,16 @@ describe('CrowdSec management UI', () => {
         }
         await refreshConfiguration()
         await waitFor(() => progressValue() === 100)
-        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-success') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'Managed CrowdSec is active',
         )
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
+        await refreshConfiguration()
+        expect(document.querySelectorAll('.rentnerproxy-toast-success')).toHaveLength(1)
     })
 
     test('checks the disabled runtime after the save response is lost', async () => {
@@ -482,8 +496,17 @@ describe('CrowdSec management UI', () => {
                 document.querySelector('[role="dialog"]')?.textContent?.includes('interrupted') ===
                 true,
         )
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Please note',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'interrupted',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
         await refreshConfiguration()
         await waitFor(() => progressValue() === 30)
+        expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(1)
 
         configuration = {
             ...configuration,
@@ -504,9 +527,14 @@ describe('CrowdSec management UI', () => {
         }
         await refreshConfiguration()
         await waitFor(() => progressValue() === 100)
-        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-success') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'protection is disabled',
         )
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
         expect(container.textContent).not.toContain('CrowdSec configuration unavailable')
     })
 
@@ -519,14 +547,49 @@ describe('CrowdSec management UI', () => {
         await waitFor(
             () =>
                 document
-                    .querySelector('[role="dialog"]')
+                    .querySelector('.rentnerproxy-toast-error')
                     ?.textContent?.includes('changed in another session') === true,
         )
 
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Action failed',
+        )
+        expect(document.body.textContent?.split('changed in another session')).toHaveLength(2)
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+        await refreshConfiguration()
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
         expect(progressValue()).toBe(0)
         expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
             'Managed CrowdSec is active',
         )
         expect(configuration.mode).toBe('disabled')
     })
+
+    test.each(['rejected', 'lost response', 'accepted'] as const)(
+        'suppresses late %s feedback after update permission is lost and restored',
+        async (outcome) => {
+            saveFailure = outcome === 'rejected'
+            loseSaveResponse = outcome === 'lost response'
+            saveGate = new Promise<void>((resolve) => {
+                releaseSave = resolve
+            })
+            const container = await renderPage([
+                PERMISSIONS.CROWDSEC_VIEW,
+                PERMISSIONS.CROWDSEC_UPDATE,
+            ])
+            await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+            await click(button(container, 'Save and apply'))
+            await renderPermissions([PERMISSIONS.CROWDSEC_VIEW])
+            await renderPermissions([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+            await act(async () => {
+                releaseSave?.()
+                await saveGate
+                await new Promise((resolve) => setTimeout(resolve, 20))
+            })
+            await refreshConfiguration()
+            expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+            expect(document.querySelector('progress')).toBeNull()
+        },
+    )
 })

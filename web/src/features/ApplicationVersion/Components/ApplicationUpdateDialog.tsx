@@ -11,7 +11,7 @@ export default function ApplicationUpdateDialog({
     onOpenChange,
 }: ApplicationUpdateDialogProps) {
     const { t } = useTranslationStore()
-    const { state, handler } = useApplicationUpdateDialogLogic(data)
+    const { state, handler } = useApplicationUpdateDialogLogic(data, open)
 
     return (
         <Modal
@@ -103,11 +103,7 @@ export default function ApplicationUpdateDialog({
                             >
                                 {t('updates.copy')}
                             </button>
-                            <output className="m-0 text-muted">
-                                {state.copyState !== 'idle'
-                                    ? t(`updates.copyStates.${state.copyState}`)
-                                    : t('updates.copyHint')}
-                            </output>
+                            <output className="m-0 text-muted">{t('updates.copyHint')}</output>
                         </div>
                     ) : null}
                 </section>

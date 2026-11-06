@@ -7,14 +7,16 @@ import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { createRuntimeSupportReport } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
 import { supportReportFixture } from '@/tests/lib/RuntimeDiagnostics/runtime-support-report.fixture.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
+import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 
-if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+if (!GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
+}
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: withTestPageAlerts, openPageAlerts } =
-    await import('@/tests/Helpers/withTestPageAlerts.tsx')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const report = createRuntimeSupportReport(supportReportFixture(), new Date('2026-10-06T10:00:00Z'))
 const exportMock = mock(async () => report)
 mock.module('@/features/Admin/RuntimeDiagnostics/middleware.ts', () => ({
@@ -44,7 +46,9 @@ async function render(
     await act(async () =>
         root?.render(
             withTestLanguage(
-                withTestPageAlerts(<RuntimeSupportDownload permissions={permissions} />),
+                <ToastProvider {...TOAST_PROVIDER_PROPS}>
+                    <RuntimeSupportDownload permissions={permissions} />
+                </ToastProvider>,
             ),
         ),
     )
@@ -52,6 +56,7 @@ async function render(
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     exportMock.mockReset()
     exportMock.mockResolvedValue(report)
     createUrlMock.mockClear()
@@ -62,6 +67,7 @@ beforeEach(() => {
 
 afterEach(async () => {
     await act(async () => root?.unmount())
+    toast.dismissAll()
     root = null
     document.body.replaceChildren()
 })
@@ -102,9 +108,13 @@ describe('explicit local support report download', () => {
         expect(blobs[0]?.type).toBe('application/json')
         expect(JSON.parse(await blobs[0]!.text())).toEqual(report)
         expect(container.querySelector('a')).toBeNull()
-        expect(container.querySelector('output[aria-live="polite"]')?.textContent).toContain(
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'download started',
         )
+        expect(container.querySelector('output[aria-live="polite"]')).toBeNull()
         expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
             false,
         )
@@ -133,13 +143,14 @@ describe('explicit local support report download', () => {
         await act(async () =>
             resolveReport({ ...report, completeness: 'partial', unavailableSections: ['valkey'] }),
         )
-        expect(container.querySelector('output[aria-live="polite"]')?.textContent).toContain(
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Please note',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
             'Partial report download started',
         )
-        expect(
-            container.querySelector('button[data-severity]')?.getAttribute('data-severity'),
-        ).toBe('warning')
-        expect((await openPageAlerts()).textContent).toContain('Partial report download started')
+        expect(container.querySelector('button[data-severity]')).toBeNull()
+        expect(container.textContent).not.toContain('Partial report download started')
         expect(JSON.parse(await blobs[0]!.text()).unavailableSections).toEqual(['valkey'])
         expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
             false,
@@ -151,21 +162,72 @@ describe('explicit local support report download', () => {
         const container = await render()
         const button = container.querySelector('button')!
         await act(async () => button.click())
-        expect(container.querySelector('output[aria-live="polite"]')).not.toBeNull()
-        expect(container.textContent).toContain('could not be downloaded')
+        expect(container.querySelector('output[aria-live="polite"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Action failed',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'could not be downloaded',
+        )
+        expect(container.textContent).not.toContain('could not be downloaded')
         expect(container.textContent).not.toContain('PRIVATE-FIXTURE')
         expect(createUrlMock).not.toHaveBeenCalled()
         expect(container.querySelector<HTMLButtonElement>('button[aria-busy]')?.disabled).toBe(
             false,
         )
-        expect(
-            container.querySelector('button[data-severity]')?.getAttribute('data-severity'),
-        ).toBe('error')
-        const details = await openPageAlerts()
-        expect(details.textContent).toContain('could not be downloaded')
-        await act(async () => details.querySelector<HTMLButtonElement>('li button')?.click())
+        expect(container.querySelector('button[data-severity]')).toBeNull()
+        await act(async () =>
+            container.querySelector<HTMLButtonElement>('button[aria-busy]')!.click(),
+        )
         expect(createUrlMock).toHaveBeenCalledTimes(1)
-        expect(container.textContent).toContain('download started')
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'download started',
+        )
         expect(container.querySelector('button[data-severity]')).toBeNull()
     })
+
+    test.each([
+        { scope: 'unmount', reject: false },
+        { scope: 'unmount', reject: true },
+        { scope: 'permission', reject: false },
+        { scope: 'permission', reject: true },
+    ] as const)(
+        'suppresses late export feedback after $scope (rejected: $reject)',
+        async ({ scope, reject }) => {
+            let resolveReport!: (value: typeof report) => void
+            let rejectReport!: (error: Error) => void
+            exportMock.mockImplementationOnce(
+                () =>
+                    new Promise((resolve, fail) => {
+                        resolveReport = resolve
+                        rejectReport = fail
+                    }),
+            )
+            const container = await render()
+            await act(async () =>
+                container.querySelector<HTMLButtonElement>('button[aria-busy]')!.click(),
+            )
+            await act(async () => {
+                if (scope === 'unmount') {
+                    root?.unmount()
+                    root = null
+                } else {
+                    root?.render(
+                        withTestLanguage(
+                            <ToastProvider {...TOAST_PROVIDER_PROPS}>
+                                <RuntimeSupportDownload permissions={[]} />
+                            </ToastProvider>,
+                        ),
+                    )
+                }
+            })
+            await act(async () => {
+                if (reject) rejectReport(new Error('PRIVATE-LATE-ERROR'))
+                else resolveReport(report)
+            })
+            expect(createUrlMock).not.toHaveBeenCalled()
+            expect(links).toHaveLength(0)
+            expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+        },
+    )
 })

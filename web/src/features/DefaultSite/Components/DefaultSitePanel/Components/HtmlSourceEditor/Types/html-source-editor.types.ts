@@ -16,7 +16,6 @@ export interface HtmlSourceEditorLogicResult {
         colorPreset: HtmlEditorColorPreset
         colorOptions: { value: HtmlEditorColorPreset; label: string }[]
         isFormatting: boolean
-        formatError: string | null
         canFormat: boolean
     }
     handler: {

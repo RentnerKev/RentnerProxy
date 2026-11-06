@@ -26,7 +26,6 @@ export default function useOidcConnectionsLogic(
     const [action, setAction] = useState<OidcConnectionAction | null>(null)
     const nativeNavigation = useRef<OidcConnectionAction | null>(null)
     const cancellationLock = useRef(false)
-    const [message, setMessage] = useState<string | null>(null)
     const [isNavigating, setIsNavigating] = useState(false)
     const form = useRef<HTMLFormElement>(null)
     const lock = useRef(false)
@@ -154,7 +153,6 @@ export default function useOidcConnectionsLogic(
         nativeNavigation.current = null
         close()
         setIsNavigating(false)
-        setMessage('')
         const cancelledGeneration = generation.current
         lock.current = true
         void query.refetch().finally(() => {
@@ -171,7 +169,6 @@ export default function useOidcConnectionsLogic(
             return
         }
         const key = getOidcConnectionsErrorKey(error)
-        setMessage(key)
         toast.error(t(key), { title: t('toast.titles.error') })
         if (error instanceof OidcConnectionsError && error.code === 'configuration_conflict')
             await query.refetch()
@@ -192,7 +189,6 @@ export default function useOidcConnectionsLogic(
         )
             return
         lock.current = true
-        setMessage('')
         const nextAction = { providerId, kind, expectedRevision: data.revision }
         setAction(nextAction)
         void execute(nextAction)
@@ -210,12 +206,10 @@ export default function useOidcConnectionsLogic(
                 providerInput.value = pendingAction.providerId
                 nativeNavigation.current = pendingAction
                 setIsNavigating(true)
-                setMessage('account.oidc.pending')
                 element.submit()
             } else {
                 await unlink.mutateAsync(pendingAction)
                 if (currentGeneration !== generation.current) return
-                setMessage('account.oidc.unlinkedSuccess')
                 toast.success(t('account.oidc.unlinkedSuccess'), {
                     title: t('toast.titles.success'),
                 })
@@ -241,7 +235,6 @@ export default function useOidcConnectionsLogic(
             isLoading: query.isPending && canUpdate,
             error: query.error,
             canUpdate,
-            message: message ?? callbackMessage,
             isPending: unlink.isPending || isNavigating || query.isFetching,
             isNavigating,
             action,

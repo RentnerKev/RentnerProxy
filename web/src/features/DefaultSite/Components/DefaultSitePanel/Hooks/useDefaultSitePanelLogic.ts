@@ -18,8 +18,6 @@ import type {
 
 export function useDefaultSitePanelLogic(canUpdate: boolean) {
     const { t } = useTranslationStore()
-    const [error, setError] = useState<string | null>(null)
-    const [runtimeStatus, setRuntimeStatus] = useState<'applied' | 'pending' | null>(null)
     const [baseline, setBaseline] = useState<DefaultSiteEditorData | null>(null)
     const saveInFlight = useRef(false)
     const query = useQuery({
@@ -55,16 +53,13 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             )
             if (!settings.success) return
             saveInFlight.current = true
-            setError(null)
             try {
                 const result = await mutation.mutateAsync(settings.data)
                 if (!result.success) {
                     if (result.message === 'defaultSite.errors.conflict') void query.refetch()
-                    setError(t(result.message))
                     toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
                 }
-                setRuntimeStatus(result.runtimeStatus)
                 toast.success(
                     t(
                         result.runtimeStatus === 'pending'
@@ -84,7 +79,6 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
                     })
                 }
             } catch {
-                setError(t('defaultSite.errors.saveFailed'))
                 toast.error(t('defaultSite.errors.saveFailed'), { title: t('toast.titles.error') })
             } finally {
                 saveInFlight.current = false
@@ -128,8 +122,6 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             isDirty,
             isValid: validated.success,
             htmlBytes: new TextEncoder().encode(values.html).byteLength,
-            error,
-            runtimeStatus,
             modeOptions: DEFAULT_SITE_MODES.map((mode) => ({
                 value: mode,
                 label: t(`defaultSite.modes.${mode}`),
@@ -141,7 +133,6 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
                 void form.handleSubmit()
             },
             handleDiscard: () => {
-                setError(null)
                 if (!query.data) return
                 setBaseline(query.data)
                 const { settings: loaded } = query.data

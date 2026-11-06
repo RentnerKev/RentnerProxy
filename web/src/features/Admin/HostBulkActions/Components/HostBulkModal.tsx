@@ -79,17 +79,6 @@ export default function HostBulkModal(props: BulkHostModalProps) {
                         onValueChange={handler.handleAssignmentChange}
                     />
                 ) : null}
-                {state.optionsError ? <div role="alert">{t('admin.bulkHosts.error')}</div> : null}
-                {state.error ? (
-                    <p role="alert" className="text-danger-text">
-                        {state.error}
-                    </p>
-                ) : null}
-                {state.result?.runtimeStatus === 'pending' ? (
-                    <p role="alert" className="text-warning-text">
-                        {t('admin.proxyHosts.runtime.savedPending')}
-                    </p>
-                ) : null}
                 {state.rows.length ? (
                     <div className="overflow-x-auto" aria-live="polite">
                         <table className="w-full text-left text-sm">

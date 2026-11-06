@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { toast } from '@rentnerkev/toasts'
 import { Annotation, Compartment, EditorState } from '@codemirror/state'
 import { EditorView, placeholder } from '@codemirror/view'
 import { createHtmlEditorExtensions } from '../editorExtensions.ts'
@@ -27,7 +28,6 @@ export function useHtmlSourceEditorLogic(
     const formatting = useRef(false)
     const [colorPreset, setColorPreset] = useState<HtmlEditorColorPreset>('rentnerproxy')
     const [isFormatting, setIsFormatting] = useState(false)
-    const [formatError, setFormatError] = useState<string | null>(null)
     const [configuration] = useState(() => ({
         theme: new Compartment(),
         editable: new Compartment(),
@@ -62,7 +62,6 @@ export function useHtmlSourceEditorLogic(
                                 transaction.annotation(externalUpdate),
                             )
                         ) {
-                            setFormatError(null)
                             latest.current.onChange(update.state.doc.toString())
                         }
                     }),
@@ -89,7 +88,6 @@ export function useHtmlSourceEditorLogic(
                 changes: { from: 0, to: current.length, insert: props.value },
                 annotations: externalUpdate.of(true),
             })
-            setFormatError(null)
         }
     }, [props.value])
 
@@ -132,16 +130,17 @@ export function useHtmlSourceEditorLogic(
         const source = view.state.doc.toString()
         formatting.current = true
         setIsFormatting(true)
-        setFormatError(null)
         try {
             const result = await formatDefaultSiteHtmlHandler({ data: source })
             if (!mounted.current || latest.current.disabled || editor.current !== view) return
             if (!result.success) {
-                setFormatError(t(result.message))
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             if (view.state.doc.toString() !== source) {
-                setFormatError(t('defaultSite.editor.formatChanged'))
+                toast.warning(t('defaultSite.editor.formatChanged'), {
+                    title: t('toast.titles.warning'),
+                })
                 return
             }
             if (result.html !== source) {
@@ -152,7 +151,9 @@ export function useHtmlSourceEditorLogic(
             }
         } catch {
             if (mounted.current && editor.current === view) {
-                setFormatError(t('defaultSite.editor.formatFailed'))
+                toast.error(t('defaultSite.editor.formatFailed'), {
+                    title: t('toast.titles.error'),
+                })
             }
         } finally {
             formatting.current = false
@@ -173,7 +174,6 @@ export function useHtmlSourceEditorLogic(
                 label: t(`defaultSite.editor.presets.${value}`),
             })),
             isFormatting,
-            formatError,
             canFormat: !props.disabled && !isFormatting && props.value.trim().length > 0,
         },
         handler: { handleColorChange, handleFormat },

@@ -28,7 +28,6 @@ const initialState: AlternativeLoginMethodsProps['state'] = {
     isOidcPending: false,
     isProviderCatalogPending: false,
     isProviderCatalogUnavailable: false,
-    oidcFeedback: null,
     alternativeSignInItems: [
         { id: 'passkey', label: 'Sign in with passkey' },
         { id: providerId, label: 'Sign in with Office <identity>' },

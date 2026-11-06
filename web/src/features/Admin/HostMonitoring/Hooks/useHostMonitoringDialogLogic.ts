@@ -1,3 +1,4 @@
+import { toast } from '@rentnerkev/toasts'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -44,12 +45,20 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     const [tab, setTab] = useState<MonitoringTab>('overview')
     const [status, setStatus] = useState<HostMonitoringHistoryQuery['status']>('all')
     const [period, setPeriod] = useState<MonitoringPeriod>('recent')
-    const [notice, setNotice] = useState('')
     const [conflict, setConflict] = useState(false)
     const [ready, setReady] = useState(false)
     const [accessRevoked, setAccessRevoked] = useState(false)
     const baseVersion = useRef<string | null>(null)
     const draftOwner = useRef('')
+    const generation = useRef({ scope: '', version: 0 })
+    const scope = JSON.stringify([props.open, props.host.id, props.host.domains, props.permissions])
+    useEffect(() => {
+        const currentGeneration = generation.current
+        currentGeneration.scope = scope
+        return () => {
+            currentGeneration.version += 1
+        }
+    }, [scope])
     const domains = useMemo(
         () =>
             props.host.domains
@@ -116,24 +125,41 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     )
     const [draftDefaults, setDraftDefaults] = useState(defaultSettings)
     const mutation = useMutation({
-        mutationFn: (input: Parameters<typeof saveHostMonitoringPolicy>[0]) =>
-            saveHostMonitoringPolicy(input),
-        onSuccess: async (saved) => {
-            queryClient.setQueryData(hostMonitoringQueryKeys.policy(props.host.id), saved)
+        mutationFn: ({
+            input,
+        }: {
+            input: Parameters<typeof saveHostMonitoringPolicy>[0]
+            generation: number
+        }) => saveHostMonitoringPolicy(input),
+        onSuccess: async (saved, attempt) => {
+            queryClient.setQueryData(
+                hostMonitoringQueryKeys.policy(attempt.input.proxyHostId),
+                saved,
+            )
+            const invalidation = queryClient.invalidateQueries({
+                queryKey: hostMonitoringQueryKeys.all,
+            })
+            if (attempt.generation !== generation.current.version) {
+                await invalidation
+                return
+            }
             baseVersion.current = saved.version
             setDraftDefaults(saved.settings)
             form.reset(saved.settings)
             setConflict(false)
-            setNotice(t('admin.hostMonitoring.saved'))
-            await queryClient.invalidateQueries({ queryKey: hostMonitoringQueryKeys.all })
+            toast.success(t('admin.hostMonitoring.saved'), { title: t('toast.titles.success') })
+            await invalidation
         },
-        onError: (error) => {
+        onError: (error, attempt) => {
+            if (attempt.generation !== generation.current.version) return
             if (error instanceof HostMonitoringClientError && error.code === 'conflict') {
                 setConflict(true)
                 void policyQuery.refetch()
-                setNotice(t('admin.hostMonitoring.conflict'))
+                toast.warning(t('admin.hostMonitoring.conflict'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                setNotice(t('admin.hostMonitoring.saveError'))
+                toast.error(t('admin.hostMonitoring.saveError'), { title: t('toast.titles.error') })
             }
             if (privateError(error)) {
                 setAccessRevoked(true)
@@ -162,13 +188,16 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
                 return
             const parsed = hostMonitoringSettingsSchema.safeParse(value)
             if (!parsed.success) {
-                setNotice(t('admin.hostMonitoring.invalid'))
+                toast.error(t('admin.hostMonitoring.invalid'), { title: t('toast.titles.error') })
                 return
             }
             mutation.mutate({
-                proxyHostId: props.host.id,
-                expectedVersion: baseVersion.current,
-                settings: parsed.data,
+                generation: generation.current.version,
+                input: {
+                    proxyHostId: props.host.id,
+                    expectedVersion: baseVersion.current,
+                    settings: parsed.data,
+                },
             })
         },
     })
@@ -188,14 +217,19 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             return
         }
         if (!policyQuery.isSuccess) return
-        if (draftOwner.current === props.host.id) {
+        if (draftOwner.current === scope) {
             if (dirty) {
-                if (baseVersion.current !== (policyQuery.data?.version ?? null)) setConflict(true)
+                if (!conflict && baseVersion.current !== (policyQuery.data?.version ?? null)) {
+                    setConflict(true)
+                    toast.warning(t('admin.hostMonitoring.conflict'), {
+                        title: t('toast.titles.warning'),
+                    })
+                }
                 return
             }
             if (baseVersion.current === (policyQuery.data?.version ?? null)) return
         }
-        draftOwner.current = props.host.id
+        draftOwner.current = scope
         baseVersion.current = policyQuery.data?.version ?? null
         const nextDefaults = policyQuery.data?.settings ?? {
             ...HOST_MONITORING_DEFAULTS,
@@ -205,16 +239,17 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         form.reset(nextDefaults)
         setReady(true)
         setConflict(false)
-        setNotice('')
     }, [
         props.open,
-        props.host.id,
         props.host.domains,
         forbidden,
         policyQuery.isSuccess,
         policyQuery.data,
         form,
         dirty,
+        conflict,
+        t,
+        scope,
     ])
     // oxlint-enable react/set-state-in-effect
     const observations = useMemo(
@@ -276,7 +311,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             setDraftDefaults(latest)
             form.reset(latest)
             setConflict(false)
-            setNotice('')
         },
         handleSubmit: (event) => {
             event.preventDefault()
@@ -306,7 +340,6 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         dirty,
         valid,
         conflict,
-        notice,
         ready,
         numericFields: [
             { name: 'intervalSeconds', min: 30, max: 86_400 },
