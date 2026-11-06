@@ -125,7 +125,7 @@ describe('versioned release readiness generation', () => {
     })
 })
 
-test('publishes readiness last with trusted automation and the assessed build digest', async () => {
+test('publishes readiness before the final body with trusted automation and the assessed build digest', async () => {
     const root = resolve(import.meta.dir, '../../../../..')
     const pipeline = (
         await readFile(resolve(root, '.github/workflows/release-pipeline.yml'), 'utf8')
@@ -136,10 +136,24 @@ test('publishes readiness last with trusted automation and the assessed build di
     expect(publish).toContain('RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}')
     expect(publish).toContain('RELEASE_PLATFORMS: ${{ needs.publish-image.outputs.platforms }}')
     expect(publish).toContain('ref: ${{ github.workflow_sha }}')
-    expect(publish.indexOf('publish-release-readiness.sh')).toBeGreaterThan(
-        publish.indexOf('publish-release-notes.sh'),
+    expect(publish.trimEnd().endsWith('publish-release-notes.sh')).toBeTrue()
+    const finalNotes = await readFile(
+        resolve(root, '.github/scripts/release/publish-release-notes.sh'),
+        'utf8',
     )
-    expect(publish.trimEnd().endsWith('publish-release-readiness.sh')).toBeTrue()
+    expect(finalNotes.indexOf('publish-release-readiness.sh')).toBeLessThan(
+        finalNotes.indexOf('gh release upload'),
+    )
+    expect(finalNotes).toContain('publish-release-readiness.sh" --validate-only')
+    expect(finalNotes.lastIndexOf('publish-release-readiness.sh')).toBeGreaterThan(
+        finalNotes.indexOf('gh release upload'),
+    )
+    expect(finalNotes.indexOf('gh release edit')).toBeGreaterThan(
+        finalNotes.indexOf('publish-release-readiness.sh'),
+    )
+    expect(finalNotes.lastIndexOf('verify-release-identity.sh')).toBeGreaterThan(
+        finalNotes.indexOf('publish-release-readiness.sh'),
+    )
 
     const script = await readFile(
         resolve(root, '.github/scripts/release/publish-release-readiness.sh'),

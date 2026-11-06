@@ -67,6 +67,12 @@ export interface RenderedReleaseNotes {
     changelog: string
 }
 
+export interface BuildingReleaseNotesInput {
+    repository: string
+    tagName: string
+    bannerAssetName: string
+}
+
 export interface ParsedReleaseTag {
     channel: ReleaseChannel
     prereleasePart?: string

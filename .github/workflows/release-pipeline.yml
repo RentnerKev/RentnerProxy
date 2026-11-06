@@ -34,13 +34,43 @@ env:
     BUN_VERSION: 1.4.4
 
 jobs:
+    building:
+        name: Show release building status
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: write
+        steps:
+            - name: Check out trusted release automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+
+            - name: Set up Bun without source installation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Publish validated building status
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_CHANNEL: ${{ inputs.channel }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+              shell: bash
+              run: bash automation/.github/scripts/release/publish-building-release.sh
+
     prepare:
+        needs: building
         name: Prepare release
         runs-on: ubuntu-latest
         timeout-minutes: 10
         permissions:
             contents: read
-            issues: read
         outputs:
             channel_tag: ${{ steps.release.outputs.channel_tag }}
             changelog_filename: ${{ steps.release.outputs.changelog_filename }}
@@ -90,24 +120,6 @@ jobs:
                   RELEASE_TAG: ${{ inputs.release_tag }}
               shell: bash
               run: bash automation/.github/scripts/release/prepare-release-source.sh
-
-            - name: Set up Bun
-              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-              with:
-                  bun-version: ${{ env.BUN_VERSION }}
-
-            - name: Generate issue-based release notes
-              env:
-                  CHANGELOG_FILENAME: ${{ steps.release.outputs.changelog_filename }}
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  RELEASE_CHANNEL: ${{ inputs.channel }}
-                  RELEASE_ID: ${{ inputs.release_id }}
-                  RELEASE_IMAGE: ${{ steps.release.outputs.image }}
-                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
-                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
-                  RELEASE_TAG: ${{ inputs.release_tag }}
-              shell: bash
-              run: bash automation/.github/scripts/release/prepare-release-notes.sh
 
             - name: Store prepared release assets
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -210,6 +222,7 @@ jobs:
         permissions:
             actions: read
             contents: write
+            issues: read
         steps:
             - name: Check out trusted release automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -231,6 +244,24 @@ jobs:
                   name: rentnerproxy-${{ inputs.channel }}-release-${{ github.run_id }}
                   path: ${{ runner.temp }}/rentnerproxy-release
 
+            - name: Set up Bun for final release validation
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Generate issue-based release notes
+              env:
+                  CHANGELOG_FILENAME: ${{ needs.prepare.outputs.changelog_filename }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_CHANNEL: ${{ inputs.channel }}
+                  RELEASE_ID: ${{ inputs.release_id }}
+                  RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+              shell: bash
+              run: bash automation/.github/scripts/release/prepare-release-notes.sh
+
             - name: Validate prepared release assets
               env:
                   CHANGELOG_FILENAME: ${{ needs.prepare.outputs.changelog_filename }}
@@ -238,24 +269,9 @@ jobs:
               shell: bash
               run: bash automation/.github/scripts/release/validate-release-assets.sh
 
-            - name: Upload assets and update release body
+            - name: Publish assets and readiness before switching to final release notes
               env:
                   CHANGELOG_FILENAME: ${{ needs.prepare.outputs.changelog_filename }}
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  RELEASE_ID: ${{ inputs.release_id }}
-                  RELEASE_PRERELEASE: ${{ inputs.prerelease }}
-                  RELEASE_PUBLISHED_AT: ${{ inputs.published_at }}
-                  RELEASE_TAG: ${{ inputs.release_tag }}
-              shell: bash
-              run: bash automation/.github/scripts/release/publish-release-notes.sh
-
-            - name: Set up Bun for release readiness
-              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-              with:
-                  bun-version: ${{ env.BUN_VERSION }}
-
-            - name: Publish readiness after verified image and release assets
-              env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_CHANNEL: ${{ inputs.channel }}
                   RELEASE_DIGEST: ${{ needs.build.outputs.digest }}
@@ -267,4 +283,4 @@ jobs:
                   RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}
                   RELEASE_TAG: ${{ inputs.release_tag }}
               shell: bash
-              run: bash automation/.github/scripts/release/publish-release-readiness.sh
+              run: bash automation/.github/scripts/release/publish-release-notes.sh

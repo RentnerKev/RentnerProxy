@@ -1,4 +1,5 @@
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
+import { contributorAvatarAssetName, contributorLogins } from './contributor-avatars.ts'
 import type {
     ReleaseChannel,
     ReleaseNotesConfig,
@@ -10,6 +11,7 @@ import type {
     ReleaseNotesDocumentInput,
     RenderedReleaseNotes,
     ParsedReleaseTag,
+    BuildingReleaseNotesInput,
 } from './Types/release-notes.types.ts'
 
 const VERSION_CORE = String.raw`(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)`
@@ -231,27 +233,6 @@ function categorizedIssues(
     return categories
 }
 
-function contributorLogins(issues: readonly GitHubIssue[]): string[] {
-    const contributors = new Map<string, string>()
-    for (const issue of issues) {
-        const user = issue.user
-        if (
-            user === null ||
-            user === undefined ||
-            user.login.trim() === '' ||
-            user.type?.toLowerCase() === 'bot' ||
-            /\[bot\]$/i.test(user.login)
-        ) {
-            continue
-        }
-        const login = user.login.trim()
-        contributors.set(login.toLowerCase(), login)
-    }
-    return [...contributors.values()].toSorted((left, right) =>
-        left.localeCompare(right, 'en', { sensitivity: 'base' }),
-    )
-}
-
 function fullChangelogMarkdown(
     repository: string,
     previousTag: string | undefined,
@@ -326,10 +307,13 @@ function renderIssueChangelog(input: ReleaseNotesDocumentInput): string {
             [
                 '## 🙌 Contributors',
                 '',
-                ...contributors.map(
-                    (login) =>
-                        `- [@${escapeMarkdownInline(login)}](https://github.com/${encodeURIComponent(login)})`,
-                ),
+                '<p>',
+                ...contributors.map((login) => {
+                    const profile = `https://github.com/${encodeURIComponent(login)}`
+                    const avatar = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/${contributorAvatarAssetName(login)}`
+                    return `<a href="${profile}" title="@${login}"><img src="${avatar}" width="48" height="48" alt="@${login}" /></a>`
+                }),
+                '</p>',
             ].join('\n'),
         )
     }
@@ -366,6 +350,23 @@ function renderUpgradeCompatibility(tagName: string, channel: ReleaseChannel): r
         'Alpha v3 backups must first be restored with the Beta 1 release and its restore tools, then backed up again as v4. Direct Alpha upgrades and v3 restores into this release are unsupported. Rollback requires a pre-upgrade backup, a fresh volume, and the exact source release.',
         '',
     ]
+}
+
+export function renderBuildingReleaseNotes(input: BuildingReleaseNotesInput): string {
+    const channel = deriveReleaseChannel(input.tagName)
+    validateReleaseTag(input.tagName, channel !== 'stable')
+    validateRepository(input.repository)
+    const bannerUrl = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(input.tagName)}/${encodeURIComponent(input.bannerAssetName)}`
+    return [
+        `![New Version is Building](${bannerUrl})`,
+        '',
+        '# 🚧 New Version is Building',
+        '',
+        `**RentnerProxy \`${input.tagName}\` is building.**`,
+        '',
+        'The complete release will appear here when it is ready.',
+        '',
+    ].join('\n')
 }
 
 export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedReleaseNotes {
@@ -411,6 +412,8 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
     const channelImage = `${input.image}:${channelTag}`
     const immutableImage = `${input.image}:${input.tagName}`
     const codeFence = String.fromCharCode(96).repeat(3)
+    const releaseSource = `${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}`
+    const installGuide = 'https://rentnerkev.github.io/RentnerProxy/INSTALL.txt'
 
     const body = [
         `![${bannerAlt}](${bannerUrl})`,
@@ -421,8 +424,20 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         '',
         '---',
         '',
-        ...upgradeCompatibility,
-        '## 📦 Docker',
+        '## 📦 Installation & downloads',
+        '',
+        '**Choose how you want to run RentnerProxy.** Images and Linux packages are available for **AMD64 and ARM64**.',
+        '',
+        '| Installation | Distribution | Get started |',
+        '| --- | --- | --- |',
+        `| 🐳 **Docker / Compose** | OCI appliance image | [Compose setup](${releaseSource}/README.md#installation) |`,
+        `| 🦭 **Podman / Quadlet** | Versioned Quadlet archive | [Install & verify](${installGuide}) |`,
+        `| 🐧 **Debian 13** | Signed APT repository and DEB packages | [APT setup](${installGuide}) |`,
+        `| 🎩 **Fedora 44** | Signed DNF repository and RPM packages | [DNF setup](${installGuide}) |`,
+        '',
+        'Linux packages use rootful Podman/Quadlet, systemd and cgroup v2. The installation guide covers signing-key verification, setup, updates and recovery.',
+        '',
+        '### 🐳 Docker / Compose',
         '',
         '| Channel | Image |',
         '| --- | --- |',
@@ -435,6 +450,7 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         '',
         `[Upgrade and recovery instructions](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/README.md#upgrade)`,
         '',
+        ...upgradeCompatibility,
         issueChangelog.trimEnd(),
         '',
     ].join('\n')

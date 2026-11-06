@@ -6,6 +6,7 @@ import type {
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
+import { prepareContributorAvatars } from './prepare-contributor-avatars.ts'
 
 import {
     filterIssues,
@@ -309,6 +310,7 @@ async function main(): Promise<void> {
     )
 
     await mkdir(outputDirectory, { recursive: true })
+    await prepareContributorAvatars(result.issues, outputDirectory)
     const changelogFilename = `RentnerProxy-${tagName}-CHANGELOG.md`
     await Promise.all([
         writeFile(resolve(outputDirectory, 'release-body.md'), result.body, 'utf8'),

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-bun automation/.github/scripts/release/generate-release-notes.ts \
+bun --no-env-file automation/.github/scripts/release/generate-release-notes.ts \
     --config automation/.github/release-notes.json \
     --output-dir "$RUNNER_TEMP/rentnerproxy-release"
 

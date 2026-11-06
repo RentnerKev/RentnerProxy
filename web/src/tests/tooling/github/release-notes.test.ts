@@ -10,6 +10,7 @@ import {
     findPreviousRelease,
     deriveReleaseChannel,
     renderReleaseNotes,
+    renderBuildingReleaseNotes,
     validateReleaseTag,
 } from '../../../../../.github/scripts/lib/release-notes.ts'
 import type {
@@ -292,8 +293,77 @@ describe('release note rendering', () => {
                 ],
             }),
         ).body
-        expect(body.match(/https:\/\/github\.com\/alice/gi)).toHaveLength(1)
+        expect(body.match(/href="https:\/\/github\.com\/alice"/gi)).toHaveLength(1)
+        expect(body).toContain('/releases/download/v1.2.0/contributor-alice.svg')
+        expect(body).toMatch(/width="48" height="48" alt="@alice"/i)
         expect(body).not.toContain('dependabot')
+    })
+
+    test('invalid contributor logins cannot inject HTML or avatar attributes', () => {
+        const body = renderReleaseNotes(
+            documentInput({
+                issues: [
+                    issue(1, { user: { login: 'x" onerror="alert(1)', type: 'User' } }),
+                    issue(2, { user: { login: '../other', type: 'User' } }),
+                ],
+            }),
+        ).body
+        expect(body).not.toContain('onerror=')
+        expect(body).not.toContain('## 🙌 Contributors')
+    })
+
+    test('ready releases include all supported installation routes and architecture information', () => {
+        const body = renderReleaseNotes(documentInput()).body
+        for (const text of [
+            'Docker / Compose',
+            'Podman / Quadlet',
+            'Debian 13',
+            'Fedora 44',
+            'Signed APT repository and DEB packages',
+            'Signed DNF repository and RPM packages',
+            '**AMD64 and ARM64**',
+            'https://rentnerkev.github.io/RentnerProxy/INSTALL.txt',
+        ]) {
+            expect(body).toContain(text)
+        }
+        expect(body.indexOf('## 📦 Installation & downloads')).toBeLessThan(
+            body.indexOf('## 🛠 Changes'),
+        )
+    })
+
+    test('building releases expose only the building banner and version status', () => {
+        const body = renderBuildingReleaseNotes({
+            repository: 'RentnerKev/RentnerProxy',
+            tagName: 'v1.0.0-beta.3',
+            bannerAssetName: 'building-banner.png',
+        })
+        expect(body.startsWith('![New Version is Building](')).toBe(true)
+        expect(body).toContain('/releases/download/v1.0.0-beta.3/building-banner.png')
+        expect(body).toContain('# 🚧 New Version is Building')
+        expect(body).toContain('**RentnerProxy `v1.0.0-beta.3` is building.**')
+        for (const hidden of [
+            'Changelog',
+            'Contributors',
+            'docker pull',
+            'Installation',
+            'Published',
+        ]) {
+            expect(body).not.toContain(hidden)
+        }
+        expect(() =>
+            renderBuildingReleaseNotes({
+                repository: '../escape',
+                tagName: 'v1.0.0',
+                bannerAssetName: 'building-banner.png',
+            }),
+        ).toThrow()
+        expect(() =>
+            renderBuildingReleaseNotes({
+                repository: 'RentnerKev/RentnerProxy',
+                tagName: '../escape',
+                bannerAssetName: 'building-banner.png',
+            }),
+        ).toThrow()
     })
 
     test('puts the banner first and renders stable, beta, and alpha releases', () => {

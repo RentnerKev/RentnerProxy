@@ -25,3 +25,17 @@ png_signature="$(
     echo "::error::Prepared release banner is not a valid PNG."
     exit 1
 }
+
+shopt -s nullglob
+for contributor_asset in "$artifact_directory"/contributor-*.svg; do
+    contributor_name="$(basename "$contributor_asset")"
+    [[ "$contributor_name" =~ ^contributor-[a-z0-9]([a-z0-9-]{0,37}[a-z0-9])?\.svg$ &&
+       -f "$contributor_asset" && ! -L "$contributor_asset" && -s "$contributor_asset" ]] || {
+        echo "::error::A prepared contributor avatar is invalid."
+        exit 1
+    }
+    [[ "$(wc -c < "$contributor_asset")" -le 1048576 ]] || {
+        echo "::error::A prepared contributor avatar exceeds the size limit."
+        exit 1
+    }
+done

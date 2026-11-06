@@ -211,8 +211,8 @@ describe('shared release pipeline', () => {
         expect(verifyPosition).toBeLessThan(assessedBuild.indexOf('Store assessed OCI candidate'))
         expect(pipeline).toContain('uses: ./.github/workflows/build-assessed-image.yml')
         const publishJobPosition = pipeline.indexOf('name: Publish release notes')
-        const uploadPosition = pipeline.indexOf('gh release upload')
-        const editPosition = pipeline.indexOf('gh release edit')
+        const uploadPosition = pipeline.indexOf('gh release upload', publishJobPosition)
+        const editPosition = pipeline.indexOf('gh release edit', publishJobPosition)
 
         expect(verifyPosition).toBeGreaterThan(-1)
         expect(publishJobPosition).toBeGreaterThan(-1)
@@ -225,11 +225,11 @@ describe('shared release pipeline', () => {
         )
         expect(publisher).toContain('skopeo copy --all --preserve-digests')
         expect(pipeline).toContain(
-            'bun automation/.github/scripts/release/generate-release-notes.ts',
+            'bun --no-env-file automation/.github/scripts/release/generate-release-notes.ts',
         )
         expect(pipeline).toContain('--clobber')
         expect(pipeline).toContain('--notes-file')
-        expect(pipeline.match(/repos\/\$GITHUB_REPOSITORY\/releases\/\$RELEASE_ID/g)).toHaveLength(
+        expect(pipeline.match(/repos\/\$GITHUB_REPOSITORY\/releases\/\$RELEASE_ID"/g)).toHaveLength(
             2,
         )
         expect(pipeline).toContain('[.id, .tag_name, .draft, .prerelease, .published_at]')
