@@ -281,6 +281,11 @@ jobs:
               with:
                   bun-version: ${{ env.BUN_VERSION }}
 
+            - name: Install trusted contributor image rasterizer
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends librsvg2-bin
+
             - name: Generate issue-based release notes
               env:
                   CHANGELOG_FILENAME: ${{ needs.prepare.outputs.changelog_filename }}

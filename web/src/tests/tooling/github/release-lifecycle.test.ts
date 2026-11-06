@@ -5,7 +5,7 @@ import { expect, test } from 'bun:test'
 
 const root = resolve(import.meta.dir, '../../../../..')
 
-test.each(['valid', 'absent', 'empty', 'oversized', 'invalid-name'])(
+test.each(['valid', 'absent', 'empty', 'oversized', 'invalid-name', 'invalid-png'])(
     'validates optional contributor assets before publication: %s',
     async (mode) => {
         const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-release-avatar-validation-'))
@@ -25,14 +25,16 @@ test.each(['valid', 'absent', 'empty', 'oversized', 'invalid-name'])(
                     join(
                         artifacts,
                         mode === 'invalid-name'
-                            ? 'contributor-bad_name.svg'
-                            : 'contributor-kevin.svg',
+                            ? 'contributor-bad_name.png'
+                            : 'contributor-kevin.png',
                     ),
                     mode === 'empty'
                         ? ''
                         : mode === 'oversized'
                           ? 'x'.repeat(1048577)
-                          : '<svg></svg>',
+                          : mode === 'invalid-png'
+                            ? 'invalid'
+                            : Buffer.from('89504e470d0a1a0a', 'hex'),
                 )
             }
             const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
@@ -175,15 +177,15 @@ if [[ "$1" == api ]]; then
     if [[ "$2" == --method ]]; then
         printf 'delete %s\\n' "$(basename "$4")" >> "$FIXTURE_EVENTS"
         [[ "$FIXTURE_FAILURE" != delete-failure ]]
-        [[ "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/11" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/12" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/13" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/14" ]]
+        [[ "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/11" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/12" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/13" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/14" || "$4" == "repos/RentnerKev/RentnerProxy/releases/assets/15" ]]
         exit
     elif [[ "$2" == */assets ]]; then
         [[ "$2" == 'repos/RentnerKev/RentnerProxy/releases/123/assets' ]]
         printf 'list 123\\n' >> "$FIXTURE_EVENTS"
         : > "$FIXTURE_LISTED"
-        printf '21\\tRentnerProxy-v0.9.0-CHANGELOG.md\\n22\\trentnerproxy-update.json.asc\\n23\\trentnerproxy_1.0.0_amd64.deb\\n24\\trentnerproxy-1.0.0.aarch64.rpm\\n25\\tSHA256SUMS.asc\\n26\\tbuilding-banner.png\\n27\\tcontributor-kevin.svg.asc\\n28\\tcontributor-INVALID.svg\\n29\\tunrelated.svg\\n'
+        printf '21\\tRentnerProxy-v0.9.0-CHANGELOG.md\\n22\\trentnerproxy-update.json.asc\\n23\\trentnerproxy_1.0.0_amd64.deb\\n24\\trentnerproxy-1.0.0.aarch64.rpm\\n25\\tSHA256SUMS.asc\\n26\\tbuilding-banner.png\\n27\\tcontributor-kevin.png.asc\\n28\\tcontributor-INVALID.svg\\n29\\tunrelated.svg\\n'
         if [[ "$FIXTURE_FAILURE" == stale || "$FIXTURE_FAILURE" == delete-* ]]; then
-            printf '13\\tRentnerProxy-v1.0.0-CHANGELOG.md\\n12\\trelease-banner.png\\n11\\trentnerproxy-update.json\\n14\\tcontributor-kevin.svg\\n'
+            printf '13\\tRentnerProxy-v1.0.0-CHANGELOG.md\\n12\\trelease-banner.png\\n11\\trentnerproxy-update.json\\n14\\tcontributor-kevin.png\\n15\\tcontributor-legacy.svg\\n'
         fi
         exit
     fi
@@ -252,7 +254,7 @@ printf 'building' > "$RUNNER_TEMP/rentnerproxy-release/building-body.md"
             }
             expect(await readFile(events, 'utf8')).toBe(
                 failure === 'stale'
-                    ? 'upload\nedit\nlist 123\ndelete 11\ndelete 12\ndelete 13\ndelete 14\n'
+                    ? 'upload\nedit\nlist 123\ndelete 11\ndelete 12\ndelete 13\ndelete 14\ndelete 15\n'
                     : failure === 'success'
                       ? 'upload\nedit\nlist 123\n'.repeat(2)
                       : failure === 'delete-identity'
@@ -292,8 +294,11 @@ test.each([
             await mkdir(artifactDirectory)
             if (failure !== 'no-avatars') {
                 await Promise.all(
-                    ['contributor-kevin.svg', 'contributor-second-user.svg'].map((name) =>
-                        writeFile(join(artifactDirectory, name), '<svg></svg>'),
+                    ['contributor-kevin.png', 'contributor-second-user.png'].map((name) =>
+                        writeFile(
+                            join(artifactDirectory, name),
+                            Buffer.from('89504e470d0a1a0a', 'hex'),
+                        ),
                     ),
                 )
             }
@@ -419,11 +424,11 @@ esac
             expect(calls).toEqual(expected.slice(0, stop))
             if (success) {
                 const uploaded = await readFile(join(directory, 'uploaded'), 'utf8')
-                expect(uploaded).not.toContain('contributor-*.svg')
+                expect(uploaded).not.toContain('contributor-*.png')
                 if (failure === 'no-avatars') expect(uploaded).not.toContain('contributor-')
                 else {
-                    expect(uploaded).toContain('contributor-kevin.svg')
-                    expect(uploaded).toContain('contributor-second-user.svg')
+                    expect(uploaded).toContain('contributor-kevin.png')
+                    expect(uploaded).toContain('contributor-second-user.png')
                 }
             }
             expect(await readFile(body, 'utf8')).toBe(success ? 'final' : 'building')

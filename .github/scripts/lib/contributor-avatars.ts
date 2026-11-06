@@ -16,7 +16,7 @@ export function contributorLogins(issues: readonly GitHubIssue[]): string[] {
 
 export function contributorAvatarAssetName(login: string): string {
     if (!LOGIN.test(login)) throw new Error('Invalid contributor login')
-    return `contributor-${login.toLowerCase()}.svg`
+    return `contributor-${login.toLowerCase()}.png`
 }
 
 export function renderContributorAvatar(bytes: Uint8Array): string {

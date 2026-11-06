@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { readBoundedStream } from '../../../web/src/lib/Http/readBoundedStream.ts'
+import { runMaintenanceProcess } from '../../../scripts/backup/maintenance-process.ts'
 import {
     contributorAvatarAssetName,
     contributorLogins,
@@ -8,6 +9,38 @@ import {
 } from '../lib/contributor-avatars.ts'
 import type { GitHubIssue } from '../lib/Types/release-notes.types.ts'
 import type { FetchImplementation } from './Types/generate-release-notes.types.ts'
+
+function validateAvatarPng(bytes: Uint8Array): void {
+    const png = Buffer.from(bytes)
+    if (
+        png.length < 45 ||
+        png.length > 1_048_576 ||
+        png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||
+        png.subarray(12, 16).toString('ascii') !== 'IHDR' ||
+        png.readUInt32BE(16) !== 96 ||
+        png.readUInt32BE(20) !== 96 ||
+        png[24] !== 8 ||
+        png[25] !== 6 ||
+        png.subarray(-12).toString('hex') !== '0000000049454e44ae426082'
+    )
+        throw new Error('Invalid rasterized contributor avatar')
+}
+
+export async function rasterizeContributorAvatar(
+    svg: string,
+    execute = runMaintenanceProcess,
+): Promise<Uint8Array> {
+    const result = await execute(['rsvg-convert', '--format=png'], {
+        cwd: process.cwd(),
+        env: { PATH: process.env.PATH ?? '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C' },
+        input: new TextEncoder().encode(svg),
+        timeoutMs: 10_000,
+        maximumOutputBytes: 1_048_576,
+    })
+    if (result.failed || !result.stopped) throw new Error('Contributor avatar rasterization failed')
+    validateAvatarPng(result.stdout)
+    return result.stdout
+}
 
 async function avatarBytes(login: string, fetcher: FetchImplementation): Promise<Uint8Array> {
     const signal = AbortSignal.timeout(10_000)
@@ -40,6 +73,7 @@ export async function prepareContributorAvatars(
     issues: readonly GitHubIssue[],
     directory: string,
     fetcher: FetchImplementation = fetch,
+    rasterize: (svg: string) => Promise<Uint8Array> = rasterizeContributorAvatar,
 ): Promise<void> {
     const logins = contributorLogins(issues)
     for (let index = 0; index < logins.length; index += 4) {
@@ -47,10 +81,9 @@ export async function prepareContributorAvatars(
         await Promise.all(
             logins.slice(index, index + 4).map(async (login) => {
                 const bytes = await avatarBytes(login, fetcher)
-                await writeFile(
-                    join(directory, contributorAvatarAssetName(login)),
-                    renderContributorAvatar(bytes),
-                )
+                const png = await rasterize(renderContributorAvatar(bytes))
+                validateAvatarPng(png)
+                await writeFile(join(directory, contributorAvatarAssetName(login)), png)
             }),
         )
     }

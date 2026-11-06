@@ -294,7 +294,7 @@ describe('release note rendering', () => {
             }),
         ).body
         expect(body.match(/href="https:\/\/github\.com\/alice"/gi)).toHaveLength(1)
-        expect(body).toContain('/releases/download/v1.2.0/contributor-alice.svg')
+        expect(body).toContain('/releases/download/v1.2.0/contributor-alice.png')
         expect(body).toMatch(/width="48" height="48" alt="@alice"/i)
         expect(body).not.toContain('dependabot')
     })

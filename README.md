@@ -12,12 +12,12 @@
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
-  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.2"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
+  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerKev/RentnerProxy" alt="MIT license"></a>
 </p>
 
 > [!IMPORTANT]
-> Current public release: [v1.0.0-beta.2](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.2).
+> Current public release: [v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3).
 > This is beta software: breaking changes are possible. Back up your data before upgrades.
 
 ## Features
@@ -25,8 +25,11 @@
 - Proxy hosts and redirects with HTTP/2, HTTP/3, and WebSocket support.
 - Duplicate proxy and redirect hosts into a draft with new domains, using existing creation, certificate and access-policy validation. Proxy copies inherit global HTTP settings; separate per-host Config overrides are not copied.
 - Global quick search with Ctrl+K on Windows/Linux and Cmd+K on macOS, plus a mobile search control. Find authorized hosts, certificates, access policies and settings with bounded results and keyboard navigation.
-- Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
-- Cloudflare DDNS for A and AAAA records, with shared DNS connections, scheduling, retries and recovery.
+- Automatic TLS via ACME HTTP-01, provider-based DNS-01, manual DNS-01 and delegated DNS-01, plus wildcard and imported certificates.
+- Shared Cloudflare, deSEC and Hetzner Cloud DNS connections for certificates and DDNS, with scheduling, retries and recovery.
+- Guided domain diagnostics for DNS, upstream connectivity and TLS.
+- Per-host availability monitoring, response-time history and outage/recovery notifications.
+- Upstream pools with load balancing, health-aware failover and configurable retries.
 - Opt-in Docker discovery that manages proxy hosts from labeled containers.
 - Email and webhook notifications with event subscriptions and delivery status.
 - Release detection, update notifications and guided upgrades.
@@ -34,27 +37,37 @@
 - Configurable Zstd/Gzip response compression, browser-cache rules and an optional bounded response cache for public assets.
 - Access policies with Basic Auth, Forward Auth, and IP allow/deny rules; verified HTTPS upstreams.
 - CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard.
-- Users, roles, permissions, TOTP, passkeys, and audit logs.
+- Users, roles, permissions, TOTP, passkeys, OIDC sign-in with account linking and group-to-role mapping, and audit logs.
+- Scheduled backups with retention, restore tools and encrypted off-host storage.
 - Personal accent colors and light/dark themes; login and public pages retain the default green.
 - Live status and access logs; English, German, Spanish, French, Italian, Portuguese, Dutch, and Polish UI.
-- Single-container appliance with Caddy, PostgreSQL, Valkey, and a Rust controller.
+- Single-container appliance with Caddy, PostgreSQL, Valkey, and a Rust controller, available for AMD64 and ARM64.
+- Docker/Compose and Podman/Quadlet deployment, plus signed Debian 13 APT/DEB and Fedora 44 DNF/RPM packages.
 
-Manual and delegated DNS-01 are implemented on `main` for
-[v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/milestone/9) and are not part of Beta 2.
-See the [DNS-01 operations guide](docs/operations.md#dns-01-certificates) for setup, supported
-delegation targets, renewal and recovery. Shared acceptance is tracked in
-[#277](https://github.com/RentnerKev/RentnerProxy/issues/277).
+See the [DNS-01 operations guide](docs/operations.md#dns-01-certificates) for provider setup,
+manual challenges, supported delegation targets, renewal and recovery.
 
 ## Installation
 
+Beta 3 is available for `linux/amd64` and `linux/arm64`.
+
+| Installation        | Get started                                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Docker / Compose    | [Compose setup below](#docker--compose)                                                            |
+| Podman / Quadlet    | [Signed installation guide](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt)                 |
+| Debian 13 APT / DEB | [Repository setup and package verification](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt) |
+| Fedora 44 DNF / RPM | [Repository setup and package verification](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt) |
+
+### Docker / Compose
+
 Requirements:
 
-- `linux/amd64` host with Docker Engine and Docker Compose.
+- `linux/amd64` or `linux/arm64` host with Docker Engine and Docker Compose.
 - Free ports `80/tcp`, `443/tcp`, and `443/udp`.
 - HTTPS management origin and SMTP credentials.
 
-The example pins the Beta 2 image with `RENTNERPROXY_IMAGE`:
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2`.
+The example pins the Beta 3 image with `RENTNERPROXY_IMAGE`:
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.3`.
 
 Save this as `docker-compose.yml` (or use the [repository file](docker-compose.yml)):
 
@@ -88,7 +101,7 @@ volumes:
 Create `.env` beside it (see also [`.env.production.example`](.env.production.example)):
 
 ```dotenv
-RENTNERPROXY_IMAGE=ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2
+RENTNERPROXY_IMAGE=ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.3
 RENTNERPROXY_PUBLIC_ORIGIN=https://management.example.com
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -126,6 +139,17 @@ cache and migrations. Fresh installations and unsupported snapshot versions use 
 site until the application reconciles their configuration. Replacing a single appliance container
 still interrupts its connections and listeners; this startup order does not provide zero downtime.
 
+### Podman / Quadlet, Debian and Fedora
+
+The signed Linux distribution runs the same appliance with rootful Podman/Quadlet.
+Supported package targets are Debian 13 and Fedora 44 on AMD64 and ARM64. They require
+Podman 5.4 or newer, systemd 252 or newer, cgroup v2 and nftables. Rootless deployment is unsupported.
+
+Follow the [installation and verification guide](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt)
+to verify the signing-key fingerprint, configure APT or DNF, or install a versioned DEB, RPM or
+Quadlet archive. Versioned packages, checksums, signatures and architecture-specific instructions
+are also available in the [Beta 3 downloads](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3).
+
 ## Upgrade
 
 From Beta 2 onward, `v1.0.0-beta.1` is the minimum supported upgrade source.
@@ -140,7 +164,7 @@ intermediate step; `:beta` follows the newest beta and skips it.
 
 Alpha v3 backups must first be restored with Beta 1 and that release's restore
 tools, then backed up again as v4. Direct Alpha upgrades, direct v3 restores and
-the old environment-file secret import are no longer supported in Beta 2.
+the old environment-file secret import are unsupported in Beta 2 and later releases.
 
 See [upgrade, backup and rollback instructions](docs/operations.md#upgrades).
 
@@ -159,6 +183,7 @@ Every release is also published with its exact version tag. Use an exact tag whe
 a specific release, for example:
 
 ```text
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.3
 ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.2
 ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1
 ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
