@@ -1,0 +1,28 @@
+Origin: RentnerKev
+Label: RentnerProxy
+Suite: alpha
+Codename: alpha
+Architectures: amd64 arm64
+Components: main
+Valid-Until: Fri, 11 Dec 2026 18:50:51 GMT
+Date: Fri, 06 Nov 2026 18:50:52 +0000
+MD5Sum:
+ 890634a46d60899144be1e40f3e7037b              887 main/binary-amd64/Packages
+ 74e26d11ac1e5a6f4c932001394f5c90              630 main/binary-amd64/Packages.gz
+ 3d8156468360a87aedf8d5880bc03605              887 main/binary-arm64/Packages
+ 8c751a01ff23773235f57a245125b291              628 main/binary-arm64/Packages.gz
+SHA1:
+ e61058bd85d9f2dbd54d4c072c2e6880d52f5ede              887 main/binary-amd64/Packages
+ 93d8d5686b4d290077ce7ebf238839556bb469ac              630 main/binary-amd64/Packages.gz
+ ad3ae06708aedbd93c35afcfa97d91e529d93faa              887 main/binary-arm64/Packages
+ 67b43921d025505a6bf7baa494cefd90a73ca798              628 main/binary-arm64/Packages.gz
+SHA256:
+ f67350cb31e9803feff5a4ecbb351c4c2b8079a5219bed26f6d2fbb93613f252              887 main/binary-amd64/Packages
+ 2938149616c2ab31b212d259f5bbecd201878a6f46a32d00b7462577415c8bb1              630 main/binary-amd64/Packages.gz
+ 2920ae57b7d36efb0c0e52a35921bf16664402d5278a83142647332a92d924a5              887 main/binary-arm64/Packages
+ d689300e3fa792ee50face9904c346a9296464f60c68d94bdf33f313988340cb              628 main/binary-arm64/Packages.gz
+SHA512:
+ aeb02fa75a3e7a93e073fb4a3bd3e9839289aa4bc8c79ca617837701a868499b2bf67aeff029d251735264215edafb6af65a5c7ddb0825a5121c1c937e784a4a              887 main/binary-amd64/Packages
+ 26ec753ecb6fbb16337a6592f197d09faa10063b1556dc9969a712dacd00b78263a74441f4bab40bd572ca0ff31b647239a004369c7517647eb3439c0c46900f              630 main/binary-amd64/Packages.gz
+ 2d91da8b588ea18ad76f61a4c3c16df122497978ad0164622af8c8261108726e52b9ec5e74cc669628c1d50ac3f18748a1858b9e65168781d34f518b028d778d              887 main/binary-arm64/Packages
+ 6790533a999ba9a41080b392c01ed16a4ecb2287e19127463d237a908ac752d08016e41100f03bc173a7e3cceb20017a3c0d50a53eaaec7c4ed35854eecf5db3              628 main/binary-arm64/Packages.gz

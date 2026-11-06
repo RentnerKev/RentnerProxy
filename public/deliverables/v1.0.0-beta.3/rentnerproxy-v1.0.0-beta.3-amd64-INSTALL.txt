@@ -1,0 +1,60 @@
+RentnerProxy complete OCI appliance — Debian 13 / Fedora 44, AMD64 / ARM64.
+Requires rootful Podman >= 5.4, systemd >= 252, cgroup v2 and nftables.
+Rootless is not supported.
+The image is pinned to the assessed GHCR digest, including all bundled services.
+
+First verify the fingerprint through the owner/release announcement independently:
+517046BFFA2C01095A641E07F8E716383322D7C3
+curl --fail --location --proto '=https' 'https://rentnerkev.github.io/RentnerProxy/keys/517046BFFA2C01095A641E07F8E716383322D7C3.asc' -o rentnerproxy.asc
+gpg --show-keys --with-fingerprint rentnerproxy.asc
+Compare the FULL fingerprint above before trusting this key. No apt-key/global trust.
+
+Debian 13 (choose stable, beta or alpha; beta also receives stable releases):
+gpg --dearmor --output rentnerproxy.gpg rentnerproxy.asc
+sudo install -m 0644 rentnerproxy.gpg /usr/share/keyrings/rentnerproxy.gpg
+echo 'deb [signed-by=/usr/share/keyrings/rentnerproxy.gpg] https://rentnerkev.github.io/RentnerProxy/apt beta main' | sudo tee /etc/apt/sources.list.d/rentnerproxy.list
+sudo apt-get update && sudo apt-get install rentnerproxy
+
+Fedora 44:
+sudo install -m 0644 rentnerproxy.asc /etc/pki/rpm-gpg/RPM-GPG-KEY-rentnerproxy
+sudo tee /etc/yum.repos.d/rentnerproxy.repo <<'REPO'
+[rentnerproxy]
+name=RentnerProxy beta
+baseurl=https://rentnerkev.github.io/RentnerProxy/rpm/beta/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-rentnerproxy
+REPO
+sudo dnf install rentnerproxy
+
+First configuration / service:
+sudo install -m 0600 /usr/share/rentnerproxy/appliance.env.example /etc/rentnerproxy/appliance.env
+Edit that private file: PUBLIC_ORIGIN and SMTP_*. Then sudo rentnerproxy start.
+sudo rentnerproxy status; sudo rentnerproxy logs
+No generated unit needs systemctl enable: the Quadlet installs its boot dependency.
+TCP 80/443 + UDP 443 are public; management is only http://127.0.0.1:81 (use SSH).
+Use journalctl -u rentnerproxy.service if initialization/readiness fails.
+
+Updates: make an external v4 backup first, then apt-get upgrade / dnf upgrade.
+sudo install -d -m 0700 /root/rentnerproxy-backups
+sudo rentnerproxy backup /root/rentnerproxy-backups
+sudo rentnerproxy restore /absolute/backup --confirm-replace
+An interrupted restore stays stopped; retry the SAME backup with --resume.
+Deployment identity changes additionally require --allow-deployment-change.
+Rollback: stop, install the exact previous signed package, restore its compatible
+v4 backup, and only then start. Image-only rollback cannot rewind database changes.
+Previous image/version pins are recorded privately in /var/lib/rentnerproxy-distribution.
+Admin > Backups retains the existing online backup/restore contract.
+
+Quadlet archive: verify SHA256SUMS.asc with this key, verify SHA256SUMS,
+extract the versioned *-quadlet.tar.gz into an empty private directory and run
+sudo bash ./install.sh after installing the prerequisites above; configure/start
+as above. Upgrades repeat with the next
+verified archive. Removal: sudo bash ./uninstall.sh from the matching verified
+archive. It verifies owned vendor files and preserves /etc and appliance data.
+
+Removal with apt-get remove/purge or dnf remove preserves /etc/rentnerproxy and
+the rentnerproxy-data volume. Explicit data deletion while stopped:
+sudo rentnerproxy purge-data --confirm-purge (BEFORE removing the CLI/package).
+Existing Docker/Compose volumes are never imported/deleted automatically.

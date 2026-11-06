@@ -1,0 +1,18 @@
+Package: rentnerproxy
+Architecture: amd64
+Version: 1.0.0~beta.b3.a-1
+Priority: optional
+Section: net
+Maintainer: RentnerKev <noreply@github.com>
+Depends: bash, coreutils, nftables, util-linux, podman (>= 5.4), systemd (>= 252)
+Filename: pool/main/rentnerproxy-1.0.0-beta.3-1-amd64.deb
+Size: 6904
+MD5sum: 39ac98f9c225f88bf3c55455c7baedd6
+SHA1: 7b68189847093dbf43af9d35b4b9b174ab65efcb
+SHA256: e6e56d9d7b8b23621428372fccd9a3922168366fb5d0956097ec5913bdb91d28
+SHA512: 308e5f576702cb0b523e8d9ffc30f5190adadabed9105a05511abbe92f4916e6c99087ed153d22a1494ebc8e50f52360177b90b059763f28fc0899e2006597a1
+Homepage: https://github.com/RentnerKev/RentnerProxy
+Description: Complete RentnerProxy OCI appliance managed by rootful Podman/Quadlet
+ Includes web, controller, Caddy, CrowdSec, PostgreSQL and Valkey in the
+ assessed GHCR image. Requires cgroup v2 and systemd; management is loopback-only.
+

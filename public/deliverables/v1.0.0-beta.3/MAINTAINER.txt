@@ -1,0 +1,47 @@
+First release setup (owner only; never needed for PR validation):
+1. Enable GitHub Pages with source GitHub Actions in RentnerKev/RentnerProxy.
+2. Protect environment package-signing: restrict deployments to trusted release
+   tags/default-branch renewal, add required reviewers if desired, and prevent
+   untrusted branches from accessing it. Protect the package-repository branch
+   against deletion/force pushes and changes outside the release workflow.
+3. Create a dedicated expiring OpenPGP release key offline. Keep the certification
+   primary and its revocation certificate offline. Export ONLY a signing subkey
+   (gpg --armor --export-secret-subkeys FINGERPRINT) into the protected environment
+   secret PACKAGE_SIGNING_KEY. The runner requires that subkey to be usable in
+   batch mode without an interactive passphrase. Never store it in the repository,
+   artifacts, caches or logs. Replace the secret if a runner/key is compromised.
+4. Set environment variable PACKAGE_SIGNING_FINGERPRINT to the complete uppercase
+   40-hex PRIMARY fingerprint. Optionally set repository variable
+   PACKAGE_REPOSITORY_URL for a configured HTTPS Pages custom domain; default is
+   https://rentnerkev.github.io/RentnerProxy. Public-key setup is scoped per repo.
+5. Announce the fingerprint through an independent owner-controlled channel before
+   the first release. PRs use disposable fixture keys and never publish a site.
+
+Rotation and expiry:
+The signer refuses revoked/expired keys or keys expiring within 30 days. Use a
+one-year expiry and rotate well before that cutoff. Retain old public keys and
+immutable signatures. During rotation, add the old full fingerprints to the
+protected PACKAGE_PREVIOUS_FINGERPRINTS variable (comma separated), publish the
+new public fingerprint independently, and have consumers add the new public key
+to their dedicated keyring before switching signatures. Never auto-trust a new
+key downloaded from a failed signature response. Remove old consumer trust only
+after the overlap period and migration; keep public keys for old release assets.
+The weekly trusted renewal workflow refreshes signed APT metadata with a 35-day
+Valid-Until; failures surface as CI failures and must be repaired before expiry.
+Never disable Valid-Until, Signed-By, gpgcheck or repo_gpgcheck to recover.
+
+All distribution artifacts bind the exact source SHA and assessed OCI root,
+including its per-platform SBOM/provenance. The data-only repository branch keeps
+immutable package versions; publication refuses a conflicting retry. Channel
+indexes are rebuilt only after native Debian/Fedora AMD64/ARM64 gates pass.
+The signed immutable-files.json covers retained release guides, packages, keys
+and deliverables. Renewal verifies this complete record before publishing.
+Capacity is bounded to 1,000 architecture entries (500 dual-architecture releases)
+and 32,768 staged files, budgeted against the real emitted file count in CI.
+Before reaching that catalog limit, introduce a new repository epoch while
+preserving the previous anonymous URLs and keys; never prune immutable versions
+silently. Capacity exhaustion stops signing before any release publication.
+Signing finishes before any image tag is published. The publisher verifies the
+sealed public snapshot and its exact data-branch parent without a signing key.
+If that parent changed, rerun signing and dependent jobs; never force-push it.
+Normal PRs do not run a long soak test. Release preparation remains separate.
