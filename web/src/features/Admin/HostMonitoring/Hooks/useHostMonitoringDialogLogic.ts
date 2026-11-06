@@ -50,13 +50,21 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     const [accessRevoked, setAccessRevoked] = useState(false)
     const baseVersion = useRef<string | null>(null)
     const draftOwner = useRef('')
-    const generation = useRef({ scope: '', version: 0 })
-    const scope = JSON.stringify([props.open, props.host.id, props.host.domains, props.permissions])
+    const generation = useRef({ scope: '', version: 0, active: false })
+    const authorizationRevoked = useRef(false)
+    const scope = JSON.stringify([
+        props.open,
+        props.host.id,
+        props.host.domains,
+        [...new Set(props.permissions)].toSorted(),
+    ])
     useEffect(() => {
         const currentGeneration = generation.current
+        if (currentGeneration.scope !== scope) currentGeneration.version += 1
         currentGeneration.scope = scope
+        currentGeneration.active = true
         return () => {
-            currentGeneration.version += 1
+            currentGeneration.active = false
         }
     }, [scope])
     const domains = useMemo(
@@ -67,9 +75,17 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
         [props.host.domains],
     )
     const enabled = props.open && canView && !accessRevoked
+    function fenceAuthorization(error: unknown): never {
+        if (privateError(error)) {
+            authorizationRevoked.current = true
+            generation.current.version += 1
+        }
+        throw error
+    }
     const policyQuery = useQuery({
         queryKey: hostMonitoringQueryKeys.policy(props.host.id),
-        queryFn: ({ signal }) => getHostMonitoringPolicy(props.host.id, signal),
+        queryFn: ({ signal }) =>
+            getHostMonitoringPolicy(props.host.id, signal).catch(fenceAuthorization),
         enabled,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
@@ -92,7 +108,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
                     ...(pageParam ? { before: pageParam.before } : {}),
                 },
                 signal,
-            )
+            ).catch(fenceAuthorization)
             return { ...history, windowSince }
         },
         getNextPageParam: (page, pages) =>
@@ -132,6 +148,7 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             generation: number
         }) => saveHostMonitoringPolicy(input),
         onSuccess: async (saved, attempt) => {
+            if (authorizationRevoked.current) return
             queryClient.setQueryData(
                 hostMonitoringQueryKeys.policy(attempt.input.proxyHostId),
                 saved,
@@ -147,7 +164,8 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             setDraftDefaults(saved.settings)
             form.reset(saved.settings)
             setConflict(false)
-            toast.success(t('admin.hostMonitoring.saved'), { title: t('toast.titles.success') })
+            if (generation.current.active)
+                toast.success(t('admin.hostMonitoring.saved'), { title: t('toast.titles.success') })
             await invalidation
         },
         onError: (error, attempt) => {
@@ -155,13 +173,19 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
             if (error instanceof HostMonitoringClientError && error.code === 'conflict') {
                 setConflict(true)
                 void policyQuery.refetch()
-                toast.warning(t('admin.hostMonitoring.conflict'), {
-                    title: t('toast.titles.warning'),
-                })
+                if (generation.current.active)
+                    toast.warning(t('admin.hostMonitoring.conflict'), {
+                        title: t('toast.titles.warning'),
+                    })
             } else {
-                toast.error(t('admin.hostMonitoring.saveError'), { title: t('toast.titles.error') })
+                if (generation.current.active)
+                    toast.error(t('admin.hostMonitoring.saveError'), {
+                        title: t('toast.titles.error'),
+                    })
             }
             if (privateError(error)) {
+                authorizationRevoked.current = true
+                generation.current.version += 1
                 setAccessRevoked(true)
                 queryClient.removeQueries({ queryKey: hostMonitoringQueryKeys.all })
                 setReady(false)
@@ -206,6 +230,24 @@ export default function useHostMonitoringDialogLogic(props: HostMonitoringDialog
     const valid =
         hostMonitoringSettingsSchema.safeParse(values).success &&
         domains.some((domain) => domain.value === values.domain)
+    const reportedInvalidDraft = useRef(false)
+    useEffect(() => {
+        if (valid || !dirty) {
+            reportedInvalidDraft.current = false
+            return
+        }
+        if (
+            !props.open ||
+            forbidden ||
+            !canUpdate ||
+            !ready ||
+            draftOwner.current !== scope ||
+            reportedInvalidDraft.current
+        )
+            return
+        reportedInvalidDraft.current = true
+        toast.error(t('admin.hostMonitoring.invalid'), { title: t('toast.titles.error') })
+    }, [valid, dirty, props.open, forbidden, canUpdate, ready, scope, t])
     // oxlint-disable react/set-state-in-effect -- Synchronize the explicit TanStack Form draft with query versions, preserving dirty edits and erasing private values on permission loss.
     useEffect(() => {
         if (!props.open || forbidden) {

@@ -58,6 +58,7 @@ export default function useDomainCheckDialogLogic({
     }
     const [sequence, setSequence] = useState(0)
     const sequenceRef = useRef(0)
+    const copySequence = useRef(0)
     const active = useRef<{ key: string; controller: AbortController } | null>(null)
     const observing = useRef(false)
     const reportedError = useRef<DomainCheckAttempt | null>(null)
@@ -173,12 +174,13 @@ export default function useDomainCheckDialogLogic({
     async function copySummary() {
         if (!result || !canCheck || isPending) return
         const attemptSequence = sequenceRef.current
+        const attemptCopy = ++copySequence.current
         try {
             await navigator.clipboard.writeText(serializeDomainCheckSummary(result))
-            if (attemptSequence === sequenceRef.current)
+            if (attemptSequence === sequenceRef.current && attemptCopy === copySequence.current)
                 toast.success(t('admin.domainCheck.copied'), { title: t('toast.titles.success') })
         } catch {
-            if (attemptSequence === sequenceRef.current)
+            if (attemptSequence === sequenceRef.current && attemptCopy === copySequence.current)
                 toast.error(t('admin.domainCheck.copyFailed'), { title: t('toast.titles.error') })
         }
     }

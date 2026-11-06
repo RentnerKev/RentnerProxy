@@ -20,7 +20,7 @@ export default function useRecoveryCodesModalLogic(
     const copy = async () => {
         const currentCodes = codes
         if (!currentCodes || !active.current) return
-        const currentGeneration = generation.current
+        const currentGeneration = ++generation.current
         try {
             await navigator.clipboard.writeText(currentCodes.join('\n'))
             if (currentGeneration !== generation.current) return

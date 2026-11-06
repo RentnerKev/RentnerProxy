@@ -33,7 +33,7 @@ export default function useApplicationUpdateDialogLogic(
     )
     const copyReference = async () => {
         if (!reference || !open || !active.current) return
-        const currentGeneration = generation.current
+        const currentGeneration = ++generation.current
         try {
             await navigator.clipboard.writeText(reference)
             if (currentGeneration !== generation.current) return

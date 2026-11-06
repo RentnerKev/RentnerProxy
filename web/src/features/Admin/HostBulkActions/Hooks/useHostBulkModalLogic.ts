@@ -39,13 +39,19 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
     const { t } = useTranslationStore()
     const id = useId()
     const client = useQueryClient()
-    const generation = useRef({ scope: '', version: 0 })
-    const scope = JSON.stringify([props.kind, props.hostIds, props.permissions])
+    const generation = useRef({ scope: '', version: 0, active: false })
+    const scope = JSON.stringify([
+        props.kind,
+        props.hostIds,
+        [...new Set(props.permissions)].toSorted(),
+    ])
     useEffect(() => {
         const currentGeneration = generation.current
+        if (currentGeneration.scope !== scope) currentGeneration.version += 1
         currentGeneration.scope = scope
+        currentGeneration.active = true
         return () => {
-            currentGeneration.version += 1
+            currentGeneration.active = false
         }
     }, [scope])
     const types = availableBulkHostActions(props.kind, props.permissions)
@@ -97,7 +103,8 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
         onError: (_error, attemptGeneration) => {
             if (attemptGeneration !== generation.current.version) return
             setPreview(null)
-            toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
+            if (generation.current.active)
+                toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
         },
     })
     const applyMutation = useMutation({
@@ -125,6 +132,7 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
             if (attemptGeneration !== generation.current.version) return
             setResult(value)
             setPreview(null)
+            if (!generation.current.active) return
             if (value.runtimeStatus === 'pending') {
                 toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
                     title: t('toast.titles.warning'),
@@ -142,19 +150,21 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
         onError: (_error, attemptGeneration) => {
             if (attemptGeneration !== generation.current.version) return
             setPreview(null)
-            toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
+            if (generation.current.active)
+                toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
         },
     })
     const pending = previewMutation.isPending || applyMutation.isPending
     const optionsQuery = values.type === 'certificate' ? certificates : policies
     const needsOptions = values.type === 'certificate' || values.type === 'accessPolicy'
+    const canLoadOptions = needsOptions && types.includes(values.type)
     const reportedOptionsError = useRef<unknown>(null)
     useEffect(() => {
-        if (!needsOptions || !optionsQuery.isError) return
+        if (!canLoadOptions || !optionsQuery.isError) return
         if (reportedOptionsError.current === optionsQuery.error) return
         reportedOptionsError.current = optionsQuery.error
         toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
-    }, [needsOptions, optionsQuery.isError, optionsQuery.error, t])
+    }, [canLoadOptions, optionsQuery.isError, optionsQuery.error, t])
     const reset = () => {
         setPreview(null)
         setResult(null)

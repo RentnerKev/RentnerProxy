@@ -169,6 +169,9 @@ describe('explicit local support report download', () => {
         expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
             'could not be downloaded',
         )
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).not.toContain(
+            'PRIVATE-FIXTURE',
+        )
         expect(container.textContent).not.toContain('could not be downloaded')
         expect(container.textContent).not.toContain('PRIVATE-FIXTURE')
         expect(createUrlMock).not.toHaveBeenCalled()

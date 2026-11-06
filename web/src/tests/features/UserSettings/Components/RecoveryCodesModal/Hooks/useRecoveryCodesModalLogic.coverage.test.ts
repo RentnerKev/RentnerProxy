@@ -183,3 +183,56 @@ for (const transition of ['close', 'codes', 'null', 'unmount'] as const) {
         })
     }
 }
+
+for (const latest of ['success', 'error'] as const) {
+    test(`only reports the latest recovery-code copy ${latest} when requests finish in reverse order`, async () => {
+        let finishOld!: () => void
+        let failOld!: (error: Error) => void
+        const write = spyOn(navigator.clipboard, 'writeText').mockReturnValueOnce(
+            new Promise<void>((done, fail) => {
+                finishOld = done
+                failOld = fail
+            }),
+        )
+        if (latest === 'success') write.mockResolvedValueOnce(undefined)
+        else write.mockRejectedValueOnce(new Error('new clipboard failure'))
+        const success = spyOn(toast, 'success').mockReturnValue('success-fixture')
+        const error = spyOn(toast, 'error').mockReturnValue('error-fixture')
+        let logic: ReturnType<typeof useRecoveryCodesModalLogic> | undefined
+        function Probe() {
+            const current = useRecoveryCodesModalLogic(['private-fixture-code'], () => {})
+            useEffect(() => {
+                logic = current
+            }, [current])
+            return null
+        }
+        const container = document.createElement('div')
+        document.body.append(container)
+        const root = createRoot(container)
+        let oldRequest: Promise<void> | undefined
+        try {
+            await act(async () => root.render(withTestLanguage(createElement(Probe))))
+            await act(async () => {
+                oldRequest = logic!.handler.copy()
+            })
+            await act(async () => logic!.handler.copy())
+            expect(write).toHaveBeenCalledTimes(2)
+            await act(async () => {
+                if (latest === 'success') failOld(new Error('old clipboard failure'))
+                else finishOld()
+                await oldRequest
+            })
+            expect(success).toHaveBeenCalledTimes(latest === 'success' ? 1 : 0)
+            expect(error).toHaveBeenCalledTimes(latest === 'error' ? 1 : 0)
+            expect(JSON.stringify([success.mock.calls, error.mock.calls])).not.toContain(
+                'private-fixture-code',
+            )
+        } finally {
+            await act(async () => root.unmount())
+            container.remove()
+            write.mockRestore()
+            success.mockRestore()
+            error.mockRestore()
+        }
+    })
+}

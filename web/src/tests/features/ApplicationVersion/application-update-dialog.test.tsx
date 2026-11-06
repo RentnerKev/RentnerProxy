@@ -1,4 +1,4 @@
-import { afterEach, expect, mock, test } from 'bun:test'
+import { afterEach, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
@@ -287,4 +287,43 @@ for (const transition of ['close', 'reference', 'unmount'] as const) {
             expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
         })
     }
+}
+
+for (const latest of ['success', 'error'] as const) {
+    test(`only reports the latest image-reference copy ${latest} when requests finish in reverse order`, async () => {
+        let finishOld!: () => void
+        let failOld!: (error: Error) => void
+        const write = mock(() => Promise.resolve()).mockReturnValueOnce(
+            new Promise<void>((done, fail) => {
+                finishOld = done
+                failOld = fail
+            }),
+        )
+        if (latest === 'success') write.mockResolvedValueOnce(undefined)
+        else write.mockRejectedValueOnce(new Error('new clipboard failure'))
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: write },
+        })
+        const success = spyOn(toast, 'success')
+        const error = spyOn(toast, 'error')
+        try {
+            const dialog = await render(result)
+            const copy = [...dialog.querySelectorAll('button')].find(
+                (button) => button.textContent === catalogs.en.updates.copy,
+            )!
+            await act(async () => copy.click())
+            await act(async () => copy.click())
+            expect(write).toHaveBeenCalledTimes(2)
+            await act(async () => {
+                if (latest === 'success') failOld(new Error('old clipboard failure'))
+                else finishOld()
+            })
+            expect(success).toHaveBeenCalledTimes(latest === 'success' ? 1 : 0)
+            expect(error).toHaveBeenCalledTimes(latest === 'error' ? 1 : 0)
+        } finally {
+            success.mockRestore()
+            error.mockRestore()
+        }
+    })
 }

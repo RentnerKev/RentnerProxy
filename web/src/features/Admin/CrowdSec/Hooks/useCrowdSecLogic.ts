@@ -64,15 +64,33 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
         if (!canUpdate) setTransition(null)
     }
     const saveGeneration = useRef(0)
+    const active = useRef(false)
+    const pendingSaveFeedback = useRef<{
+        attemptId: number
+        message: string
+        persistent: boolean
+        kind: 'warning' | 'error'
+    } | null>(null)
     const reportedCompletion = useRef<number | null>(null)
     useEffect(() => {
+        active.current = canUpdate
         if (!canUpdate) {
             saveGeneration.current += 1
+            pendingSaveFeedback.current = null
+        }
+        const pending = pendingSaveFeedback.current
+        pendingSaveFeedback.current = null
+        if (canUpdate && pending?.attemptId === saveGeneration.current) {
+            toast[pending.kind](t(pending.message), {
+                title: t(`toast.titles.${pending.kind}`),
+                ...(pending.persistent ? { duration: 0 } : {}),
+            })
         }
         return () => {
-            saveGeneration.current += 1
+            // Activity hides preserve drafts; only permission changes invalidate their owner.
+            active.current = false
         }
-    }, [canUpdate])
+    }, [canUpdate, t])
     const transitionActive = transition?.phase === 'running' || transition?.phase === 'delayed'
     const query = useQuery({
         queryKey: crowdSecQueryKeys.configuration,
@@ -172,6 +190,11 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             attemptId: number
         }) => updateCrowdSecConfigurationHandler({ data: input }),
         onSuccess: (result, { tracksProgress, attemptId }) => {
+            // A committed server change must refresh replacement observers too.
+            if (result.success) {
+                void invalidateCrowdSecConfigurationCache(queryClient)
+                void queryClient.resetQueries({ queryKey: crowdSecQueryKeys.dashboard })
+            }
             if (saveGeneration.current !== attemptId || !canUpdate) return
             if (!result.success) {
                 if (tracksProgress) {
@@ -181,22 +204,32 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                             : current,
                     )
                 }
-                toast.error(t(result.message), { title: t('toast.titles.error') })
+                if (active.current) {
+                    toast.error(t(result.message), {
+                        title: t('toast.titles.error'),
+                        ...(tracksProgress ? { duration: 0 } : {}),
+                    })
+                } else {
+                    pendingSaveFeedback.current = {
+                        attemptId,
+                        message: result.message,
+                        persistent: tracksProgress,
+                        kind: 'error',
+                    }
+                }
                 return
             }
             setDraftMode(null)
             setDraftApiUrl(null)
             setApiKey('')
             setDraftCommunityEnabled(null)
-            void invalidateCrowdSecConfigurationCache(queryClient)
-            void queryClient.resetQueries({ queryKey: crowdSecQueryKeys.dashboard })
             if (tracksProgress) {
                 setTransition((current) =>
                     current
                         ? { ...current, runtimePending: result.runtimeStatus === 'pending' }
                         : current,
                 )
-            } else {
+            } else if (active.current) {
                 const kind = result.runtimeStatus === 'pending' ? 'warning' : 'success'
                 toast[kind](t(result.message), { title: t(`toast.titles.${kind}`) })
             }
@@ -209,13 +242,15 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                         ? { ...current, connectionInterrupted: true }
                         : current,
                 )
-                toast.warning(t('admin.crowdSec.progress.connectionInterrupted'), {
-                    title: t('toast.titles.warning'),
-                })
+            }
+            const kind = tracksProgress ? 'warning' : 'error'
+            const message = tracksProgress
+                ? 'admin.crowdSec.progress.connectionInterrupted'
+                : 'admin.crowdSec.errors.saveFailed'
+            if (active.current) {
+                toast[kind](t(message), { title: t(`toast.titles.${kind}`) })
             } else {
-                toast.error(t('admin.crowdSec.errors.saveFailed'), {
-                    title: t('toast.titles.error'),
-                })
+                pendingSaveFeedback.current = { attemptId, message, kind, persistent: false }
             }
         },
     })

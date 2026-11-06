@@ -9,7 +9,7 @@ import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-const { act, useEffect } = await import('react')
+const { act, Activity, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { default: useHostMonitoringDialogLogic } =
@@ -638,4 +638,153 @@ test('late save errors cannot revoke access or overwrite the next host draft', a
     expect(logic.state.canView).toBe(true)
     expect(logic.form.getFieldValue('domain')).toBe('new.example.test')
     expect(errorToast).not.toHaveBeenCalled()
+})
+
+test.each(['policy', 'history'] as const)(
+    'a %s authorization failure fences an outstanding save before it can restore private data',
+    async (source) => {
+        await render()
+        let finish!: (response: Response) => void
+        fetchSpy.mockImplementationOnce(
+            Object.assign(
+                () =>
+                    new Promise<Response>((resolve) => {
+                        finish = resolve
+                    }),
+                { preconnect: fetch.preconnect },
+            ),
+        )
+        await act(async () => {
+            logic.form.setFieldValue('intervalSeconds', 90)
+        })
+        await act(async () => {
+            await logic.form.handleSubmit()
+        })
+        getStatus = 403
+        await act(async () => {
+            await client.refetchQueries({
+                queryKey:
+                    source === 'policy'
+                        ? hostMonitoringQueryKeys.policy(hostId)
+                        : hostMonitoringQueryKeys.history({
+                              proxyHostId: hostId,
+                              status: 'all',
+                              limit: 100,
+                              period: 'recent',
+                          }),
+            })
+            finish(
+                Response.json({
+                    ...policy,
+                    version: nextVersion,
+                    settings: { ...policy.settings, intervalSeconds: 90 },
+                }),
+            )
+        })
+        await flush()
+        expect(logic.state.canView).toBe(false)
+        expect(logic.form.getFieldValue('domain')).toBe('')
+        expect(logic.state.policy).toBeNull()
+        expect(successToast).not.toHaveBeenCalled()
+        expect(errorToast).not.toHaveBeenCalled()
+        expect(client.getQueryData(hostMonitoringQueryKeys.policy(hostId))).not.toEqual(
+            expect.objectContaining({ version: nextVersion }),
+        )
+    },
+)
+
+test('equivalent permission order preserves a dirty monitoring draft', async () => {
+    await render()
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 90)
+    })
+    await act(async () =>
+        root!.render(
+            withTestLanguage(
+                <QueryClientProvider client={client}>
+                    <Harness {...props} permissions={props.permissions.toReversed()} />
+                </QueryClientProvider>,
+            ),
+        ),
+    )
+    await flush()
+    expect(logic.state.dirty).toBe(true)
+    expect(logic.form.getFieldValue('intervalSeconds')).toBe(90)
+    expect(warningToast).not.toHaveBeenCalled()
+})
+
+test('invalid numeric drafts produce one localized toast per invalid episode without submitting', async () => {
+    await render()
+    await act(async () => {
+        logic.form.setFieldValue('timeoutMs', 10_001)
+    })
+    expect(logic.state.valid).toBe(false)
+    expect(errorToast).toHaveBeenCalledWith(expect.any(String), { title: 'Action failed' })
+    expect(errorToast.mock.calls[0]?.[0]).not.toContain('admin.')
+    await act(async () => {
+        logic.form.setFieldValue('timeoutMs', 10_002)
+    })
+    await flush()
+    expect(errorToast).toHaveBeenCalledTimes(1)
+    await act(async () => {
+        logic.form.setFieldValue('timeoutMs', 5_000)
+    })
+    await act(async () => {
+        logic.form.setFieldValue('timeoutMs', 10_001)
+    })
+    expect(errorToast).toHaveBeenCalledTimes(2)
+    expect(requests.some((request) => request.method === 'POST')).toBe(false)
+})
+
+test('temporary Activity hiding preserves same-identity save reconciliation while suppressing hidden feedback', async () => {
+    const container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    async function show(mode: 'visible' | 'hidden') {
+        await act(async () =>
+            root!.render(
+                withTestLanguage(
+                    <QueryClientProvider client={client}>
+                        <Activity mode={mode}>
+                            <Harness {...props} />
+                        </Activity>
+                    </QueryClientProvider>,
+                ),
+            ),
+        )
+        await flush()
+    }
+    await show('visible')
+    let finish!: (response: Response) => void
+    fetchSpy.mockImplementationOnce(
+        Object.assign(
+            () =>
+                new Promise<Response>((resolve) => {
+                    finish = resolve
+                }),
+            { preconnect: fetch.preconnect },
+        ),
+    )
+    await act(async () => {
+        logic.form.setFieldValue('intervalSeconds', 90)
+    })
+    await act(async () => {
+        await logic.form.handleSubmit()
+    })
+    await show('hidden')
+    responsePolicy = {
+        ...policy,
+        version: nextVersion,
+        settings: { ...policy.settings, intervalSeconds: 90 },
+    }
+    await act(async () => {
+        finish(Response.json(responsePolicy))
+    })
+    await flush()
+    expect(successToast).not.toHaveBeenCalled()
+    await show('visible')
+    expect(logic.form.getFieldValue('intervalSeconds')).toBe(90)
+    expect(logic.state.dirty).toBe(false)
+    expect(logic.state.conflict).toBe(false)
+    expect(warningToast).not.toHaveBeenCalled()
 })

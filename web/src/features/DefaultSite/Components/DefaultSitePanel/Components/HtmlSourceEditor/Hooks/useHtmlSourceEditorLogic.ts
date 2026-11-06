@@ -150,7 +150,7 @@ export function useHtmlSourceEditorLogic(
                 })
             }
         } catch {
-            if (mounted.current && editor.current === view) {
+            if (mounted.current && !latest.current.disabled && editor.current === view) {
                 toast.error(t('defaultSite.editor.formatFailed'), {
                     title: t('toast.titles.error'),
                 })

@@ -244,6 +244,40 @@ describe('explicit domain-check dialog', () => {
         expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
     })
 
+    test.each([true, false])(
+        'only reports the latest overlapping copy (success: %s)',
+        async (success) => {
+            let resolveOlder!: () => void
+            let rejectOlder!: (error: Error) => void
+            copy.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve, reject) => {
+                        resolveOlder = resolve
+                        rejectOlder = reject
+                    }),
+            )
+            if (success) copy.mockResolvedValueOnce(undefined)
+            else copy.mockRejectedValueOnce(new Error('PRIVATE-NEW-COPY-ERROR'))
+            await render()
+            await click('Run check')
+            await click('Copy summary')
+            await click('Copy summary')
+            await act(async () => {
+                if (success) rejectOlder(new Error('PRIVATE-OLD-COPY-ERROR'))
+                else resolveOlder()
+            })
+            expect(copy).toHaveBeenCalledTimes(2)
+            expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
+            expect(
+                document.querySelector(
+                    success ? '.rentnerproxy-toast-success' : '.rentnerproxy-toast-error',
+                )?.textContent,
+            ).toContain(success ? 'Summary copied.' : 'Could not copy the summary.')
+            expect(document.body.textContent).not.toContain('PRIVATE-')
+            expect(button('Copy summary').disabled).toBe(false)
+        },
+    )
+
     test.each(['identity', 'domains', 'revision', 'enabled', 'permission', 'close'] as const)(
         'suppresses late results after a %s change',
         async (change) => {

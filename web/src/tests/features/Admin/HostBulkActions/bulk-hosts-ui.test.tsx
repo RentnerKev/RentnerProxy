@@ -83,7 +83,7 @@ let warningToast: ReturnType<typeof spyOn<typeof toast, 'warning'>>
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
 
-async function render(element: ReactElement) {
+async function render(element: ReactElement, language: 'de' | 'en' = 'de') {
     if (!root) {
         const container = document.createElement('div')
         document.body.append(container)
@@ -98,7 +98,7 @@ async function render(element: ReactElement) {
                 <QueryClientProvider client={client}>
                     <TooltipProvider {...TOOLTIP_PROVIDER_PROPS}>{element}</TooltipProvider>
                 </QueryClientProvider>,
-                'de',
+                language,
             ),
         ),
     )
@@ -470,11 +470,97 @@ test('failed assignment loading reports one toast and keeps preview blocked acro
         'Die Anfrage ist fehlgeschlagen. Erstelle eine neue Vorschau und versuche es erneut.',
         { title: 'Aktion fehlgeschlagen' },
     )
-    await render(modal)
+    await render(<HostBulkModal {...modal.props} />, 'en')
     expect(errorToast).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull()
     expect(document.body.textContent).not.toContain('private options fixture')
 })
+
+test('an options failure after update permission is revoked does not emit a toast', async () => {
+    let fail!: (error: Error) => void
+    certificates.mockImplementationOnce(
+        () =>
+            new Promise((_resolve, reject) => {
+                fail = reject
+            }),
+    )
+    const modalProps = {
+        kind: 'proxy' as const,
+        permissions: [PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_UPDATE],
+        hostIds: [firstId],
+        onOpenChange: () => undefined,
+    }
+    await render(<HostBulkModal {...modalProps} />)
+    const select = document.querySelector<HTMLElement>('[role="combobox"]')!
+    await act(async () =>
+        select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
+    )
+    await waitFor(() => document.querySelectorAll('[role="option"]').length === 3)
+    await click(
+        [...document.querySelectorAll('[role="option"]')].find((option) =>
+            option.textContent?.includes('Zertifikat zuweisen'),
+        )!,
+    )
+    await render(<HostBulkModal {...modalProps} permissions={[PERMISSIONS.PROXY_HOSTS_VIEW]} />)
+    await act(async () => {
+        fail(new Error('private late options error'))
+        await new Promise((resolve) => setTimeout(resolve, 15))
+    })
+    expect(errorToast).not.toHaveBeenCalled()
+    expect(button('Änderungen vorschauen').disabled).toBe(true)
+})
+
+test.each(['hosts', 'permissions'] as const)(
+    'late successful previews cannot restore old ready rows after %s changes',
+    async (change) => {
+        let finish!: (value: { success: true; value: BulkHostResult }) => void
+        preview.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const modalProps = {
+            kind: 'proxy' as const,
+            permissions: [PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_DISABLE],
+            hostIds: [firstId],
+            onOpenChange: () => undefined,
+        }
+        await render(<HostBulkModal {...modalProps} />)
+        await click(button('Änderungen vorschauen'))
+        await render(
+            <HostBulkModal
+                {...modalProps}
+                hostIds={change === 'hosts' ? [secondId] : [firstId]}
+                permissions={
+                    change === 'permissions'
+                        ? [PERMISSIONS.PROXY_HOSTS_VIEW]
+                        : modalProps.permissions
+                }
+            />,
+        )
+        await act(async () => {
+            finish({
+                success: true,
+                value: {
+                    runtimeStatus: 'unchanged',
+                    rows: [
+                        {
+                            id: firstId,
+                            label: 'old.example.test',
+                            status: 'ready',
+                            version: 'a'.repeat(64),
+                        },
+                    ],
+                },
+            })
+            await new Promise((resolve) => setTimeout(resolve, 15))
+        })
+        expect(document.querySelector('tbody')).toBeNull()
+        expect(button('Vorschau anwenden').disabled).toBe(true)
+        expect(errorToast).not.toHaveBeenCalled()
+    },
+)
 
 test.each(['unmount', 'hosts', 'permissions'] as const)(
     'late preview failures do not affect the modal after %s changes',
