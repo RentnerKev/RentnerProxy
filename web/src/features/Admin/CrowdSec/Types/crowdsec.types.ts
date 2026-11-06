@@ -41,12 +41,12 @@ interface CrowdSecPageState {
 export type CrowdSecTransitionMode = 'managed' | 'disabled'
 
 export interface CrowdSecTransition {
+    readonly attemptId: number
     readonly targetMode: CrowdSecTransitionMode
     readonly startedAt: number
     readonly phase: 'running' | 'delayed' | 'complete' | 'error'
     readonly connectionInterrupted: boolean
     readonly runtimePending: boolean
-    readonly errorMessage: string | null
 }
 
 export interface CrowdSecTransitionProgress {

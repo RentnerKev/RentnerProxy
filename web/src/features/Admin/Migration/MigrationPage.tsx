@@ -43,11 +43,6 @@ export default function MigrationPage() {
                         </button>
                     </CustomTooltip>
                 </div>
-                {state.error === 'export_failed' ? (
-                    <p role="alert" className="mt-4 text-sm text-danger-text">
-                        {t('admin.migration.errors.export_failed')}
-                    </p>
-                ) : null}
             </section>
             <section
                 className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
@@ -121,11 +116,6 @@ export default function MigrationPage() {
                             : t('admin.npmImport.preview')}
                     </button>
                 </div>
-                {state.error && state.error !== 'export_failed' ? (
-                    <p role="alert" className="mt-4 text-sm text-danger-text">
-                        {t(`admin.migration.errors.${state.error}`)}
-                    </p>
-                ) : null}
             </section>
             {state.preview ? (
                 <ImportPreviewPanel

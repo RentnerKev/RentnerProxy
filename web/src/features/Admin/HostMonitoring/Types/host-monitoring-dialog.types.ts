@@ -50,7 +50,6 @@ export interface MonitoringDialogState {
     readonly dirty: boolean
     readonly valid: boolean
     readonly conflict: boolean
-    readonly notice: string
     readonly ready: boolean
     readonly numericFields: readonly { name: NumericMonitoringSetting; min: number; max: number }[]
 }

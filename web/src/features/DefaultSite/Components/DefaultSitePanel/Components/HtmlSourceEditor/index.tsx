@@ -56,11 +56,6 @@ export default function HtmlSourceEditor(props: HtmlSourceEditorProps) {
                 </div>
                 <div ref={editorContainerRef} className="min-h-90 min-w-0" />
             </div>
-            {state.formatError ? (
-                <p role="alert" className="mt-2 text-sm text-danger-text">
-                    {state.formatError}
-                </p>
-            ) : null}
         </div>
     )
 }

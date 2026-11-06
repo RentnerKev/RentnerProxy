@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts'
 
 import { DEFAULT_SITE_MODES } from '@/config/default-site.config.ts'
@@ -18,10 +18,24 @@ import type {
 
 export function useDefaultSitePanelLogic(canUpdate: boolean) {
     const { t } = useTranslationStore()
-    const [error, setError] = useState<string | null>(null)
-    const [runtimeStatus, setRuntimeStatus] = useState<'applied' | 'pending' | null>(null)
     const [baseline, setBaseline] = useState<DefaultSiteEditorData | null>(null)
     const saveInFlight = useRef(false)
+    const saveGeneration = useRef(0)
+    const canEdit = useRef(false)
+    const lastPermission = useRef(canUpdate)
+    const permissionGeneration = useRef(0)
+    const queryClient = useQueryClient()
+    useEffect(() => {
+        if (lastPermission.current !== canUpdate) {
+            permissionGeneration.current += 1
+            lastPermission.current = canUpdate
+        }
+        canEdit.current = canUpdate
+        return () => {
+            canEdit.current = false
+            saveGeneration.current += 1
+        }
+    }, [canUpdate])
     const query = useQuery({
         queryKey: ['default-site'],
         queryFn: () => getDefaultSiteHandler(),
@@ -45,7 +59,14 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             html: savedSettings?.mode === 'custom-html' ? savedSettings.html : '',
         } satisfies DefaultSiteFormValues,
         onSubmit: async ({ value }) => {
-            if (!canUpdate || !baseline || query.isFetching || saveInFlight.current) return
+            if (
+                !canUpdate ||
+                !canEdit.current ||
+                !baseline ||
+                query.isFetching ||
+                saveInFlight.current
+            )
+                return
             const settings = defaultSiteSettingsSchema.safeParse(
                 value.mode === 'redirect'
                     ? { mode: value.mode, url: value.url }
@@ -55,26 +76,37 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             )
             if (!settings.success) return
             saveInFlight.current = true
-            setError(null)
+            const currentGeneration = saveGeneration.current
+            const currentPermissionGeneration = permissionGeneration.current
             try {
                 const result = await mutation.mutateAsync(settings.data)
                 if (!result.success) {
-                    if (result.message === 'defaultSite.errors.conflict') void query.refetch()
-                    setError(t(result.message))
+                    if (result.message === 'defaultSite.errors.conflict')
+                        void queryClient.invalidateQueries({ queryKey: ['default-site'] })
+                    if (currentGeneration !== saveGeneration.current || !canEdit.current) return
                     toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
                 }
-                setRuntimeStatus(result.runtimeStatus)
-                toast.success(
-                    t(
-                        result.runtimeStatus === 'pending'
-                            ? 'defaultSite.pending'
-                            : 'defaultSite.saved',
-                    ),
-                    { title: t('toast.titles.success') },
-                )
+                if (currentGeneration === saveGeneration.current && canEdit.current) {
+                    if (result.runtimeStatus === 'pending') {
+                        toast.warning(t('defaultSite.pending'), {
+                            title: t('toast.titles.warning'),
+                            duration: 0,
+                        })
+                    } else {
+                        toast.success(t('defaultSite.saved'), { title: t('toast.titles.success') })
+                    }
+                }
+                await queryClient.invalidateQueries({
+                    queryKey: ['default-site'],
+                    refetchType: 'none',
+                })
                 const refreshed = await query.refetch()
-                if (refreshed.isSuccess) {
+                if (
+                    refreshed.isSuccess &&
+                    currentPermissionGeneration === permissionGeneration.current &&
+                    lastPermission.current
+                ) {
                     setBaseline(refreshed.data)
                     const { settings: loaded } = refreshed.data
                     form.reset({
@@ -84,7 +116,8 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
                     })
                 }
             } catch {
-                setError(t('defaultSite.errors.saveFailed'))
+                void queryClient.invalidateQueries({ queryKey: ['default-site'] })
+                if (currentGeneration !== saveGeneration.current || !canEdit.current) return
                 toast.error(t('defaultSite.errors.saveFailed'), { title: t('toast.titles.error') })
             } finally {
                 saveInFlight.current = false
@@ -128,8 +161,6 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
             isDirty,
             isValid: validated.success,
             htmlBytes: new TextEncoder().encode(values.html).byteLength,
-            error,
-            runtimeStatus,
             modeOptions: DEFAULT_SITE_MODES.map((mode) => ({
                 value: mode,
                 label: t(`defaultSite.modes.${mode}`),
@@ -141,7 +172,6 @@ export function useDefaultSitePanelLogic(canUpdate: boolean) {
                 void form.handleSubmit()
             },
             handleDiscard: () => {
-                setError(null)
                 if (!query.data) return
                 setBaseline(query.data)
                 const { settings: loaded } = query.data

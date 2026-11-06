@@ -30,7 +30,6 @@ export interface BulkHostModalLogicResult {
         readonly id: string
         readonly values: BulkHostFormValues
         readonly pending: boolean
-        readonly error: string | null
         readonly result: BulkHostResult | null
         readonly rows: BulkHostResult['rows']
         readonly canApply: boolean

@@ -221,11 +221,6 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
                                             </form.Field>
                                         ))}
                                     </div>
-                                    {!state.valid && state.dirty ? (
-                                        <p role="alert" className="text-sm text-danger-text">
-                                            {t('admin.hostMonitoring.invalid')}
-                                        </p>
-                                    ) : null}
                                 </form>
                             ) : state.policy ? (
                                 <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -248,9 +243,6 @@ export default function HostMonitoringDialog(props: HostMonitoringDialogProps) {
                                         </dd>
                                     </div>
                                 </dl>
-                            ) : null}
-                            {state.notice ? (
-                                <output className="text-sm text-muted">{state.notice}</output>
                             ) : null}
                         </section>
                     </>

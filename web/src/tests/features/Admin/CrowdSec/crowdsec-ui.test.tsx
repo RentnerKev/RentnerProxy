@@ -16,7 +16,7 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const { act } = await import('react')
+const { act, Activity } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider, toast } = await import('@rentnerkev/toasts')
@@ -121,13 +121,25 @@ async function renderPage(permissions: readonly string[]): Promise<HTMLElement> 
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
     activeRoot = createRoot(container)
+    await renderPermissions(permissions)
+    await waitFor(() => container.textContent?.includes('Protection source') === true)
+    return container
+}
+
+async function renderPermissions(
+    permissions: readonly string[],
+    visible = true,
+    identity = 0,
+): Promise<void> {
     await act(async () => {
         activeRoot?.render(
             withTestLanguage(
                 <TooltipProvider>
                     <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <QueryClientProvider client={activeQueryClient!}>
-                            <CrowdSecPage permissions={permissions} />
+                            <Activity mode={visible ? 'visible' : 'hidden'} key={identity}>
+                                <CrowdSecPage permissions={permissions} />
+                            </Activity>
                         </QueryClientProvider>
                     </ToastProvider>
                 </TooltipProvider>,
@@ -135,8 +147,6 @@ async function renderPage(permissions: readonly string[]): Promise<HTMLElement> 
         )
         await Promise.resolve()
     })
-    await waitFor(() => container.textContent?.includes('Protection source') === true)
-    return container
 }
 
 async function click(element: Element): Promise<void> {
@@ -420,7 +430,10 @@ describe('CrowdSec management UI', () => {
         )
         expect(progressValue()).toBe(0)
 
-        releaseSave?.()
+        await act(async () => {
+            releaseSave?.()
+            await saveGate
+        })
         await waitFor(() => progressValue() === 30)
 
         configurationFetchFails = true
@@ -455,9 +468,16 @@ describe('CrowdSec management UI', () => {
         }
         await refreshConfiguration()
         await waitFor(() => progressValue() === 100)
-        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-success') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'Managed CrowdSec is active',
         )
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
+        await refreshConfiguration()
+        expect(document.querySelectorAll('.rentnerproxy-toast-success')).toHaveLength(1)
     })
 
     test('checks the disabled runtime after the save response is lost', async () => {
@@ -482,8 +502,17 @@ describe('CrowdSec management UI', () => {
                 document.querySelector('[role="dialog"]')?.textContent?.includes('interrupted') ===
                 true,
         )
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Please note',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'interrupted',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
         await refreshConfiguration()
         await waitFor(() => progressValue() === 30)
+        expect(document.querySelectorAll('.rentnerproxy-toast-warning')).toHaveLength(1)
 
         configuration = {
             ...configuration,
@@ -504,9 +533,14 @@ describe('CrowdSec management UI', () => {
         }
         await refreshConfiguration()
         await waitFor(() => progressValue() === 100)
-        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-success') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'protection is disabled',
         )
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
         expect(container.textContent).not.toContain('CrowdSec configuration unavailable')
     })
 
@@ -519,14 +553,208 @@ describe('CrowdSec management UI', () => {
         await waitFor(
             () =>
                 document
-                    .querySelector('[role="dialog"]')
+                    .querySelector('.rentnerproxy-toast-error')
                     ?.textContent?.includes('changed in another session') === true,
         )
 
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Action failed',
+        )
+        expect(document.body.textContent?.split('changed in another session')).toHaveLength(2)
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
+        expect(
+            document.querySelector('.rentnerproxy-toast-error [data-testid="toast-progress"]'),
+        ).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+        await refreshConfiguration()
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
         expect(progressValue()).toBe(0)
         expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
             'Managed CrowdSec is active',
         )
         expect(configuration.mode).toBe('disabled')
     })
+
+    test.each(['rejected', 'lost response', 'accepted'] as const)(
+        'suppresses late %s feedback after update permission is lost and restored',
+        async (outcome) => {
+            saveFailure = outcome === 'rejected'
+            loseSaveResponse = outcome === 'lost response'
+            saveGate = new Promise<void>((resolve) => {
+                releaseSave = resolve
+            })
+            const container = await renderPage([
+                PERMISSIONS.CROWDSEC_VIEW,
+                PERMISSIONS.CROWDSEC_UPDATE,
+            ])
+            await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+            await click(button(container, 'Save and apply'))
+            await renderPermissions([PERMISSIONS.CROWDSEC_VIEW])
+            await renderPermissions([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+            await act(async () => {
+                releaseSave?.()
+                await saveGate
+                await new Promise((resolve) => setTimeout(resolve, 20))
+            })
+            if (outcome === 'accepted') {
+                await waitFor(
+                    () =>
+                        activeQueryClient?.getQueryData<CrowdSecConfiguration>([
+                            'crowdsec',
+                            'configuration',
+                        ])?.mode === 'managed',
+                )
+            }
+            expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+            expect(document.querySelector('progress')).toBeNull()
+        },
+    )
+
+    test.each(['hidden', 'resumed'] as const)(
+        'reconciles an external save for the same identity when its Activity is %s',
+        async (settleWhile) => {
+            const permissions = [PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE]
+            const container = await renderPage(permissions)
+            await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-external')!)
+            await setInputValue(
+                container.querySelector<HTMLInputElement>('[name="crowdsec-api-url"]')!,
+                'https://crowdsec.example.test/',
+            )
+            await setInputValue(
+                container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')!,
+                'test-replacement-bouncer-key',
+            )
+            saveGate = new Promise<void>((resolve) => {
+                releaseSave = resolve
+            })
+            await click(button(container, 'Save and apply'))
+            await renderPermissions(permissions, false)
+            if (settleWhile === 'resumed') await renderPermissions(permissions)
+            await act(async () => {
+                releaseSave?.()
+                await saveGate
+                await new Promise((resolve) => setTimeout(resolve, 20))
+            })
+            if (settleWhile === 'hidden') {
+                expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+                await renderPermissions(permissions)
+            }
+            await waitFor(
+                () =>
+                    container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')
+                        ?.value === '',
+            )
+            expect(button(container, 'Save and apply').disabled).toBe(true)
+            expect(
+                activeQueryClient?.getQueryData<CrowdSecConfiguration>([
+                    'crowdsec',
+                    'configuration',
+                ])?.mode,
+            ).toBe('external')
+        },
+    )
+
+    test('refreshes a replacement identity cache without old save feedback or draft changes', async () => {
+        const permissions = [PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE]
+        const container = await renderPage(permissions)
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+        saveGate = new Promise<void>((resolve) => {
+            releaseSave = resolve
+        })
+        await click(button(container, 'Save and apply'))
+        await renderPermissions(permissions, true, 1)
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-external')!)
+        await setInputValue(
+            container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')!,
+            'replacement-draft',
+        )
+        await act(async () => {
+            releaseSave?.()
+            await saveGate
+            await new Promise((resolve) => setTimeout(resolve, 20))
+        })
+        await waitFor(
+            () =>
+                activeQueryClient?.getQueryData<CrowdSecConfiguration>([
+                    'crowdsec',
+                    'configuration',
+                ])?.mode === 'managed',
+        )
+        expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+        expect(container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')?.value).toBe(
+            'replacement-draft',
+        )
+        expect(document.querySelector('progress')).toBeNull()
+    })
+
+    test('shows a persistent rejected-save toast only when its original Activity resumes', async () => {
+        const permissions = [PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE]
+        const container = await renderPage(permissions)
+        saveFailure = true
+        saveGate = new Promise<void>((resolve) => {
+            releaseSave = resolve
+        })
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+        await click(button(container, 'Save and apply'))
+        await renderPermissions(permissions, false)
+        await act(async () => {
+            releaseSave?.()
+            await saveGate
+            await new Promise((resolve) => setTimeout(resolve, 20))
+        })
+        expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+        await renderPermissions(permissions)
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'changed in another session',
+        )
+        expect(
+            document.querySelector('.rentnerproxy-toast-error [data-testid="toast-progress"]'),
+        ).toBeNull()
+        expect(document.querySelector('[role="dialog"] output')).toBeNull()
+    })
+
+    test.each(['managed', 'external'] as const)(
+        'reconciles a lost %s save response while hidden and reports it once on resume',
+        async (mode) => {
+            const permissions = [PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE]
+            const container = await renderPage(permissions)
+            loseSaveResponse = true
+            saveGate = new Promise<void>((resolve) => {
+                releaseSave = resolve
+            })
+            await click(container.querySelector<HTMLInputElement>(`#crowdsec-mode-${mode}`)!)
+            if (mode === 'external') {
+                await setInputValue(
+                    container.querySelector<HTMLInputElement>('[name="crowdsec-api-url"]')!,
+                    'https://crowdsec.example.test/',
+                )
+                await setInputValue(
+                    container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')!,
+                    'test-replacement-bouncer-key',
+                )
+            }
+            await click(button(container, 'Save and apply'))
+            await renderPermissions(permissions, false)
+            await act(async () => {
+                releaseSave?.()
+                await saveGate
+                await new Promise((resolve) => setTimeout(resolve, 20))
+            })
+            expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+            await renderPermissions(permissions)
+            const kind = mode === 'managed' ? 'warning' : 'error'
+            await waitFor(() => document.querySelector(`.rentnerproxy-toast-${kind}`) !== null)
+            expect(document.querySelector(`.rentnerproxy-toast-${kind}`)?.textContent).toContain(
+                mode === 'managed' ? 'interrupted' : 'could not be saved',
+            )
+            if (mode === 'managed') {
+                expect(document.querySelector('[role="dialog"] output')?.textContent).toContain(
+                    'interrupted',
+                )
+            }
+            await renderPermissions(permissions)
+            expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
+        },
+    )
 })

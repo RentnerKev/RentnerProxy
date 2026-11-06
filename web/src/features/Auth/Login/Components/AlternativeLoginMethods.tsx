@@ -22,9 +22,6 @@ export default function AlternativeLoginMethods({
             >
                 <input ref={oidcProviderIdRef} type="hidden" name="providerId" />
             </form>
-            {state.oidcFeedback ? (
-                <FormMessage tone="error">{state.oidcFeedback}</FormMessage>
-            ) : null}
             {state.alternativeSignInItems.length > 1 ? (
                 <h2 className="mt-2 text-sm font-bold text-muted">{t('auth.moreSignInOptions')}</h2>
             ) : null}

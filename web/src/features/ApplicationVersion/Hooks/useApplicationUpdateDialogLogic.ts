@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { toast } from '@rentnerkev/toasts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 import { APP_VERSION } from '@/lib/ApplicationVersion/version.ts'
 import type {
@@ -8,27 +10,37 @@ import type {
 
 export default function useApplicationUpdateDialogLogic(
     data: ApplicationUpdateDialogProps['data'],
+    open: boolean,
 ): ApplicationUpdateDialogLogicResult {
+    const { t } = useTranslationStore()
     const reference =
         data?.latest?.image.status === 'verified' &&
         data.latest.compatibility.status !== 'requires-beta1'
             ? data.latest.image.reference
             : null
-    const [copiedReference, setCopiedReference] = useState<string | null>(null)
-    const [failedReference, setFailedReference] = useState<string | null>(null)
+    const generation = useRef(0)
+    const active = useRef(false)
+    useEffect(() => {
+        active.current = open && reference !== null
+        return () => {
+            active.current = false
+            generation.current += 1
+        }
+    }, [reference, open])
     const releaseUrl = data?.latest?.url
     const isOfficialUrl = releaseUrl?.startsWith(
         'https://github.com/RentnerKev/RentnerProxy/releases/',
     )
     const copyReference = async () => {
-        if (!reference) return
+        if (!reference || !open || !active.current) return
+        const currentGeneration = ++generation.current
         try {
             await navigator.clipboard.writeText(reference)
-            setCopiedReference(reference)
-            setFailedReference(null)
+            if (currentGeneration !== generation.current) return
+            toast.success(t('updates.copyStates.copied'), { title: t('toast.titles.success') })
         } catch {
-            setCopiedReference(null)
-            setFailedReference(reference)
+            if (currentGeneration !== generation.current) return
+            toast.error(t('updates.copyStates.failed'), { title: t('toast.titles.error') })
         }
     }
 
@@ -38,13 +50,7 @@ export default function useApplicationUpdateDialogLogic(
             releaseUrl: isOfficialUrl
                 ? releaseUrl!
                 : 'https://github.com/RentnerKev/RentnerProxy/releases',
-            canCopy: reference !== null,
-            copyState:
-                reference && copiedReference === reference
-                    ? 'copied'
-                    : reference && failedReference === reference
-                      ? 'failed'
-                      : 'idle',
+            canCopy: open && reference !== null,
         },
         handler: {
             handleCopy: () => {

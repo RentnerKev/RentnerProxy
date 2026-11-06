@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
@@ -18,12 +18,11 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const { act } = await import('react')
+const { act, Activity } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: withTestPageAlerts, openPageAlerts } =
-    await import('@/tests/Helpers/withTestPageAlerts.tsx')
-const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
-const { ToastProvider } = await import('@rentnerkev/toasts')
+const { default: withTestPageAlerts } = await import('@/tests/Helpers/withTestPageAlerts.tsx')
+const { default: withTestLanguage, catalogs } = await import('@/tests/Helpers/withTestLanguage.tsx')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const { InputProvider } = await import('@rentnerkev/inputs')
 const { INPUT_PROVIDER_PROPS } = await import('@/config/input.config.ts')
 const { TOAST_PROVIDER_PROPS } = await import('@/config/toast.config.ts')
@@ -66,11 +65,13 @@ const previousNonce = Reflect.get(globalThis, '__webpack_nonce__')
 
 beforeEach(() => setClientCspNonce(editorNonce))
 
-async function renderPanel(canUpdate = true) {
-    const container = document.createElement('div')
-    document.body.append(container)
-    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    root = createRoot(container)
+async function renderPanel(canUpdate = true, existingContainer?: HTMLElement, hidden = false) {
+    const container = existingContainer ?? document.createElement('div')
+    if (!root) {
+        document.body.append(container)
+        client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        root = createRoot(container)
+    }
     await act(async () => {
         root!.render(
             withTestLanguage(
@@ -78,7 +79,9 @@ async function renderPanel(canUpdate = true) {
                     <ToastProvider {...TOAST_PROVIDER_PROPS}>
                         <InputProvider {...INPUT_PROVIDER_PROPS}>
                             <QueryClientProvider client={client!}>
-                                <DefaultSitePanel canUpdate={canUpdate} />
+                                <Activity mode={hidden ? 'hidden' : 'visible'}>
+                                    <DefaultSitePanel canUpdate={canUpdate} />
+                                </Activity>
                             </QueryClientProvider>
                         </InputProvider>
                     </ToastProvider>,
@@ -189,6 +192,7 @@ afterEach(async () => {
     root = null
     client?.clear()
     client = null
+    toast.dismissAll()
     document.body.replaceChildren()
     saved = { baseRevision: 'revision-1', settings: { mode: 'not-found' } }
     outcome = { success: true, message: 'defaultSite.saved', runtimeStatus: 'applied' }
@@ -318,6 +322,7 @@ describe('default-site settings panel', () => {
     )
 
     test('saves mode changes with the loaded revision and reports pending honestly', async () => {
+        const warning = spyOn(toast, 'warning')
         outcome = { success: true, message: 'defaultSite.savedPending', runtimeStatus: 'pending' }
         const container = await renderPanel()
         expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
@@ -331,9 +336,40 @@ describe('default-site settings panel', () => {
         })
         expect(container.textContent).toContain('Saved: Welcome page')
         expect(container.textContent).not.toContain('Runtime application is pending')
-        expect((await openPageAlerts()).textContent).toContain('Runtime application is pending')
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Runtime application is pending',
+        )
+        expect(warning).toHaveBeenCalledWith(catalogs.en.defaultSite.pending, {
+            title: catalogs.en.toast.titles.warning,
+            duration: 0,
+        })
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            catalogs.en.toast.titles.warning,
+        )
+        warning.mockRestore()
+        expect(container.querySelector('button[data-severity]')).toBeNull()
         expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
             true,
+        )
+    })
+
+    test('keeps a draft editable and reports a thrown save failure through one toast', async () => {
+        const container = await renderPanel()
+        await chooseMode(container, 'Welcome page')
+        saveSettings.mockRejectedValueOnce(new Error('private diagnostic'))
+        await submit(container)
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Could not save',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            catalogs.en.toast.titles.error,
+        )
+        expect(container.textContent).not.toContain('private diagnostic')
+        expect(container.textContent).toContain('Unsaved changes')
+        expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+            false,
         )
     })
 
@@ -349,11 +385,10 @@ describe('default-site settings panel', () => {
         expect(getEditor(container).state.doc.toString()).toBe('<p>draft</p>')
         await chooseMode(container, 'Close connection')
         await submit(container)
-        expect(
-            container.querySelector(
-                'section[aria-labelledby="default-site-heading"] [role="alert"]',
-            )?.textContent,
-        ).toContain('Saved settings changed')
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Saved settings changed',
+        )
         saved = {
             baseRevision: 'revision-3',
             settings: { mode: 'redirect', url: 'https://example.test/' },
@@ -456,11 +491,10 @@ describe('default-site settings panel', () => {
                 },
             })
             expect(readDraft()).toBe(draft)
-            expect(
-                container.querySelector(
-                    'section[aria-labelledby="default-site-heading"] [role="alert"]',
-                )?.textContent,
-            ).toContain('Saved settings changed')
+            expect(container.querySelector('[role="alert"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+                'Saved settings changed',
+            )
         },
     )
 
@@ -577,7 +611,8 @@ describe('default-site settings panel', () => {
         const container = await renderPanel()
         await click(formatButton(container))
         expect(getEditor(container).state.doc.toString()).toBe(html)
-        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
             'Could not format HTML',
         )
         expect(saveSettings).not.toHaveBeenCalled()
@@ -602,7 +637,8 @@ describe('default-site settings panel', () => {
             finish({ success: true, html: '<p>original</p>\n' })
         })
         expect(getEditor(container).state.doc.toString()).toBe('<p>new typing</p>')
-        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
             'HTML changed during formatting',
         )
         expect(saveSettings).not.toHaveBeenCalled()
@@ -635,4 +671,136 @@ describe('default-site settings panel', () => {
         ).toBeNull()
         expect(container.textContent).toContain('Saved: 404 Not found')
     })
+})
+
+for (const transition of ['unmount', 'permission'] as const) {
+    for (const response of ['success', 'error', 'reject'] as const) {
+        test(`suppresses save ${response} feedback after ${transition} and reconciles successful writes`, async () => {
+            let resolve!: (value: DefaultSiteSaveResult) => void
+            let reject!: (error: Error) => void
+            saveSettings.mockImplementationOnce(
+                () =>
+                    new Promise((done, fail) => {
+                        resolve = done
+                        reject = fail
+                    }),
+            )
+            const success = spyOn(toast, 'success')
+            const error = spyOn(toast, 'error')
+            const warning = spyOn(toast, 'warning')
+            try {
+                const container = await renderPanel()
+                await chooseMode(container, 'Welcome page')
+                await submit(container)
+                if (transition === 'unmount') {
+                    await act(async () => root?.unmount())
+                    root = null
+                } else await renderPanel(false, container)
+                await act(async () => {
+                    if (response === 'success') {
+                        saved = { baseRevision: 'revision-2', settings: { mode: 'welcome' } }
+                        resolve({
+                            success: true,
+                            message: 'defaultSite.saved',
+                            runtimeStatus: 'applied',
+                        })
+                    } else if (response === 'error')
+                        resolve({ success: false, message: 'defaultSite.errors.conflict' })
+                    else reject(new Error('private save failure'))
+                })
+                await settle()
+                expect(success).not.toHaveBeenCalled()
+                expect(error).not.toHaveBeenCalled()
+                expect(warning).not.toHaveBeenCalled()
+                if (response === 'success') {
+                    expect(
+                        client!.getQueryData<DefaultSiteEditorData>(['default-site'])?.baseRevision,
+                    ).toBe('revision-2')
+                }
+            } finally {
+                success.mockRestore()
+                error.mockRestore()
+                warning.mockRestore()
+            }
+        })
+    }
+}
+
+test('applied saves report their localized title and body once', async () => {
+    const success = spyOn(toast, 'success')
+    try {
+        const container = await renderPanel()
+        await chooseMode(container, 'Welcome page')
+        await submit(container)
+        expect(success).toHaveBeenCalledTimes(1)
+        expect(success).toHaveBeenCalledWith(catalogs.en.defaultSite.saved, {
+            title: catalogs.en.toast.titles.success,
+        })
+    } finally {
+        success.mockRestore()
+    }
+})
+
+test('does not announce a formatting rejection after the editor becomes disabled', async () => {
+    saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html: '<p>draft</p>' } }
+    let reject!: (error: Error) => void
+    formatSettings.mockImplementationOnce(
+        () =>
+            new Promise((_done, fail) => {
+                reject = fail
+            }),
+    )
+    const error = spyOn(toast, 'error')
+    try {
+        const container = await renderPanel()
+        await click(formatButton(container))
+        await renderPanel(false, container)
+        await act(async () => reject(new Error('private formatter failure')))
+        await settle()
+        expect(error).not.toHaveBeenCalled()
+        expect(getEditor(container).state.doc.toString()).toBe('<p>draft</p>')
+        expect(getEditor(container).contentDOM.getAttribute('aria-readonly')).toBe('true')
+    } finally {
+        error.mockRestore()
+    }
+})
+
+test('reconciles a successful save across temporary Activity hiding without stale feedback', async () => {
+    let resolve!: (value: DefaultSiteSaveResult) => void
+    saveSettings.mockImplementationOnce(
+        () =>
+            new Promise((done) => {
+                resolve = done
+            }),
+    )
+    const success = spyOn(toast, 'success')
+    try {
+        const container = await renderPanel()
+        await chooseMode(container, 'Welcome page')
+        await submit(container)
+        await renderPanel(true, container, true)
+        await act(async () => {
+            saved = { baseRevision: 'revision-2', settings: { mode: 'welcome' } }
+            resolve({ success: true, message: 'defaultSite.saved', runtimeStatus: 'applied' })
+        })
+        await settle()
+        await renderPanel(true, container)
+        await settle()
+        expect(success).not.toHaveBeenCalled()
+        expect(client!.getQueryData<DefaultSiteEditorData>(['default-site'])?.baseRevision).toBe(
+            'revision-2',
+        )
+        expect(container.textContent).toContain('No unsaved changes')
+        expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+            true,
+        )
+        await chooseMode(container, 'Close connection')
+        await submit(container)
+        expect(saveSettings.mock.calls.at(-1)?.[0].data.baseRevision).toBe('revision-2')
+        expect(success).toHaveBeenCalledWith(catalogs.en.defaultSite.saved, {
+            title: catalogs.en.toast.titles.success,
+        })
+    } finally {
+        success.mockRestore()
+    }
 })

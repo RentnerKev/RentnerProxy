@@ -777,15 +777,16 @@ test.each([
     ['expired', 'This sign-in request has expired. Start sign-in again.'],
     ['conflict', 'The sign-in configuration changed. Start sign-in again.'],
 ] as const)(
-    'validated callback marker %s is consumed once in StrictMode and remains visible as a safe inline alert',
+    'validated callback marker %s is consumed once in StrictMode through a titled toast without an inline duplicate',
     async (code, message) => {
         search = { oidcError: code }
         const container = await mountLogin(true)
         expect(errorToast).toHaveBeenCalledTimes(1)
-        expect(errorToast.mock.calls[0]?.[0]).toBe(message)
+        expect(errorToast).toHaveBeenCalledWith(message, { title: 'Action failed' })
         expect(navigate).toHaveBeenCalledTimes(1)
         expect(navigate).toHaveBeenCalledWith({ to: '/login', search: {}, replace: true })
-        expect(container.querySelector('[role="alert"]')?.textContent).toBe(message)
+        expect(container.querySelector('[role="alert"]')).toBeNull()
+        expect(container.textContent).not.toContain(message)
         expect(container.querySelector('input[name="email"]')).not.toBeNull()
     },
 )
@@ -882,4 +883,30 @@ test('local login requiring a second factor reports informational feedback after
     expect(navigate).toHaveBeenCalledWith({ to: '/login/two-factor', replace: true })
     expect(infoToast.mock.calls.map(([message]) => message)).toEqual(['Verify your second factor.'])
     expect(errorToast).not.toHaveBeenCalled()
+})
+
+test('native provider submission failure produces a titled toast and releases sign-in', async () => {
+    providerListAvailable = true
+    const container = await mountLogin()
+    const nativeSubmit = spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(
+        () => {
+            throw new Error('native navigation unavailable')
+        },
+    )
+    try {
+        await act(async () =>
+            state!.handler.handleAlternativeSignIn('0194f777-4074-7000-8000-000000000003'),
+        )
+        expect(errorToast).toHaveBeenCalledTimes(1)
+        expect(errorToast).toHaveBeenCalledWith(
+            'Sign-in failed. Try again or use your local account.',
+            {
+                title: 'Action failed',
+            },
+        )
+        expect(container.textContent).not.toContain('Sign-in failed.')
+        expect(state!.state.isOidcPending).toBe(false)
+    } finally {
+        nativeSubmit.mockRestore()
+    }
 })

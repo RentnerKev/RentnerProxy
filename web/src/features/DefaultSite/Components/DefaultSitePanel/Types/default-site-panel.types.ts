@@ -19,8 +19,6 @@ export interface DefaultSitePanelLogicResult<TForm> {
         isDirty: boolean
         isValid: boolean
         htmlBytes: number
-        error: string | null
-        runtimeStatus: 'applied' | 'pending' | null
         modeOptions: { value: DefaultSiteSettings['mode']; label: string }[]
     }
     handler: {

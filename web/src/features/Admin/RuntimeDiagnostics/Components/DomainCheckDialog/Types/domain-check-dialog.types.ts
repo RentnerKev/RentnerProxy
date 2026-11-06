@@ -47,12 +47,10 @@ export interface DomainCheckDialogLogic {
         readonly domainOptions: readonly { readonly value: string; readonly label: string }[]
         readonly selectLocale: 'de' | 'en' | 'es' | 'fr'
         readonly isPending: boolean
+        readonly hasError: boolean
         readonly result: DomainDiagnosticsResult | null
         readonly checkedAt: string | null
         readonly stages: readonly DomainCheckStageView[]
-        readonly error: string | null
-        readonly notice: string | null
-        readonly copyFeedback: string | null
     }
     readonly handler: {
         readonly handleDomainChange: (domain: string) => void

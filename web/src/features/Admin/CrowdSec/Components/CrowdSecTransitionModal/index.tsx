@@ -79,12 +79,14 @@ export default function CrowdSecTransitionModal({
                     ))}
                 </ol>
 
-                <output
-                    aria-live="polite"
-                    className={`block rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${transition.phase === 'error' || progress.healthDegraded ? 'border-red-500/30 bg-danger-bg text-danger-text' : 'border-border bg-surface-raised text-muted'}`}
-                >
-                    {state.notice}
-                </output>
+                {state.notice ? (
+                    <output
+                        aria-live="polite"
+                        className={`block rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${progress.healthDegraded ? 'border-red-500/30 bg-danger-bg text-danger-text' : 'border-border bg-surface-raised text-muted'}`}
+                    >
+                        {state.notice}
+                    </output>
+                ) : null}
             </div>
         </Modal>
     )

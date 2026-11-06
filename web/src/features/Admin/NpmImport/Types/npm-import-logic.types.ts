@@ -6,7 +6,6 @@ export interface NpmImportLogicResult {
         readonly preview: ImportPreview | null
         readonly result: ImportResult | null
         readonly busy: 'preview' | 'apply' | null
-        readonly error: string | null
     }
     readonly handler: {
         readonly selectFile: (file: File | null) => void

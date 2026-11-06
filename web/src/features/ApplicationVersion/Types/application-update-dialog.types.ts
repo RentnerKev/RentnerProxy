@@ -11,7 +11,6 @@ export interface ApplicationUpdateDialogLogicResult {
         readonly currentVersion: string
         readonly releaseUrl: string
         readonly canCopy: boolean
-        readonly copyState: 'idle' | 'copied' | 'failed'
     }
     readonly handler: { readonly handleCopy: () => void }
 }

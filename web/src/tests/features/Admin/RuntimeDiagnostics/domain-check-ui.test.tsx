@@ -11,6 +11,7 @@ import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import { createRuntimeSupportReport } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
 import type { RuntimeSupportReport } from '@/lib/RuntimeDiagnostics/Types/runtime-support-report.types.ts'
 import { supportReportFixture } from '@/tests/lib/RuntimeDiagnostics/runtime-support-report.fixture.ts'
+import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register({ settings: { device: { prefersReducedMotion: 'reduce' } } })
@@ -20,7 +21,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const { default: withTestPageAlerts } = await import('@/tests/Helpers/withTestPageAlerts.tsx')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const exportReport = mock(async (): Promise<RuntimeSupportReport> => {
     throw new Error('Support report not requested')
 })
@@ -57,11 +58,11 @@ async function render(changes: Partial<DomainCheckDialogProps> = {}) {
     await act(async () =>
         root?.render(
             withTestLanguage(
-                withTestPageAlerts(
+                <ToastProvider {...TOAST_PROVIDER_PROPS}>
                     <QueryClientProvider client={client}>
                         <DomainCheckDialog {...props} />
-                    </QueryClientProvider>,
-                ),
+                    </QueryClientProvider>
+                </ToastProvider>,
             ),
         ),
     )
@@ -86,9 +87,11 @@ function deferResponse() {
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     fetchMock.mockReset()
     fetchMock.mockResolvedValue(Response.json(domainDiagnosticsFixture()))
-    copy.mockClear()
+    copy.mockReset()
+    copy.mockResolvedValue(undefined)
     exportReport.mockReset()
     exportReport.mockRejectedValue(new Error('Support report not requested'))
     client = new QueryClient({
@@ -113,6 +116,7 @@ beforeEach(() => {
 
 afterEach(async () => {
     await act(async () => root?.unmount())
+    toast.dismissAll()
     root = null
     client.clear()
     document.body.replaceChildren()
@@ -147,6 +151,12 @@ describe('explicit domain-check dialog', () => {
         const signal = fetchMock.mock.calls[0]![1]!.signal!
         await click('Cancel check')
         expect(signal.aborted).toBe(true)
+        expect(document.querySelector('.rentnerproxy-toast-info')?.textContent).toContain(
+            'Information',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-info')?.textContent).toContain(
+            'Check cancelled.',
+        )
         await finish()
         expect(dialog().textContent).not.toContain('192.0.2.1')
         expect(copy).not.toHaveBeenCalled()
@@ -161,6 +171,13 @@ describe('explicit domain-check dialog', () => {
         await click('Run check')
         await click('Copy summary')
         expect(copy).toHaveBeenCalledTimes(1)
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Success',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'Summary copied.',
+        )
+        expect(dialog().querySelector('output')?.textContent).not.toContain('Summary copied')
         const summary = copy.mock.calls[0]![0]
         expect(JSON.parse(summary).stages.dns.code).toBe('dns_resolved')
         for (const value of [
@@ -183,11 +200,83 @@ describe('explicit domain-check dialog', () => {
         await render()
         await click('Run check')
         expect(dialog().textContent).not.toContain('PRIVATE-CREDENTIAL')
-        expect(dialog().querySelector('[role="alert"]')).not.toBeNull()
+        expect(dialog().querySelector('p[role="alert"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Action failed',
+        )
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).not.toContain(
+            'PRIVATE-CREDENTIAL',
+        )
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+        await render()
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
         await click('Run again')
         expect(fetchMock).toHaveBeenCalledTimes(2)
         expect(dialog().textContent).toContain('192.0.2.1')
     })
+
+    test('reports failed clipboard writes as one toast without inline feedback', async () => {
+        copy.mockRejectedValueOnce(new Error('PRIVATE-CLIPBOARD-ERROR'))
+        await render()
+        await click('Run check')
+        await click('Copy summary')
+        const failure = document.querySelector('.rentnerproxy-toast-error')
+        expect(failure?.textContent).toContain('Action failed')
+        expect(failure?.textContent).toContain('Could not copy the summary.')
+        expect(failure?.textContent).not.toContain('PRIVATE-CLIPBOARD-ERROR')
+        expect(document.querySelectorAll('.rentnerproxy-toast-error')).toHaveLength(1)
+        expect(dialog().querySelector('p[role="alert"]')).toBeNull()
+    })
+
+    test('suppresses late clipboard feedback after closing the dialog', async () => {
+        let complete!: () => void
+        copy.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    complete = resolve
+                }),
+        )
+        await render()
+        await click('Run check')
+        await click('Copy summary')
+        await render({ open: false })
+        await act(async () => complete())
+        expect(document.querySelector('.rentnerproxy-toast')).toBeNull()
+    })
+
+    test.each([true, false])(
+        'only reports the latest overlapping copy (success: %s)',
+        async (success) => {
+            let resolveOlder!: () => void
+            let rejectOlder!: (error: Error) => void
+            copy.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve, reject) => {
+                        resolveOlder = resolve
+                        rejectOlder = reject
+                    }),
+            )
+            if (success) copy.mockResolvedValueOnce(undefined)
+            else copy.mockRejectedValueOnce(new Error('PRIVATE-NEW-COPY-ERROR'))
+            await render()
+            await click('Run check')
+            await click('Copy summary')
+            await click('Copy summary')
+            await act(async () => {
+                if (success) rejectOlder(new Error('PRIVATE-OLD-COPY-ERROR'))
+                else resolveOlder()
+            })
+            expect(copy).toHaveBeenCalledTimes(2)
+            expect(document.querySelectorAll('.rentnerproxy-toast')).toHaveLength(1)
+            expect(
+                document.querySelector(
+                    success ? '.rentnerproxy-toast-success' : '.rentnerproxy-toast-error',
+                )?.textContent,
+            ).toContain(success ? 'Summary copied.' : 'Could not copy the summary.')
+            expect(document.body.textContent).not.toContain('PRIVATE-')
+            expect(button('Copy summary').disabled).toBe(false)
+        },
+    )
 
     test.each(['identity', 'domains', 'revision', 'enabled', 'permission', 'close'] as const)(
         'suppresses late results after a %s change',
@@ -502,7 +591,7 @@ test('host invalidation in the same event as starting a check suppresses its lat
     expect(fetchMock.mock.calls[0]![1]!.signal!.aborted).toBe(true)
 })
 
-test('support-report failures stay visible in the modal and the same icon retries the download', async () => {
+test('support-report failures use a toast and the same modal icon retries the download', async () => {
     const report = createRuntimeSupportReport(
         supportReportFixture(),
         new Date('2026-10-06T10:00:00Z'),
@@ -515,11 +604,17 @@ test('support-report failures stay visible in the modal and the same icon retrie
         await render()
         const trigger = button('Download support report')
         await act(async () => trigger.click())
-        const feedback = [...dialog().querySelectorAll('output[aria-live="polite"]')].find((item) =>
-            item.textContent?.includes('could not be downloaded'),
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'Action failed',
         )
-        expect(feedback).toBeDefined()
-        expect(feedback!.closest('.sr-only, [hidden], [aria-hidden="true"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
+            'could not be downloaded',
+        )
+        expect(
+            [...dialog().querySelectorAll('output')].some((item) =>
+                item.textContent?.includes('could not be downloaded'),
+            ),
+        ).toBe(false)
         expect(dialog().textContent).not.toContain('PRIVATE-SUPPORT-ERROR')
         expect(document.querySelector('button[data-severity]')).toBeNull()
         expect(button('Download support report').disabled).toBe(false)
@@ -528,14 +623,21 @@ test('support-report failures stay visible in the modal and the same icon retrie
         expect(exportReport).toHaveBeenCalledTimes(2)
         expect(download).toHaveBeenCalledTimes(1)
         expect(createUrl).toHaveBeenCalledTimes(1)
-        expect(dialog().textContent).toContain('download started')
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
+            'download started',
+        )
+        expect(
+            [...dialog().querySelectorAll('output')].some((item) =>
+                item.textContent?.includes('download started'),
+            ),
+        ).toBe(false)
     } finally {
         createUrl.mockRestore()
         download.mockRestore()
     }
 })
 
-test('partial support reports download and explain incompleteness visibly inside the modal', async () => {
+test('partial support reports explain incompleteness in a warning toast', async () => {
     const report = {
         ...createRuntimeSupportReport(supportReportFixture(), new Date('2026-10-06T10:00:00Z')),
         completeness: 'partial' as const,
@@ -555,11 +657,17 @@ test('partial support reports download and explain incompleteness visibly inside
             completeness: 'partial',
             unavailableSections: ['valkey'],
         })
-        const feedback = [...dialog().querySelectorAll('output[aria-live="polite"]')].find((item) =>
-            item.textContent?.includes('Partial report download started'),
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Please note',
         )
-        expect(feedback).toBeDefined()
-        expect(feedback!.closest('.sr-only, [hidden], [aria-hidden="true"]')).toBeNull()
+        expect(document.querySelector('.rentnerproxy-toast-warning')?.textContent).toContain(
+            'Partial report download started',
+        )
+        expect(
+            [...dialog().querySelectorAll('output')].some((item) =>
+                item.textContent?.includes('Partial report download started'),
+            ),
+        ).toBe(false)
         expect(document.querySelector('button[data-severity]')).toBeNull()
         expect(button('Download support report').disabled).toBe(false)
     } finally {

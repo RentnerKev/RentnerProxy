@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from '@rentnerkev/toasts'
 
 import {
     canExportRuntimeSupportReport,
     serializeRuntimeSupportReport,
 } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
 import { exportRuntimeSupportReportHandler } from '../middleware.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type {
     RuntimeSupportDownloadLogic,
     RuntimeSupportDownloadProps,
@@ -14,18 +16,28 @@ export default function useRuntimeSupportDownloadLogic({
     permissions,
 }: RuntimeSupportDownloadProps): RuntimeSupportDownloadLogic {
     const canExport = canExportRuntimeSupportReport(permissions)
+    const { t } = useTranslationStore()
     const exporting = useRef(false)
+    const active = useRef(false)
+    const generation = useRef(0)
     const [isExporting, setIsExporting] = useState(false)
-    const [feedback, setFeedback] = useState<RuntimeSupportDownloadLogic['state']['feedback']>(null)
+    useEffect(() => {
+        active.current = canExport
+        return () => {
+            active.current = false
+            generation.current += 1
+        }
+    }, [canExport])
 
     async function downloadReport(): Promise<void> {
-        if (!canExport || exporting.current) return
+        if (!canExport || !active.current || exporting.current) return
         exporting.current = true
+        const attempt = generation.current
         setIsExporting(true)
-        setFeedback(null)
         let href: string | null = null
         try {
             const report = await exportRuntimeSupportReportHandler()
+            if (!active.current || generation.current !== attempt) return
             const blob = new Blob([serializeRuntimeSupportReport(report)], {
                 type: 'application/json',
             })
@@ -39,9 +51,20 @@ export default function useRuntimeSupportDownloadLogic({
             } finally {
                 link.remove()
             }
-            setFeedback(report.completeness === 'partial' ? 'partial' : 'complete')
+            if (report.completeness === 'partial') {
+                toast.warning(t('admin.runtimeDiagnostics.downloadPartial'), {
+                    title: t('toast.titles.warning'),
+                })
+            } else {
+                toast.success(t('admin.runtimeDiagnostics.downloadComplete'), {
+                    title: t('toast.titles.success'),
+                })
+            }
         } catch {
-            setFeedback('failed')
+            if (!active.current || generation.current !== attempt) return
+            toast.error(t('admin.runtimeDiagnostics.downloadFailed'), {
+                title: t('toast.titles.error'),
+            })
         } finally {
             if (href) {
                 const downloadUrl = href
@@ -53,7 +76,7 @@ export default function useRuntimeSupportDownloadLogic({
     }
 
     return {
-        state: { canExport, isExporting, feedback },
+        state: { canExport, isExporting },
         handler: {
             handleDownload: () => {
                 void downloadReport()

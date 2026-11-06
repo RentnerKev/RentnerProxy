@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from '@rentnerkev/toasts'
 import { DOMAIN_DIAGNOSTICS_STAGE_NAMES } from '@/config/domain-diagnostics.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
@@ -57,13 +58,11 @@ export default function useDomainCheckDialogLogic({
     }
     const [sequence, setSequence] = useState(0)
     const sequenceRef = useRef(0)
+    const copySequence = useRef(0)
     const active = useRef<{ key: string; controller: AbortController } | null>(null)
     const observing = useRef(false)
-    const [copyFeedback, setCopyFeedback] = useState<{
-        key: string
-        sequence: number
-        code: 'copied' | 'copyFailed'
-    } | null>(null)
+    const reportedError = useRef<DomainCheckAttempt | null>(null)
+    const reportedNotice = useRef<typeof view | null>(null)
     const mutation = useMutation({
         retry: false,
         mutationFn: async (attempt: DomainCheckAttempt) => ({
@@ -82,12 +81,38 @@ export default function useDomainCheckDialogLogic({
         canCheck && open && mutation.data?.key === key && mutation.data.sequence === sequence
             ? mutation.data.result
             : null
-    const error =
-        canCheck && current && mutation.error
-            ? t(
-                  `admin.domainCheck.errors.${mutation.error instanceof DomainCheckError ? mutation.error.code : 'request_failed'}`,
-              )
-            : null
+    useEffect(() => {
+        const attempt = mutation.variables
+        if (
+            !open ||
+            !canCheck ||
+            !current ||
+            !mutation.error ||
+            !attempt ||
+            attempt.signal.aborted ||
+            reportedError.current === attempt
+        )
+            return
+        reportedError.current = attempt
+        toast.error(
+            t(
+                `admin.domainCheck.errors.${mutation.error instanceof DomainCheckError ? mutation.error.code : 'request_failed'}`,
+            ),
+            { title: t('toast.titles.error') },
+        )
+    }, [open, canCheck, current, mutation.error, mutation.variables, t])
+    useEffect(() => {
+        if (
+            !open ||
+            !canCheck ||
+            view.scope !== scope ||
+            !view.notice ||
+            reportedNotice.current === view
+        )
+            return
+        reportedNotice.current = view
+        toast.info(t(`admin.domainCheck.${view.notice}`), { title: t('toast.titles.info') })
+    }, [open, canCheck, view, scope, t])
 
     const stop = useCallback(
         (notice: 'changed' | 'cancelled' | null) => {
@@ -96,7 +121,6 @@ export default function useDomainCheckDialogLogic({
             observing.current = false
             setSequence(++sequenceRef.current)
             reset()
-            setCopyFeedback(null)
             setView({ scope, hasRun: false, notice })
         },
         [reset, scope],
@@ -108,6 +132,7 @@ export default function useDomainCheckDialogLogic({
             active.current?.controller.abort()
             active.current = null
             observing.current = false
+            sequenceRef.current += 1
             reset()
         },
         [key, reset],
@@ -138,7 +163,6 @@ export default function useDomainCheckDialogLogic({
         const next = ++sequenceRef.current
         setSequence(next)
         setView({ scope, hasRun: true, notice: null })
-        setCopyFeedback(null)
         mutate({
             input: { hostType, hostId: host.id, domain },
             key,
@@ -150,13 +174,14 @@ export default function useDomainCheckDialogLogic({
     async function copySummary() {
         if (!result || !canCheck || isPending) return
         const attemptSequence = sequenceRef.current
+        const attemptCopy = ++copySequence.current
         try {
             await navigator.clipboard.writeText(serializeDomainCheckSummary(result))
-            if (attemptSequence === sequenceRef.current)
-                setCopyFeedback({ key, sequence, code: 'copied' })
+            if (attemptSequence === sequenceRef.current && attemptCopy === copySequence.current)
+                toast.success(t('admin.domainCheck.copied'), { title: t('toast.titles.success') })
         } catch {
-            if (attemptSequence === sequenceRef.current)
-                setCopyFeedback({ key, sequence, code: 'copyFailed' })
+            if (attemptSequence === sequenceRef.current && attemptCopy === copySequence.current)
+                toast.error(t('admin.domainCheck.copyFailed'), { title: t('toast.titles.error') })
         }
     }
 
@@ -168,6 +193,7 @@ export default function useDomainCheckDialogLogic({
             selectLocale:
                 language === 'de' || language === 'es' || language === 'fr' ? language : 'en',
             isPending,
+            hasError: Boolean(canCheck && current && mutation.error),
             result,
             checkedAt: result
                 ? new Intl.DateTimeFormat(locale, {
@@ -206,13 +232,6 @@ export default function useDomainCheckDialogLogic({
                         : null,
                 }
             }),
-            error,
-            notice:
-                view.scope === scope && view.notice ? t(`admin.domainCheck.${view.notice}`) : null,
-            copyFeedback:
-                copyFeedback?.key === key && copyFeedback.sequence === sequence
-                    ? t(`admin.domainCheck.${copyFeedback.code}`)
-                    : null,
         },
         handler: {
             handleCheck,

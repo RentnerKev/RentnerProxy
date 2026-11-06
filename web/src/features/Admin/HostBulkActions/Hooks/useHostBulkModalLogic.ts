@@ -1,6 +1,7 @@
+import { toast } from '@rentnerkev/toasts'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type {
     BulkHostAction,
     BulkHostResult,
@@ -38,13 +39,33 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
     const { t } = useTranslationStore()
     const id = useId()
     const client = useQueryClient()
+    const generation = useRef({ scope: '', version: 0, active: false })
+    const scope = JSON.stringify([
+        props.kind,
+        props.hostIds,
+        [...new Set(props.permissions)].toSorted(),
+    ])
+    useEffect(() => {
+        const currentGeneration = generation.current
+        if (currentGeneration.scope !== scope) currentGeneration.version += 1
+        currentGeneration.scope = scope
+        currentGeneration.active = true
+        return () => {
+            currentGeneration.active = false
+        }
+    }, [scope])
     const types = availableBulkHostActions(props.kind, props.permissions)
     const [preview, setPreview] = useState<{
         action: BulkHostAction
         result: BulkHostResult
     } | null>(null)
     const [result, setResult] = useState<BulkHostResult | null>(null)
-    const [error, setError] = useState<string | null>(null)
+    const [resultScope, setResultScope] = useState(scope)
+    if (resultScope !== scope) {
+        setResultScope(scope)
+        setPreview(null)
+        setResult(null)
+    }
     const form = useForm({
         defaultValues: {
             type: types[0] ?? 'enable',
@@ -66,7 +87,7 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
         staleTime: 30_000,
     })
     const previewMutation = useMutation({
-        mutationFn: async () => {
+        mutationFn: async (_generation: number) => {
             const action = actionFrom(form.state.values)
             const response = await previewBulkHostsHandler({
                 data: { kind: props.kind, hostIds: [...props.hostIds], action },
@@ -74,18 +95,20 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
             if (!response.success) throw new Error(response.message)
             return { action, result: response.value }
         },
-        onSuccess: (value) => {
+        onSuccess: (value, attemptGeneration) => {
+            if (attemptGeneration !== generation.current.version) return
             setPreview(value)
             setResult(null)
-            setError(null)
         },
-        onError: () => {
+        onError: (_error, attemptGeneration) => {
+            if (attemptGeneration !== generation.current.version) return
             setPreview(null)
-            setError(t('admin.bulkHosts.error'))
+            if (generation.current.active)
+                toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
         },
     })
     const applyMutation = useMutation({
-        mutationFn: async () => {
+        mutationFn: async (_generation: number) => {
             if (!preview) throw new Error('Preview required')
             const hosts = preview.result.rows.flatMap((row) =>
                 row.status === 'ready' && row.version ? [{ id: row.id, version: row.version }] : [],
@@ -101,34 +124,56 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
                 ),
             }
         },
-        onSuccess: (value) => {
-            setResult(value)
-            setPreview(null)
-            setError(null)
+        onSuccess: (value, attemptGeneration) => {
             void Promise.all([
                 client.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all }),
                 client.invalidateQueries({ queryKey: redirectHostManagementQueryKeys.all }),
             ]).catch(() => undefined)
-        },
-        onError: () => {
+            if (attemptGeneration !== generation.current.version) return
+            setResult(value)
             setPreview(null)
-            setError(t('admin.bulkHosts.error'))
+            if (!generation.current.active) return
+            if (value.runtimeStatus === 'pending') {
+                toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            } else if (
+                value.rows.some((row) => row.status === 'failed' || row.status === 'skipped')
+            ) {
+                toast.warning(t('admin.bulkHosts.retryHint'), { title: t('toast.titles.warning') })
+            } else {
+                toast.success(t('admin.bulkHosts.status.applied'), {
+                    title: t('toast.titles.success'),
+                })
+            }
+        },
+        onError: (_error, attemptGeneration) => {
+            if (attemptGeneration !== generation.current.version) return
+            setPreview(null)
+            if (generation.current.active)
+                toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
         },
     })
     const pending = previewMutation.isPending || applyMutation.isPending
     const optionsQuery = values.type === 'certificate' ? certificates : policies
     const needsOptions = values.type === 'certificate' || values.type === 'accessPolicy'
+    const canLoadOptions = needsOptions && types.includes(values.type)
+    const reportedOptionsError = useRef<unknown>(null)
+    useEffect(() => {
+        if (!canLoadOptions || !optionsQuery.isError) return
+        if (reportedOptionsError.current === optionsQuery.error) return
+        reportedOptionsError.current = optionsQuery.error
+        toast.error(t('admin.bulkHosts.error'), { title: t('toast.titles.error') })
+    }, [canLoadOptions, optionsQuery.isError, optionsQuery.error, t])
     const reset = () => {
         setPreview(null)
         setResult(null)
-        setError(null)
     }
     return {
         state: {
             id,
             values,
             pending,
-            error,
             result,
             rows: result?.rows ?? preview?.result.rows ?? [],
             canApply: Boolean(preview?.result.rows.some((row) => row.status === 'ready')),
@@ -165,10 +210,9 @@ export default function useHostBulkModalLogic(props: BulkHostModalProps): BulkHo
             },
             handlePreview: () => {
                 setPreview(null)
-                setError(null)
-                previewMutation.mutate()
+                previewMutation.mutate(generation.current.version)
             },
-            handleApply: () => applyMutation.mutate(),
+            handleApply: () => applyMutation.mutate(generation.current.version),
         },
     }
 }

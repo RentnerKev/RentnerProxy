@@ -21,7 +21,7 @@ export default function DomainCheckDialog(props: DomainCheckDialogProps) {
             footer={
                 <>
                     {state.canCheck ? (
-                        <RuntimeSupportDownload permissions={props.permissions} inlineFeedback />
+                        <RuntimeSupportDownload permissions={props.permissions} />
                     ) : null}
                     <button
                         type="button"
@@ -54,13 +54,13 @@ export default function DomainCheckDialog(props: DomainCheckDialogProps) {
                                 aria-hidden="true"
                                 className="size-4 animate-spin motion-reduce:animate-none"
                             />
-                        ) : state.result || state.error ? (
+                        ) : state.result || state.hasError ? (
                             <RefreshCw aria-hidden="true" className="size-4" />
                         ) : (
                             <Play aria-hidden="true" className="size-4" />
                         )}
                         {t(
-                            state.result || state.error
+                            state.result || state.hasError
                                 ? 'admin.domainCheck.runAgain'
                                 : 'admin.domainCheck.run',
                         )}
@@ -94,31 +94,21 @@ export default function DomainCheckDialog(props: DomainCheckDialogProps) {
                         {t('admin.domainCheck.permissionDenied')}
                     </p>
                 ) : null}
-                {state.error ? (
-                    <p
-                        role="alert"
-                        className="m-0 rounded-xl border border-danger-text/20 bg-danger-bg p-4 text-sm leading-relaxed text-danger-text"
-                    >
-                        {state.error}
-                    </p>
-                ) : null}
                 <output aria-live="polite" className="text-sm text-muted">
                     {state.isPending
                         ? t('admin.domainCheck.pending')
-                        : state.notice ||
-                          (state.checkedAt
-                              ? t('admin.domainCheck.checkedAt', { time: state.checkedAt })
-                              : null)}
+                        : state.checkedAt
+                          ? t('admin.domainCheck.checkedAt', { time: state.checkedAt })
+                          : null}
                 </output>
                 <div className="grid min-w-0 gap-3 sm:grid-cols-2" aria-busy={state.isPending}>
                     {state.stages.map((stage) => (
                         <DomainCheckStage key={stage.name} stage={stage} />
                     ))}
                 </div>
-                <div className="grid gap-1 text-xs leading-relaxed text-muted">
-                    <p className="m-0">{t('admin.domainCheck.copyPrivacy')}</p>
-                    <output aria-live="polite">{state.copyFeedback}</output>
-                </div>
+                <p className="m-0 text-xs leading-relaxed text-muted">
+                    {t('admin.domainCheck.copyPrivacy')}
+                </p>
             </div>
         </Modal>
     )

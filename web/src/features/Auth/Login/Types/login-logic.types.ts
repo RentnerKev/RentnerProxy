@@ -11,7 +11,6 @@ export interface LoginLogicResult<TForm> {
         isOidcPending: boolean
         isProviderCatalogPending: boolean
         isProviderCatalogUnavailable: boolean
-        oidcFeedback: string | null
         alternativeSignInItems: readonly AlternativeSignInOption[]
     }
     handler: {

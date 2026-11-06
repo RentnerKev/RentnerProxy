@@ -60,20 +60,6 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     </p>
                 </>
             ) : null}
-            {state.error ? (
-                <p role="alert" className="mt-4 text-sm text-danger-text">
-                    {state.error}
-                </p>
-            ) : null}
-            {state.runtimeStatus === 'pending' ? (
-                <PageAlert
-                    severity="warning"
-                    title={t('defaultSite.title')}
-                    description={t('defaultSite.pending')}
-                />
-            ) : state.runtimeStatus ? (
-                <output className="mt-4 block text-sm text-muted">{t('defaultSite.saved')}</output>
-            ) : null}
             {!state.isLoading && !state.loadFailed ? (
                 <form className="mt-6 grid gap-4" onSubmit={handler.handleSubmit}>
                     <div className="grid gap-2">
@@ -193,7 +179,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                 <button
                                     type="button"
                                     onClick={handler.handleDiscard}
-                                    disabled={state.isSaving || (!state.isDirty && !state.error)}
+                                    disabled={state.isSaving || !state.isDirty}
                                     className={buttonClassName('ghost')}
                                 >
                                     {t('defaultSite.discard')}

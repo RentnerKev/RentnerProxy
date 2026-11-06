@@ -14,19 +14,17 @@ export default function useCrowdSecTransitionModalLogic({
             ? (['save', 'startEngine', 'switchProxy', 'verify'] as const)
             : (['save', 'switchProxy', 'stopEngine', 'verify'] as const)
     const notice =
-        transition.phase === 'error'
-            ? transition.errorMessage
-            : finished
-              ? t(`admin.crowdSec.progress.${transition.targetMode}.complete`)
-              : transition.phase === 'delayed'
-                ? t('admin.crowdSec.progress.delayed')
-                : transition.connectionInterrupted
-                  ? t('admin.crowdSec.progress.connectionInterrupted')
-                  : progress.healthDegraded
-                    ? t('admin.crowdSec.progress.degraded')
-                    : transition.runtimePending
-                      ? t('admin.crowdSec.progress.retrying')
-                      : t('admin.crowdSec.progress.inProgress')
+        transition.phase === 'error' || finished
+            ? null
+            : transition.phase === 'delayed'
+              ? t('admin.crowdSec.progress.delayed')
+              : transition.connectionInterrupted
+                ? t('admin.crowdSec.progress.connectionInterrupted')
+                : progress.healthDegraded
+                  ? t('admin.crowdSec.progress.degraded')
+                  : transition.runtimePending
+                    ? t('admin.crowdSec.progress.retrying')
+                    : t('admin.crowdSec.progress.inProgress')
 
     return {
         state: {
