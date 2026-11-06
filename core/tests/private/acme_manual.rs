@@ -131,6 +131,8 @@ fn trusted_transport_manual_preparation_and_restart_preserve_account_and_proofs(
                 }
                 Err(error) => panic!("{error}"),
             };
+            // Windows inherits the listener's nonblocking mode on accepted sockets.
+            socket.set_nonblocking(false).unwrap();
             socket
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
