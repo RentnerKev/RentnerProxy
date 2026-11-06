@@ -29,7 +29,9 @@ case "${RELEASE_TAG:-}" in
     *) export RELEASE_CHANNEL=stable ;;
 esac
 # Validate all supplied tag and identity fields before using them in external commands.
-export RELEASE_PRERELEASE="$( [[ "$RELEASE_CHANNEL" == alpha ]] && printf true || printf false )"
+RELEASE_PRERELEASE=false
+if [[ "$RELEASE_CHANNEL" == alpha ]]; then RELEASE_PRERELEASE=true; fi
+export RELEASE_PRERELEASE
 bash "$script_directory/validate-release-event.sh"
 
 release_state="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
