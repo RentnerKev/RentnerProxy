@@ -4,7 +4,7 @@ Thank you for contributing to RentnerProxy. The project is in public beta, so fo
 and clear discussion are especially valuable.
 
 Beta 1 retains the known proxy connection-reset issue during concurrent Caddy configuration
-updates ([#171](https://github.com/RentnerProxy/RentnerProxy/issues/171)), deferred to Beta 2.
+updates ([#171](https://github.com/RentnerProxy/platform/issues/171)), deferred to Beta 2.
 
 Project decisions follow [GOVERNANCE.md](../docs/governance.md), and participation follows the
 [Code of Conduct](CODE_OF_CONDUCT.md). Consult the

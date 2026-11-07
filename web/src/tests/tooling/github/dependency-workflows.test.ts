@@ -5,6 +5,51 @@ import { expect, test } from 'bun:test'
 
 const root = resolve(import.meta.dir, '../../../../..')
 
+test('forwards the required registry secret through every dev and release publisher boundary', async () => {
+    const names = [
+        'dev-image',
+        'release-pipeline',
+        'release',
+        'release-recovery',
+        'publish-assessed-image',
+    ]
+    const sources = await Promise.all(
+        names.map((name) => readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8')),
+    )
+    const workflows = sources.map((source) => Bun.YAML.parse(source)) as {
+        on: { workflow_call?: { secrets?: Record<string, { required: boolean }> } }
+        jobs: Record<string, { uses?: string; secrets?: Record<string, string> }>
+    }[]
+    const [dev, pipeline, release, recovery, publisher] = workflows
+    const registrySecret = { GHCR_PUBLISH_TOKEN: '${{ secrets.GHCR_PUBLISH_TOKEN }}' }
+    for (const caller of [dev!, pipeline!]) {
+        expect(caller.jobs['publish-image']!.uses).toBe(
+            './.github/workflows/publish-assessed-image.yml',
+        )
+        expect(caller.jobs['publish-image']!.secrets).toEqual(registrySecret)
+        for (const [name, job] of Object.entries(caller.jobs)) {
+            if (name !== 'publish-image') {
+                expect(JSON.stringify(job)).not.toContain('GHCR_PUBLISH_TOKEN')
+            }
+        }
+    }
+    for (const caller of [release!, recovery!]) {
+        expect(caller.jobs.release!.uses).toBe('./.github/workflows/release-pipeline.yml')
+        expect(caller.jobs.release!.secrets).toEqual({
+            ...registrySecret,
+            PACKAGE_SIGNING_KEY: '${{ secrets.PACKAGE_SIGNING_KEY }}',
+        })
+    }
+    expect(publisher!.on.workflow_call!.secrets).toEqual({
+        GHCR_PUBLISH_TOKEN: { required: true },
+    })
+    expect(pipeline!.on.workflow_call!.secrets).toEqual({
+        GHCR_PUBLISH_TOKEN: { required: true },
+        PACKAGE_SIGNING_KEY: { required: true },
+    })
+    for (const source of sources) expect(source).not.toContain('secrets: inherit')
+})
+
 test.each(['publish-assessed-image', 'pr-preview-publish'])(
     'protects the legacy registry writer %s and keeps its PAT out of scans',
     async (name) => {
@@ -97,7 +142,7 @@ test('assesses production OCI before registry credentials and keeps source execu
             >
         }
         expect(parsed.jobs.build?.permissions).toEqual({ contents: 'read' })
-        expect(parsed.jobs.build?.if).toBe("github.repository == 'RentnerProxy/RentnerProxy'")
+        expect(parsed.jobs.build?.if).toBe("github.repository == 'RentnerProxy/platform'")
         expect(parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.push).toBe(
             false,
         )

@@ -14,7 +14,7 @@ export const REQUIRED_CI_JOBS = [
     'Caddy Response Cache',
     'Coverage',
 ] as const
-const REPOSITORY = 'rentnerproxy/rentnerproxy'
+const REPOSITORY = 'rentnerproxy/platform'
 const API_PATH = `/repos/${REPOSITORY}/actions`
 export const REQUIRED_COMPATIBILITY_JOBS = ['Compatibility verified'] as const
 const REQUIRED_WORKFLOWS = [

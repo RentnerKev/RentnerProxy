@@ -2,6 +2,9 @@ name: Publish assessed OCI image
 
 on:
     workflow_call:
+        secrets:
+            GHCR_PUBLISH_TOKEN:
+                required: true
         inputs:
             revision:
                 required: true

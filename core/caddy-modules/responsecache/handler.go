@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/RentnerProxy/RentnerProxy/core/caddy-modules/responsecache/upstreamobserver"
+	_ "github.com/RentnerProxy/platform/core/caddy-modules/responsecache/upstreamobserver"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )

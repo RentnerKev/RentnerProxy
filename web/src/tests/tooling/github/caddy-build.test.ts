@@ -38,6 +38,30 @@ describe('upstream Caddy binary security metadata', () => {
         },
     )
 
+    test('reviewed backport version stays aligned with both builders and the local module', async () => {
+        const root = resolve(import.meta.dir, '../../../../..')
+        const [prepare, module, ...images] = await Promise.all([
+            readFile(join(root, 'docker/caddy/tooling/prepare-source.sh'), 'utf8'),
+            readFile(join(root, 'core/caddy-modules/responsecache/go.mod'), 'utf8'),
+            ...['production', 'proxy-runtime'].map((image) =>
+                readFile(join(root, 'docker', image, 'Dockerfile'), 'utf8'),
+            ),
+        ])
+        const reviewedVersion = prepare.match(
+            /^\[ "\$\{CADDY_VERSION:-\}" = (v\d+\.\d+\.\d+) \]/mu,
+        )?.[1]
+        expect(reviewedVersion).toBeDefined()
+        expect(module.match(/^require github\.com\/caddyserver\/caddy\/v2 (v\S+)$/mu)?.[1]).toBe(
+            reviewedVersion,
+        )
+        for (const image of images)
+            expect(
+                image.match(
+                    /^FROM mirror\.gcr\.io\/library\/caddy:(\d+\.\d+\.\d+)-builder@/mu,
+                )?.[1],
+            ).toBe(reviewedVersion?.slice(1))
+    })
+
     test('both images use the same Caddy build while retaining pins, static ABI and licenses', async () => {
         const root = resolve(import.meta.dir, '../../../../..')
         const shared = await readFile(join(root, 'docker/caddy/tooling/build.sh'), 'utf8')
@@ -82,7 +106,7 @@ describe('upstream Caddy binary security metadata', () => {
                 'docker/licenses/CaddyCrowdSecBouncer-NOTICE /usr/share/licenses/caddy-crowdsec-bouncer/NOTICE',
             )
             expect(image).toContain(
-                'golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb',
+                'golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18',
             )
         }
         for (const contract of [
@@ -93,7 +117,7 @@ describe('upstream Caddy binary security metadata', () => {
             'go mod edit -replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
             '--replace github.com/caddyserver/caddy/v2=/opt/rentnerproxy-caddy-source',
             'go test -mod=readonly ./...',
-            '--with github.com/RentnerProxy/RentnerProxy/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
+            '--with github.com/RentnerProxy/platform/core/caddy-modules/responsecache=/opt/rentnerproxy-responsecache',
             '--replace github.com/mholt/caddy-l4=github.com/mholt/caddy-l4@${CADDY_LAYER4_VERSION:?Caddy builder must pin the upstream Layer 4 module}',
             '--replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.2',
             '--replace golang.org/x/net=golang.org/x/net@v0.62.0',

@@ -75,7 +75,7 @@ test('building CLI creates only the public building body without a token or issu
                 env: {
                     ...process.env,
                     RUNNER_TEMP: directory,
-                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/platform',
                     RELEASE_TAG: 'v1.0.0-beta.3',
                     RELEASE_MEDIA_REVISION: 'a'.repeat(40),
                     GITHUB_TOKEN: '',
@@ -180,10 +180,10 @@ if [[ "$1" == api ]]; then
     if [[ "$2" == --method ]]; then
         printf 'delete %s\\n' "$(basename "$4")" >> "$FIXTURE_EVENTS"
         [[ "$FIXTURE_FAILURE" != delete-failure ]]
-        [[ "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/11" || "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/12" || "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/13" || "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/14" || "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/15" || "$4" == "repos/RentnerProxy/RentnerProxy/releases/assets/26" ]]
+        [[ "$4" == "repos/RentnerProxy/platform/releases/assets/11" || "$4" == "repos/RentnerProxy/platform/releases/assets/12" || "$4" == "repos/RentnerProxy/platform/releases/assets/13" || "$4" == "repos/RentnerProxy/platform/releases/assets/14" || "$4" == "repos/RentnerProxy/platform/releases/assets/15" || "$4" == "repos/RentnerProxy/platform/releases/assets/26" ]]
         exit
     elif [[ "$2" == */assets ]]; then
-        [[ "$2" == 'repos/RentnerProxy/RentnerProxy/releases/123/assets' ]]
+        [[ "$2" == 'repos/RentnerProxy/platform/releases/123/assets' ]]
         printf 'list 123\\n' >> "$FIXTURE_EVENTS"
         : > "$FIXTURE_LISTED"
         printf '21\\tRentnerProxy-v0.9.0-CHANGELOG.md\\n22\\trentnerproxy-update.json.asc\\n23\\trentnerproxy_1.0.0_amd64.deb\\n24\\trentnerproxy-1.0.0.aarch64.rpm\\n25\\tSHA256SUMS.asc\\n26\\tbuilding-banner.png\\n27\\tcontributor-kevin.png.asc\\n28\\tcontributor-INVALID.svg\\n29\\tunrelated.svg\\n'
@@ -231,7 +231,7 @@ printf 'building' > "$RUNNER_TEMP/rentnerproxy-release/building-body.md"
                         FIXTURE_LISTED: join(directory, 'listed'),
                         FIXTURE_FAILURE: failure,
                         RUNNER_TEMP: directory,
-                        GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                        GITHUB_REPOSITORY: 'RentnerProxy/platform',
                         RELEASE_ID: '123',
                         RELEASE_TAG: failure === 'tag' ? 'invalid-tag' : 'v1.0.0',
                         RELEASE_CHANNEL: 'stable',
@@ -383,7 +383,7 @@ esac
                     FIXTURE_BODY: body,
                     FIXTURE_FAILURE: failure,
                     RUNNER_TEMP: directory,
-                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/platform',
                     RELEASE_ID: '123',
                     RELEASE_TAG: 'v1.0.0',
                     RELEASE_PRERELEASE: 'false',

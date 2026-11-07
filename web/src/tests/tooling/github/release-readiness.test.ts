@@ -11,7 +11,7 @@ import type { ReleaseReadinessInput } from '../../../../../.github/scripts/relea
 
 function input(overrides: Partial<ReleaseReadinessInput> = {}): ReleaseReadinessInput {
     return {
-        repository: 'RentnerProxy/RentnerProxy',
+        repository: 'RentnerProxy/platform',
         releaseId: '257',
         tag: 'v1.0.0-beta.2',
         channel: 'beta',
@@ -82,7 +82,7 @@ describe('versioned release readiness generation', () => {
         { repository: 'attacker/RentnerProxy' },
         { repository: 'RentnerKev/RentnerProxy' },
         { image: 'ghcr.io/attacker/rentnerproxy' },
-        { image: 'ghcr.io/rentnerproxy/rentnerproxy' },
+        { image: 'ghcr.io/rentnerproxy/platform' },
         { releaseId: '0' },
         { releaseId: '01' },
         { releaseId: '9007199254740992' },

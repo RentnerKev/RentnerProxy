@@ -27,7 +27,7 @@ export default function useApplicationUpdateQuery(): ApplicationUpdateResult | u
                 version: '1.0.0-beta.2',
                 tag: 'v1.0.0-beta.2',
                 channel: 'beta',
-                url: 'https://github.com/RentnerProxy/RentnerProxy/releases',
+                url: 'https://github.com/RentnerProxy/platform/releases',
                 notes: 'LOKALE VORSCHAU – simuliertes Update.\n\nSo erscheint eine neue Version im Update-Dialog. Es wurde kein echtes Release geprüft und kein Update installiert.',
                 image: {
                     status: 'pending',

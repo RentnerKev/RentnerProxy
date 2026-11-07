@@ -34,7 +34,7 @@ if ! grep -Fq '**/.env' "source/$dockerignore_relative" ||
 fi
 
 repository="${GITHUB_REPOSITORY,,}"
-[[ "$repository" == 'rentnerproxy/rentnerproxy' ]] || {
+[[ "$repository" == 'rentnerproxy/platform' ]] || {
     echo "::error::Release images require the official source repository."
     exit 1
 }

@@ -11,7 +11,7 @@ current project lead and maintainer and makes final project decisions.
 - Contributors propose focused changes, provide tests and documentation where appropriate,
   follow [CONTRIBUTING.md](../.github/CONTRIBUTING.md), and address review feedback.
 - Users and testers report reproducible problems and feedback through
-  [issues](https://github.com/RentnerProxy/RentnerProxy/issues). Sensitive vulnerability reports
+  [issues](https://github.com/RentnerProxy/platform/issues). Sensitive vulnerability reports
   must use [SECURITY.md](../SECURITY.md).
 
 ## Decisions and disagreements

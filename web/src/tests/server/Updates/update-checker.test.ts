@@ -106,11 +106,11 @@ describe('read-only update checker', () => {
         expect(result.latest?.compatibility.status).toBe('supported')
         expect(result.latest?.notes).toContain('<script>untrusted()</script>')
         expect(result.latest?.url).toBe(
-            'https://github.com/RentnerProxy/RentnerProxy/releases/tag/v1.0.0-beta.2',
+            'https://github.com/RentnerProxy/platform/releases/tag/v1.0.0-beta.2',
         )
         expect(data.calls.filter((url) => url.startsWith('https://api.github.com/'))).toEqual([
-            'https://api.github.com/repos/RentnerProxy/RentnerProxy/releases?per_page=100&page=1',
-            'https://api.github.com/repos/RentnerProxy/RentnerProxy/releases/assets/99',
+            'https://api.github.com/repos/RentnerProxy/platform/releases?per_page=100&page=1',
+            'https://api.github.com/repos/RentnerProxy/platform/releases/assets/99',
         ])
     })
     test('verifies regular GitHub Beta 2 releases for a Beta 1 installation', async () => {

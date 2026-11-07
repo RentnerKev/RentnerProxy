@@ -6,7 +6,7 @@ revision="$(git -C source rev-parse HEAD)"
     exit 1
 }
 repository="${GITHUB_REPOSITORY,,}"
-[[ "$repository" == 'rentnerproxy/rentnerproxy' ]] || {
+[[ "$repository" == 'rentnerproxy/platform' ]] || {
     echo '::error::Dev images require the official source repository.'
     exit 1
 }

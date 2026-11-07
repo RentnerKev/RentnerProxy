@@ -437,7 +437,7 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
     const immutableImage = `${input.image}:${input.tagName}`
     const codeFence = String.fromCharCode(96).repeat(3)
     const releaseSource = `${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}`
-    const installGuide = 'https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt'
+    const installGuide = 'https://rentnerproxy.github.io/platform/INSTALL.txt'
 
     const body = [
         `![${bannerAlt}](${bannerUrl})`,

@@ -32,9 +32,7 @@ test('multiarch publication depends on both native producers and their separate 
     }
     for (const architecture of ['amd64', 'arm64']) {
         expect(pipeline.jobs[architecture]?.with?.architecture).toBe(architecture)
-        expect(pipeline.jobs[architecture]?.if).toBe(
-            "github.repository == 'RentnerProxy/RentnerProxy'",
-        )
+        expect(pipeline.jobs[architecture]?.if).toBe("github.repository == 'RentnerProxy/platform'")
         expect(pipeline.jobs[architecture]?.permissions).toEqual({ contents: 'read' })
     }
     expect(pipeline.jobs.portability?.needs).toEqual(['amd64', 'arm64'])
