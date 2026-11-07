@@ -7,8 +7,8 @@ Suite: stable
 Codename: stable
 Architectures: amd64 arm64
 Components: main
-Valid-Until: Fri, 11 Dec 2026 18:50:51 GMT
-Date: Fri, 06 Nov 2026 18:50:52 +0000
+Valid-Until: Sat, 12 Dec 2026 14:39:03 GMT
+Date: Sat, 07 Nov 2026 14:39:03 +0000
 MD5Sum:
  d41d8cd98f00b204e9800998ecf8427e                0 main/binary-amd64/Packages
  7029066c27ac6f5ef18d660d5741979a               20 main/binary-amd64/Packages.gz
@@ -31,17 +31,17 @@ SHA512:
  7e8e93f4a89ce7fae011403e14a1d53544c6e6f6b6010d61129dc27937806d2b03802610d7999eab33a4c36b0f9e001d9d76001b8354087634c1aa9c740c536f               20 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEHDH7A2IKyeXyTyzwjhqMvhtoLLsFAmruIYwACgkQjhqMvhto
-LLtuaw//YUblKEe9qpxip7ry70vEFlcCQEv4Y+RWZVW4V3wAl5vKyYkk9C2/hYg9
-lmZgaqV7K5waKlLHNVxgGibk7CWN3EBQFQJMCEnN2eIIDJ3iwyPVfb76TkDLtcYU
-CvAHRJQMGf/3cclvTP16pkZlsKOk4v/WPBkQNXNOAtMPFjmppG41IWJeP6EHg8/+
-WRCDtowe1R72Dqdsdohe1afWGqBVwc+nJbOXNBGeZ+up40jlpBHBzslHERfU/4F/
-hDiU+AQaRWJzPbdImxzqf+mgJ2WBDvkxwpa+jxQCshzlGdFOLaqMBZJ/WtZALTM1
-ANZHxkLi6yY7OaDALxoqm1cGtdSFLxfwyrzOlTnzpqozWT9EMXW0pidaYuHCucL3
-T7xaP9hjqumzEgLTs/dKU1kpr3T49eqCLj8+4VFueUsxx2EGRtBoaed5gJ70667Z
-sx2Z+N6wrR4q9oDoxTXwqhIwe0TBgXSCdtycggXlAy3bruNNO2ovI4LqcV+NMRAT
-3q+p71dWOuhdgICDglxFS6bua7duqTtz9POu7DGylLbvJGCvdvxt6fvnrFkytnLg
-nMaCV8By1YmORKMommajKFhRo+q8qiZBhl7y91wrmHvrMOTWf+vePnXJ5M9c3yv3
-kwxH1x7DyLGiNzhtdpw5LCkd6o3cPbZxe0Q2+FPuYK1lWKX8WPw=
-=VtWc
+iQIzBAEBCgAdFiEEHDH7A2IKyeXyTyzwjhqMvhtoLLsFAmrvOAcACgkQjhqMvhto
+LLtsAg//RM5uDvt9i/d9QF/Rn6wuOc08QDrJ5uswZlTsYOgpFDzj/VrnDT5mrYFE
+Vz5wXTIwR1yvln6BomHJk4v783Y/eoDkZZpZjqgRwk33gA6a7AkwyTcNCS65HvvS
+pQKAHPwiRhrqerqU/J0eZginlvAlry4mvcFdaT5wdt9zYUvYKer/OKjH9plf4wTP
+PuRNIaOk/oTTH2UADMwzCEErhb1kHDT61k2zSEapawwaf6i/MTu0GpVY6BXy4eci
+5cFx39QZS4r4bF3wPihTrDXYPODZNx/gcWMFkPx8x8oOukFsFwQsE4bTKNBp7fyB
+WJkdOPR5lBpH7Ovuu5/U1sdXwtd7rJF/i7CU/phfFl/wlvPZRjLCznUyyMET3H4z
+S1+dXWnIJknGq33DOgGy8RCZqJcmiwv2Pj1EVVqdHJBKT00eM46Ep2qzBgbD5U4W
+gc49VgiuzZyXe+R2oER6atAYtq0/z1QN9Z1ttsAjaFYduwIbK2RAaDPX5bZGQwsH
+7kuIOuk8ikSDN9J/rfbNlk5/Pnp8cR/cDe1Pc8j8RUCFKZXZbFIXyBZPs4wzvA4Y
+l2kXIEPhYJ4RYkaR95BmuIhGEBMDJr89X8aW+H902zBZcv70ISFD+IAgr2CVJE1T
+362tHnddJboN+IvOq0kTgANUJnm0P6lefWIwjKg5aUwKJgifqtk=
+=MNdK
 -----END PGP SIGNATURE-----
