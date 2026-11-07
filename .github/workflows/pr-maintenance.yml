@@ -1,0 +1,79 @@
+name: PR Maintenance
+
+on:
+    push:
+        branches:
+            - main
+    pull_request_target:
+        branches:
+            - main
+        types: [opened, reopened, synchronize, ready_for_review, edited, labeled, unlabeled]
+    workflow_run:
+        workflows:
+            - CI
+            - Workflow Lint
+            - CodeQL
+            - Gitleaks
+            - Dependency Review
+            - Deployed Dependency Security
+            - Production Smokes
+            - PR Preview Source
+            - PR Preview Build
+            - PR Preview Publish
+            - autofix.ci
+        types:
+            - completed
+    schedule:
+        - cron: '7,22,37,52 * * * *'
+    workflow_dispatch:
+        inputs:
+            dry_run:
+                description: Report branch updates and merges without changing any PR
+                type: boolean
+                default: true
+
+permissions:
+    contents: read
+
+concurrency:
+    group: pr-maintenance
+    cancel-in-progress: false
+
+jobs:
+    maintain:
+        name: Update PR branches and merge eligible Dependabot updates
+        if: github.repository == 'RentnerProxy/RentnerProxy' && vars.PR_AUTOMATION_CLIENT_ID != ''
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - name: Check out trusted main automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: refs/heads/main
+                  persist-credentials: false
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.4
+
+            - name: Create repository-scoped automation token
+              id: token
+              uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+              with:
+                  client-id: ${{ vars.PR_AUTOMATION_CLIENT_ID }}
+                  private-key: ${{ secrets.PR_AUTOMATION_PRIVATE_KEY }}
+                  owner: ${{ github.repository_owner }}
+                  repositories: RentnerProxy
+                  permission-contents: write
+                  permission-pull-requests: write
+                  permission-workflows: write
+                  permission-checks: read
+                  permission-statuses: read
+
+            - name: Maintain current pull requests
+              env:
+                  GH_TOKEN: ${{ steps.token.outputs.token }}
+                  DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+                  TRUSTED_MERGE_BOT_LOGIN: ${{ steps.token.outputs.app-slug }}[bot]
+              run: bun --no-env-file .github/scripts/automation/pr-maintenance.ts
