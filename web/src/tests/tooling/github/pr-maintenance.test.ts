@@ -345,7 +345,7 @@ test('the privileged workflow executes only trusted main with a repository-scope
         'bun --no-env-file .github/scripts/automation/pr-maintenance.ts',
     ])
     const token = steps.find((step) => step.uses?.startsWith('actions/create-github-app-token@'))
-    expect(token?.with?.repositories).toBe('RentnerProxy')
+    expect(token?.with?.repositories).toBe('${{ github.event.repository.name }}')
     expect(token?.with?.['permission-checks']).toBe('read')
     expect(token?.with?.['permission-statuses']).toBe('read')
     expect(token?.with?.['permission-administration']).toBeUndefined()

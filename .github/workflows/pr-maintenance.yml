@@ -42,7 +42,7 @@ concurrency:
 jobs:
     maintain:
         name: Update PR branches and merge eligible Dependabot updates
-        if: github.repository == 'RentnerProxy/RentnerProxy' && vars.PR_AUTOMATION_CLIENT_ID != ''
+        if: vars.PR_AUTOMATION_CLIENT_ID != ''
         runs-on: ubuntu-latest
         timeout-minutes: 15
         steps:
@@ -64,7 +64,7 @@ jobs:
                   client-id: ${{ vars.PR_AUTOMATION_CLIENT_ID }}
                   private-key: ${{ secrets.PR_AUTOMATION_PRIVATE_KEY }}
                   owner: ${{ github.repository_owner }}
-                  repositories: RentnerProxy
+                  repositories: ${{ github.event.repository.name }}
                   permission-contents: write
                   permission-pull-requests: write
                   permission-workflows: write
