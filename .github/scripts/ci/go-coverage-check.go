@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const modulePath = "github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache"
+const modulePath = "github.com/RentnerProxy/RentnerProxy/core/caddy-modules/responsecache"
 const caddyPath = "core/caddy-modules/responsecache"
 const buildinfoPath = "docker/tooling/buildinfo"
 const checkerPath = ".github/scripts/ci"

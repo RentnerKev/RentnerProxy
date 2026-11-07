@@ -2,10 +2,10 @@
 set -Eeuo pipefail
 
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "${GITHUB_REPOSITORY:-}" != 'RentnerKev/RentnerProxy' ||
+if [[ "${GITHUB_REPOSITORY:-}" != 'RentnerProxy/RentnerProxy' ||
       "${GITHUB_EVENT_NAME:-}" != 'workflow_dispatch' ||
       "${GITHUB_REF:-}" != 'refs/heads/main' ||
-      "${GITHUB_WORKFLOW_REF:-}" != 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main' ]]; then
+      "${GITHUB_WORKFLOW_REF:-}" != 'RentnerProxy/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main' ]]; then
     echo '::error::Release recovery requires the trusted main-branch recovery workflow.'
     exit 1
 fi

@@ -44,10 +44,10 @@ jobs:
     signing-configuration:
         name: Check protected signing configuration
         if: >-
-            github.repository == 'RentnerKev/RentnerProxy' &&
+            github.repository == 'RentnerProxy/RentnerProxy' &&
             ((github.event_name == 'release' && github.event.action == 'published') ||
              (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
-              github.workflow_ref == 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'))
+              github.workflow_ref == 'RentnerProxy/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'))
         runs-on: ubuntu-latest
         timeout-minutes: 5
         environment: package-signing

@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 trap 'exit 1' ERR
 : "${GITHUB_REPOSITORY:?}" "${REPORT_DIRECTORY:?}" "${AUTOMATION_DIRECTORY:?}"
-image="ghcr.io/${GITHUB_REPOSITORY,,}"
+image='ghcr.io/rentnerkev/rentnerproxy'
 root_reports="$REPORT_DIRECTORY"
 REPORT_DIRECTORY="$root_reports/dev"
 mkdir -p "$REPORT_DIRECTORY"

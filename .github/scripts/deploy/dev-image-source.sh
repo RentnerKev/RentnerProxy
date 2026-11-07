@@ -6,8 +6,8 @@ revision="$(git -C source rev-parse HEAD)"
     exit 1
 }
 repository="${GITHUB_REPOSITORY,,}"
-[[ "$repository" =~ ^[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*$ ]] || {
-    echo '::error::The repository name cannot be used as a GHCR image name.'
+[[ "$repository" == 'rentnerproxy/rentnerproxy' ]] || {
+    echo '::error::Dev images require the official source repository.'
     exit 1
 }
 [[ -s source/docker/production/Dockerfile ]] || {
@@ -24,7 +24,7 @@ if ! grep -Fq '**/.env' source/docker/production/Dockerfile.dockerignore ||
     exit 1
 fi
 {
-    printf 'image=ghcr.io/%s\n' "$repository"
+    printf 'image=ghcr.io/rentnerkev/rentnerproxy\n'
     printf 'revision=%s\n' "$revision"
     printf 'version=dev-%.12s\n' "$revision"
 } >> "$GITHUB_OUTPUT"

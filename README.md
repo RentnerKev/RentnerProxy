@@ -9,15 +9,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
-  <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
+  <a href="https://github.com/RentnerProxy/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerProxy/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/RentnerProxy/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerProxy/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
-  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerKev/RentnerProxy" alt="MIT license"></a>
+  <a href="https://github.com/RentnerProxy/RentnerProxy/releases/tag/v1.0.0-beta.3"><img src="https://img.shields.io/github/v/release/RentnerProxy/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerProxy/RentnerProxy" alt="MIT license"></a>
 </p>
 
 > [!IMPORTANT]
-> Current public release: [v1.0.0-beta.3](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3).
+> Current public release: [v1.0.0-beta.3](https://github.com/RentnerProxy/RentnerProxy/releases/tag/v1.0.0-beta.3).
 > This is beta software: breaking changes are possible. Back up your data before upgrades.
 
 ## Features
@@ -51,12 +51,12 @@ manual challenges, supported delegation targets, renewal and recovery.
 
 Beta 3 is available for `linux/amd64` and `linux/arm64`.
 
-| Installation        | Get started                                                                                        |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| Docker / Compose    | [Compose setup below](#docker--compose)                                                            |
-| Podman / Quadlet    | [Signed installation guide](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt)                 |
-| Debian 13 APT / DEB | [Repository setup and package verification](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt) |
-| Fedora 44 DNF / RPM | [Repository setup and package verification](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt) |
+| Installation        | Get started                                                                                          |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Docker / Compose    | [Compose setup below](#docker--compose)                                                              |
+| Podman / Quadlet    | [Signed installation guide](https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt)                 |
+| Debian 13 APT / DEB | [Repository setup and package verification](https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt) |
+| Fedora 44 DNF / RPM | [Repository setup and package verification](https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt) |
 
 ### Docker / Compose
 
@@ -145,10 +145,10 @@ The signed Linux distribution runs the same appliance with rootful Podman/Quadle
 Supported package targets are Debian 13 and Fedora 44 on AMD64 and ARM64. They require
 Podman 5.4 or newer, systemd 252 or newer, cgroup v2 and nftables. Rootless deployment is unsupported.
 
-Follow the [installation and verification guide](https://rentnerkev.github.io/RentnerProxy/INSTALL.txt)
+Follow the [installation and verification guide](https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt)
 to verify the signing-key fingerprint, configure APT or DNF, or install a versioned DEB, RPM or
 Quadlet archive. Versioned packages, checksums, signatures and architecture-specific instructions
-are also available in the [Beta 3 downloads](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.3).
+are also available in the [Beta 3 downloads](https://github.com/RentnerProxy/RentnerProxy/releases/tag/v1.0.0-beta.3).
 
 ## Upgrade
 
@@ -239,6 +239,6 @@ Screenshots include example records and labeled demo metrics. Click a thumbnail 
 
 - [Architecture](docs/architecture.md) · [Security policy](SECURITY.md) · [Assurance case](docs/security/assurance-case.md)
 - [Operations](docs/operations.md) · [Runtime checks](docs/runtime-checks.md)
-- [Contributing](.github/CONTRIBUTING.md) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
+- [Contributing](.github/CONTRIBUTING.md) · [Report a bug](https://github.com/RentnerProxy/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).

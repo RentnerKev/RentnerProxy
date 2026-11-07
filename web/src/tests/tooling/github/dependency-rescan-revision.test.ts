@@ -291,7 +291,7 @@ exit "$result"
                             RESCAN_SCRIPT: shellPath(
                                 join(root, '.github/scripts/security/rescan-dev-image.sh'),
                             ),
-                            GITHUB_REPOSITORY: 'Example/Fixture',
+                            GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
                             AUTOMATION_DIRECTORY: 'automation',
                             REPORT_DIRECTORY: 'reports',
                             CONFIG_JSON: scenario.config,
@@ -336,10 +336,12 @@ exit "$result"
                 const inspections = (await readFile(join(directory, 'inspections'), 'utf8'))
                     .trim()
                     .split('\n')
-                expect(inspections[0]).toBe('inspect --raw docker://ghcr.io/example/fixture:dev')
+                expect(inspections[0]).toBe(
+                    'inspect --raw docker://ghcr.io/rentnerkev/rentnerproxy:dev',
+                )
                 if (!('rawExit' in scenario))
                     expect(inspections[1]).toBe(
-                        `inspect --override-os linux --override-arch amd64 --config docker://ghcr.io/example/fixture@${digest}`,
+                        `inspect --override-os linux --override-arch amd64 --config docker://ghcr.io/rentnerkev/rentnerproxy@${digest}`,
                     )
                 if (scenario.expected === 0) {
                     expect(summary).toContain('The current dev own-dependency gate passed')

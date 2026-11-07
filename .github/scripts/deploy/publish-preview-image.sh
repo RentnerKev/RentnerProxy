@@ -45,7 +45,7 @@ if (( inspect_status == 0 )); then
             "docker://$IMMUTABLE_REFERENCE"
     )"
     jq --exit-status \
-        --arg source "https://github.com/$REPOSITORY" \
+        --arg source 'https://github.com/RentnerKev/RentnerProxy' \
         --arg title 'RentnerProxy PR Preview' \
         --arg revision "$TESTED_SHA" \
         --arg version "$IMMUTABLE_TAG" \

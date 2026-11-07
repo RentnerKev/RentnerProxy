@@ -10,8 +10,8 @@ import {
 import type { CiGetJson } from '../../../../../.github/scripts/release/Types/exact-revision-ci.types.ts'
 
 const revision = 'a'.repeat(40)
-const repository = 'RentnerKev/RentnerProxy'
-const prefix = '/repos/rentnerkev/rentnerproxy/actions'
+const repository = 'RentnerProxy/RentnerProxy'
+const prefix = '/repos/rentnerproxy/rentnerproxy/actions'
 function run(overrides: Record<string, unknown> = {}) {
     return {
         id: 20,

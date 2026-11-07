@@ -56,7 +56,7 @@ function issue(number: number, overrides: Partial<GitHubIssue> = {}): GitHubIssu
 
 function documentInput(overrides: Partial<Parameters<typeof renderReleaseNotes>[0]> = {}) {
     return {
-        repository: 'RentnerKev/RentnerProxy',
+        repository: 'RentnerProxy/RentnerProxy',
         tagName: 'v1.2.0',
         channel: 'stable' as const,
         publishedAt: '2026-09-02T12:00:00Z',
@@ -287,7 +287,7 @@ describe('release note rendering', () => {
         const body = renderReleaseNotes(
             documentInput({
                 contributorMediaUrls: {
-                    'contributor-alice.png': `https://raw.githubusercontent.com/RentnerKev/RentnerProxy/${'b'.repeat(40)}/releases/v1.2.0/${'c'.repeat(64)}/contributor-alice.png`,
+                    'contributor-alice.png': `https://raw.githubusercontent.com/RentnerProxy/RentnerProxy/${'b'.repeat(40)}/releases/v1.2.0/${'c'.repeat(64)}/contributor-alice.png`,
                 },
                 issues: [
                     issue(1, { user: { login: 'Alice', type: 'User' } }),
@@ -327,7 +327,7 @@ describe('release note rendering', () => {
             'Signed APT repository and DEB packages',
             'Signed DNF repository and RPM packages',
             '**AMD64 and ARM64**',
-            'https://rentnerkev.github.io/RentnerProxy/INSTALL.txt',
+            'https://rentnerproxy.github.io/RentnerProxy/INSTALL.txt',
         ]) {
             expect(body).toContain(text)
         }
@@ -338,7 +338,7 @@ describe('release note rendering', () => {
 
     test('building releases expose only the building banner and version status', () => {
         const body = renderBuildingReleaseNotes({
-            repository: 'RentnerKev/RentnerProxy',
+            repository: 'RentnerProxy/RentnerProxy',
             tagName: 'v1.0.0-beta.3',
             bannerRevision: 'a'.repeat(40),
         })
@@ -366,7 +366,7 @@ describe('release note rendering', () => {
         ).toThrow()
         expect(() =>
             renderBuildingReleaseNotes({
-                repository: 'RentnerKev/RentnerProxy',
+                repository: 'RentnerProxy/RentnerProxy',
                 tagName: '../escape',
                 bannerRevision: 'a'.repeat(40),
             }),
@@ -458,7 +458,7 @@ describe('GitHub API integration boundary', () => {
     test('follows pagination links beyond 100 issues with authenticated requests', async () => {
         const requestedPages: string[] = []
         const client = new GitHubReleaseClient(
-            'RentnerKev/RentnerProxy',
+            'RentnerProxy/RentnerProxy',
             'test-token',
             async (input, init) => {
                 const url = new URL(String(input))
@@ -490,13 +490,13 @@ describe('GitHub API integration boundary', () => {
         'generates beta notes for a normal GitHub release %s',
         async (tagName) => {
             const client = new GitHubReleaseClient(
-                'RentnerKev/RentnerProxy',
+                'RentnerProxy/RentnerProxy',
                 'test-token',
                 async () => Response.json([]),
             )
             const result = await generateReleaseNotes(
                 {
-                    repository: 'RentnerKev/RentnerProxy',
+                    repository: 'RentnerProxy/RentnerProxy',
                     release: {
                         id: 10,
                         tagName,
@@ -519,7 +519,7 @@ describe('GitHub API integration boundary', () => {
     test('uses a matching milestone instead of a release window', async () => {
         const issueQueries: URL[] = []
         const client = new GitHubReleaseClient(
-            'RentnerKev/RentnerProxy',
+            'RentnerProxy/RentnerProxy',
             'test-token',
             async (input) => {
                 const url = new URL(String(input))
@@ -536,7 +536,7 @@ describe('GitHub API integration boundary', () => {
 
         const result = await generateReleaseNotes(
             {
-                repository: 'RentnerKev/RentnerProxy',
+                repository: 'RentnerProxy/RentnerProxy',
                 release: {
                     id: 10,
                     tagName: 'v1.2.0',
@@ -559,7 +559,7 @@ describe('GitHub API integration boundary', () => {
     test('uses the previous stable publication for a stable fallback window', async () => {
         const issueQueries: URL[] = []
         const client = new GitHubReleaseClient(
-            'RentnerKev/RentnerProxy',
+            'RentnerProxy/RentnerProxy',
             'test-token',
             async (input) => {
                 const url = new URL(String(input))
@@ -590,7 +590,7 @@ describe('GitHub API integration boundary', () => {
 
         const result = await generateReleaseNotes(
             {
-                repository: 'RentnerKev/RentnerProxy',
+                repository: 'RentnerProxy/RentnerProxy',
                 release: {
                     id: 3,
                     tagName: 'v1.1.0',
@@ -612,7 +612,7 @@ describe('GitHub API integration boundary', () => {
     test('uses the immediately previous publication for a beta fallback', async () => {
         const issueQueries: URL[] = []
         const client = new GitHubReleaseClient(
-            'RentnerKev/RentnerProxy',
+            'RentnerProxy/RentnerProxy',
             'test-token',
             async (input) => {
                 const url = new URL(String(input))
@@ -643,7 +643,7 @@ describe('GitHub API integration boundary', () => {
 
         const result = await generateReleaseNotes(
             {
-                repository: 'RentnerKev/RentnerProxy',
+                repository: 'RentnerProxy/RentnerProxy',
                 release: {
                     id: 3,
                     tagName: 'v1.1.0-beta.2',

@@ -5,6 +5,7 @@ import type {
 } from './Types/generate-release-notes.types.ts'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { RELEASE_IMAGE, RELEASE_REPOSITORY } from '../../../web/src/config/compatibility.config.ts'
 import { isReleaseMetadataCompatible } from '../../../web/src/lib/ApplicationVersion/releaseMetadata.ts'
 import { contributorAvatarAssetName, contributorLogins } from '../lib/contributor-avatars.ts'
 import {
@@ -161,7 +162,10 @@ export async function generateReleaseNotes(
         throw new Error('Release channel and GitHub prerelease state do not match')
     }
 
-    const expectedImage = `ghcr.io/${input.repository.toLowerCase()}`
+    if (input.repository.toLowerCase() !== RELEASE_REPOSITORY.toLowerCase()) {
+        throw new Error('Release notes require the official source repository')
+    }
+    const expectedImage = RELEASE_IMAGE
     if (input.image !== expectedImage) {
         throw new Error(`Release image must be ${expectedImage}`)
     }

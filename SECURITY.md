@@ -25,7 +25,7 @@ or reproducible builds.
 
 Please do not report security vulnerabilities through public GitHub issues.
 
-Use GitHub's [private vulnerability reporting form](https://github.com/RentnerKev/RentnerProxy/security/advisories/new) to report a vulnerability. It creates a private security advisory that only repository maintainers and invited collaborators can access.
+Use GitHub's [private vulnerability reporting form](https://github.com/RentnerProxy/RentnerProxy/security/advisories/new) to report a vulnerability. It creates a private security advisory that only repository maintainers and invited collaborators can access.
 
 If the form is temporarily unavailable, do not disclose the vulnerability in a public issue. The project does not currently publish an alternative private contact address.
 

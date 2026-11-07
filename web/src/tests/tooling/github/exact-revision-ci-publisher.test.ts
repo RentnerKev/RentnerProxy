@@ -94,8 +94,8 @@ test('trusted checkout CLI loads with only native Bun and its byte helper, witho
             preload,
             `
             const run = { id: 20, run_number: 2, run_attempt: 3, workflow_id: 10,
-                path: '.github/workflows/ci.yml', repository: { full_name: 'RentnerKev/RentnerProxy' },
-                head_repository: { full_name: 'RentnerKev/RentnerProxy' }, head_sha: '${'a'.repeat(40)}',
+                path: '.github/workflows/ci.yml', repository: { full_name: 'RentnerProxy/RentnerProxy' },
+                head_repository: { full_name: 'RentnerProxy/RentnerProxy' }, head_sha: '${'a'.repeat(40)}',
                 head_branch: 'main', event: 'push', status: 'completed', conclusion: 'success' }
             globalThis.fetch = async input => {
                 const path = new URL(String(input)).pathname
@@ -123,7 +123,7 @@ test('trusted checkout CLI loads with only native Bun and its byte helper, witho
                 cwd: directory,
                 env: {
                     ...process.env,
-                    GITHUB_REPOSITORY: 'RentnerKev/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
                     RELEASE_REVISION: 'a'.repeat(40),
                     GH_TOKEN: 'fixture-token',
                 },
@@ -206,7 +206,7 @@ esac
                     FIXTURE_POLICY_EXIT: String(scenario.policy),
                     FIXTURE_FINAL_IDENTITY_FAIL: String(scenario.finalIdentityFails),
                     FIXTURE_GATE_PASSED: join(directory, 'gate-passed'),
-                    GITHUB_REPOSITORY: 'RentnerKev/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
                     GH_TOKEN: 'SYNTHETIC-SECRET-DO-NOT-PRINT',
                     RELEASE_ID: '123',
                     RELEASE_TAG: 'v1.0.0',
