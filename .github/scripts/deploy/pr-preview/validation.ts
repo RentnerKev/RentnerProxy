@@ -1,3 +1,4 @@
+import { RELEASE_REPOSITORY } from '../../../../web/src/config/compatibility.config.ts'
 import type {
     JsonRecord,
     PreviewIdentity,
@@ -150,6 +151,9 @@ export function createPreviewIdentity(
     buildRunAttemptValue: unknown,
 ): PreviewIdentity {
     const repository = normalizeRepository(repositoryValue)
+    if (repository !== RELEASE_REPOSITORY.toLowerCase()) {
+        throw new Error('Preview images require the official source repository.')
+    }
     const pullRequestNumber = parsePositiveInteger(pullRequestNumberValue, 'Pull request number')
     const testedSha = validateFullSha(testedShaValue, 'Tested SHA')
     const buildRunId = parsePositiveInteger(buildRunIdValue, 'Build run ID')
@@ -159,7 +163,7 @@ export function createPreviewIdentity(
     const immutableTag = assertPreviewTag(
         `pr-${pullRequestNumber}-${shortTestedSha}-${buildRunId}-${buildRunAttempt}`,
     )
-    const image = `ghcr.io/${repository}`
+    const image = 'ghcr.io/rentnerkev/rentnerproxy'
 
     return {
         image,

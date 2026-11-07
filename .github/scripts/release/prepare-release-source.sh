@@ -34,11 +34,11 @@ if ! grep -Fq '**/.env' "source/$dockerignore_relative" ||
 fi
 
 repository="${GITHUB_REPOSITORY,,}"
-[[ "$repository" =~ ^[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*$ ]] || {
-    echo "::error::The repository name cannot be normalized into a safe GHCR image name."
+[[ "$repository" == 'rentnerproxy/rentnerproxy' ]] || {
+    echo "::error::Release images require the official source repository."
     exit 1
 }
-image="ghcr.io/$repository"
+image='ghcr.io/rentnerkev/rentnerproxy'
 
 case "$RELEASE_CHANNEL" in
     alpha)

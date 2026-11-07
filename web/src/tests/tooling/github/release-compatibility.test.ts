@@ -503,7 +503,7 @@ describe('bounded official GitHub source discovery', () => {
         )
         expect(requests).toEqual([
             {
-                url: 'https://api.github.com/repos/RentnerKev/RentnerProxy/releases/assets/102',
+                url: 'https://api.github.com/repos/RentnerProxy/RentnerProxy/releases/assets/102',
                 authorization: 'Bearer fixture-not-a-secret',
             },
             { url: 'https://release-assets.githubusercontent.com/file', authorization: null },
@@ -565,7 +565,7 @@ describe('bounded official GitHub source discovery', () => {
             return Response.json(readiness())
         }) as SourceFetcher)
         expect(requested).toBe(
-            'https://api.github.com/repos/RentnerKev/RentnerProxy/releases/assets/102',
+            'https://api.github.com/repos/RentnerProxy/RentnerProxy/releases/assets/102',
         )
         expect(actual).toEqual(beta2)
     })

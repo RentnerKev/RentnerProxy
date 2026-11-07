@@ -92,7 +92,7 @@ export async function publishReleaseMedia(
     request: MediaRequest,
 ): Promise<PublishedReleaseMedia> {
     validateRepository(input.repository)
-    if (input.repository.toLowerCase() !== 'rentnerkev/rentnerproxy')
+    if (input.repository.toLowerCase() !== 'rentnerproxy/rentnerproxy')
         throw new Error('Release media repository is not trusted')
     validateReleaseTag(input.tagName, deriveReleaseChannel(input.tagName) !== 'stable')
     if (input.files.length === 0 || input.files.length > 100)

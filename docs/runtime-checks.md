@@ -44,7 +44,7 @@ relevant PR/main changes and manually. It has no long-duration profile or schedu
 evidence remains a separate check.
 
 A Docker Desktop reference run on Windows with Bun 1.4.2 at
-[`1aba761`](https://github.com/RentnerKev/RentnerProxy/commit/1aba761419c73877a35474240f1979f93124d0aa)
+[`1aba761`](https://github.com/RentnerProxy/RentnerProxy/commit/1aba761419c73877a35474240f1979f93124d0aa)
 passed the default case in 379 seconds after image setup. The 25-host creation command took 1.13 s,
 growth to 100 took 2.51 s, and each concurrent fixture command took 7.73–7.92 s for 328 mutations and
 407 management reads; these command timings exclude subsequent traffic/revision checks. NPM import

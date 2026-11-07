@@ -12,7 +12,7 @@ const png = new Uint8Array(
     encode({ width: 96, height: 96, channels: 4, depth: 8, data: new Uint8Array(96 * 96 * 4) }),
 )
 const input = {
-    repository: 'RentnerKev/RentnerProxy',
+    repository: 'RentnerProxy/RentnerProxy',
     tagName: 'v1.0.0-beta.3',
     files: [{ name: 'contributor-alice.png', bytes: png }],
 }
@@ -108,7 +108,7 @@ test('creates a data-only orphan branch with immutable PNG URLs and reuses ident
     const first = await publishReleaseMedia(input, db.request)
     expect(first.urls['contributor-alice.png']).toMatch(
         new RegExp(
-            `^https://raw.githubusercontent.com/RentnerKev/RentnerProxy/${first.commitSha}/releases/v1.0.0-beta.3/[a-f0-9]{64}/contributor-alice.png$`,
+            `^https://raw.githubusercontent.com/RentnerProxy/RentnerProxy/${first.commitSha}/releases/v1.0.0-beta.3/[a-f0-9]{64}/contributor-alice.png$`,
         ),
     )
     const create = db.calls.find((call) => call.endpoint === 'git/commits')!
@@ -252,7 +252,7 @@ test('HTTP transport scopes auth to GitHub and never follows redirects', async (
     const request = githubMediaRequest(input.repository, 'synthetic-token', async (url, init) => {
         requested = true
         expect(String(url)).toBe(
-            'https://api.github.com/repos/RentnerKev/RentnerProxy/git/ref/heads/rentner/release-media',
+            'https://api.github.com/repos/RentnerProxy/RentnerProxy/git/ref/heads/rentner/release-media',
         )
         expect(init?.redirect).toBe('error')
         expect(new Headers(init?.headers).get('authorization')).toBe('Bearer synthetic-token')

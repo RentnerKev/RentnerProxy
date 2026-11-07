@@ -175,6 +175,9 @@ test('release asset publication reuses identical checksums and refuses conflicti
         const options = { tag: identity.version, releaseId: '123', command }
         await uploadReleaseAssets(root, options)
         expect(actions.filter((args) => args[1] === 'release')).toHaveLength(8)
+        expect(actions[0]).toEqual(['gh', 'api', 'repos/RentnerProxy/RentnerProxy/releases/123'])
+        for (const action of actions.filter((args) => args[1] === 'release'))
+            expect(action.slice(-2)).toEqual(['--repo', 'RentnerProxy/RentnerProxy'])
         expect(assets.filter((asset) => /\.(deb|rpm|tar\.gz)$/.test(asset.name))).toHaveLength(7)
         expect(assets.some((asset) => asset.name === 'distribution.intoto.json')).toBeFalse()
         actions.length = 0

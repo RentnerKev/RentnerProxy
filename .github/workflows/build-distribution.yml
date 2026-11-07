@@ -26,7 +26,7 @@ permissions: {}
 
 jobs:
     packages:
-        if: github.repository == 'RentnerKev/RentnerProxy'
+        if: github.repository == 'RentnerProxy/RentnerProxy'
         name: Build and verify DEB, RPM and Quadlet artifacts
         runs-on: ubuntu-latest
         timeout-minutes: 30

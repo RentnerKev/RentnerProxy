@@ -5,6 +5,76 @@ import { expect, test } from 'bun:test'
 
 const root = resolve(import.meta.dir, '../../../../..')
 
+test.each(['publish-assessed-image', 'pr-preview-publish'])(
+    'protects the legacy registry writer %s and keeps its PAT out of scans',
+    async (name) => {
+        const source = await readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8')
+        const parsed = Bun.YAML.parse(source) as {
+            jobs: Record<
+                string,
+                {
+                    environment?: string
+                    steps: {
+                        id?: string
+                        env?: Record<string, string>
+                        run?: string
+                    }[]
+                }
+            >
+        }
+        const publisher = parsed.jobs.publish!
+        expect(publisher.environment).toBe('container-publishing')
+        const preflight = publisher.steps[0]!
+        expect(preflight.env).toEqual({
+            GHCR_PUBLISH_TOKEN: '${{ secrets.GHCR_PUBLISH_TOKEN }}',
+        })
+        expect(preflight.run).toContain('Configure the GHCR_PUBLISH_TOKEN secret')
+        const publication = publisher.steps.find((step) => step.id === 'publish')!
+        expect(publication.env?.GHCR_TOKEN).toBe('${{ secrets.GHCR_PUBLISH_TOKEN }}')
+        expect(publication.env?.GHCR_USERNAME).toBe('RentnerKev')
+        if (name === 'pr-preview-publish') {
+            expect(publication.env?.GITHUB_TOKEN).toBe('${{ github.token }}')
+        }
+        for (const step of publisher.steps.filter(
+            (candidate) => candidate !== preflight && candidate !== publication,
+        )) {
+            expect(JSON.stringify(step)).not.toContain('GHCR_PUBLISH_TOKEN')
+        }
+        for (const [jobName, job] of Object.entries(parsed.jobs)) {
+            if (jobName !== 'publish') {
+                expect(JSON.stringify(job)).not.toContain('GHCR_PUBLISH_TOKEN')
+            }
+        }
+        const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
+        await Promise.all(
+            ['', 'synthetic-registry-credential'].map(async (token) => {
+                const child = Bun.spawn([bash, '--noprofile', '--norc', '-c', preflight.run!], {
+                    env: { GHCR_PUBLISH_TOKEN: token },
+                    stdout: 'pipe',
+                    stderr: 'pipe',
+                })
+                const [status, stdout, stderr] = await Promise.all([
+                    child.exited,
+                    new Response(child.stdout).text(),
+                    new Response(child.stderr).text(),
+                ])
+                expect(status, stderr).toBe(token ? 0 : 1)
+                if (!token) expect(stdout).toContain('container-publishing')
+                expect(stdout + stderr).not.toContain('synthetic-registry-credential')
+            }),
+        )
+    },
+)
+
+test('keeps the legacy registry PAT out of all candidate builders', async () => {
+    const sources = await Promise.all(
+        ['build-assessed-image', 'build-assessed-platform', 'pr-preview-build'].map((name) =>
+            readFile(resolve(root, `.github/workflows/${name}.yml`), 'utf8'),
+        ),
+    )
+    for (const source of sources) expect(source).not.toContain('GHCR_PUBLISH_TOKEN')
+})
+
 test('assesses production OCI before registry credentials and keeps source execution out of the publisher', async () => {
     const files = await Promise.all(
         [
@@ -27,7 +97,7 @@ test('assesses production OCI before registry credentials and keeps source execu
             >
         }
         expect(parsed.jobs.build?.permissions).toEqual({ contents: 'read' })
-        expect(parsed.jobs.build?.if).toBe("github.repository == 'RentnerKev/RentnerProxy'")
+        expect(parsed.jobs.build?.if).toBe("github.repository == 'RentnerProxy/RentnerProxy'")
         expect(parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.push).toBe(
             false,
         )
@@ -40,6 +110,9 @@ test('assesses production OCI before registry credentials and keeps source execu
             source.indexOf('Store assessed OCI candidate'),
         )
         expect(JSON.stringify(parsed.jobs.build)).not.toContain('secrets.GITHUB_TOKEN')
+        expect(source).toContain(
+            'org.opencontainers.image.source=https://github.com/RentnerKev/RentnerProxy',
+        )
     }
     for (const source of files.slice(0, 2)) {
         expect(source).toContain('uses: ./.github/workflows/build-assessed-image.yml')

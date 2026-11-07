@@ -29,7 +29,7 @@ concurrency:
 jobs:
     resolve:
         name: Verify existing published release
-        if: github.repository == 'RentnerKev/RentnerProxy' && github.ref == 'refs/heads/main'
+        if: github.repository == 'RentnerProxy/RentnerProxy' && github.ref == 'refs/heads/main'
         runs-on: ubuntu-latest
         timeout-minutes: 10
         permissions:

@@ -55,7 +55,9 @@ test('compact presentation preserves all original signed bytes and deterministic
         const instructions = await readFile(join(first, 'INSTALL.txt'), 'utf8')
         expect(instructions).toContain('not separately OpenPGP-signed')
         expect(instructions).toContain('all three matching DEB/RPM/Quadlet')
-        expect(instructions).toContain(`/releases/${compactTag}/1/ARCH/`)
+        expect(instructions).toContain(
+            `https://rentnerkev.github.io/RentnerProxy/releases/${compactTag}/1/ARCH/`,
+        )
         const consumer = join(directory, 'consumer')
         await mkdir(consumer)
         const catalog = ['amd64', 'arm64'].map((architecture) =>

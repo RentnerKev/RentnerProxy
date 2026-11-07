@@ -11,7 +11,7 @@ import type {
 
 const expected = {
     baseRef: 'main',
-    baseRepository: 'rentnerkev/rentnerproxy',
+    baseRepository: 'rentnerproxy/rentnerproxy',
     baseSha: '2'.repeat(40),
     headRepository: 'contributor/rentnerproxy',
     headSha: '1'.repeat(40),
@@ -234,7 +234,9 @@ test('publication commands validate artifacts, immutable destinations, digest ag
     process.env.MOVING_IMAGE_DIGEST = artifact.digest
     request.mockClear()
     await invoke('comment')
-    expect(request.mock.calls.at(-1)?.[0]).toBe('/repos/rentnerkev/rentnerproxy/issues/42/comments')
+    expect(request.mock.calls.at(-1)?.[0]).toBe(
+        '/repos/rentnerproxy/rentnerproxy/issues/42/comments',
+    )
     expect(request.mock.calls.at(-1)?.[1]?.method).toBe('POST')
     expect(JSON.stringify(request.mock.calls.at(-1)?.[1]?.body)).toContain(
         environment.IMMUTABLE_REFERENCE,

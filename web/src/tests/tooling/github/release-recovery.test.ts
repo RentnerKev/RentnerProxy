@@ -6,7 +6,8 @@ import { expect, test } from 'bun:test'
 const root = resolve(import.meta.dir, '../../../../..')
 const revision = 'a'.repeat(40)
 const automationRevision = 'b'.repeat(40)
-const workflowRef = 'RentnerKev/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'
+const workflowRef =
+    'RentnerProxy/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'
 const publishedAt = '2026-11-06T12:00:00Z'
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
 
@@ -98,7 +99,7 @@ test.each(scenarios)(
                 join(bin, 'gh'),
                 `#!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$1" == api && "$2" == 'repos/RentnerKev/RentnerProxy/releases/123' ]]
+[[ "$1" == api && "$2" == 'repos/RentnerProxy/RentnerProxy/releases/123' ]]
 printf 'api\\n' >> "$FIXTURE_EVENTS"
 if [[ "$FIXTURE_FAILURE" == metadata-after-ci && -f "$FIXTURE_CI_PASSED" ]]; then
     printf '124\\t%s\\tfalse\\tfalse\\t%s\\n' "$FIXTURE_TAG" "$FIXTURE_PUBLISHED"
@@ -149,7 +150,7 @@ printf 'ci\\n' >> "$FIXTURE_EVENTS"
             const output = join(directory, 'output')
             await Promise.all([writeFile(events, ''), writeFile(output, '')])
             const input = {
-                GITHUB_REPOSITORY: 'RentnerKev/RentnerProxy',
+                GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
                 GITHUB_EVENT_NAME: 'workflow_dispatch',
                 GITHUB_REF: 'refs/heads/main',
                 GITHUB_WORKFLOW_REF: workflowRef,
@@ -306,7 +307,7 @@ test('limits recovery to trusted main and routes only validated outputs through 
         ),
     )
     const resolver = recovery.jobs.resolve!
-    expect(resolver.if).toContain("github.repository == 'RentnerKev/RentnerProxy'")
+    expect(resolver.if).toContain("github.repository == 'RentnerProxy/RentnerProxy'")
     expect(resolver.if).toContain("github.ref == 'refs/heads/main'")
     expect(
         resolver.steps?.some((step) => step.run?.includes('resolve-release-recovery.sh')),
@@ -394,7 +395,7 @@ esac
                         mode === 'moved-after-resolution' ? 'c'.repeat(40) : revision,
                     EXPECTED_REVISION: mode === 'missing-expectation' ? '' : revision,
                     GITHUB_OUTPUT: output,
-                    GITHUB_REPOSITORY: 'RentnerKev/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
                     RUNNER_TEMP: directory,
                     RELEASE_CHANNEL: 'beta',
                     RELEASE_TAG: 'v1.0.0-beta.3',

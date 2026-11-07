@@ -29,7 +29,7 @@ esac
 config="$(skopeo inspect --config "oci-archive:$oci_archive")"
 jq --exit-status \
     --arg revision "$TESTED_SHA" \
-    --arg source "https://github.com/$REPOSITORY" \
+    --arg source 'https://github.com/RentnerKev/RentnerProxy' \
     --arg title 'RentnerProxy PR Preview' \
     --arg version "$IMMUTABLE_TAG" \
     '.os == "linux" and

@@ -119,6 +119,7 @@ jobs:
         if: needs.resolve.outputs.lifecycle == 'open'
         needs:
             - resolve
+        environment: container-publishing
         runs-on: ubuntu-latest
         timeout-minutes: 45
         concurrency:
@@ -133,6 +134,16 @@ jobs:
         outputs:
             digest: ${{ steps.publish.outputs.digest }}
         steps:
+            - name: Verify protected registry publishing credential
+              env:
+                  GHCR_PUBLISH_TOKEN: ${{ secrets.GHCR_PUBLISH_TOKEN }}
+              shell: bash
+              run: |
+                  if [[ -z "$GHCR_PUBLISH_TOKEN" ]]; then
+                      echo '::error::Configure the GHCR_PUBLISH_TOKEN secret in the protected container-publishing environment before publishing legacy GHCR images.'
+                      exit 1
+                  fi
+
             - name: Check out trusted preview automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
@@ -196,8 +207,8 @@ jobs:
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-artifact
                   ASSESSED_REPORT: ${{ runner.temp }}/dependency-preview-report/assessment.json
-                  GHCR_TOKEN: ${{ github.token }}
-                  GHCR_USERNAME: ${{ github.actor }}
+                  GHCR_TOKEN: ${{ secrets.GHCR_PUBLISH_TOKEN }}
+                  GHCR_USERNAME: RentnerKev
                   GITHUB_TOKEN: ${{ github.token }}
                   IMAGE: ${{ needs.resolve.outputs.image }}
                   IMMUTABLE_REFERENCE: ${{ needs.resolve.outputs.immutable_reference }}

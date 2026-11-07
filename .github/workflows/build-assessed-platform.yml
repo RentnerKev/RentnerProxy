@@ -46,7 +46,7 @@ permissions: {}
 
 jobs:
     build:
-        if: github.repository == 'RentnerKev/RentnerProxy'
+        if: github.repository == 'RentnerProxy/RentnerProxy'
         name: Build, assess and test ${{ inputs.architecture }} image
         runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
         timeout-minutes: 75
@@ -118,7 +118,7 @@ jobs:
                   labels: |
                       org.opencontainers.image.title=${{ inputs.title }}
                       org.opencontainers.image.description=${{ inputs.description }}
-                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.source=https://github.com/RentnerKev/RentnerProxy
                       org.opencontainers.image.url=https://github.com/${{ github.repository }}
                       org.opencontainers.image.version=${{ inputs.version }}
                       org.opencontainers.image.revision=${{ inputs.revision }}

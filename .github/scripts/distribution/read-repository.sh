@@ -4,8 +4,8 @@ set -Eeuo pipefail
 [[ "$REPOSITORY_DIRECTORY" == "$RUNNER_TEMP"/package-repository ]] || exit 1
 mkdir "$REPOSITORY_DIRECTORY"
 git -c core.hooksPath=/dev/null init --quiet "$REPOSITORY_DIRECTORY"
-git -C "$REPOSITORY_DIRECTORY" remote add origin https://github.com/RentnerKev/RentnerProxy.git
-remote=$(git ls-remote --exit-code https://github.com/RentnerKev/RentnerProxy.git refs/heads/package-repository) || status=$?
+git -C "$REPOSITORY_DIRECTORY" remote add origin https://github.com/RentnerProxy/RentnerProxy.git
+remote=$(git ls-remote --exit-code https://github.com/RentnerProxy/RentnerProxy.git refs/heads/package-repository) || status=$?
 if [[ ${status:-0} == 2 ]]; then
     mkdir "$REPOSITORY_DIRECTORY/public"
     printf '%s\n' initial > "$REPOSITORY_DIRECTORY/.git/rentnerproxy-parent"

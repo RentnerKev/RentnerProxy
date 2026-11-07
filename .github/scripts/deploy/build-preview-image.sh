@@ -10,7 +10,7 @@ docker buildx build \
     --file source/docker/production/Dockerfile \
     --label 'org.opencontainers.image.title=RentnerProxy PR Preview' \
     --label 'org.opencontainers.image.description=Unreviewed pull request preview for testing only.' \
-    --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" \
+    --label 'org.opencontainers.image.source=https://github.com/RentnerKev/RentnerProxy' \
     --label "org.opencontainers.image.url=https://github.com/$REPOSITORY/pull/$PR_NUMBER" \
     --label "org.opencontainers.image.revision=$TESTED_SHA" \
     --label "org.opencontainers.image.version=$IMMUTABLE_TAG" \

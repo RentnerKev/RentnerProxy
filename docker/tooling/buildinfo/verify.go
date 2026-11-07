@@ -11,7 +11,7 @@ import (
 const crowdsecTags = "netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo,no_db_postgres"
 const caddyModule = "github.com/caddyserver/caddy/v2"
 const caddySource = "/opt/rentnerproxy-caddy-source"
-const responseCache = "github.com/RentnerKev/RentnerProxy/core/caddy-modules/responsecache"
+const responseCache = "github.com/RentnerProxy/RentnerProxy/core/caddy-modules/responsecache"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
