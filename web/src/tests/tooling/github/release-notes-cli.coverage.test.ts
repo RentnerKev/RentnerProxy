@@ -55,7 +55,7 @@ test('release notes CLI writes reviewed outputs from an offline API and rejects 
     try {
         await writeFile(
             preload,
-            'globalThis.fetch = async (input) => { const url = new URL(String(input)); if (url.origin !== "https://api.github.com" || !/^\\/repos\\/RentnerProxy\\/RentnerProxy\\/(releases|milestones|issues)$/.test(url.pathname)) throw new Error("Unexpected API request"); return Response.json([]) }',
+            'globalThis.fetch = async (input) => { const url = new URL(String(input)); if (url.origin !== "https://api.github.com" || !/^\\/repos\\/RentnerProxy\\/platform\\/(releases|milestones|issues)$/.test(url.pathname)) throw new Error("Unexpected API request"); return Response.json([]) }',
         )
         await writeFile(
             config,
