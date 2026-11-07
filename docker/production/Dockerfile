@@ -59,7 +59,7 @@ RUN set -eu; \
     test "$(rustc -vV | sed -n 's/^host: //p')" = "$rust_host"; \
     RENTNERPROXY_BUILD_VERSION="${RENTNERPROXY_BUILD_VERSION:-}" cargo build --locked --release
 
-FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS caddy-go-toolchain
+FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS caddy-go-toolchain
 
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # Apply the reviewed reload-lifecycle backport to a verified upstream copy.
@@ -88,7 +88,7 @@ RUN bun --no-env-file /tmp/download-geoip.ts
 
 # Build pristine upstream CrowdSec with the managed SQLite backend and pinned
 # security dependencies; exclude its unused legacy PostgreSQL backend.
-FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS crowdsec-build
+FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:af1bfc2614ebb1dbd31af514b78740fd678850e76498762b425ecee4c5c6ea80 AS crowdsec-build
 ARG TARGETOS
 ARG TARGETARCH
 RUN apt-get update \
@@ -99,7 +99,7 @@ COPY docker/tooling/buildinfo/verify.go /opt/verify-buildinfo.go
 RUN test "$(go env GOOS)/$(go env GOARCH)" = "$TARGETOS/$TARGETARCH" \
     && /bin/sh /opt/crowdsec-build/build.sh /out
 
-FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS gosu-build
+FROM mirror.gcr.io/library/golang:1.27.3-trixie@sha256:af1bfc2614ebb1dbd31af514b78740fd678850e76498762b425ecee4c5c6ea80 AS gosu-build
 ARG TARGETOS
 ARG TARGETARCH
 COPY docker/gosu/tooling/ /opt/gosu-build/
