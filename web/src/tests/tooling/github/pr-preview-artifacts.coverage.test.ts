@@ -24,7 +24,7 @@ test('preview artifact validation binds exact files, checksum, run, attempt and 
         ociSha256: createHash('sha256').update(archive).digest('hex'),
         platform: 'linux/amd64',
         pullRequestNumber: 42,
-        repository: 'rentnerproxy/rentnerproxy',
+        repository: 'rentnerproxy/platform',
         runAttempt: 2,
         runId: 303,
         schemaVersion: 1 as const,

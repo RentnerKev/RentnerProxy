@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
     history:
-        if: github.repository == 'RentnerProxy/RentnerProxy' && github.ref == 'refs/heads/main'
+        if: github.repository == 'RentnerProxy/platform' && github.ref == 'refs/heads/main'
         name: Check whether signed publication has been initialized
         runs-on: ubuntu-latest
         timeout-minutes: 5
@@ -26,7 +26,7 @@ jobs:
               id: history
               run: |
                   status=0
-                  remote=$(git ls-remote --exit-code https://github.com/RentnerProxy/RentnerProxy.git refs/heads/package-repository) || status=$?
+                  remote=$(git ls-remote --exit-code https://github.com/RentnerProxy/platform.git refs/heads/package-repository) || status=$?
                   if [[ "$status" == 2 ]]; then
                       printf 'exists=false\n' >> "$GITHUB_OUTPUT"
                   elif [[ "$status" == 0 && "$remote" =~ ^[a-f0-9]{40}[[:space:]]refs/heads/package-repository$ ]]; then
@@ -72,7 +72,7 @@ jobs:
                   PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
                   PACKAGE_SIGNING_FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
                   PACKAGE_PREVIOUS_FINGERPRINTS: ${{ vars.PACKAGE_PREVIOUS_FINGERPRINTS }}
-                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/RentnerProxy' }}
+                  PACKAGE_REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/platform' }}
                   SOURCE_DIRECTORY: ${{ github.workspace }}/automation
                   PUBLIC_DIRECTORY: ${{ runner.temp }}/package-repository/public
               run: bun --no-env-file automation/.github/scripts/distribution/publication.ts refresh
@@ -86,7 +86,7 @@ jobs:
               id: identity
               env:
                   FINGERPRINT: ${{ vars.PACKAGE_SIGNING_FINGERPRINT }}
-                  REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/RentnerProxy' }}
+                  REPOSITORY_URL: ${{ vars.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/platform' }}
               run: |
                   [[ "$FINGERPRINT" =~ ^[A-F0-9]{40}$ ]]
                   printf 'fingerprint=%s\nrepository_url=%s\n' "$FINGERPRINT" "$REPOSITORY_URL" >> "$GITHUB_OUTPUT"

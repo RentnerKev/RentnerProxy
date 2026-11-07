@@ -6,8 +6,7 @@ import { expect, test } from 'bun:test'
 const root = resolve(import.meta.dir, '../../../../..')
 const revision = 'a'.repeat(40)
 const automationRevision = 'b'.repeat(40)
-const workflowRef =
-    'RentnerProxy/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'
+const workflowRef = 'RentnerProxy/platform/.github/workflows/release-recovery.yml@refs/heads/main'
 const publishedAt = '2026-11-06T12:00:00Z'
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
 
@@ -99,7 +98,7 @@ test.each(scenarios)(
                 join(bin, 'gh'),
                 `#!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$1" == api && "$2" == 'repos/RentnerProxy/RentnerProxy/releases/123' ]]
+[[ "$1" == api && "$2" == 'repos/RentnerProxy/platform/releases/123' ]]
 printf 'api\\n' >> "$FIXTURE_EVENTS"
 if [[ "$FIXTURE_FAILURE" == metadata-after-ci && -f "$FIXTURE_CI_PASSED" ]]; then
     printf '124\\t%s\\tfalse\\tfalse\\t%s\\n' "$FIXTURE_TAG" "$FIXTURE_PUBLISHED"
@@ -150,7 +149,7 @@ printf 'ci\\n' >> "$FIXTURE_EVENTS"
             const output = join(directory, 'output')
             await Promise.all([writeFile(events, ''), writeFile(output, '')])
             const input = {
-                GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                GITHUB_REPOSITORY: 'RentnerProxy/platform',
                 GITHUB_EVENT_NAME: 'workflow_dispatch',
                 GITHUB_REF: 'refs/heads/main',
                 GITHUB_WORKFLOW_REF: workflowRef,
@@ -262,7 +261,7 @@ type Workflow = {
 const workflow = async (name: string) =>
     Bun.YAML.parse(await readFile(join(root, '.github/workflows', name), 'utf8')) as Workflow
 
-test('forwards only the named required signing secret across both reusable workflow boundaries', async () => {
+test('forwards named required credentials only to their signing and registry sinks', async () => {
     const [entry, pipeline, signer, recovery] = await Promise.all([
         workflow('release.yml'),
         workflow('release-pipeline.yml'),
@@ -270,18 +269,24 @@ test('forwards only the named required signing secret across both reusable workf
         workflow('release-recovery.yml'),
     ])
     const forwarding = { PACKAGE_SIGNING_KEY: '${{ secrets.PACKAGE_SIGNING_KEY }}' }
-    expect(entry.jobs.release!.secrets).toEqual(forwarding)
+    const registryForwarding = { GHCR_PUBLISH_TOKEN: '${{ secrets.GHCR_PUBLISH_TOKEN }}' }
+    expect(entry.jobs.release!.secrets).toEqual({ ...forwarding, ...registryForwarding })
     expect(entry.jobs.release!.with?.expected_revision).toBe('${{ github.sha }}')
-    expect(recovery.jobs.release!.secrets).toEqual(forwarding)
+    expect(recovery.jobs.release!.secrets).toEqual({ ...forwarding, ...registryForwarding })
     expect(pipeline.jobs['sign-distribution']!.secrets).toEqual(forwarding)
+    expect(pipeline.jobs['publish-image']!.secrets).toEqual(registryForwarding)
     for (const callable of [pipeline, signer]) {
-        expect(Object.keys(callable.on.workflow_call!.secrets ?? {})).toEqual([
-            'PACKAGE_SIGNING_KEY',
-        ])
+        expect(Object.keys(callable.on.workflow_call!.secrets ?? {}).toSorted()).toEqual(
+            callable === pipeline
+                ? ['GHCR_PUBLISH_TOKEN', 'PACKAGE_SIGNING_KEY']
+                : ['PACKAGE_SIGNING_KEY'],
+        )
         expect(callable.on.workflow_call!.secrets?.PACKAGE_SIGNING_KEY?.required).toBeTrue()
     }
     for (const [name, job] of Object.entries(pipeline.jobs)) {
-        if (name !== 'sign-distribution') expect(job.secrets).toBeUndefined()
+        if (name !== 'sign-distribution' && name !== 'publish-image') {
+            expect(job.secrets).toBeUndefined()
+        }
     }
     const preflight = pipeline.jobs['signing-configuration']!
     const configured = { SIGNING_KEY_CONFIGURED: "${{ secrets.PACKAGE_SIGNING_KEY != '' }}" }
@@ -307,7 +312,7 @@ test('limits recovery to trusted main and routes only validated outputs through 
         ),
     )
     const resolver = recovery.jobs.resolve!
-    expect(resolver.if).toContain("github.repository == 'RentnerProxy/RentnerProxy'")
+    expect(resolver.if).toContain("github.repository == 'RentnerProxy/platform'")
     expect(resolver.if).toContain("github.ref == 'refs/heads/main'")
     expect(
         resolver.steps?.some((step) => step.run?.includes('resolve-release-recovery.sh')),
@@ -395,7 +400,7 @@ esac
                         mode === 'moved-after-resolution' ? 'c'.repeat(40) : revision,
                     EXPECTED_REVISION: mode === 'missing-expectation' ? '' : revision,
                     GITHUB_OUTPUT: output,
-                    GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                    GITHUB_REPOSITORY: 'RentnerProxy/platform',
                     RUNNER_TEMP: directory,
                     RELEASE_CHANNEL: 'beta',
                     RELEASE_TAG: 'v1.0.0-beta.3',

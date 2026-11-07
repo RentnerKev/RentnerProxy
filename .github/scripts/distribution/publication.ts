@@ -94,7 +94,7 @@ export async function validateNativeDistributionProofs(
 
 export function maintainerInstructions(): string {
     return `First release setup (owner only; never needed for PR validation):
-1. Enable GitHub Pages with source GitHub Actions in RentnerProxy/RentnerProxy.
+1. Enable GitHub Pages with source GitHub Actions in RentnerProxy/platform.
 2. Protect environment package-signing: restrict deployments to trusted release
    tags/default-branch renewal, add required reviewers if desired, and prevent
    untrusted branches from accessing it. Protect the package-repository branch
@@ -108,7 +108,7 @@ export function maintainerInstructions(): string {
 4. Set environment variable PACKAGE_SIGNING_FINGERPRINT to the complete uppercase
    40-hex PRIMARY fingerprint. Optionally set repository variable
    PACKAGE_REPOSITORY_URL for a configured HTTPS Pages custom domain; default is
-   https://rentnerproxy.github.io/RentnerProxy. Public-key setup is scoped per repo.
+   https://rentnerproxy.github.io/platform. Public-key setup is scoped per repo.
 5. Announce the fingerprint through an independent owner-controlled channel before
    the first release. PRs use disposable fixture keys and never publish a site.
 
@@ -310,7 +310,7 @@ export async function signDistribution(options: {
                 dataLicense: 'CC0-1.0',
                 SPDXID: 'SPDXRef-DOCUMENT',
                 name: 'RentnerProxy ' + options.identity.version + ' Linux ' + architecture,
-                documentNamespace: `https://github.com/RentnerProxy/RentnerProxy/distribution/${options.identity.revision}/${architecture}`,
+                documentNamespace: `https://github.com/RentnerProxy/platform/distribution/${options.identity.revision}/${architecture}`,
                 creationInfo: {
                     creators: ['Tool: RentnerProxy trusted distribution publisher'],
                     created: options.publishedAt,
@@ -357,11 +357,11 @@ export async function signDistribution(options: {
             predicateType: 'https://slsa.dev/provenance/v1',
             predicate: {
                 buildDefinition: {
-                    buildType: 'https://github.com/RentnerProxy/RentnerProxy/linux-distribution/v1',
+                    buildType: 'https://github.com/RentnerProxy/platform/linux-distribution/v1',
                     externalParameters: options.identity,
                     resolvedDependencies: [
                         {
-                            uri: 'git+https://github.com/RentnerProxy/RentnerProxy',
+                            uri: 'git+https://github.com/RentnerProxy/platform',
                             digest: { gitCommit: options.identity.revision },
                         },
                         {
@@ -372,10 +372,10 @@ export async function signDistribution(options: {
                 },
                 runDetails: {
                     builder: {
-                        id: 'https://github.com/RentnerProxy/RentnerProxy/.github/workflows/sign-distribution.yml',
+                        id: 'https://github.com/RentnerProxy/platform/.github/workflows/sign-distribution.yml',
                     },
                     metadata: {
-                        invocationId: `https://github.com/RentnerProxy/RentnerProxy/actions/runs/${options.identity.runId}/attempts/${options.identity.runAttempt}`,
+                        invocationId: `https://github.com/RentnerProxy/platform/actions/runs/${options.identity.runId}/attempts/${options.identity.runAttempt}`,
                     },
                 },
             },
@@ -418,11 +418,7 @@ export async function uploadReleaseAssets(
         await prepareCompactReleaseAssets(directory, staging, tag)
         const release = ociRecord(
             JSON.parse(
-                await command([
-                    'gh',
-                    'api',
-                    'repos/RentnerProxy/RentnerProxy/releases/' + releaseId,
-                ]),
+                await command(['gh', 'api', 'repos/RentnerProxy/platform/releases/' + releaseId]),
             ),
         )
         if (release.tag_name !== tag || release.draft !== false || !Array.isArray(release.assets))
@@ -443,7 +439,7 @@ export async function uploadReleaseAssets(
                     tag,
                     path,
                     '--repo',
-                    'RentnerProxy/RentnerProxy',
+                    'RentnerProxy/platform',
                 ])
         }
     } finally {
@@ -499,7 +495,7 @@ if (import.meta.main) {
                 .filter(Boolean)
                 .map(signingFingerprint),
             baseUrl: repositoryUrl(
-                env.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/RentnerProxy',
+                env.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/platform',
             ),
             publishedAt: ociText(env.RELEASE_PUBLISHED_AT),
         })
@@ -519,7 +515,7 @@ if (import.meta.main) {
                 .map(signingFingerprint),
             source: resolve(ociText(env.SOURCE_DIRECTORY)),
             baseUrl: repositoryUrl(
-                env.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/RentnerProxy',
+                env.PACKAGE_REPOSITORY_URL || 'https://rentnerproxy.github.io/platform',
             ),
         })
     } else if (action === 'upload')

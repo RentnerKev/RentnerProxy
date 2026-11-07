@@ -29,7 +29,7 @@ export default function useApplicationUpdateDialogLogic(
     }, [reference, open])
     const releaseUrl = data?.latest?.url
     const isOfficialUrl = releaseUrl?.startsWith(
-        'https://github.com/RentnerProxy/RentnerProxy/releases/',
+        'https://github.com/RentnerProxy/platform/releases/',
     )
     const copyReference = async () => {
         if (!reference || !open || !active.current) return
@@ -49,7 +49,7 @@ export default function useApplicationUpdateDialogLogic(
             currentVersion: APP_VERSION,
             releaseUrl: isOfficialUrl
                 ? releaseUrl!
-                : 'https://github.com/RentnerProxy/RentnerProxy/releases',
+                : 'https://github.com/RentnerProxy/platform/releases',
             canCopy: open && reference !== null,
         },
         handler: {

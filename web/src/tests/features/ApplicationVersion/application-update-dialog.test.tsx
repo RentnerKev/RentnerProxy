@@ -24,7 +24,7 @@ const result: ApplicationUpdateResult = {
         version: '1.0.0-beta.2',
         tag: 'v1.0.0-beta.2',
         channel: 'beta',
-        url: 'https://github.com/RentnerProxy/RentnerProxy/releases/tag/v1.0.0-beta.2',
+        url: 'https://github.com/RentnerProxy/platform/releases/tag/v1.0.0-beta.2',
         notes: '<img src=x onerror=alert(1)> **Release**',
         image: {
             status: 'verified',
@@ -184,7 +184,7 @@ test('untrusted release links fall back to the official release listing', async 
         latest: { ...result.latest!, url: 'https://example.test/unsafe' },
     })
     expect(dialog.querySelector('a')?.href).toBe(
-        'https://github.com/RentnerProxy/RentnerProxy/releases',
+        'https://github.com/RentnerProxy/platform/releases',
     )
 })
 

@@ -75,8 +75,8 @@ test('repository replay rejects orphaned version, revision and architecture dire
 })
 
 test('pins public repository URLs, file names and scoped key trust', () => {
-    expect(repositoryUrl('https://rentnerproxy.github.io/RentnerProxy/')).toBe(
-        'https://rentnerproxy.github.io/RentnerProxy',
+    expect(repositoryUrl('https://rentnerproxy.github.io/platform/')).toBe(
+        'https://rentnerproxy.github.io/platform',
     )
     expect(repositoryUrl('https://rentnerkev.github.io/RentnerProxy/')).toBe(
         'https://rentnerkev.github.io/RentnerProxy',

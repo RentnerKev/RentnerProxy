@@ -207,10 +207,10 @@ test.skipIf(!enabled)(
                 expected.digest,
             )
             expect(provenance.predicate.runDetails.builder.id).toBe(
-                'https://github.com/RentnerProxy/RentnerProxy/.github/workflows/sign-distribution.yml',
+                'https://github.com/RentnerProxy/platform/.github/workflows/sign-distribution.yml',
             )
             expect(provenance.predicate.buildDefinition.resolvedDependencies[0].uri).toBe(
-                'git+https://github.com/RentnerProxy/RentnerProxy',
+                'git+https://github.com/RentnerProxy/platform',
             )
             expect(provenance.subject).toHaveLength(files.length - 2)
             const renewal = {

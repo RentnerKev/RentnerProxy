@@ -49,7 +49,7 @@ const testedSha = '3'.repeat(40)
 function currentPullRequest() {
     return {
         baseRef: 'main',
-        baseRepository: 'rentnerproxy/rentnerproxy',
+        baseRepository: 'rentnerproxy/platform',
         baseSha,
         draft: false,
         headRepository: 'contributor/rentnerproxy',
@@ -63,7 +63,7 @@ function currentPullRequest() {
 
 const expectedPullRequest = {
     baseRef: 'main',
-    baseRepository: 'rentnerproxy/rentnerproxy',
+    baseRepository: 'rentnerproxy/platform',
     baseSha,
     headRepository: 'contributor/rentnerproxy',
     headSha,
@@ -226,7 +226,7 @@ describe('canonical tested source proof', () => {
             },
         )
         expect(resolved.expected.baseSha).toBe(main)
-        expect(requests).toContain('/repos/rentnerproxy/rentnerproxy/git/ref/heads/main')
+        expect(requests).toContain('/repos/rentnerproxy/platform/git/ref/heads/main')
         expect(requests.some((path) => path.includes('/compare/'))).toBe(false)
         expect(previewLifecycle(resolved.pullRequest, resolved.expected)).toBe('stale')
     })
@@ -243,7 +243,7 @@ describe('canonical tested source proof', () => {
         expect(
             (await resolvePreviewSource(sourceApi(options), triggerRun, proof)).expected.baseSha,
         ).toBe(baseSha)
-        expect(requests).toContain(`/repos/rentnerproxy/rentnerproxy/compare/${baseSha}...${main}`)
+        expect(requests).toContain(`/repos/rentnerproxy/platform/compare/${baseSha}...${main}`)
         await expect(
             resolvePreviewSource(
                 sourceApi({
@@ -465,7 +465,7 @@ describe('obsolete preview lifecycle', () => {
                 const api = fixtureApi((path) => {
                     if (path.endsWith('/git/ref/heads/main'))
                         return { ref: 'refs/heads/main', object: { type: 'commit', sha: baseSha } }
-                    expect(path).toBe('/repos/rentnerproxy/rentnerproxy/pulls/42')
+                    expect(path).toBe('/repos/rentnerproxy/platform/pulls/42')
                     return rawPullRequest(change)
                 })
                 expect(
@@ -514,7 +514,7 @@ describe('obsolete preview lifecycle', () => {
                             conclusion: 'failure',
                             app: { id: 123 },
                             details_url:
-                                'https://github.com/rentnerproxy/rentnerproxy/actions/runs/1/job/2',
+                                'https://github.com/rentnerproxy/platform/actions/runs/1/job/2',
                         },
                     ],
                 }
@@ -626,7 +626,7 @@ describe('preview branch freshness lifecycle', () => {
                                 conclusion: 'success',
                                 app: { id: 123 },
                                 details_url:
-                                    'https://github.com/rentnerproxy/rentnerproxy/actions/runs/11/job/12',
+                                    'https://github.com/rentnerproxy/platform/actions/runs/11/job/12',
                             },
                         ],
                     }
@@ -908,7 +908,7 @@ describe('PR preview identity', () => {
                         ],
                         {
                             env: {
-                                REPOSITORY: 'RentnerProxy/RentnerProxy',
+                                REPOSITORY: 'RentnerProxy/platform',
                                 PR_NUMBER: '42',
                                 TESTED_SHA: testedSha,
                                 GITHUB_RUN_ID: '7001',
@@ -931,7 +931,7 @@ describe('PR preview identity', () => {
     })
 
     test('generates only moving and immutable PR tags from validated metadata', () => {
-        const identity = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2)
+        const identity = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 2)
 
         expect(identity).toEqual({
             image: 'ghcr.io/rentnerkev/rentnerproxy',
@@ -940,7 +940,7 @@ describe('PR preview identity', () => {
             movingReference: 'ghcr.io/rentnerkev/rentnerproxy:pr-42',
             movingTag: 'pr-42',
             pullRequestNumber: 42,
-            repository: 'rentnerproxy/rentnerproxy',
+            repository: 'rentnerproxy/platform',
             shortTestedSha: testedSha.slice(0, 12),
             testedSha,
         })
@@ -964,19 +964,19 @@ describe('PR preview identity', () => {
     })
 
     test('gives each rebuild and rerun its own immutable tag while keeping the PR channel', () => {
-        const first = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 1)
-        const rerun = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2)
-        const rebuild = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7002, 1)
+        const first = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 1)
+        const rerun = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 2)
+        const rebuild = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7002, 1)
         expect(new Set([first.immutableTag, rerun.immutableTag, rebuild.immutableTag]).size).toBe(3)
         expect(rerun.movingReference).toBe(first.movingReference)
         expect(rebuild.movingReference).toBe(first.movingReference)
         expect(rerun.testedSha).toBe(first.testedSha)
         for (const value of [undefined, 0, -1, '01', '1;latest', Number.MAX_SAFE_INTEGER + 1]) {
             expect(() =>
-                createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, value, 1),
+                createPreviewIdentity('RentnerProxy/platform', 42, testedSha, value, 1),
             ).toThrow()
             expect(() =>
-                createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, value),
+                createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, value),
             ).toThrow()
         }
         const plan = {
@@ -993,7 +993,7 @@ describe('PR preview identity', () => {
             expect(() =>
                 assertPreviewPublishPlan(
                     plan,
-                    'RentnerProxy/RentnerProxy',
+                    'RentnerProxy/platform',
                     42,
                     testedSha,
                     runId,
@@ -1063,7 +1063,7 @@ describe('PR preview identity', () => {
     })
 
     test('rejects registry, repository, destination, and third-tag overrides', () => {
-        const identity = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2)
+        const identity = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 2)
         const plan = {
             image: identity.image,
             immutableReference: identity.immutableReference,
@@ -1073,11 +1073,11 @@ describe('PR preview identity', () => {
         }
 
         expect(
-            assertPreviewPublishPlan(plan, 'RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2),
+            assertPreviewPublishPlan(plan, 'RentnerProxy/platform', 42, testedSha, 7001, 2),
         ).toEqual(identity)
         for (const override of [
             { image: 'ghcr.io/attacker/rentnerproxy' },
-            { image: 'registry.example/rentnerproxy/rentnerproxy' },
+            { image: 'registry.example/rentnerproxy/platform' },
             { immutableReference: 'ghcr.io/rentnerkev/rentnerproxy:latest' },
             { immutableTag: 'v1.2.3' },
             { movingReference: 'ghcr.io/rentnerkev/rentnerproxy:dev' },
@@ -1087,7 +1087,7 @@ describe('PR preview identity', () => {
             expect(() =>
                 assertPreviewPublishPlan(
                     { ...plan, ...override },
-                    'RentnerProxy/RentnerProxy',
+                    'RentnerProxy/platform',
                     42,
                     testedSha,
                     7001,
@@ -1098,7 +1098,7 @@ describe('PR preview identity', () => {
         expect(() =>
             assertPreviewPublishPlan(
                 { ...plan, thirdTag: 'latest' },
-                'RentnerProxy/RentnerProxy',
+                'RentnerProxy/platform',
                 42,
                 testedSha,
                 7001,
@@ -1108,9 +1108,9 @@ describe('PR preview identity', () => {
 
         for (const repository of [
             'ghcr.io/rentnerkev/rentnerproxy',
-            'rentnerproxy/rentnerproxy:latest',
+            'rentnerproxy/platform:latest',
             'rentnerkev/other/rentnerproxy',
-            'rentnerproxy/rentnerproxy\nattacker/repository',
+            'rentnerproxy/platform\nattacker/repository',
         ]) {
             expect(() => createPreviewIdentity(repository, 42, testedSha, 7001, 2)).toThrow()
         }
@@ -1128,10 +1128,9 @@ describe('PR preview identity', () => {
     })
 
     test('accepts only exact base-repository GitHub Actions job provenance', () => {
-        const detailsUrl =
-            'https://github.com/RentnerProxy/RentnerProxy/actions/runs/123456/job/789012'
+        const detailsUrl = 'https://github.com/RentnerProxy/platform/actions/runs/123456/job/789012'
 
-        expect(actionsRunIdFromDetailsUrl(detailsUrl, 'RentnerProxy/RentnerProxy')).toBe(123_456)
+        expect(actionsRunIdFromDetailsUrl(detailsUrl, 'RentnerProxy/platform')).toBe(123_456)
         expect(normalizeWorkflowPath('.github/workflows/ci.yml')).toBe('.github/workflows/ci.yml')
         expect(normalizeWorkflowPath('.github/workflows/ci.yml@refs/pull/42/merge')).toBe(
             '.github/workflows/ci.yml',
@@ -1139,8 +1138,8 @@ describe('PR preview identity', () => {
         expect(() => actionsRunIdFromDetailsUrl(detailsUrl, 'other/repository')).toThrow()
         expect(() =>
             actionsRunIdFromDetailsUrl(
-                'https://evil.example/RentnerProxy/RentnerProxy/actions/runs/123456/job/789012',
-                'RentnerProxy/RentnerProxy',
+                'https://evil.example/RentnerProxy/platform/actions/runs/123456/job/789012',
+                'RentnerProxy/platform',
             ),
         ).toThrow()
         expect(() => normalizeWorkflowPath('.github/workflows/../ci.yml')).toThrow()
@@ -1232,7 +1231,7 @@ describe('required check evaluation', () => {
         {
             appId: 15_368,
             conclusion: 'success',
-            detailsUrl: 'https://github.com/RentnerProxy/RentnerProxy/actions/runs/10/job/1',
+            detailsUrl: 'https://github.com/RentnerProxy/platform/actions/runs/10/job/1',
             id: 1,
             name: 'Format',
             status: 'completed',
@@ -1240,7 +1239,7 @@ describe('required check evaluation', () => {
         {
             appId: 15_368,
             conclusion: 'success',
-            detailsUrl: 'https://github.com/RentnerProxy/RentnerProxy/actions/runs/11/job/2',
+            detailsUrl: 'https://github.com/RentnerProxy/platform/actions/runs/11/job/2',
             id: 2,
             name: 'CodeQL (Rust)',
             status: 'completed',
@@ -1292,7 +1291,7 @@ describe('required check evaluation', () => {
             {
                 appId: 15_368,
                 conclusion: 'failure',
-                detailsUrl: 'https://github.com/RentnerProxy/RentnerProxy/actions/runs/12/job/100',
+                detailsUrl: 'https://github.com/RentnerProxy/platform/actions/runs/12/job/100',
                 id: 100,
                 name: 'Format',
                 status: 'completed',
@@ -1414,7 +1413,7 @@ describe('artifact metadata and marker comment', () => {
             ociSha256: '4'.repeat(64),
             platform: 'linux/amd64',
             pullRequestNumber: 42,
-            repository: 'rentnerproxy/rentnerproxy',
+            repository: 'rentnerproxy/platform',
             runAttempt: 1,
             runId: 123,
             schemaVersion: 1,
@@ -1468,7 +1467,7 @@ describe('artifact metadata and marker comment', () => {
     })
 
     test('parses multiline API comments and selects only the latest trusted preview', () => {
-        const identity = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2)
+        const identity = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 2)
         const body = renderPreviewComment(identity, headSha, `sha256:${'5'.repeat(64)}`)
         const comments = [
             {
@@ -1515,7 +1514,7 @@ describe('artifact metadata and marker comment', () => {
     })
 
     test('renders reproducible commands and mandatory safety warnings', () => {
-        const identity = createPreviewIdentity('RentnerProxy/RentnerProxy', 42, testedSha, 7001, 2)
+        const identity = createPreviewIdentity('RentnerProxy/platform', 42, testedSha, 7001, 2)
         const body = renderPreviewComment(identity, headSha, `sha256:${'5'.repeat(64)}`)
 
         expect(body).toStartWith(PREVIEW_COMMENT_MARKER)

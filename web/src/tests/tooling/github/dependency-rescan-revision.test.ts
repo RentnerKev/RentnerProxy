@@ -291,7 +291,7 @@ exit "$result"
                             RESCAN_SCRIPT: shellPath(
                                 join(root, '.github/scripts/security/rescan-dev-image.sh'),
                             ),
-                            GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+                            GITHUB_REPOSITORY: 'RentnerProxy/platform',
                             AUTOMATION_DIRECTORY: 'automation',
                             REPORT_DIRECTORY: 'reports',
                             CONFIG_JSON: scenario.config,

@@ -10,6 +10,6 @@ export const CURRENT_COMPATIBILITY_PROFILE = {
     backup: { writtenVersion: 4, acceptedVersions: [4] },
 } as const
 
-export const RELEASE_REPOSITORY = 'RentnerProxy/RentnerProxy'
+export const RELEASE_REPOSITORY = 'RentnerProxy/platform'
 export const RELEASE_IMAGE = 'ghcr.io/rentnerkev/rentnerproxy'
 export const READINESS_ASSET = 'rentnerproxy-update.json'

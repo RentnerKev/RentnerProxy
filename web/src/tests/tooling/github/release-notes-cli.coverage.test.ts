@@ -13,7 +13,7 @@ test('release notes CLI writes reviewed outputs from an offline API and rejects 
     const config = join(directory, 'config.json')
     const environment = {
         ...process.env,
-        GITHUB_REPOSITORY: 'RentnerProxy/RentnerProxy',
+        GITHUB_REPOSITORY: 'RentnerProxy/platform',
         GITHUB_TOKEN: 'synthetic-offline-token',
         RELEASE_TAG: 'v1.2.3',
         RELEASE_PUBLISHED_AT: '2026-10-29T00:00:00.000Z',

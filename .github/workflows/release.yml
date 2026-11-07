@@ -45,6 +45,7 @@ jobs:
             id-token: write
         uses: ./.github/workflows/release-pipeline.yml
         secrets:
+            GHCR_PUBLISH_TOKEN: ${{ secrets.GHCR_PUBLISH_TOKEN }}
             PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
         with:
             channel: ${{ needs.classify.outputs.channel }}

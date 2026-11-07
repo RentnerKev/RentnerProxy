@@ -3,6 +3,8 @@ name: RentnerProxy Release Pipeline
 on:
     workflow_call:
         secrets:
+            GHCR_PUBLISH_TOKEN:
+                required: true
             PACKAGE_SIGNING_KEY:
                 required: true
         inputs:
@@ -44,10 +46,10 @@ jobs:
     signing-configuration:
         name: Check protected signing configuration
         if: >-
-            github.repository == 'RentnerProxy/RentnerProxy' &&
+            github.repository == 'RentnerProxy/platform' &&
             ((github.event_name == 'release' && github.event.action == 'published') ||
              (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
-              github.workflow_ref == 'RentnerProxy/RentnerProxy/.github/workflows/release-recovery.yml@refs/heads/main'))
+              github.workflow_ref == 'RentnerProxy/platform/.github/workflows/release-recovery.yml@refs/heads/main'))
         runs-on: ubuntu-latest
         timeout-minutes: 5
         environment: package-signing
@@ -213,6 +215,8 @@ jobs:
             contents: read
             packages: write
         uses: ./.github/workflows/publish-assessed-image.yml
+        secrets:
+            GHCR_PUBLISH_TOKEN: ${{ secrets.GHCR_PUBLISH_TOKEN }}
         with:
             revision: ${{ needs.prepare.outputs.revision }}
             image: ${{ needs.prepare.outputs.image }}

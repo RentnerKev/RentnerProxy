@@ -18,7 +18,7 @@ verify_release_tag_revision() {
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
     : "${RELEASE_TAG:?}" "${REVISION:?}"
-    verify_release_tag_revision https://github.com/RentnerProxy/RentnerProxy.git "$RELEASE_TAG" "$REVISION" || {
+    verify_release_tag_revision https://github.com/RentnerProxy/platform.git "$RELEASE_TAG" "$REVISION" || {
         printf '%s\n' 'Release tag no longer targets the assessed source.' >&2
         exit 1
     }

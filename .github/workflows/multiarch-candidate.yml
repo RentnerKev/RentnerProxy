@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
     candidate:
-        if: github.repository == 'RentnerProxy/RentnerProxy'
+        if: github.repository == 'RentnerProxy/platform'
         uses: ./.github/workflows/build-assessed-image.yml
         permissions:
             contents: read

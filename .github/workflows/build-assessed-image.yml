@@ -43,7 +43,7 @@ permissions: {}
 
 jobs:
     amd64:
-        if: github.repository == 'RentnerProxy/RentnerProxy'
+        if: github.repository == 'RentnerProxy/platform'
         permissions:
             contents: read
         uses: ./.github/workflows/build-assessed-platform.yml
@@ -59,7 +59,7 @@ jobs:
             release_tag: ${{ inputs.release_tag }}
 
     arm64:
-        if: github.repository == 'RentnerProxy/RentnerProxy'
+        if: github.repository == 'RentnerProxy/platform'
         permissions:
             contents: read
         uses: ./.github/workflows/build-assessed-platform.yml
