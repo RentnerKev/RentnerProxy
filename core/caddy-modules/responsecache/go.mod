@@ -2,7 +2,7 @@ module github.com/RentnerProxy/platform/core/caddy-modules/responsecache
 
 go 1.27.3
 
-require github.com/caddyserver/caddy/v2 v2.11.7
+require github.com/caddyserver/caddy/v2 v2.11.9
 
 require (
 	cel.dev/cel-go v0.33.2 // indirect
