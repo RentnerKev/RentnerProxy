@@ -11,7 +11,7 @@ FROM mirror.gcr.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # Apply the reviewed reload-lifecycle backport to a verified upstream copy.
 # Their optional AppSec and Layer 4 modules remain unconfigured.
-FROM mirror.gcr.io/library/caddy:2.11.7-builder@sha256:c4cd20eaa0b69112fd5d4f721ffc9671687e1d5d0b155c8620cf7546dbef94c0 AS caddy-build
+FROM mirror.gcr.io/library/caddy:2.11.9-builder@sha256:3fddbec729442a56b942d4c9eaef1df80893dbf2cf5b86701bfae6aad1408eeb AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
