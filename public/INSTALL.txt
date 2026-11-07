@@ -5,14 +5,14 @@ The image is pinned to the assessed GHCR digest, including all bundled services.
 
 First verify the fingerprint through the owner/release announcement independently:
 517046BFFA2C01095A641E07F8E716383322D7C3
-curl --fail --location --proto '=https' 'https://rentnerproxy.github.io/RentnerProxy/keys/517046BFFA2C01095A641E07F8E716383322D7C3.asc' -o rentnerproxy.asc
+curl --fail --location --proto '=https' 'https://rentnerproxy.github.io/platform/keys/517046BFFA2C01095A641E07F8E716383322D7C3.asc' -o rentnerproxy.asc
 gpg --show-keys --with-fingerprint rentnerproxy.asc
 Compare the FULL fingerprint above before trusting this key. No apt-key/global trust.
 
 Debian 13 (choose stable, beta or alpha; beta also receives stable releases):
 gpg --dearmor --output rentnerproxy.gpg rentnerproxy.asc
 sudo install -m 0644 rentnerproxy.gpg /usr/share/keyrings/rentnerproxy.gpg
-echo 'deb [signed-by=/usr/share/keyrings/rentnerproxy.gpg] https://rentnerproxy.github.io/RentnerProxy/apt beta main' | sudo tee /etc/apt/sources.list.d/rentnerproxy.list
+echo 'deb [signed-by=/usr/share/keyrings/rentnerproxy.gpg] https://rentnerproxy.github.io/platform/apt beta main' | sudo tee /etc/apt/sources.list.d/rentnerproxy.list
 sudo apt-get update && sudo apt-get install rentnerproxy
 
 Fedora 44:
@@ -20,7 +20,7 @@ sudo install -m 0644 rentnerproxy.asc /etc/pki/rpm-gpg/RPM-GPG-KEY-rentnerproxy
 sudo tee /etc/yum.repos.d/rentnerproxy.repo <<'REPO'
 [rentnerproxy]
 name=RentnerProxy beta
-baseurl=https://rentnerproxy.github.io/RentnerProxy/rpm/beta/$basearch
+baseurl=https://rentnerproxy.github.io/platform/rpm/beta/$basearch
 enabled=1
 gpgcheck=1
 repo_gpgcheck=1

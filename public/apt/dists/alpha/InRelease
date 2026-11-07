@@ -7,8 +7,8 @@ Suite: alpha
 Codename: alpha
 Architectures: amd64 arm64
 Components: main
-Valid-Until: Sat, 12 Dec 2026 14:39:03 GMT
-Date: Sat, 07 Nov 2026 14:39:03 +0000
+Valid-Until: Sat, 12 Dec 2026 16:57:43 GMT
+Date: Sat, 07 Nov 2026 16:57:43 +0000
 MD5Sum:
  890634a46d60899144be1e40f3e7037b              887 main/binary-amd64/Packages
  74e26d11ac1e5a6f4c932001394f5c90              630 main/binary-amd64/Packages.gz
@@ -31,17 +31,17 @@ SHA512:
  6790533a999ba9a41080b392c01ed16a4ecb2287e19127463d237a908ac752d08016e41100f03bc173a7e3cceb20017a3c0d50a53eaaec7c4ed35854eecf5db3              628 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEHDH7A2IKyeXyTyzwjhqMvhtoLLsFAmrvOAcACgkQjhqMvhto
-LLt9nw/6AyDMpbVSFQLz9YNTbdDvxKnFXO+FQDdOKiPhV4kyjX41UeuNAuCiLuh6
-fqXC2uCEaV8n+ieZXqh4q+TYZBQaz/nOAqR5ZgXIbNOjM+5vlyVU0vQogk3Zt7Up
-MIefzcygURaOKKgb6Sb+2E7lCabOfmIaKgoQ3FRTp90rbiL/PugWfemDhII8q4rL
-PgIuTJogGsEhzxFl8yqCLLceJI9hMzi7Jbl42HdY8G8CiZ0tGBFMiuaLrNwjB7km
-HdSMK/MZqh2Zx3ByJEntGvD4Gy1JC5g95K/SgUU2igyyvo7Brj0Zvlq1ER2lEggB
-yZDSqEIwUckr/QniCBged4jIPXVXYvnz4EA8egDby8Gc2JyN76U+Xmkh+xrawKyh
-5/lRkjS0e3XaQ3XI0RhZzZnCsxXy7Skaz5WBzeS/AbJp0RikRcF+p7msdLR/Xrij
-pWciqgG2d3zpZShISFxBGsCT7y/iDAmgP4NX44wLH4FG12IGYt0NS6ep/hk8rh/a
-Cf1V+1ka0L5RQRBwTDX0hXOCeEV3brG3UvWcxdm747t5S8oQZek13C0fbuBpanFT
-TqUj1QcZlO176zBwHizHjehyA3qicvjWnZPJhrZoW5tJQLDPuQu7UWaZvvxMfmv+
-vyXDVBqtHWV09YUr6GghPRpZrbBT5hNH9LGSxzYw55nMu7uuBBA=
-=J7z5
+iQIzBAEBCgAdFiEEHDH7A2IKyeXyTyzwjhqMvhtoLLsFAmrvWIcACgkQjhqMvhto
+LLskJg//cedfznThxnbJOddpHYLPwLPh+jBravzEoDVa9+grZZYgN3mJItcIpnU1
+1rnhszHrSWLx/recfEdcpYphRDEM63TQmLvN7rPba3gSPltqjSfd8OeFdBA/EUQe
+wcdHCT4AwHwCAd7HhMrkKYK1bhsf/5JCnANJkqdFF4lbMCfni4U1PLzg+RiU1oWB
+bZfkhxLcVlLekcXAYE+altr/pI9J5ocu3u7chEkXXfzuQJCywGpEcGhgg5L3A69h
+QDXD2VRFtYcxVb+U6Dsk+eYNoZ0jgSWP+UrqRApE76HyYjSZjRa+dM7v3XP3hL6u
+8ajtFWEl5sXpT08DER8BP+JmTqGRkxzUCnVZxjTouy0FRXBGAluvDPgUc5OetMQM
+SJK1CVqcCpGlIX5dTrkimC9qE1qxjRVm7ZpRbnkcRAtnUNmhW2eVL3daLMOJHCvr
+gTM7hlNbPZhVcyHV5ynhv7m5jBGzjWPs743LNgsOIClPxxWeFg0gzkdTbM+eeOXc
+Ug9iRmXzLcHGLh4l157IS/1ljrk/q4jPy4NrNiCTAhY03DakESXU0IYdmz5Mv1Qh
+mZHFZQ/mDia9htVY/CL/tqRaNmtHVHar0jWbSQcisQ/GgeUtC8BtS+M3agrF0jBX
+C+ZHPjMyzLPYvtuNKvEDvDGiz4wnteSNJlSlI6HXiN10ya6FWxU=
+=PclN
 -----END PGP SIGNATURE-----
